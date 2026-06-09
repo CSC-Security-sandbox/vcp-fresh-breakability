@@ -640,7 +640,7 @@ func _deletingSVMs(ctx context.Context, se database.Storage, pool *datamodel.Poo
 	}
 	for _, svm := range svms {
 		// Check if the SVM is already marked for deletion
-		if svm.State == models.LifeCycleStateDeleting {
+		if svm.State == datamodel.LifeCycleStateDeleting {
 			continue
 		}
 		if err = se.DeletingSVM(ctx, svm); err != nil {
@@ -686,10 +686,10 @@ func _failedSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 	}
 	for _, svm := range svms {
 		// Check if the SVM is already marked for deletion
-		if svm.State == models.LifeCycleStateDeleting {
-			svm.State = models.LifeCycleStateError
-			svm.StateDetails = models.LifeCycleStateDeletionErrorDetails
-			err = se.ErroredSVM(ctx, svm, models.LifeCycleStateDeletionErrorDetails)
+		if svm.State == datamodel.LifeCycleStateDeleting {
+			svm.State = datamodel.LifeCycleStateError
+			svm.StateDetails = datamodel.LifeCycleStateDeletionErrorDetails
+			err = se.ErroredSVM(ctx, svm, datamodel.LifeCycleStateDeletionErrorDetails)
 			if err != nil {
 				return err
 			}
@@ -762,7 +762,7 @@ func (j *SvmActivity) MarkSvmAsErroredForDeletion(ctx context.Context, svm *data
 			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
 	}
 	if errMessage == "" {
-		errMessage = models.LifeCycleStateDeletionErrorDetails
+		errMessage = datamodel.LifeCycleStateDeletionErrorDetails
 	}
 	if err := j.SE.ErroredSVM(ctx, svm, errMessage); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -803,7 +803,7 @@ func (j *SvmActivity) MarkSvmAsErroredForCreation(ctx context.Context, svm *data
 			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
 	}
 	if errMessage == "" {
-		errMessage = models.LifeCycleStateCreationErrorDetails
+		errMessage = datamodel.LifeCycleStateCreationErrorDetails
 	}
 	if err := j.SE.ErroredSVM(ctx, svm, errMessage); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)

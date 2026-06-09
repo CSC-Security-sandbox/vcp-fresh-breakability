@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewKmsMigrateHandler() *KmsMigrateHandler {
 }
 
 // JobTypes enumerates the job types supported by the KMS migrate handler.
-func (h *KmsMigrateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeMigrateKmsConfig,
+func (h *KmsMigrateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeMigrateKmsConfig,
 	}
 }
 
@@ -56,7 +55,7 @@ func (h *KmsMigrateHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	}
 
 	// Only revert if KMS config is in MIGRATING state
-	if kmsConfig.State != models.LifeCycleStateMigrating {
+	if kmsConfig.State != datamodel.LifeCycleStateMigrating {
 		logger.Warnf("workflow-supervisor-task: KMS config %s not in MIGRATING state (%s); skipping migrate cleanup", kmsConfig.UUID, kmsConfig.State)
 		return nil
 	}
@@ -67,8 +66,8 @@ func (h *KmsMigrateHandler) Handle(ctx context.Context, job *datamodel.Job, even
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for KMS config %s, defaulting to READY", kmsConfig.UUID)
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateReadyDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateReadyDetails
 	}
 
 	if _, err := storage.UpdateKmsConfigState(ctx, kmsConfig.UUID, previousState, previousStateDetails); err != nil {

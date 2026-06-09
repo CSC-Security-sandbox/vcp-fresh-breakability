@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,9 +17,9 @@ func TestReplicationUpdateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 3)
-	require.Contains(t, jobTypes, models.JobTypeUpdateVolumeReplicationInternal)
-	require.Contains(t, jobTypes, models.JobTypeUpdateVolumeReplication)
-	require.Contains(t, jobTypes, models.JobTypeUpdateVolumeReplicationAttributes)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateVolumeReplicationInternal)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateVolumeReplication)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateVolumeReplicationAttributes)
 }
 
 func TestNewReplicationUpdateHandler(t *testing.T) {
@@ -92,7 +91,7 @@ func TestReplicationUpdateHandler_Handle_SkipsNonUpdatingState(t *testing.T) {
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateAvailable,
+		State:     datamodel.LifeCycleStateAvailable,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 
@@ -105,8 +104,8 @@ func TestReplicationUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 	storage := database.NewMockStorage(t)
 	handler := NewReplicationUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -118,7 +117,7 @@ func TestReplicationUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
@@ -142,11 +141,11 @@ func TestReplicationUpdateHandler_Handle_SuccessWithFallbackToAvailable(t *testi
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
-		return r.State == models.LifeCycleStateAvailable && r.StateDetails == models.LifeCycleStateAvailableDetails
+		return r.State == datamodel.LifeCycleStateAvailable && r.StateDetails == datamodel.LifeCycleStateAvailableDetails
 	})).Return(nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -157,8 +156,8 @@ func TestReplicationUpdateHandler_Handle_UpdateReplicationStatesError(t *testing
 	storage := database.NewMockStorage(t)
 	handler := NewReplicationUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -170,7 +169,7 @@ func TestReplicationUpdateHandler_Handle_UpdateReplicationStatesError(t *testing
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
@@ -186,7 +185,7 @@ func TestReplicationUpdateHandler_Handle_UpdateVolumeReplicationAttributesJobTyp
 	handler := NewReplicationUpdateHandler()
 
 	job := &datamodel.Job{
-		Type: string(models.JobTypeUpdateVolumeReplicationAttributes),
+		Type: string(datamodel.JobTypeUpdateVolumeReplicationAttributes),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "replication-uuid",
 		},
@@ -194,7 +193,7 @@ func TestReplicationUpdateHandler_Handle_UpdateVolumeReplicationAttributesJobTyp
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.Anything).Return(nil).Once()
@@ -208,7 +207,7 @@ func TestReplicationUpdateHandler_Handle_UpdateVolumeReplicationInternalJobType(
 	handler := NewReplicationUpdateHandler()
 
 	job := &datamodel.Job{
-		Type: string(models.JobTypeUpdateVolumeReplicationInternal),
+		Type: string(datamodel.JobTypeUpdateVolumeReplicationInternal),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "replication-uuid",
 		},
@@ -216,7 +215,7 @@ func TestReplicationUpdateHandler_Handle_UpdateVolumeReplicationInternalJobType(
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.Anything).Return(nil).Once()

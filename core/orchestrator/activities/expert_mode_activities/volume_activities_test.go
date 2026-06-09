@@ -88,7 +88,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB — same as mocked ONTAP size (exact match; not exercising size tolerance)
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -128,7 +128,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 		assert.Equal(tt, "test-volume", result.Name)
 		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
 		assert.Equal(tt, "flexgroup", result.Style)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -155,7 +155,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "vol_fg_8",
 			SizeInBytes:  dbWant,
 			Style:        "flexvol", // DB can lag ONTAP during create
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -217,7 +217,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "non-existent-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -278,7 +278,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 		}
 
@@ -328,7 +328,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -391,7 +391,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 			Svm:          nil, // No SVM
 		}
@@ -429,7 +429,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 		assert.Equal(tt, "test-volume", result.Name)
 		assert.Equal(tt, int64(1099511627776), result.SizeInBytes)
 		assert.Equal(tt, "flexvol", result.Style)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -455,7 +455,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			Name:         "non-existent-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -685,7 +685,7 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552, // 2TB
 			Style:       "flexgroup",
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		updatedVolume := &datamodel.ExpertModeVolumes{
@@ -695,7 +695,7 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexgroup",
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		// Mock UpdateExpertModeVolume
@@ -725,7 +725,7 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexgroup",
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		expectedError := errors.New("database update failed")
@@ -752,9 +752,9 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 		env.RegisterActivity(activity.UpdateExpertModeVolumeInDB)
 
 		states := []string{
-			models.LifeCycleStateCreating,
-			models.LifeCycleStateAvailable,
-			models.LifeCycleStateDeleted,
+			datamodel.LifeCycleStateCreating,
+			datamodel.LifeCycleStateAvailable,
+			datamodel.LifeCycleStateDeleted,
 		}
 
 		for _, state := range states {
@@ -813,7 +813,7 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 					Name:        "test-volume",
 					SizeInBytes: 1099511627776,
 					Style:       style,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 				}
 
 				updatedVolume := &datamodel.ExpertModeVolumes{
@@ -823,7 +823,7 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 					Name:        "test-volume",
 					SizeInBytes: 1099511627776,
 					Style:       style,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 				}
 
 				// Mock UpdateExpertModeVolume
@@ -850,13 +850,13 @@ func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
 		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
 
 		volumeUUID := "emv-uuid-123"
-		state := models.LifeCycleStateREADY
+		state := datamodel.LifeCycleStateREADY
 
 		volume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
 			ExternalUUID: "ext-uuid-123",
 			Name:         "test-vol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			Style:        "flexvol",
 		}
 		updatedVolume := &datamodel.ExpertModeVolumes{
@@ -888,7 +888,7 @@ func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
 		getErr := errors.New("volume not found")
 		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(nil, getErr)
 
-		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, models.LifeCycleStateREADY)
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, datamodel.LifeCycleStateREADY)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume not found")
 		mockStorage.AssertExpectations(tt)
@@ -906,13 +906,13 @@ func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
 			ExternalUUID: "ext-uuid-789",
 			Name:         "test-vol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 		updateErr := errors.New("database update failed")
 		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(volume, nil)
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.Anything).Return(nil, updateErr)
 
-		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, models.LifeCycleStateREADY)
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, datamodel.LifeCycleStateREADY)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "database update failed")
 		mockStorage.AssertExpectations(tt)
@@ -942,7 +942,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -993,7 +993,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1045,7 +1045,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1109,7 +1109,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 		}
 
@@ -1151,7 +1151,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1207,7 +1207,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm:          nil, // No SVM
 		}
@@ -1256,7 +1256,7 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			ExternalUUID: "original-uuid",
 			Svm:          nil, // No SVM
 		}
@@ -1389,7 +1389,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1424,7 +1424,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "test-volume", result.Name)
 		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 	})
 
 	t.Run("WhenOntapSizeWithinTolerance_ReturnsOntapSizeNotDbSize", func(tt *testing.T) {
@@ -1445,7 +1445,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  dbSize,
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1495,7 +1495,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1556,7 +1556,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1617,7 +1617,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552,
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1671,7 +1671,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552,
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1726,7 +1726,7 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB
 			Style:        "flexgroup",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "external-uuid-123",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1797,7 +1797,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB — same as mocked ONTAP size (exact match; not exercising size tolerance)
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1862,7 +1862,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "non-existent-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "non-existent-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -1923,7 +1923,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
 		}
 
@@ -1974,7 +1974,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -2038,7 +2038,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
 			Svm:          nil, // No SVM
 		}
@@ -2101,7 +2101,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "non-existent-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "non-existent-uuid",
 			Svm: &datamodel.Svm{
 				Name: "test-svm",
@@ -2162,7 +2162,7 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
 			Description:  "my volume",
 			AccountID:    1,
@@ -2206,7 +2206,7 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 		// From ontap response
 		assert.Equal(tt, "test-volume-updated", result.Name)
 		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 		// From input volume (db)
 		assert.Equal(tt, "volume-uuid-123", result.UUID)
 		assert.Equal(tt, "external-uuid-456", result.ExternalUUID)
@@ -2349,7 +2349,7 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "ontap-volume-name", result.Name)
 		assert.Equal(tt, int64(1099511627776), result.SizeInBytes)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 		assert.Equal(tt, "volume-uuid-123", result.UUID)
 		assert.Nil(tt, result.Svm)
 	})
@@ -2502,7 +2502,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB(t *testing.T) {
 		currentVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
 			ExternalUUID: "ontap-vol-uuid",
-			State:        models.LifeCycleStateUpdating,
+			State:        datamodel.LifeCycleStateUpdating,
 			SizeInBytes:  100,
 			SharedBytes:  11,
 			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
@@ -2515,7 +2515,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB(t *testing.T) {
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
 			return v.UUID == volumeUUID &&
 				v.SizeInBytes == int64(2048) &&
-				v.State == models.LifeCycleStateAvailable &&
+				v.State == datamodel.LifeCycleStateAvailable &&
 				v.SharedBytes == int64(0) &&
 				v.VolumeAttributes != nil &&
 				!v.VolumeAttributes.IsFlexclone &&
@@ -2538,7 +2538,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB(t *testing.T) {
 		currentVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
 			ExternalUUID: "ontap-vol-uuid",
-			State:        models.LifeCycleStateUpdating,
+			State:        datamodel.LifeCycleStateUpdating,
 			SizeInBytes:  8192,
 			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
 				IsFlexclone: true,
@@ -2549,7 +2549,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB(t *testing.T) {
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
 			return v.UUID == volumeUUID &&
 				v.SizeInBytes == int64(4096) &&
-				v.State == models.LifeCycleStateAvailable &&
+				v.State == datamodel.LifeCycleStateAvailable &&
 				v.VolumeAttributes != nil &&
 				!v.VolumeAttributes.IsFlexclone
 		})).Return(currentVolume, nil)
@@ -2874,7 +2874,7 @@ func TestRecoverExpertModeVolumeAfterFlexCloneSplitFailure(t *testing.T) {
 		}
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
 			return v.UUID == "vol-uuid" &&
-				v.State == models.LifeCycleStateAvailable &&
+				v.State == datamodel.LifeCycleStateAvailable &&
 				v.SharedBytes == int64(0)
 		})).Return(nil, errors.New("update failed"))
 
@@ -2901,7 +2901,7 @@ func TestRecoverExpertModeVolumeAfterFlexCloneSplitFailure(t *testing.T) {
 		node := &models.Node{Name: "node-1"}
 		dbVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 
 		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-uuid").Return(dbVolume, nil)
@@ -2922,7 +2922,7 @@ func TestRecoverExpertModeVolumeAfterFlexCloneSplitFailure(t *testing.T) {
 
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
 			return v.UUID == "vol-uuid" &&
-				v.State == models.LifeCycleStateAvailable &&
+				v.State == datamodel.LifeCycleStateAvailable &&
 				v.SharedBytes == int64(4096)
 		})).Return(dbVolume, nil)
 
@@ -2958,7 +2958,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB_ErrorAndNilAttributes(t *testing.T
 
 		dbVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:        datamodel.BaseModel{UUID: "vol-with-nil-attrs"},
-			State:            models.LifeCycleStateUpdating,
+			State:            datamodel.LifeCycleStateUpdating,
 			VolumeAttributes: nil,
 			SizeInBytes:      1,
 			SharedBytes:      99,
@@ -2972,7 +2972,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB_ErrorAndNilAttributes(t *testing.T
 				!v.VolumeAttributes.IsFlexclone &&
 				v.VolumeAttributes.Clone == nil &&
 				v.SharedBytes == 0 &&
-				v.State == models.LifeCycleStateAvailable
+				v.State == datamodel.LifeCycleStateAvailable
 		})).Return(dbVolume, nil)
 
 		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, "vol-with-nil-attrs", int64(777))
@@ -2989,7 +2989,7 @@ func TestCompleteExpertModeFlexCloneSplitInDB_ErrorAndNilAttributes(t *testing.T
 
 		dbVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "vol-update-fail"},
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
 				IsFlexclone: true,
 				Clone:       &datamodel.ExpertModeCloneInfo{},

@@ -144,7 +144,6 @@ require (
 // TODO(phase-2): drop this require + replace once utils relocates to
 // lib/util and is detached from core and vcp-core/servergen.
 require (
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0 // indirect
 	github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0 // indirect
 	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0 // indirect
 	github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core v0.0.0 // indirect

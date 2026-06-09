@@ -383,7 +383,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "pool-to-pause-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes: 500000000000, // 500GB
@@ -396,7 +396,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 2, UUID: "pool-to-resume-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes: 500000000000, // 500GB
@@ -409,7 +409,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 3, UUID: "pool-to-autoresize-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
@@ -423,7 +423,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 4, UUID: "pool-not-ready-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateCreating,
+				State:            datamodel.LifeCycleStateCreating,
 			},
 		}
 
@@ -537,7 +537,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "disabled-pool-uuid"},
 				AllowAutoTiering: false, // Auto-tiering disabled
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -582,8 +582,8 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "not-ready-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateCreating, // Not ready
-				SizeInBytes:      1000000000000,                 // 1TB
+				State:            datamodel.LifeCycleStateCreating, // Not ready
+				SizeInBytes:      1000000000000,                    // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes: 500000000000, // 500GB
 					TieringStatus:      datamodel.TieringStatusResumed,
@@ -629,7 +629,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "no-consumption-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -677,7 +677,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-disabled-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
@@ -739,7 +739,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "low-usage-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
@@ -799,7 +799,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000,
@@ -866,7 +866,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000,
@@ -932,7 +932,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "autoresize-calc-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      500000000000, // 500GB pool
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      100000000000, // 100GB hot tier
@@ -995,7 +995,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "exceeds-size-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB pool
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      400000000000, // 400GB hot tier
@@ -1051,7 +1051,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-error-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
@@ -1100,7 +1100,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1178,7 +1178,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 10, UUID: "consumption-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1288,7 +1288,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				APIAccessMode:    common.ONTAPMode,
 			},
 		}
@@ -1383,7 +1383,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: false, // Not auto-tiering enabled
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1419,7 +1419,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateCreating, // Not ready
+				State:            datamodel.LifeCycleStateCreating, // Not ready
 			},
 		}
 
@@ -1462,7 +1462,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1505,7 +1505,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1546,7 +1546,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1620,7 +1620,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1679,7 +1679,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1775,7 +1775,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
@@ -1867,7 +1867,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
 					TieringStatus:            datamodel.TieringStatusPaused, // Paused - should not update
@@ -1949,7 +1949,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 75, // Not 50 - should not update
 					TieringStatus:            datamodel.TieringStatusResumed,
@@ -2028,7 +2028,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:         datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				AllowAutoTiering:  true,
-				State:             models.LifeCycleStateREADY,
+				State:             datamodel.LifeCycleStateREADY,
 				AutoTieringConfig: nil, // Nil - should not crash
 			},
 		}
@@ -2118,7 +2118,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
@@ -2220,7 +2220,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
@@ -2335,7 +2335,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
@@ -2472,7 +2472,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
@@ -2585,7 +2585,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				VLMConfig:        "invalid json {", // Invalid JSON that will cause parseVlmConfig to fail
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -35,9 +34,9 @@ func _acceptClusterPeer(ctx context.Context, se database.Storage, temporal clien
 		return nil, nil, err
 	}
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeAcceptClusterPeer),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  string(models.JobTypeAcceptClusterPeer),
+		Type:          string(datamodel.JobTypeAcceptClusterPeer),
+		State:         string(datamodel.JobsStateNEW),
+		ResourceName:  string(datamodel.JobTypeAcceptClusterPeer),
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -213,17 +214,17 @@ func batchHostGroupState(s string) gcpgenserver.BatchHostGroupV1betaState {
 		return v
 	}
 	switch s {
-	case models.LifeCycleStateAvailable, models.LifeCycleStateInUse, models.LifeCycleStateCreated:
+	case datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateCreated:
 		return gcpgenserver.BatchHostGroupV1betaStateREADY
-	case models.LifeCycleStateDeleted, models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeleting:
 		return gcpgenserver.BatchHostGroupV1betaStateDELETING
-	case models.LifeCycleStateDisabled, models.LifeCycleStateDisabling:
+	case datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabling:
 		return gcpgenserver.BatchHostGroupV1betaStateDISABLED
-	case models.LifeCycleStateUpdating, models.LifeCycleStateEnabling:
+	case datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateEnabling:
 		return gcpgenserver.BatchHostGroupV1betaStateUPDATING
-	case models.LifeCycleStateCreating, models.LifeCycleStatePreparing:
+	case datamodel.LifeCycleStateCreating, datamodel.LifeCycleStatePreparing:
 		return gcpgenserver.BatchHostGroupV1betaStateCREATING
-	case models.LifeCycleStateError:
+	case datamodel.LifeCycleStateError:
 		return gcpgenserver.BatchHostGroupV1betaStateERROR
 	default:
 		return gcpgenserver.BatchHostGroupV1betaStateSTATEUNSPECIFIED

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -30,7 +29,7 @@ func CreateAccount(ctx context.Context, se database.Storage, accountName string)
 			UpdatedAt: createdDate,
 		},
 		Name:  accountName,
-		State: models.AccountStateEnabled,
+		State: datamodel.AccountStateEnabled,
 	}
 
 	createdAccount, err := se.CreateAccount(ctx, dbAccount)
@@ -44,7 +43,7 @@ func CreateAccount(ctx context.Context, se database.Storage, accountName string)
 func GetOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 	account, err := GetAccount(ctx, se, accountName)
 	if err == nil {
-		if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+		if account.DeletedAt != nil || account.State == datamodel.AccountStateDisabled {
 			return nil, errors.New("account is disabled")
 		}
 		return account, nil

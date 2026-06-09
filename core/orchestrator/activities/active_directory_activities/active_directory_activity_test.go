@@ -374,8 +374,8 @@ func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.
 		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -390,8 +390,8 @@ func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.
 		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -407,8 +407,8 @@ func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.
 		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
-		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateInUseDetails, result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -423,8 +423,8 @@ func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.
 		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -443,8 +443,8 @@ func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.
 		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
-		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateInUseDetails, result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -856,7 +856,7 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		ad := &datamodel.ActiveDirectory{
 			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-4"},
 			CredentialPath: "secret-path",
-			State:          models.LifeCycleStateREADY, // Database state
+			State:          datamodel.LifeCycleStateREADY, // Database state
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				AesEncryption: true,
 			},
@@ -892,7 +892,7 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 			_ = val.Get(&result)
 			assert.NotNil(tt, result)
 			// This is the key assertion: Status field should be populated from database state
-			assert.Equal(tt, models.LifeCycleStateREADY, result.Status)
+			assert.Equal(tt, datamodel.LifeCycleStateREADY, result.Status)
 		} else {
 			tt.Fatal("ExecuteActivity returned nil value")
 		}
@@ -908,7 +908,7 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		ad := &datamodel.ActiveDirectory{
 			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-5"},
 			CredentialPath: "secret-path",
-			State:          models.LifeCycleStateInUse, // Database state = IN_USE
+			State:          datamodel.LifeCycleStateInUse, // Database state = IN_USE
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				AesEncryption: true,
 			},
@@ -944,7 +944,7 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 			_ = val.Get(&result)
 			assert.NotNil(tt, result)
 			// This is the key assertion: Status field should be IN_USE from database state
-			assert.Equal(tt, models.LifeCycleStateInUse, result.Status)
+			assert.Equal(tt, datamodel.LifeCycleStateInUse, result.Status)
 		} else {
 			tt.Fatal("ExecuteActivity returned nil value")
 		}
@@ -959,12 +959,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-123"
-		adState := models.LifeCycleStateREADY
+		adState := datamodel.LifeCycleStateREADY
 		adStateDetails := "Active directory is ready for use"
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Creating active directory",
 		}
 
@@ -991,7 +991,7 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "non-existent-uuid"
-		adState := models.LifeCycleStateREADY
+		adState := datamodel.LifeCycleStateREADY
 		adStateDetails := "Active directory is ready"
 
 		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return((*datamodel.ActiveDirectory)(nil), nil)
@@ -1010,7 +1010,7 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-456"
-		adState := models.LifeCycleStateError
+		adState := datamodel.LifeCycleStateError
 		adStateDetails := "Error occurred"
 
 		expectedErr := errors.New("database connection failed")
@@ -1030,12 +1030,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-789"
-		adState := models.LifeCycleStateUpdating
+		adState := datamodel.LifeCycleStateUpdating
 		adStateDetails := "Updating active directory"
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			StateDetails: "Ready",
 		}
 
@@ -1056,12 +1056,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-error"
-		adState := models.LifeCycleStateError
+		adState := datamodel.LifeCycleStateError
 		adStateDetails := "Failed to create: network timeout"
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Creating active directory",
 		}
 
@@ -1074,7 +1074,7 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
 			return ad.UUID == activeDirectoryUuid &&
-				ad.State == models.LifeCycleStateError &&
+				ad.State == datamodel.LifeCycleStateError &&
 				ad.StateDetails == "Failed to create: network timeout"
 		})).Return(updatedAd, nil)
 
@@ -1090,12 +1090,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-deleting"
-		adState := models.LifeCycleStateDeleting
+		adState := datamodel.LifeCycleStateDeleting
 		adStateDetails := "Deleting active directory resources"
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			StateDetails: "Ready",
 		}
 
@@ -1122,12 +1122,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-empty-details"
-		adState := models.LifeCycleStateREADY
+		adState := datamodel.LifeCycleStateREADY
 		adStateDetails := ""
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Creating",
 		}
 
@@ -1154,12 +1154,12 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-in-use"
-		adState := models.LifeCycleStateInUse
+		adState := datamodel.LifeCycleStateInUse
 		adStateDetails := "Active directory is now in use by SVM"
 
 		existingAd := &datamodel.ActiveDirectory{
 			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			StateDetails: "Ready",
 		}
 
@@ -1186,7 +1186,7 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		activeDirectoryUuid := "ad-uuid-preserve"
-		adState := models.LifeCycleStateUpdating
+		adState := datamodel.LifeCycleStateUpdating
 		adStateDetails := "Updating credentials"
 
 		existingAd := &datamodel.ActiveDirectory{
@@ -1197,7 +1197,7 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 			NetBIOS:        "CORP",
 			Username:       "admin",
 			CredentialPath: "secret-path",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			StateDetails:   "Ready",
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				AesEncryption: true,

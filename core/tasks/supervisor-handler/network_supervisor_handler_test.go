@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
@@ -97,6 +96,6 @@ func TestNetworkHandlerJobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 2)
-	require.Contains(t, jobTypes, models.JobTypeCreateSubnet)
-	require.Contains(t, jobTypes, models.JobTypeCreateLargeSubnet)
+	require.Contains(t, jobTypes, datamodel.JobTypeCreateSubnet)
+	require.Contains(t, jobTypes, datamodel.JobTypeCreateLargeSubnet)
 }

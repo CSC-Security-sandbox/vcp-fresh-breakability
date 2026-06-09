@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -53,7 +52,7 @@ func TestGetOrCreateAccount(t *testing.T) {
 				UUID: "test-uuid",
 			},
 			Name:  "test_account",
-			State: models.AccountStateDisabled,
+			State: datamodel.AccountStateDisabled,
 		}
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return disabledAccount, nil
@@ -103,7 +102,7 @@ func TestGetOrCreateAccount(t *testing.T) {
 				UUID: "test-uuid",
 			},
 			Name:  "test_account",
-			State: models.AccountStateEnabled,
+			State: datamodel.AccountStateEnabled,
 		}
 		createAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return createdAccount, nil

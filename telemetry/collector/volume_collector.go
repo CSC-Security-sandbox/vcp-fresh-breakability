@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -128,7 +127,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			continue
 		}
 		// Skip metrics collection if account state is HYPERSCALERDISABLED
-		if accountState, exists := accountStateMap[accountName]; exists && accountState == models.AccountStateHyperscalerDisabled {
+		if accountState, exists := accountStateMap[accountName]; exists && accountState == datamodel.AccountStateHyperscalerDisabled {
 			logger.Debugf("Skipping volume %s (UUID: %s) metrics collection as account %s is in HYPERSCALERDISABLED state", volume.Name, volume.UUID, accountName)
 			continue
 		}
@@ -208,7 +207,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 					// Skip billing for cross-project backup vaults when GCBDR backup billing is disabled.
 					if !skipBilling && !config.EnableGcbdrBackupBilling && volume.DataProtection.BackupVaultID != "" {
 						if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists {
-							if bv.ServiceType == models.ServiceTypeCrossProject {
+							if bv.ServiceType == datamodel.ServiceTypeCrossProject {
 								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for cross-project backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.DataProtection.BackupVaultID)
 								skipBilling = true
 							}
@@ -337,7 +336,7 @@ func getExpertModeVolumeBackupMetrics(
 				logger.Error(fmt.Sprintf("Expert mode volume account name is missing for volume %s", volume.UUID))
 				continue
 			}
-			if accountState, exists := accountStateMap[volume.AccountName]; exists && accountState == models.AccountStateHyperscalerDisabled {
+			if accountState, exists := accountStateMap[volume.AccountName]; exists && accountState == datamodel.AccountStateHyperscalerDisabled {
 				logger.Debugf("Skipping expert mode volume %s (UUID: %s) metrics collection as account %s is in HYPERSCALERDISABLED state", volume.Name, volume.UUID, volume.AccountName)
 				continue
 			}
@@ -390,7 +389,7 @@ func getExpertModeVolumeBackupMetrics(
 			// Skip for cross-project backup vaults when GCBDR billing is disabled.
 			if !skipBilling && !config.EnableGcbdrBackupBilling && volume.BackupConfig.BackupVaultID != "" {
 				if bv, exists := backupVaultMap[volume.BackupConfig.BackupVaultID]; exists {
-					if bv.ServiceType == models.ServiceTypeCrossProject {
+					if bv.ServiceType == datamodel.ServiceTypeCrossProject {
 						logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing for expert mode volume with cross-project backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.BackupConfig.BackupVaultID)
 						skipBilling = true
 					}
@@ -530,7 +529,7 @@ func collectDetachedVaultBMF(
 		if accountName == "" {
 			continue
 		}
-		if accountState, ok := accountStateMap[accountName]; ok && accountState == models.AccountStateHyperscalerDisabled {
+		if accountState, ok := accountStateMap[accountName]; ok && accountState == datamodel.AccountStateHyperscalerDisabled {
 			continue
 		}
 
@@ -558,7 +557,7 @@ func collectDetachedVaultBMF(
 
 		// Cross-project vaults bill to the vault's owning project, not the volume owner.
 		billingAccountName := accountName
-		if vault.ServiceType == models.ServiceTypeCrossProject && vault.Account != nil && vault.Account.Name != "" {
+		if vault.ServiceType == datamodel.ServiceTypeCrossProject && vault.Account != nil && vault.Account.Name != "" {
 			billingAccountName = vault.Account.Name
 		}
 

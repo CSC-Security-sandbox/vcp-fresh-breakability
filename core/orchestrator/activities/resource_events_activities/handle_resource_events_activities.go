@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -159,18 +158,18 @@ func (a *ResourceEventsActivity) handleActiveDirectory(ctx context.Context, para
 	// For ON events, determine the AD state based on SVM usage.
 	// If any SVM references this AD, mark it as IN_USE; otherwise READY.
 	// For OFF events, apply the passed state (e.g. DISABLED) directly.
-	if state != coremodels.LifeCycleStateDisabled {
+	if state != datamodel.LifeCycleStateDisabled {
 		svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, ad.ID)
 		if err != nil {
 			logger.Error("Failed to check SVMs using active directory", "error", err, "active_directory_id", ad.ID)
 			return false, err
 		}
 		if len(svms) > 0 {
-			state = coremodels.LifeCycleStateInUse
-			stateDetails = coremodels.LifeCycleStateInUseDetails
+			state = datamodel.LifeCycleStateInUse
+			stateDetails = datamodel.LifeCycleStateInUseDetails
 		} else {
-			state = coremodels.LifeCycleStateREADY
-			stateDetails = coremodels.LifeCycleStateReadyDetails
+			state = datamodel.LifeCycleStateREADY
+			stateDetails = datamodel.LifeCycleStateReadyDetails
 		}
 	}
 
@@ -186,19 +185,19 @@ func (a *ResourceEventsActivity) handleActiveDirectory(ctx context.Context, para
 func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
 	switch params.ResourceType {
 	case common.ResourceStateV1ResourceTypeKmsConfig:
-		return a.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleKmsConfig(ctx, params, datamodel.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeStoragePool:
 		return a.checkStoragePoolExistence(ctx, params)
 	case common.ResourceStateV1ResourceTypeSnapshot:
-		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleSnapshot(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
-		return a.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleVolume(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeAD:
-		return a.handleActiveDirectory(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleActiveDirectory(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
-		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeHostGroup:
-		return a.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		return a.handleHostGroup(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	default:
 		return false, errors.New("unsupported resource type")
 	}
@@ -211,15 +210,15 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 	case common.ResourceStateV1ResourceTypeStoragePool:
 		return a.checkStoragePoolExistence(ctx, params)
 	case common.ResourceStateV1ResourceTypeSnapshot:
-		return a.handleSnapshot(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.handleSnapshot(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeVolume:
-		return a.handleVolume(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.handleVolume(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeAD:
-		return a.handleActiveDirectory(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.handleActiveDirectory(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
-		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeHostGroup:
-		return a.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		return a.handleHostGroup(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	default:
 		unsupportedErr := errors.New("unsupported resource type")
 		return false, temporal.NewNonRetryableApplicationError(unsupportedErr.Error(), ErrInvalidRequest, unsupportedErr)
@@ -487,7 +486,7 @@ func (a *ResourceEventsActivity) handleBackupPolicy(ctx context.Context, params 
 	}
 
 	switch state {
-	case coremodels.LifeCycleStateDisabled:
+	case datamodel.LifeCycleStateDisabled:
 		// For OFF events: check if the policy is enabled in DB, then pause
 		if backupPolicy.PolicyEnabled {
 			logger.Infof("Processing pause request for backup policy schedule: %s", params.ResourceId)
@@ -501,7 +500,7 @@ func (a *ResourceEventsActivity) handleBackupPolicy(ctx context.Context, params 
 			logger.Infof("Backup policy is already disabled in database, skipping pause: %s", params.ResourceId)
 		}
 
-	case coremodels.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		if backupPolicy.PolicyEnabled {
 			logger.Infof("Processing unpause request for backup policy schedule: %s", params.ResourceId)
 			err = backupPolicyActivity.UnpauseBackupPolicySchedule(ctx, backupPolicy)

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
@@ -530,7 +529,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 	volume := CreateTestVolumeForDelete()
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(func(ctx context.Context, job *datamodel.Job) error {
-		if job.State == string(models.JobsStatePROCESSING) {
+		if job.State == string(datamodel.JobsStatePROCESSING) {
 			return nil
 		}
 
@@ -550,7 +549,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 	volume := CreateTestVolumeForDelete()
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(func(ctx context.Context, job *datamodel.Job) error {
-		if job.State == string(models.JobsStatePROCESSING) {
+		if job.State == string(datamodel.JobsStatePROCESSING) {
 			return nil
 		}
 
@@ -831,7 +830,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_LdapEn
 // Test_DeleteFlexCacheVolumeWorkflow_CancellationHandling tests lines 98-101, 104, 113-115, 117, 124: cancellation handling when volume is in CREATING state
 func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_CancellationHandling() {
 	volume := CreateTestVolumeForDelete()
-	volume.State = models.LifeCycleStateCreating
+	volume.State = datamodel.LifeCycleStateCreating
 
 	unmountJobUuid := "unmount-job-uuid"
 	deleteJobUuid := "delete-job-uuid"
@@ -862,7 +861,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	s.env.RegisterActivity(poolActivity)
 
 	// Mock GetCreateJobByResourceUUID to return nil (no create job found)
-	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, mock.Anything, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, nil)
+	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, mock.Anything, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
 
@@ -875,7 +874,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 // This test exercises the cancellation handling path to ensure the workflow continues normally even when cancellation handling encounters issues.
 func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_CancellationHandlingError() {
 	volume := CreateTestVolumeForDelete()
-	volume.State = models.LifeCycleStateCreating
+	volume.State = datamodel.LifeCycleStateCreating
 
 	unmountJobUuid := "unmount-job-uuid"
 	deleteJobUuid := "delete-job-uuid"
@@ -907,7 +906,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 
 	// Mock GetCreateJobByResourceUUID to return an error, which will cause HandleCancellationInDeleteWorkflow
 	// to log a warning and return nil (line 124 would be hit if HandleCancellationInDeleteWorkflow returned an error)
-	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, mock.Anything, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, errors.New("cancellation handling error"))
+	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, mock.Anything, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, errors.New("cancellation handling error"))
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
 
@@ -918,7 +917,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 // Test_DeleteFlexCacheVolumeWorkflow_CorrelationIDError tests lines 98-101: when GetCorrelationIDFromWorkflowContextLoggerFields returns an error
 func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_CorrelationIDError() {
 	volume := CreateTestVolumeForDelete()
-	volume.State = models.LifeCycleStateCreating
+	volume.State = datamodel.LifeCycleStateCreating
 
 	unmountJobUuid := "unmount-job-uuid"
 	deleteJobUuid := "delete-job-uuid"
@@ -949,7 +948,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Correl
 	s.env.RegisterActivity(poolActivity)
 
 	// Mock GetCreateJobByResourceUUID to return nil (no create job found)
-	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, "", string(models.JobTypeFlexCacheCreateVolume)).Return(nil, nil)
+	s.env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, volume.UUID, "", string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
 

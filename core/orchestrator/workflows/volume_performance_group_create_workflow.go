@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -108,7 +107,7 @@ func CreateVolumePerformanceGroupWorkflow(ctx workflow.Context, vpgUUID string) 
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, vpgActivity.UpdateVPGStateInDB, vpgUUID, models.LifeCycleStateREADY, "").Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, vpgActivity.UpdateVPGStateInDB, vpgUUID, datamodel.LifeCycleStateREADY, "").Get(ctx, nil)
 	if err != nil {
 		logger.Error("Failed to set VPG state to READY", "error", err, "vpg_uuid", vpgUUID)
 		return nil, err

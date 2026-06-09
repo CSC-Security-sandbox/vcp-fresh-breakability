@@ -189,7 +189,7 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 		return errors.New("invalid input")
 	}
 	se := a.SE
-	backup.State = models.LifeCycleStateError
+	backup.State = datamodel.LifeCycleStateError
 	backup.StateDetails = errorString
 	_, err := se.UpdateBackupState(ctx, backup)
 	return err
@@ -200,8 +200,8 @@ func (a BackupActivity) MarkBackupAvailable(ctx context.Context, backup *datamod
 		return errors.New("backup cannot be nil")
 	}
 	se := a.SE
-	backup.State = models.LifeCycleStateAvailable
-	backup.StateDetails = models.LifeCycleStateAvailableDetails
+	backup.State = datamodel.LifeCycleStateAvailable
+	backup.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	_, err := se.UpdateBackupState(ctx, backup)
 	return err
 }
@@ -332,16 +332,16 @@ func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActiv
 	if !backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
 		// Update the snapshot in the database
 		if backupActivitiesContext.SnapshotResponse != nil {
-			backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateREADY
-			backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			backupActivitiesContext.DbSnapshot.State = datamodel.LifeCycleStateREADY
+			backupActivitiesContext.DbSnapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 			backupActivitiesContext.DbSnapshot.SnapshotAttributes.SizeInBytes = backupActivitiesContext.SnapshotResponse.SizeInBytes
 			backupActivitiesContext.DbSnapshot.SnapshotAttributes.ExternalUUID = backupActivitiesContext.SnapshotResponse.ExternalUUID
 			backupActivitiesContext.DbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = backupActivitiesContext.SnapshotResponse.LogicalSizeInBytes
 		} else {
 			now := time.Now()
 			backupActivitiesContext.DbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-			backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateError
-			backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+			backupActivitiesContext.DbSnapshot.State = datamodel.LifeCycleStateError
+			backupActivitiesContext.DbSnapshot.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 		}
 		_, err := b.SE.UpdateSnapshot(ctx, backupActivitiesContext.DbSnapshot)
 		if err != nil {
@@ -483,7 +483,7 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
 	// This ensures that only the latest backup has the correct size.
 	// Skip for CrossProject (GCBDR) vaults
-	isCrossProjectVault := backupActivitiesContext.BackupWorkflowInit.BackupVault != nil && backupActivitiesContext.BackupWorkflowInit.BackupVault.ServiceType == models.ServiceTypeCrossProject
+	isCrossProjectVault := backupActivitiesContext.BackupWorkflowInit.BackupVault != nil && backupActivitiesContext.BackupWorkflowInit.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject
 	if !isCrossProjectVault && backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize != 0 {
 		err = b.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backup.UUID)
 		if err != nil {
@@ -1299,8 +1299,8 @@ func (a BackupActivity) CleanupOldBackupSnapshotsActivity(ctx context.Context, v
 		// Hydrate snapshot deletion to CCFE
 		snapshot.Volume.Pool = volume.Pool
 		location := utils.GetLocation(*snapshot)
-		snapshot.State = models.LifeCycleStateDeleted
-		snapshot.StateDetails = models.LifeCycleStateDeletedDetails
+		snapshot.State = datamodel.LifeCycleStateDeleted
+		snapshot.StateDetails = datamodel.LifeCycleStateDeletedDetails
 		err = a.HydrateSnapshotDeletionToCCFEActivity(ctx, snapshot, volume.Name, location, volume.Account.Name)
 		if err != nil {
 			logger.Errorf("Failed to hydrate snapshot deletion to CCFE for snapshot %s: %v", snapshot.Name, err)
@@ -1315,7 +1315,7 @@ func (a BackupActivity) CleanupOldBackupSnapshotsActivity(ctx context.Context, v
 
 // markSnapshotAsError marks a snapshot as error state
 func (a BackupActivity) markSnapshotAsError(ctx context.Context, snapshot *datamodel.Snapshot, errorMessage string) error {
-	snapshot.State = models.LifeCycleStateError
+	snapshot.State = datamodel.LifeCycleStateError
 	snapshot.StateDetails = errorMessage
 	_, err := a.SE.UpdateSnapshot(ctx, snapshot)
 	return err

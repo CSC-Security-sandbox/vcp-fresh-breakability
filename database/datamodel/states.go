@@ -1,11 +1,10 @@
+// Package datamodel hosts GORM-persisted models and the typed string enums
+// that are *stored* on those models (DB columns, JSONB fields).
 package datamodel
 
-// HybridReplicationStatus and ClusterPeeringStatus are typed string enums
-// used in JSONB columns. They previously lived in core/models; moved here
-// so database/datamodel is self-contained.
 type HybridReplicationStatus string
 type ClusterPeeringStatus string
-
+type HybridReplicationParametersReplicationType string
 type JobType string
 type JobState string
 
@@ -64,6 +63,14 @@ const (
 	LifeCycleStateHyperscalerDisabledDetails = "Hyperscaler disabled"
 )
 
+// Backup vault CMEK encryption states.
+const (
+	EncryptionStatePending    = "ENCRYPTION_STATE_PENDING"
+	EncryptionStateCompleted  = "ENCRYPTION_STATE_COMPLETED"
+	EncryptionStateInProgress = "ENCRYPTION_STATE_IN_PROGRESS"
+	EncryptionStateFailed     = "ENCRYPTION_STATE_FAILED"
+)
+
 // Typed ClusterPeering constants (canonical, after PR-2c alias).
 const (
 	CvpClusterPeeringStatusCREATING              ClusterPeeringStatus = "CREATING"
@@ -92,13 +99,12 @@ const (
 )
 
 const (
-	JobsStateNEW                    JobState = "NEW"
-	JobsStatePROCESSING             JobState = "PROCESSING"
-	JobsStateERROR                  JobState = "ERROR"
-	JobsStateDONE                   JobState = "DONE"
-	JobsStateWaitForTemporal        JobState = "WAIT_FOR_TEMPORAL"
-	JobsStateCANCELLED              JobState = "CANCELLED"
-	WaitForTemporalJobMaxRetryCount          = 5
+	JobsStateNEW             JobState = "NEW"
+	JobsStatePROCESSING      JobState = "PROCESSING"
+	JobsStateERROR           JobState = "ERROR"
+	JobsStateDONE            JobState = "DONE"
+	JobsStateWaitForTemporal JobState = "WAIT_FOR_TEMPORAL"
+	JobsStateCANCELLED       JobState = "CANCELLED"
 )
 
 const (
@@ -220,4 +226,84 @@ const (
 const (
 	ServiceTypeGCNV         = "GCNV"
 	ServiceTypeCrossProject = "CrossProject"
+)
+
+// Backup vault type values (stored on BackupVault.BackupVaultType column).
+const (
+	BackupVaultTypeCrossRegion = "CROSS_REGION"
+)
+
+// Volume lifecycle extras.
+const (
+	VolumeStateOffline = "OFFLINE"
+)
+
+// Clone split state values (stored on Volume clone state column).
+const (
+	CloneStateCloned           = "SPLIT_STATE_NOT_SPLITTING"
+	CloneStateSplitting        = "SPLIT_STATE_IN_PROGRESS"
+	CloneStateErrorInSplitting = "SPLIT_STATE_FAILED"
+)
+
+// Zone switching state values.
+const (
+	ZoneSwitching = "SWITCHING"
+	ZoneSwitched  = "SWITCHED"
+	ZonePrimary   = "PRIMARY"
+)
+
+// Cluster peering / SVM peering state_details
+const (
+	InitiatingClusterPeering        = "Initiating cluster peering on destination cluster"
+	InitiatingSVMPeering            = "Initiating SVM peering on destination cluster"
+	WaitingForClusterPeering        = "Waiting for cluster peering to be created on source cluster"
+	ErrorDuringClusterPeer          = "Cluster peering failed, please try again"
+	ClusterPeeringExpired           = "Cluster peering expired"
+	WaitingForSVMPeering            = "Waiting for SVM peering to be accepted on source cluster"
+	ErrorDuringSVMPeering           = "SVM peering failed, please try again"
+	SVMPeeringExpired               = "SVM peering expired"
+	ErrorUnencryptedVolume          = "Origin volume is not encrypted"
+	ErrorCreatingCacheVolume        = "Error creating cache volume"
+	ClusterPeeringSourceUnreachable = "Source cluster unreachable, check network connections"
+
+	VolumeReplicationBreakRelationshipQuotaRuleFailure = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
+)
+
+// Snapmirror relationship statuses (lowercase, from ONTAP REST, persisted on
+// VolumeReplication.RelationshipStatus column).
+const (
+	SnapmirrorRelationshipSuccess      = "success"
+	SnapmirrorRelationshipFinalizing   = "finalizing"
+	SnapmirrorRelationshipTransferring = "transferring"
+	SnapmirrorRelationshipFailed       = "failed"
+	SnapmirrorRelationshipAborted      = "aborted"
+	SnapmirrorRelationshipQueued       = "queued"
+	SnapmirrorRelationshipHardAborted  = "hard_aborted"
+
+	OntapBrokenOff = "broken_off" // mirror state value
+)
+
+// Replication endpoint type values
+const (
+	DstEndpoint = "dst"
+	SrcEndpoint = "src"
+)
+
+// Hybrid replication parameters replication type values
+const (
+	HybridReplicationParametersReplicationTypeMIGRATION   HybridReplicationParametersReplicationType = "MIGRATION"
+	HybridReplicationParametersReplicationTypeUNSPECIFIED HybridReplicationParametersReplicationType = "REPLICATION_TYPE_UNSPECIFIED"
+	HybridReplicationParametersReplicationTypeCONTINUOUS  HybridReplicationParametersReplicationType = "CONTINUOUS_REPLICATION"
+	HybridReplicationParametersReplicationTypeONPREM      HybridReplicationParametersReplicationType = "ONPREM_REPLICATION"
+	HybridReplicationParametersReplicationTypeREVERSE     HybridReplicationParametersReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
+// ResourceEvent state values from incoming project/resource events
+// (written to e.g. KmsConfig.State via UpdateKmsConfigStateForHandleResource).
+// Renamed from former core/models.StateOff/On/Delete to avoid colliding with
+// the lowercase ONTAP StateOn/StateOff above.
+const (
+	ResourceEventStateOff    = "OFF"
+	ResourceEventStateOn     = "ON"
+	ResourceEventStateDelete = "DELETE"
 )

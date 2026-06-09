@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
@@ -136,7 +135,7 @@ func TestGetJobByResourceUUID(t *testing.T) {
 			CorrelationID: "corr-1",
 			TrackingID:    1,
 			Type:          "type",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 			JobAttributes: &datamodel.JobAttributes{
 				PoolUUID:     "pool-1",
 				ResourceUUID: "resource-1",

@@ -177,7 +177,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	isGCBDRVault := false
 	if vcpBv != nil && vcpBv.ServiceType != "" {
 		backupVaultServiceType = vcpBv.ServiceType
-		isGCBDRVault = backupVaultServiceType == coremodels.ServiceTypeCrossProject
+		isGCBDRVault = backupVaultServiceType == datamodel.ServiceTypeCrossProject
 	}
 
 	// For non-GCBDR vaults found in VCP, validate that vault belongs to the requesting account
@@ -503,7 +503,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	}
 
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobID)
-	if backup.LifeCycleState == coremodels.LifeCycleStateCreating {
+	if backup.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -834,7 +834,7 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 	// Determine if this is a GCBDR vault
 	isGCBDRVault := false
 	if vcpBv != nil {
-		isGCBDRVault = vcpBv.ServiceType == coremodels.ServiceTypeCrossProject
+		isGCBDRVault = vcpBv.ServiceType == datamodel.ServiceTypeCrossProject
 	}
 
 	// For GCBDR vaults, skip CVP call and only list from VCP
@@ -989,9 +989,9 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	var state gcpgenserver.BackupV1betaState
 	// Need to convert states as DB models and API models have different states
 	switch backup.State {
-	case coremodels.LifeCycleStateAvailable:
+	case datamodel.LifeCycleStateAvailable:
 		state = gcpgenserver.BackupV1betaStateREADY
-	case coremodels.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		state = gcpgenserver.BackupV1betaStateUPDATING
 	default:
 		state = gcpgenserver.BackupV1betaState(backup.State)

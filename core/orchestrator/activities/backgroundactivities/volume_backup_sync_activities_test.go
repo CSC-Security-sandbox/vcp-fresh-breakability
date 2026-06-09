@@ -785,7 +785,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 				LatestBackup: &datamodel.Backup{
 					BaseModel: datamodel.BaseModel{UUID: "bkp-gcbdr-ep"},
 					BackupVault: &datamodel.BackupVault{
-						ServiceType: models.ServiceTypeCrossProject,
+						ServiceType: datamodel.ServiceTypeCrossProject,
 					},
 					Attributes: &datamodel.BackupAttributes{
 						EndpointUUID: "ep-gcbdr-123",
@@ -808,7 +808,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 				LatestBackup: &datamodel.Backup{
 					BaseModel: datamodel.BaseModel{UUID: "bkp-gcnv-ep"},
 					BackupVault: &datamodel.BackupVault{
-						ServiceType: models.ServiceTypeGCNV,
+						ServiceType: datamodel.ServiceTypeGCNV,
 					},
 					Attributes: &datamodel.BackupAttributes{
 						EndpointUUID: "ep-gcnv-456",

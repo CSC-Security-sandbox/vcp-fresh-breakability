@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -569,17 +568,17 @@ func (a *RotateKmsSAKeyActivity) BatchPoolsForKeyRotationActivity(ctx context.Co
 	var validPools []*datamodel.Pool
 	for _, poolView := range poolsView {
 		switch poolView.State {
-		case models.LifeCycleStateDeleting:
+		case datamodel.LifeCycleStateDeleting:
 			logger.Info("KMS_KEY_ROTATION: Skipping pool in Deleting state", "poolUUID", poolView.UUID, "poolName", poolView.Name, "state", poolView.State)
 			continue
-		case models.LifeCycleStateError:
+		case datamodel.LifeCycleStateError:
 			// if pools has no active volume do not consider it for migration
 			if poolView.VolumeCount <= 0 {
 				logger.Info("KMS_KEY_ROTATION: Skipping errored pool with no active volumes", "poolUUID", poolView.UUID, "poolName", poolView.Name, "state", poolView.State, "volumeCount", poolView.VolumeCount)
 				continue
 			}
 			logger.Info("KMS_KEY_ROTATION: Considering errored pool for migration", "poolUUID", poolView.UUID, "poolName", poolView.Name)
-		case models.LifeCycleStateCreating:
+		case datamodel.LifeCycleStateCreating:
 			logger.Warn("Skipping key rotation due to pool in Creating state", "poolName", poolView.Name, "poolUUID", poolView.UUID)
 			return nil, errors.NewConflictErr(utils.StoragePoolCreatingStateError)
 		}
@@ -613,7 +612,7 @@ func (a *RotateKmsSAKeyActivity) MigratePoolToNewKeyActivity(ctx context.Context
 
 	switch pool.State {
 	// Rare case but if below state happens then consider it as success
-	case models.LifeCycleStateError, models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeleting:
 		logger.Info(fmt.Sprintf("KMS_KEY_ROTATION: pool %s in %s state skipping migration", pool.Name, pool.State))
 		return &SvmMigrationResult{
 			SvmUUID: "",

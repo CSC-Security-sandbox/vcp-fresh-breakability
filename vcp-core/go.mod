@@ -31,6 +31,7 @@ require (
 	go.temporal.io/sdk v1.33.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/sync v0.19.0
+	gorm.io/gorm v1.25.12
 )
 
 require (
@@ -165,7 +166,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/postgres v1.5.11 // indirect
 	gorm.io/driver/sqlite v1.5.7 // indirect
-	gorm.io/gorm v1.25.12 // indirect
 	k8s.io/api v0.33.3 // indirect
 	k8s.io/apimachinery v0.33.3 // indirect
 	k8s.io/client-go v0.33.3 // indirect

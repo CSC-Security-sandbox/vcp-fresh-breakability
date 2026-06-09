@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -14,8 +13,8 @@ import (
 
 func TestSnapshotHandlerJobTypes(t *testing.T) {
 	handler := NewSnapshotHandler()
-	require.ElementsMatch(t, []models.JobType{
-		models.JobTypeCreateSnapshot,
+	require.ElementsMatch(t, []datamodel.JobType{
+		datamodel.JobTypeCreateSnapshot,
 	}, handler.JobTypes())
 }
 

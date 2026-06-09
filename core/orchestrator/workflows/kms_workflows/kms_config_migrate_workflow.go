@@ -44,7 +44,7 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusRunning
-	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -56,7 +56,7 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 			kmsConfigWorkflow.Logger.Info(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason))
 			errWorkflow = workflows.ConvertToVSAError(fmt.Errorf("%w \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason))
 		}
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errWorkflow)
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errWorkflow)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -65,9 +65,9 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted
 	if vsaCmekMigrationSkippedPoolReason != MigrationInfoPrefix {
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), temporal.NewApplicationError(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason), "CustomErrorType"))
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), temporal.NewApplicationError(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason), "CustomErrorType"))
 	} else {
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	}
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -218,8 +218,8 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			var appErr *temporal.ApplicationError
 			if errorcore.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
 				kmsWorkflow.Logger.Info("KMS configuration not found in VCP DB - Syncing SDE and VCP DBs...")
-				sdeKmsConfig.KmsState = models.LifeCycleStateMigrating
-				sdeKmsConfig.KmsStateDetails = models.LifeCycleStateMigratingDetails
+				sdeKmsConfig.KmsState = datamodel.LifeCycleStateMigrating
+				sdeKmsConfig.KmsStateDetails = datamodel.LifeCycleStateMigratingDetails
 				createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(&sdeKmsConfig, &paramsForSyncingAndEKMCreation)
 				errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
 				if errSync != nil {
@@ -254,15 +254,15 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	var poolsForMigration []*datamodel.Pool
 	for _, pool := range poolsForAccount {
 		switch pool.State {
-		case models.LifeCycleStateError:
+		case datamodel.LifeCycleStateError:
 			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s is in error state...skipping migration for this pool", pool.UUID))
 			vsaCmekMigrationSkippedPoolReason += fmt.Sprintf("\n Pool with ID: %s is in error state...skipping migration for this pool", pool.UUID)
 			continue
-		case models.LifeCycleStateCreating, models.LifeCycleStateUpdating, models.LifeCycleStateDeleting:
+		case datamodel.LifeCycleStateCreating, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateDeleting:
 			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s is in transitioning state %s ...skipping migration for this pool", pool.UUID, pool.State))
 			vsaCmekMigrationSkippedPoolReason += fmt.Sprintf("\n Pool with ID: %s is in transitioning state...skipping migration for this pool", pool.UUID)
 			continue
-		case models.LifeCycleStateDegraded:
+		case datamodel.LifeCycleStateDegraded:
 			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s is in degraded state...skipping migration for this pool", pool.UUID))
 			vsaCmekMigrationSkippedPoolReason += fmt.Sprintf("\n Pool with ID: %s is in degraded state...skipping migration for this pool", pool.UUID)
 			continue
@@ -428,7 +428,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 						log.Fields{"error": err})
 				}
 			} else {
-				err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, poolsForMigration[index], models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+				err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, poolsForMigration[index], datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 				if err != nil {
 					kmsWorkflow.Logger.Error(fmt.Sprintf(
 						"Unable to update state of Pool to In_Use, after succesful migration of pool-id %s", poolsForMigration[index].UUID),
@@ -449,10 +449,10 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 }
 
 func validateKmsConfigForMigration(kmsState string) error {
-	if kmsState == models.LifeCycleStateUpdating || kmsState == models.LifeCycleStateMigrating {
+	if kmsState == datamodel.LifeCycleStateUpdating || kmsState == datamodel.LifeCycleStateMigrating {
 		return errors.NewBadRequestErr(fmt.Sprintf("CMEK Configuration continues to be in transitioning state after SDE migration: %s", kmsState))
 	}
-	if kmsState != models.LifeCycleStateREADY && kmsState != models.LifeCycleStateInUse {
+	if kmsState != datamodel.LifeCycleStateREADY && kmsState != datamodel.LifeCycleStateInUse {
 		return errors.NewBadRequestErr("CMEK Configuration needs to be in either Ready or In_Use state for migration")
 	}
 	return nil

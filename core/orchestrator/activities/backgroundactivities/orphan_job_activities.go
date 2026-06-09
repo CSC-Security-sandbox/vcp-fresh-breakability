@@ -30,20 +30,20 @@ type OrphanJobWorkflowManager interface {
 }
 
 var (
-	jobTypeToWorkflowMapping = map[models.JobType]WorkflowMapping{
-		models.JobTypeCreateKmsConfig: {
+	jobTypeToWorkflowMapping = map[datamodel.JobType]WorkflowMapping{
+		datamodel.JobTypeCreateKmsConfig: {
 			workflowFunc: "CreateKmsConfigWorkflow",
 			getArgsFunc:  &CreateKmsConfigArgs{},
 			taskQueue:    workflowengine.CustomerTaskQueue,
 			timeout:      workflowengine.GetWorkflowGlobalTimeout(),
 		},
-		models.JobTypeDeleteKmsConfig: {
+		datamodel.JobTypeDeleteKmsConfig: {
 			workflowFunc: "DeleteKmsConfigWorkflow",
 			getArgsFunc:  &DeleteKmsConfigArgs{},
 			taskQueue:    workflowengine.CustomerTaskQueue,
 			timeout:      workflowengine.GetWorkflowGlobalTimeout(),
 		},
-		models.JobTypeSplitVolume: {
+		datamodel.JobTypeSplitVolume: {
 			workflowFunc: "VolumePollSplitWorkflow",
 			getArgsFunc:  &SplitVolumeArgs{},
 			taskQueue:    workflowengine.BackgroundTaskQueue,
@@ -73,7 +73,7 @@ func (p *OrphanJobActivity) OrphanJobsActivity(ctx context.Context) error {
 
 	// Create filter for pending jobs
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "=", models.JobsStateWaitForTemporal),
+		dbutils.NewFilterCondition("state", "=", datamodel.JobsStateWaitForTemporal),
 	)
 
 	// Fetch all pending jobs
@@ -105,7 +105,7 @@ func _processSingleJob(ctx context.Context, se database.Storage, job *datamodel.
 	incrementRetryCount(ctx, se, job)
 
 	// Find the appropriate workflow for this job type
-	workflowMapping, exists := jobTypeToWorkflowMapping[models.JobType(job.Type)]
+	workflowMapping, exists := jobTypeToWorkflowMapping[datamodel.JobType(job.Type)]
 	if !exists {
 		logger.Warnf("No workflow mapping found for job type: %s", job.Type)
 		return fmt.Errorf("no workflow mapping found")
@@ -117,7 +117,7 @@ func _processSingleJob(ctx context.Context, se database.Storage, job *datamodel.
 		errMsg := fmt.Sprintf("Job %s has exceeded max retry count (%d)", job.UUID, models.WaitForTemporalJobMaxRetryCount)
 		logger.Warnf(errMsg)
 		// mark the job resource as error
-		updateErr := se.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), job.TrackingID, errMsg)
+		updateErr := se.UpdateJob(ctx, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, errMsg)
 		if updateErr != nil {
 			logger.Error("Failed to update job to temporal pending state", "error", updateErr)
 		}
@@ -147,7 +147,7 @@ func _processSingleJob(ctx context.Context, se database.Storage, job *datamodel.
 	workflowRun, err := temporalClient.ExecuteWorkflow(ctx, workflowOptions, workflowMapping.workflowFunc, workflowArgs...)
 	if err != nil {
 		logger.Errorf("Failed to start workflow for orphaned job %s: %v", job.UUID, err)
-		updateErr := se.UpdateJob(ctx, job.UUID, string(models.JobsStateWaitForTemporal), job.TrackingID, err.Error())
+		updateErr := se.UpdateJob(ctx, job.UUID, string(datamodel.JobsStateWaitForTemporal), job.TrackingID, err.Error())
 		if updateErr != nil {
 			logger.Errorf("Failed to update job %s tracking ID: %v", job.UUID, updateErr)
 		}

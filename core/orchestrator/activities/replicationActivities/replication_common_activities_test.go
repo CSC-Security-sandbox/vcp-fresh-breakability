@@ -108,7 +108,7 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 			Name:  "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication",
 			State: "available",
 			HybridReplicationAttributes: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeMIGRATION,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeMIGRATION,
 				Labels: map[string]string{
 					"key1": "value1",
 					"key2": "value2",
@@ -131,7 +131,7 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 			Name:  "test-replication-name",
 			State: "creating",
 			HybridReplicationAttributes: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				Labels:          nil,
 			},
 		}
@@ -166,16 +166,16 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 			name            string
 			state           string
 			expectedState   string
-			replicationType models.HybridReplicationParametersReplicationType
+			replicationType datamodel.HybridReplicationParametersReplicationType
 		}{
-			{"CreatingState", "creating", "CREATING", models.HybridReplicationParametersReplicationTypeMIGRATION},
-			{"AvailableState", "available", "READY", models.HybridReplicationParametersReplicationTypeCONTINUOUS},
-			{"UpdatingState", "updating", "UPDATING", models.HybridReplicationParametersReplicationTypeONPREM},
-			{"DisabledState", "disabled", "STOPPED", models.HybridReplicationParametersReplicationTypeREVERSE},
-			{"DeletingState", "deleting", "DELETING", models.HybridReplicationParametersReplicationTypeMIGRATION},
-			{"PendingClusterPeeringState", "PENDING_CLUSTER_PEERING", "PENDING_CLUSTER_PEERING", models.HybridReplicationParametersReplicationTypeCONTINUOUS},
-			{"ErrorState", "error", "ERROR", models.HybridReplicationParametersReplicationTypeMIGRATION},
-			{"UnknownState", "unknown-state", "STATE_UNSPECIFIED", models.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"CreatingState", "creating", "CREATING", datamodel.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"AvailableState", "available", "READY", datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS},
+			{"UpdatingState", "updating", "UPDATING", datamodel.HybridReplicationParametersReplicationTypeONPREM},
+			{"DisabledState", "disabled", "STOPPED", datamodel.HybridReplicationParametersReplicationTypeREVERSE},
+			{"DeletingState", "deleting", "DELETING", datamodel.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"PendingClusterPeeringState", "PENDING_CLUSTER_PEERING", "PENDING_CLUSTER_PEERING", datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS},
+			{"ErrorState", "error", "ERROR", datamodel.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"UnknownState", "unknown-state", "STATE_UNSPECIFIED", datamodel.HybridReplicationParametersReplicationTypeMIGRATION},
 		}
 
 		for _, tc := range testCases {
@@ -203,7 +203,7 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 			Name:  "test-replication",
 			State: "available",
 			HybridReplicationAttributes: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeMIGRATION,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeMIGRATION,
 				Labels:          make(map[string]string),
 			},
 		}
@@ -218,14 +218,14 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 
 	t.Run("WhenReplicationWithAllReplicationTypes", func(tt *testing.T) {
 		replicationTypes := []struct {
-			input    models.HybridReplicationParametersReplicationType
+			input    datamodel.HybridReplicationParametersReplicationType
 			expected models.HybridReplicationHydrateType
 		}{
-			{models.HybridReplicationParametersReplicationTypeMIGRATION, models.HybridReplicationHydrateType("MIGRATION")},
-			{models.HybridReplicationParametersReplicationTypeCONTINUOUS, models.HybridReplicationHydrateType("CONTINUOUS_REPLICATION")},
-			{models.HybridReplicationParametersReplicationTypeONPREM, models.HybridReplicationHydrateType("ONPREM_REPLICATION")},
-			{models.HybridReplicationParametersReplicationTypeREVERSE, models.HybridReplicationHydrateType("REVERSE_ONPREM_REPLICATION")},
-			{models.HybridReplicationParametersReplicationTypeUNSPECIFIED, models.HybridReplicationHydrateType("REPLICATION_TYPE_UNSPECIFIED")},
+			{datamodel.HybridReplicationParametersReplicationTypeMIGRATION, models.HybridReplicationHydrateType("MIGRATION")},
+			{datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS, models.HybridReplicationHydrateType("CONTINUOUS_REPLICATION")},
+			{datamodel.HybridReplicationParametersReplicationTypeONPREM, models.HybridReplicationHydrateType("ONPREM_REPLICATION")},
+			{datamodel.HybridReplicationParametersReplicationTypeREVERSE, models.HybridReplicationHydrateType("REVERSE_ONPREM_REPLICATION")},
+			{datamodel.HybridReplicationParametersReplicationTypeUNSPECIFIED, models.HybridReplicationHydrateType("REPLICATION_TYPE_UNSPECIFIED")},
 		}
 
 		for _, rt := range replicationTypes {
@@ -554,7 +554,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
 	}
 	var replicationState models.VolumeReplicationHydrateState
-	var hybridReplicationType models.HybridReplicationParametersReplicationType
+	var hybridReplicationType datamodel.HybridReplicationParametersReplicationType
 	replicationState = "creating"
 	hybridReplicationType = "cres"
 	t.Run("WhenTokenError", func(tt *testing.T) {
@@ -577,7 +577,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
-		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType datamodel.HybridReplicationParametersReplicationType, token string) error {
 			return &errs.CustomError{
 				OriginalErr: errors.New("some error"),
 			}
@@ -597,7 +597,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
-		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType datamodel.HybridReplicationParametersReplicationType, token string) error {
 			return nil
 		}
 		defer func() {

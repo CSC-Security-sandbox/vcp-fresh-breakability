@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -32,24 +31,24 @@ func RotateCmekBackupsWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	if err := wf.Setup(ctx, params); err != nil {
 		return ConvertToVSAError(err)
 	}
-	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := wf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return ConvertToVSAError(err)
 	}
 	wf.Status = WorkflowStatusRunning
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		return ConvertToVSAError(err)
 	}
 	_, customErr := wf.Run(ctx, backupVault, params, primaryKeyVersion)
 	if customErr != nil {
 		wf.Status = WorkflowStatusFailed
-		if err := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr); err != nil {
+		if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr); err != nil {
 			wf.Logger.Errorf("Error when updating the job status for CMEK rotation workflow: %v", err)
 		}
 		return ConvertToVSAError(customErr)
 	}
 
 	wf.Status = WorkflowStatusCompleted
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil); err != nil {
 		wf.Logger.Errorf("Error when updating the job status for CMEK rotation workflow: %v", err)
 		return ConvertToVSAError(err)
 	}
@@ -109,7 +108,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		if failedVault.CmekAttributes == nil {
 			failedVault.CmekAttributes = &datamodel.CmekAttributes{}
 		}
-		stateFailed := models.EncryptionStateFailed
+		stateFailed := datamodel.EncryptionStateFailed
 		failedVault.CmekAttributes.EncryptionState = &stateFailed
 
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateRemoteBackupVaultInVCP, &sourceParams, &failedVault).Get(ctx, nil)
@@ -150,12 +149,12 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 	// Ensure vault state is restored in case of unexpected errors.
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 
 	// Mark encryption state as IN_PROGRESS in VCP before starting bucket rotations.
-	inProgressState := models.EncryptionStateInProgress
+	inProgressState := datamodel.EncryptionStateInProgress
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, inProgressState).Get(ctx, nil)
 	if err != nil {
 		wf.Logger.Error("Failed to update backup vault encryption state to IN_PROGRESS in VCP", log.Fields{
@@ -176,7 +175,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		if inProgressVault.CmekAttributes == nil {
 			inProgressVault.CmekAttributes = &datamodel.CmekAttributes{}
 		}
-		inProgState := models.EncryptionStateInProgress
+		inProgState := datamodel.EncryptionStateInProgress
 		inProgressVault.CmekAttributes.EncryptionState = &inProgState
 		inProgressVault.CmekAttributes.BackupsPrimaryKeyVersion = nil
 
@@ -206,7 +205,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 				"error":             err,
 			})
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, bucketName, bvCommonParams.OwnerID, backupVault.UUID, "bucket_rotation_failed").Get(ctx, nil)
-			failedState := models.EncryptionStateFailed
+			failedState := datamodel.EncryptionStateFailed
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 			hydrateSourceFailed()
 			return nil, ConvertToVSAError(fmt.Errorf("RotateBucketCmekActivity failed for bucket %s: %w", bucketName, err))
@@ -215,7 +214,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 
 	// Step 2: When not USE_VCP_REGION, start SDE rotation and wait for completion. When USE_VCP_REGION, only VCP rotation runs.
 	var sdeSucceeded bool = true
-	if !useVCPRegion && backupVault.ServiceType != models.ServiceTypeCrossProject {
+	if !useVCPRegion && backupVault.ServiceType != datamodel.ServiceTypeCrossProject {
 		var jwtToken string
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
 		if err != nil {
@@ -224,7 +223,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 				"error":           err,
 			})
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_auth_failed").Get(ctx, nil)
-			failedState := models.EncryptionStateFailed
+			failedState := datamodel.EncryptionStateFailed
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 			hydrateSourceFailed()
 			return nil, ConvertToVSAError(fmt.Errorf("GetAuthJWTToken failed: %w", err))
@@ -239,7 +238,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 				"error":           err,
 			})
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_start_failed").Get(ctx, nil)
-			failedState := models.EncryptionStateFailed
+			failedState := datamodel.EncryptionStateFailed
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 			hydrateSourceFailed()
 			return nil, ConvertToVSAError(fmt.Errorf("StartSDECmekRotationForBackupVault failed: %w", err))
@@ -256,7 +255,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 
 		if !sdeSucceeded {
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_failed").Get(ctx, nil)
-			failedState := models.EncryptionStateFailed
+			failedState := datamodel.EncryptionStateFailed
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 			hydrateSourceFailed()
 			return nil, ConvertToVSAError(fmt.Errorf("SDE CMEK rotation failed for backup vault %s", backupVault.UUID))
@@ -273,7 +272,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 			"error":             err,
 		})
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "metadata_update_failed").Get(ctx, nil)
-		failedState := models.EncryptionStateFailed
+		failedState := datamodel.EncryptionStateFailed
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 		hydrateSourceFailed()
 		return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupVaultCmekInVCPActivity failed: %w", err))
@@ -299,7 +298,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		if completedVault.CmekAttributes == nil {
 			completedVault.CmekAttributes = &datamodel.CmekAttributes{}
 		}
-		stateCompleted := models.EncryptionStateCompleted
+		stateCompleted := datamodel.EncryptionStateCompleted
 		completedVault.CmekAttributes.EncryptionState = &stateCompleted
 		completedVault.CmekAttributes.BackupsPrimaryKeyVersion = &primaryKeyVersion
 

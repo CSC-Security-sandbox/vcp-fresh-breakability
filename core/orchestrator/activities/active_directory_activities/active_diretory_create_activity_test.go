@@ -11,7 +11,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -423,14 +422,14 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		// Mock successful database update
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
-			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+			return updatedAd.UUID == ad.UUID && updatedAd.State == datamodel.LifeCycleStateError
 		})).Return(ad, nil)
 
 		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.NoError(t, err)
 		assert.True(t, deleteSecretCalled)
-		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.Equal(t, datamodel.LifeCycleStateError, ad.State)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -458,14 +457,14 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 		}
 
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
-			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+			return updatedAd.UUID == ad.UUID && updatedAd.State == datamodel.LifeCycleStateError
 		})).Return(ad, nil)
 
 		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.NoError(t, err)
 		assert.False(t, deleteSecretCalled)
-		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.Equal(t, datamodel.LifeCycleStateError, ad.State)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -508,14 +507,14 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		// Database update should still be called due to defer, even when secret deletion fails
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
-			return updatedAd.UUID == ad.UUID && updatedAd.State == models.LifeCycleStateError
+			return updatedAd.UUID == ad.UUID && updatedAd.State == datamodel.LifeCycleStateError
 		})).Return(ad, nil)
 
 		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), expectedSecretError.Error())
-		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.Equal(t, datamodel.LifeCycleStateError, ad.State)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -549,7 +548,7 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.Equal(t, datamodel.LifeCycleStateError, ad.State)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -570,13 +569,13 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(updatedAd *datamodel.ActiveDirectory) bool {
 			// Verify state transition from CREATING to ERROR
-			return updatedAd.State == models.LifeCycleStateError
+			return updatedAd.State == datamodel.LifeCycleStateError
 		})).Return(ad, nil)
 
 		err := activity.RollbackActiveDirectory(ctx, ad)
 
 		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateError, ad.State)
+		assert.Equal(t, datamodel.LifeCycleStateError, ad.State)
 		assert.NotEqual(t, originalState, ad.State)
 		mockStorage.AssertExpectations(t)
 	})

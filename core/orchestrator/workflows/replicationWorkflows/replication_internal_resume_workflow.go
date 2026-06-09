@@ -3,7 +3,6 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -30,20 +29,20 @@ func ResumeInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := repWf.Run(ctx, replicationDb, forceResume)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -93,7 +92,7 @@ func (wf *internalVolumeReplicationResumeWorkflow) Run(ctx workflow.Context, arg
 	defer func() {
 		if err != nil {
 			// On panic, mark volume replication in error state
-			replication.State = models.LifeCycleStateError
+			replication.State = datamodel.LifeCycleStateError
 			replication.StateDetails = err.Error()
 			err2 := workflow.ExecuteActivity(ctx, replicationCommonActivity.UpdateReplicationState, *replication).Get(ctx, nil)
 			if err2 != nil {

@@ -153,7 +153,7 @@ func (s *HybridCreateWorkflowTestSuite) createTestData() (*common.CreateVolumePa
 		Region:      "us-central1",
 		HybridReplicationParameters: &models.HybridReplicationParameters{
 			ResourceID:          "test-replication-id",
-			ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+			ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 			PeerVolumeName:      "peer-volume",
 			PeerClusterName:     "peer-cluster",
 			PeerSvmName:         "peer-svm",
@@ -355,7 +355,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Maybe().Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
@@ -416,7 +416,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Maybe().Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)

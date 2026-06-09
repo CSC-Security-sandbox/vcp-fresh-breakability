@@ -275,12 +275,12 @@ func TestGetMultipleReplicationsInternal(t *testing.T) {
 
 		// Verify that the job was created and marked as ERROR due to the defer block
 		var jobs []datamodel.Job
-		err = store.DB().Where("account_id = ? AND type = ?", account.ID, string(models.JobTypeRefreshVolumeReplicationInternal)).Find(&jobs).Error
+		err = store.DB().Where("account_id = ? AND type = ?", account.ID, string(datamodel.JobTypeRefreshVolumeReplicationInternal)).Find(&jobs).Error
 		assert.NoError(tt, err)
 		assert.Len(tt, jobs, 1)
 
 		job := jobs[0]
-		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), job.State)
 		assert.Contains(tt, job.ErrorDetails, "workflow error")
 	})
 }
@@ -331,12 +331,12 @@ func TestPerformMountCheck(t *testing.T) {
 
 		// Verify that the job was created and marked as ERROR due to the defer block
 		var jobs []datamodel.Job
-		err = store.DB().Where("account_id = ? AND type = ?", dbAccount.ID, string(models.JobTypeMountCheck)).Find(&jobs).Error
+		err = store.DB().Where("account_id = ? AND type = ?", dbAccount.ID, string(datamodel.JobTypeMountCheck)).Find(&jobs).Error
 		assert.NoError(tt, err)
 		assert.Len(tt, jobs, 1)
 
 		job := jobs[0]
-		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), job.State)
 		assert.Contains(tt, job.ErrorDetails, "temporal error")
 	})
 }
@@ -456,8 +456,8 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
 			WorkflowID: "UpdateVolumeReplicationAttributes-replication-123",
-			Type:       string(models.JobTypeUpdateVolumeReplication),
-			State:      string(models.JobsStatePROCESSING),
+			Type:       string(datamodel.JobTypeUpdateVolumeReplication),
+			State:      string(datamodel.JobsStatePROCESSING),
 			AccountID:  sql.NullInt64{Int64: 1, Valid: true},
 		}
 
@@ -472,7 +472,7 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 
 		expectedError := errors.New("workflow error")
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
-		mockStorage.On("UpdateJob", ctx, "job-123", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-123", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		_, err := updateVolumeReplicationAttributes(ctx, mockStorage, mockTemporal, params)
 
@@ -503,8 +503,8 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		createdJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-123"},
 			WorkflowID:   "UpdateVolumeReplicationAttributes-replication-123",
-			Type:         string(models.JobTypeUpdateVolumeReplication),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeUpdateVolumeReplication),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "replication-123",
 			AccountID:    sql.NullInt64{Int64: 1, Valid: true},
 		}
@@ -527,8 +527,8 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "job-123", result.UUID)
-		assert.Equal(tt, models.JobTypeUpdateVolumeReplication, result.Type)
-		assert.Equal(tt, models.JobsStatePROCESSING, result.State)
+		assert.Equal(tt, datamodel.JobTypeUpdateVolumeReplication, result.Type)
+		assert.Equal(tt, datamodel.JobsStatePROCESSING, result.State)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -554,8 +554,8 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		createdJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-123"},
 			WorkflowID:   "UpdateVolumeReplicationAttributes-replication-123",
-			Type:         string(models.JobTypeUpdateVolumeReplication),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeUpdateVolumeReplication),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "replication-123",
 			AccountID:    sql.NullInt64{Int64: 1, Valid: true},
 		}
@@ -622,7 +622,7 @@ func TestUpdateVolumeReplicationState(t *testing.T) {
 			ProjectNumber:       "project-123",
 			LocationId:          "us-central1-a",
 			VolumeReplicationId: "replication-123",
-			State:               models.LifeCycleStateError,
+			State:               datamodel.LifeCycleStateError,
 			StateDetails:        "error details",
 		}
 
@@ -664,7 +664,7 @@ func TestUpdateVolumeReplicationState(t *testing.T) {
 			ProjectNumber:       "project-123",
 			LocationId:          "us-central1-a",
 			VolumeReplicationId: "replication-123",
-			State:               models.LifeCycleStateError,
+			State:               datamodel.LifeCycleStateError,
 			StateDetails:        "error details",
 		}
 
@@ -698,7 +698,7 @@ func TestUpdateVolumeReplicationState(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -708,7 +708,7 @@ func TestUpdateVolumeReplicationState(t *testing.T) {
 			ProjectNumber:       "project-123",
 			LocationId:          "us-central1-a",
 			VolumeReplicationId: "replication-123",
-			State:               models.LifeCycleStateError,
+			State:               datamodel.LifeCycleStateError,
 			StateDetails:        "error details",
 		}
 
@@ -725,7 +725,7 @@ func TestUpdateVolumeReplicationState(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "replication-123", result.UUID)
-		assert.Equal(tt, models.LifeCycleStateError, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, result.State)
 		assert.Equal(tt, "error details", result.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})

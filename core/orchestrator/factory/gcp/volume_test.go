@@ -554,7 +554,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
 			LargeCapacity: true,                                   // Pool is large capacity
@@ -612,7 +612,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,                                 // Pool is NOT large capacity
@@ -706,7 +706,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
 			LargeCapacity: true,                                   // Pool is large capacity
@@ -764,7 +764,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
 			LargeCapacity: true,                                   // Pool is large capacity
@@ -826,7 +826,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,                                 // Pool is NOT large capacity
@@ -885,7 +885,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: true,                                  // Pool is NOT large capacity
@@ -944,7 +944,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   13194139533312, // 12TB
 			LargeCapacity: true,
@@ -961,7 +961,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -976,7 +976,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node1).Error
@@ -990,7 +990,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node2).Error
@@ -1079,7 +1079,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   1125899906842624, // 1PiB
 			LargeCapacity: true,
@@ -1096,7 +1096,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -1111,7 +1111,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node1).Error
@@ -1125,7 +1125,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node2).Error
@@ -1209,7 +1209,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   13194139533312, // 12TB
 			LargeCapacity: true,
@@ -1226,7 +1226,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -1241,7 +1241,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node1).Error
@@ -1255,7 +1255,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node2).Error
@@ -1338,7 +1338,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   13194139533312, // 12TB
 			LargeCapacity: true,
@@ -1355,7 +1355,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -1411,7 +1411,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(50 * 1024 * 1024 * 1024 * 1024), // 50TB
 			LargeCapacity: true,
@@ -1428,7 +1428,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -1443,7 +1443,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node1).Error
@@ -1457,7 +1457,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(node2).Error
@@ -1542,7 +1542,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
 			LargeCapacity: true,                                   // Pool is large capacity
@@ -1612,7 +1612,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(30 * utils.PiBInBytes), // 30 PiB (very large pool)
 			LargeCapacity: true,                         // Pool is large capacity
@@ -1684,7 +1684,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,                                 // Pool is NOT large capacity
@@ -1745,7 +1745,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200TB (very large pool)
 			LargeCapacity: false,                                  // Pool is NOT large capacity
@@ -1806,7 +1806,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(310 * 1024 * 1024 * 1024 * 1024), // 310TB (very large pool)
 			LargeCapacity: false,                                  // Pool is NOT large capacity
@@ -1867,7 +1867,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(310 * 1024 * 1024 * 1024 * 1024), // 310TB (very large pool)
 			LargeCapacity: false,                                  // Pool is NOT large capacity
@@ -1925,7 +1925,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(150 * 1024 * 1024 * 1024 * 1024), // 150TB
 			LargeCapacity: false,                                  // Pool is NOT large capacity
@@ -1983,7 +1983,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(150 * 1024 * 1024 * 1024 * 1024), // 150TiB
 			LargeCapacity: false,                                  // Pool is NOT large capacity
@@ -2044,7 +2044,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
 			LargeCapacity: true,                                   // Pool is large capacity
@@ -2060,7 +2060,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -2119,7 +2119,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,                                 // Pool is NOT large capacity
@@ -2135,7 +2135,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -2193,7 +2193,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2218,7 +2218,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeREVERSE,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeREVERSE,
 				PeerClusterName: "peer-cluster",
 				PeerVolumeName:  "peer-volume",
 				PeerSvmName:     "peer-svm",
@@ -2260,7 +2260,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2285,7 +2285,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				PeerClusterName: "peer-cluster",
 				PeerVolumeName:  "peer-volume",
 				PeerSvmName:     "peer-svm",
@@ -2327,7 +2327,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2352,7 +2352,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "", // Empty schedule
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -2395,7 +2395,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2420,7 +2420,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "", // Missing required field
 				PeerVolumeName:      "peer-volume",
@@ -2463,7 +2463,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2489,7 +2489,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			LargeCapacity: false,
 			SnapshotID:    "snapshot-123", // Not allowed for hybrid replication
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -2532,7 +2532,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2561,7 +2561,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 				ScheduledBackupEnabled: &scheduledBackupEnabled,
 			},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -2604,7 +2604,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2629,7 +2629,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -2672,7 +2672,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 			LargeCapacity: false,
@@ -2697,7 +2697,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			LargeCapacity: false,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -2724,7 +2724,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.GiBInBytes,
 			Network:     "default",
 		}
@@ -2738,7 +2738,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "default",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
@@ -2767,7 +2767,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.GiBInBytes,
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
@@ -2779,7 +2779,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			QuotaInBytes: 1024 * 1024 * 1024,
 			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
@@ -2790,8 +2790,8 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		activeJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
-			Type:          string(models.JobTypeCreateHybridReplication),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeCreateHybridReplication),
+			State:         string(datamodel.JobsStatePROCESSING),
 			ResourceName:  "other-uri",
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: pool.UUID},
 		}
@@ -2812,7 +2812,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.GiBInBytes,
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
@@ -2824,7 +2824,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			QuotaInBytes: 1024 * 1024 * 1024,
 			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
@@ -2835,8 +2835,8 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		activeJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-2"},
-			Type:          string(models.JobTypeCreateVolumeReplication),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeCreateVolumeReplication),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  "projects/proj/locations/us-west1/volumes/vol-1/replications/repl-1",
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: pool.UUID},
 		}
@@ -2857,7 +2857,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.GiBInBytes,
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
@@ -2869,7 +2869,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			QuotaInBytes: 1024 * 1024 * 1024,
 			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
@@ -2917,7 +2917,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -2974,7 +2974,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -2990,7 +2990,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3003,7 +3003,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3068,7 +3068,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -3084,7 +3084,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3097,7 +3097,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3158,7 +3158,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -3174,7 +3174,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3187,7 +3187,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3248,7 +3248,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -3307,7 +3307,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
 		}
@@ -3323,7 +3323,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3336,7 +3336,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3403,7 +3403,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
 		}
@@ -3419,7 +3419,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3432,7 +3432,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3499,7 +3499,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
 			LargeCapacity: true,
@@ -3516,7 +3516,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3529,7 +3529,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3595,7 +3595,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024), // 100 GB
 			LargeCapacity: false,
@@ -3612,7 +3612,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(parentVolume).Error
 		if err != nil {
@@ -3625,7 +3625,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
 				ExternalUUID:           "external-snapshot-uuid",
@@ -3686,7 +3686,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -3701,11 +3701,11 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "splitting_parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "grandparent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}
@@ -3719,7 +3719,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -3771,7 +3771,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
 		}
@@ -3786,11 +3786,11 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "cloned_parent_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "grandparent-vol-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -3804,7 +3804,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -4849,7 +4849,7 @@ func TestCreateVolume(t *testing.T) {
 			PoolID:        "test-pool-uuid",
 			CreationToken: "test-creation-token",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "daily",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-volume",
@@ -6517,7 +6517,7 @@ func TestCreateVolume(t *testing.T) {
 			AccountID: account.ID,
 			Account:   account,
 			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -6527,7 +6527,7 @@ func TestCreateVolume(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
-		pool.State = models.LifeCycleStateREADY
+		pool.State = datamodel.LifeCycleStateREADY
 		pool, err = store.CreatedPool(ctx, pool)
 		if err != nil {
 			tt.Fatalf("Failed to update pool state: %v", err)
@@ -6552,7 +6552,7 @@ func TestCreateVolume(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateCreating, // This should trigger the job lookup
+			State:     datamodel.LifeCycleStateCreating, // This should trigger the job lookup
 		}
 		err = store.DB().Create(existingVolume).Error
 		if err != nil {
@@ -6638,8 +6638,8 @@ func TestCreateVolume(t *testing.T) {
 		createdVolume, err := store.CreateVolume(ctx, volume)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, "test_volume", createdVolume.Name)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
-		assert.Equal(tt, models.LifeCycleStateCreatingDetails, createdVolume.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatingDetails, createdVolume.StateDetails)
 	})
 
 	t.Run("ReturnsErrorWhenVolumeAlreadyExists", func(tt *testing.T) {
@@ -7254,7 +7254,7 @@ func TestCreateVolume(t *testing.T) {
 			AccountID:   account.ID,
 			PoolID:      pool.ID,
 			SizeInBytes: 107374182400,
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"ISCSI"},
 			},
@@ -7268,7 +7268,7 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
 			Name:      "test_snapshot",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeID:  parentVolume.ID,
 			Volume:    parentVolume,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
@@ -7327,7 +7327,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		Network:   "somevpc",
 		VendorID:  "/projects/project123/locations/location123/pools/pool123",
 		PoolAttributes: &datamodel.PoolAttributes{
@@ -7347,7 +7347,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -7360,7 +7360,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node1).Error
 	assert.NoError(tt, err, "Failed to create node")
@@ -7371,7 +7371,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(tt, err, "Failed to create node")
@@ -7488,7 +7488,7 @@ func Test_createVolume_WithAutoTieringPolicy(t *testing.T) {
 		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 		AccountID:        account.ID,
 		Account:          account,
-		State:            models.LifeCycleStateREADY,
+		State:            datamodel.LifeCycleStateREADY,
 		SizeInBytes:      100 * utils.TiBInBytes,
 		AllowAutoTiering: true,
 		VendorID:         "/projects/p/locations/us-west1/pools/pool-uuid",
@@ -7533,18 +7533,18 @@ func Test_createVolume_WithAutoTieringPolicy(t *testing.T) {
 		BaseModel: datamodel.BaseModel{ID: 1},
 		AccountID: pool.AccountID,
 		Name:      "node-1",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}, {
 		BaseModel: datamodel.BaseModel{ID: 2},
 		AccountID: pool.AccountID,
 		Name:      "node-2",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}}, nil)
 	mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
 	mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
 	mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 		Name:  "svm-1",
-		State: models.LifeCycleStateREADY,
+		State: datamodel.LifeCycleStateREADY,
 	}, nil)
 
 	var capturedVolume *datamodel.Volume
@@ -7595,7 +7595,7 @@ func Test_createVolume_WithAutoTieringPolicy_NilPolicyNotSet(t *testing.T) {
 		BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 		AccountID:   account.ID,
 		Account:     account,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 100 * utils.TiBInBytes,
 		VendorID:    "/projects/p/locations/us-west1/pools/pool-uuid",
 		PoolAttributes: &datamodel.PoolAttributes{
@@ -7624,13 +7624,13 @@ func Test_createVolume_WithAutoTieringPolicy_NilPolicyNotSet(t *testing.T) {
 	mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 		Return(nil, customerrors.NewNotFoundErr("volume", nil))
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-		BaseModel: datamodel.BaseModel{ID: 1}, AccountID: pool.AccountID, Name: "node-1", State: models.LifeCycleStateREADY,
+		BaseModel: datamodel.BaseModel{ID: 1}, AccountID: pool.AccountID, Name: "node-1", State: datamodel.LifeCycleStateREADY,
 	}, {
-		BaseModel: datamodel.BaseModel{ID: 2}, AccountID: pool.AccountID, Name: "node-2", State: models.LifeCycleStateREADY,
+		BaseModel: datamodel.BaseModel{ID: 2}, AccountID: pool.AccountID, Name: "node-2", State: datamodel.LifeCycleStateREADY,
 	}}, nil)
 	mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
 	mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
-	mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{Name: "svm-1", State: models.LifeCycleStateREADY}, nil)
+	mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{Name: "svm-1", State: datamodel.LifeCycleStateREADY}, nil)
 
 	var capturedVolume *datamodel.Volume
 	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).
@@ -7699,7 +7699,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Network:   "somevpc",
 			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 			PoolAttributes: &datamodel.PoolAttributes{
@@ -7719,7 +7719,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -7732,7 +7732,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -7743,7 +7743,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -7852,7 +7852,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Network:   "somevpc",
 			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 			PoolAttributes: &datamodel.PoolAttributes{
@@ -7872,7 +7872,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -7885,7 +7885,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -7896,7 +7896,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -8007,7 +8007,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Network:   "somevpc",
 			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 			PoolAttributes: &datamodel.PoolAttributes{
@@ -8027,7 +8027,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -8040,7 +8040,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -8051,7 +8051,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -8290,7 +8290,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "us-west1-a",
@@ -8309,7 +8309,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -8322,7 +8322,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		Name:      "test-node1",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node1).Error
 	if err != nil {
@@ -8334,7 +8334,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		Name:      "test-node2",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	if err != nil {
@@ -8371,7 +8371,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
 		SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GiB
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(parentVolume).Error
 	if err != nil {
@@ -8384,7 +8384,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 		Name:      "test_snapshot",
 		AccountID: account.ID,
 		VolumeID:  parentVolume.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		Volume:    parentVolume,
 	}
 	err = store.DB().Create(snapshot).Error
@@ -8498,7 +8498,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "us-west1-a",
@@ -8518,7 +8518,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -8531,7 +8531,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		Name:      "test-node1",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node1).Error
 	if err != nil {
@@ -8543,7 +8543,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		Name:      "test-node2",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	if err != nil {
@@ -8580,7 +8580,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
 		SizeInBytes: 100 * 1024 * 1024 * 1024, // 100 GiB
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
 			LargeVolumeConstituentCount: &lvcc,
 			LargeCapacity:               true,
@@ -8597,7 +8597,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 		Name:      "test_snapshot",
 		AccountID: account.ID,
 		VolumeID:  parentVolume.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		Volume:    parentVolume,
 	}
 	err = store.DB().Create(snapshot).Error
@@ -8713,7 +8713,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
@@ -8733,7 +8733,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -8847,7 +8847,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
@@ -8867,7 +8867,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -8981,7 +8981,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
@@ -9001,7 +9001,7 @@ func Test_createLargeVolume_DefaultConstituentCount(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -9941,8 +9941,8 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to get volume")
 		assert.Equal(tt, volume.Name, volumeResp.DisplayName)
 		assert.Equal(tt, account.Name, volumeResp.AccountName)
-		assert.Equal(tt, volumeResp.LifeCycleState, models.LifeCycleStateDeleting)
-		assert.Equal(tt, volumeResp.LifeCycleStateDetails, models.LifeCycleStateDeletingDetails)
+		assert.Equal(tt, volumeResp.LifeCycleState, datamodel.LifeCycleStateDeleting)
+		assert.Equal(tt, volumeResp.LifeCycleStateDetails, datamodel.LifeCycleStateDeletingDetails)
 	})
 	t.Run("WhenVolumeAlreadyDeletingVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -9990,8 +9990,8 @@ func TestDeleteVolume(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -10012,7 +10012,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error when deleting volume in DELETING state without existing job")
 		assert.NotNil(tt, volumeResp, "Expected volume response")
 		assert.NotEmpty(tt, jobUUID, "Expected job UUID to be created")
-		assert.Equal(tt, models.LifeCycleStateDeleting, volumeResp.LifeCycleState, "Expected volume state to be DELETING")
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, volumeResp.LifeCycleState, "Expected volume state to be DELETING")
 	})
 	t.Run("WhenVolumeAlreadyDeletingVolumeAndAsyncFlowFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -10056,8 +10056,8 @@ func TestDeleteVolume(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -10117,8 +10117,8 @@ func TestDeleteVolume(t *testing.T) {
 			Name:         "test_volume",
 			AccountID:    account.ID,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			Pool:         pool,
 		}
 		err = store.DB().Create(volume).Error
@@ -10143,8 +10143,8 @@ func TestDeleteVolume(t *testing.T) {
 		var updatedVolume datamodel.Volume
 		err = store.DB().First(&updatedVolume, "uuid = ?", volume.UUID).Error
 		assert.NoError(t, err, "Failed to fetch updated volume")
-		assert.Equal(t, models.LifeCycleStateDeleting, updatedVolume.State)
-		assert.Equal(t, models.LifeCycleStateDeletingDetails, updatedVolume.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateDeleting, updatedVolume.State)
+		assert.Equal(t, datamodel.LifeCycleStateDeletingDetails, updatedVolume.StateDetails)
 	})
 
 	t.Run("WhenFlexCacheVolume", func(tt *testing.T) {
@@ -10175,8 +10175,8 @@ func TestDeleteVolume(t *testing.T) {
 			Account:      account,
 			PoolID:       pool.ID,
 			Pool:         pool,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
 				SnapReserve:       0,
@@ -10205,10 +10205,10 @@ func TestDeleteVolume(t *testing.T) {
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
 		// Mock GetJobByResourceUUID for FLEXCACHE_DELETE_VOLUME (check for existing delete job when in non-transitional state)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			assert.Equal(tt, string(models.JobTypeFlexCacheDeleteVolume), job.Type)
-			assert.Equal(tt, string(models.JobsStateNEW), job.State)
+			assert.Equal(tt, string(datamodel.JobTypeFlexCacheDeleteVolume), job.Type)
+			assert.Equal(tt, string(datamodel.JobsStateNEW), job.State)
 			assert.Equal(tt, volume.Name, job.ResourceName)
 			if assert.NotNil(tt, job.JobAttributes) {
 				assert.Equal(tt, volume.UUID, job.JobAttributes.ResourceUUID)
@@ -10216,8 +10216,8 @@ func TestDeleteVolume(t *testing.T) {
 			return true
 		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
-			assert.Equal(tt, models.LifeCycleStateDeleting, fields["state"])
-			assert.Equal(tt, models.LifeCycleStateDeletingDetails, fields["state_details"])
+			assert.Equal(tt, datamodel.LifeCycleStateDeleting, fields["state"])
+			assert.Equal(tt, datamodel.LifeCycleStateDeletingDetails, fields["state_details"])
 			return true
 		})).Return(nil)
 
@@ -10225,7 +10225,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "deleteVolume should succeed for FlexCache volume")
 		assert.Equal(tt, "job-uuid", jobID)
 		assert.NotNil(tt, resultVolume)
-		assert.Equal(tt, models.LifeCycleStateDeleting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, resultVolume.LifeCycleState)
 		assert.True(tt, workflowValidated, "expected flex cache delete workflow to be used")
 	})
 
@@ -10257,7 +10257,7 @@ func TestDeleteVolume(t *testing.T) {
 			Account:   account,
 			PoolID:    pool.ID,
 			Pool:      pool,
-			State:     models.LifeCycleStatePreparing,
+			State:     datamodel.LifeCycleStatePreparing,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
 				SnapReserve:       0,
@@ -10282,9 +10282,9 @@ func TestDeleteVolume(t *testing.T) {
 
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeFlexCacheDeleteVolume)
+			return job.Type == string(datamodel.JobTypeFlexCacheDeleteVolume)
 		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.Anything).Return(nil)
 
@@ -10298,7 +10298,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "deleteVolume should succeed for FlexCache volume")
 		assert.Equal(tt, "job-uuid", jobID)
 		assert.NotNil(tt, resultVolume)
-		assert.Equal(tt, models.LifeCycleStateDeleting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, resultVolume.LifeCycleState)
 		assert.False(tt, sequentialCalled, "expected non-sequential ExecuteWorkflow path when cancel-create indicates parallel delete")
 		temporal.AssertExpectations(tt)
 	})
@@ -10321,7 +10321,7 @@ func TestDeleteVolume(t *testing.T) {
 		// Mock GetVolume to return the volume
 		mockStorage.On("GetVolume", ctx, "test-volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (check for existing delete job when in non-transitional state)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-volume-uuid", string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-volume-uuid", string(datamodel.JobTypeDeleteVolume)).Return(nil, nil)
 		// Mock CreateJob to succeed
 		jobUUID := "wid"
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}, nil)
@@ -10332,7 +10332,7 @@ func TestDeleteVolume(t *testing.T) {
 		// Mock GetVolumeReplicationCountByVolumeID to return 0
 		mockStorage.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		// Mock UpdateJob call when error occurs in defer function
-		mockStorage.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update failed").Return(nil)
+		mockStorage.On("UpdateJob", ctx, jobUUID, string(datamodel.JobsStateERROR), 0, "update failed").Return(nil)
 
 		// Call deleteVolume
 		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
@@ -10350,7 +10350,7 @@ func TestDeleteVolume(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
 			AccountID: 1,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
@@ -10394,7 +10394,7 @@ func TestDeleteVolume(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 			Name:             "test_volume",
-			State:            models.LifeCycleStateCreating,
+			State:            datamodel.LifeCycleStateCreating,
 			Account:          account,
 			AccountID:        1,
 			Pool:             pool,
@@ -10408,7 +10408,7 @@ func TestDeleteVolume(t *testing.T) {
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeCreateLargeVolume),
+			Type:          string(datamodel.JobTypeCreateLargeVolume),
 		}
 
 		// Disable auto pool scaling to avoid GetPool call
@@ -10418,9 +10418,9 @@ func TestDeleteVolume(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID with JobTypeCreateLargeVolume (lines 1661-1663)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateLargeVolume)).Return(createJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeCreateLargeVolume)).Return(createJob, nil)
 		// Mock GetJobByResourceUUID with JobTypeDeleteLargeVolume (check for existing delete job)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteLargeVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteLargeVolume)).Return(nil, nil)
 		// Mock validateDeleteVolumeParams and rest of the flow
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
 		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
@@ -10452,7 +10452,7 @@ func TestDeleteVolume(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
 			AccountID: 1,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
@@ -10461,9 +10461,9 @@ func TestDeleteVolume(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (first check in ValidateCorrelationIDForCreatingResource)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(nil, nil)
 		// Mock GetJobByResourceUUID to return error (lines 1666-1668)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(nil, errors.New("job not found"))
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeCreateVolume)).Return(nil, errors.New("job not found"))
 
 		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
 
@@ -10488,7 +10488,7 @@ func TestDeleteVolume(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
 			AccountID: 1,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
@@ -10498,13 +10498,13 @@ func TestDeleteVolume(t *testing.T) {
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 			CorrelationID: "different-correlation-id", // Mismatch
-			Type:          string(models.JobTypeCreateVolume),
+			Type:          string(datamodel.JobTypeCreateVolume),
 		}
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (first check in ValidateCorrelationIDForCreatingResource)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(createJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeCreateVolume)).Return(createJob, nil)
 
 		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
 
@@ -10539,7 +10539,7 @@ func TestDeleteVolume(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 			Name:             "test_volume",
-			State:            models.LifeCycleStateCreating,
+			State:            datamodel.LifeCycleStateCreating,
 			Account:          account,
 			AccountID:        1,
 			Pool:             pool,
@@ -10551,7 +10551,7 @@ func TestDeleteVolume(t *testing.T) {
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 			CorrelationID: correlationID, // Matching
-			Type:          string(models.JobTypeCreateVolume),
+			Type:          string(datamodel.JobTypeCreateVolume),
 		}
 
 		// Disable auto pool scaling to avoid GetPool call
@@ -10560,9 +10560,9 @@ func TestDeleteVolume(t *testing.T) {
 		defer func() { enableAutoPoolScaling = originalAutoScaling }()
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(createJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeCreateVolume)).Return(createJob, nil)
 		// Mock GetJobByResourceUUID with JobTypeDeleteVolume (check for existing delete job)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(nil, nil)
 		// Mock validateDeleteVolumeParams and rest of the flow
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
 		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
@@ -10623,8 +10623,8 @@ func TestDeleteVolume(t *testing.T) {
 			Name:         "test_volume",
 			AccountID:    account.ID,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -10639,8 +10639,8 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volumeResp)
 		assert.Empty(tt, jobUUID, "Expected empty job UUID when pool is nil")
-		assert.Equal(tt, models.LifeCycleStateDeleted, volumeResp.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, volumeResp.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, volumeResp.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, volumeResp.LifeCycleStateDetails)
 		assert.Equal(tt, volume.Name, volumeResp.DisplayName)
 		assert.Equal(tt, account.Name, volumeResp.AccountName)
 
@@ -10666,7 +10666,7 @@ func TestDeleteVolume(t *testing.T) {
 			AccountID: account.ID,
 			Account:   account,
 			Pool:      nil,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
@@ -10695,7 +10695,7 @@ func TestDeleteVolume(t *testing.T) {
 			AccountID: account.ID,
 			Account:   account,
 			Pool:      nil,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
@@ -10705,7 +10705,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volumeResp)
 		assert.Empty(tt, jobUUID)
-		assert.Equal(tt, models.LifeCycleStateDeleted, volumeResp.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, volumeResp.LifeCycleState)
 		assert.Equal(tt, volume.UUID, volumeResp.UUID)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -10750,8 +10750,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		previousState := models.LifeCycleStateAvailable
-		previousStateDetails := models.LifeCycleStateAvailableDetails
+		previousState := datamodel.LifeCycleStateAvailable
+		previousStateDetails := datamodel.LifeCycleStateAvailableDetails
 		volume := &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:         "test_volume",
@@ -10778,7 +10778,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
 		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (called in GetExistingDeleteJobForDeletingState for non-transitional states)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, errors.New("no delete job found"))
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(nil, errors.New("no delete job found"))
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&
@@ -10786,8 +10786,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 				job.JobAttributes.ResourceUUID == volume.UUID
 		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
-			return fields["state"] == models.LifeCycleStateDeleting &&
-				fields["state_details"] == models.LifeCycleStateDeletingDetails
+			return fields["state"] == datamodel.LifeCycleStateDeleting &&
+				fields["state_details"] == datamodel.LifeCycleStateDeletingDetails
 		})).Return(nil)
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
 			Pool: *pool,
@@ -10837,7 +10837,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Account:   account,
 			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
@@ -10861,8 +10861,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		existingDeleteJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeDeleteVolume),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeDeleteVolume),
+			State:         string(datamodel.JobsStatePROCESSING),
 		}
 
 		mockStorage := database.NewMockStorage(tt)
@@ -10870,7 +10870,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(existingDeleteJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(existingDeleteJob, nil)
 
 		result, jobUUID, err := _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
 
@@ -10914,7 +10914,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			PoolID:    pool.ID,
 			Account:   account,
 			Pool:      pool,
-			State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+			State:     datamodel.LifeCycleStateUpdating, // Transitional state (not DELETING)
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err)
@@ -10931,7 +10931,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be deleted")
-		assert.Contains(tt, err.Error(), models.LifeCycleStateUpdating)
+		assert.Contains(tt, err.Error(), datamodel.LifeCycleStateUpdating)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -10969,7 +10969,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 			Account:   account,
 			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
@@ -10984,8 +10984,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
-			Type:      string(models.JobTypeDeleteVolume),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeDeleteVolume),
+			State:     string(datamodel.JobsStateNEW),
 		}
 
 		mockStorage := database.NewMockStorage(tt)
@@ -10993,7 +10993,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// GetExistingDeleteJobForDeletingState returns existingJobUUID when delete job is in progress
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(existingJob, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(existingJob, nil)
 
 		result, jobUUID, err := _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
 
@@ -11066,8 +11066,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 			PoolID:       pool.ID,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11078,7 +11078,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11099,8 +11099,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11167,8 +11167,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11199,8 +11199,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11373,7 +11373,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 			Name:      "volume1",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(volume).Error
 		if err != nil {
@@ -11435,7 +11435,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "somevpc",
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
@@ -11451,7 +11451,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -11467,8 +11467,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			PoolID:       pool.ID,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11479,7 +11479,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11490,7 +11490,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11530,8 +11530,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11588,7 +11588,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "somevpc",
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
@@ -11604,7 +11604,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -11620,8 +11620,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			PoolID:       pool.ID,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11632,7 +11632,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11662,8 +11662,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11725,7 +11725,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "somevpc",
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before backup vault check
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
@@ -11741,7 +11741,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -11757,8 +11757,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			PoolID:       pool.ID,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11769,7 +11769,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11780,7 +11780,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11809,8 +11809,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-id"},
 			Name:                  "test_backup_vault",
 			AccountID:             account.ID,
-			LifeCycleState:        models.LifeCycleStateError,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateError,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 			Account:               account,
 		}
 		err = store.DB().Create(bv).Error
@@ -11822,8 +11822,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11872,7 +11872,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "somevpc",
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before cross-region check
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
@@ -11888,7 +11888,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -11904,8 +11904,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			PoolID:       pool.ID,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -11916,7 +11916,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11927,7 +11927,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -11956,8 +11956,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-id"},
 			Name:                  "test_backup_vault",
 			AccountID:             account.ID,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 			Account:               account,
 			BackupVaultType:       activities.CrossRegionBackupType,
 			BackupRegionName:      nillable.ToPointer("us-central1"),
@@ -11971,8 +11971,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -12001,22 +12001,22 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}{
 			{
 				name:          "CreatingPool",
-				poolState:     models.LifeCycleStateCreating,
+				poolState:     datamodel.LifeCycleStateCreating,
 				expectedError: "Specified pool is in CREATING state, hence volume cannot be created",
 			},
 			{
 				name:          "ErrorPool",
-				poolState:     models.LifeCycleStateError,
+				poolState:     datamodel.LifeCycleStateError,
 				expectedError: "Pool is currently unavailable for creating volume",
 			},
 			{
 				name:          "DeletingPool",
-				poolState:     models.LifeCycleStateDeleting,
+				poolState:     datamodel.LifeCycleStateDeleting,
 				expectedError: "Specified pool is in DELETING state, hence volume cannot be created",
 			},
 			{
 				name:          "DeletedPool",
-				poolState:     models.LifeCycleStateDeleted,
+				poolState:     datamodel.LifeCycleStateDeleted,
 				expectedError: "Specified pool is in DELETED state, hence volume cannot be created",
 			},
 		}
@@ -12124,7 +12124,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 					BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 					Name:        "test_pool",
 					AccountID:   account.ID,
-					State:       models.LifeCycleStateDegraded,
+					State:       datamodel.LifeCycleStateDegraded,
 					SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 					Network:     "test-network",
 				}
@@ -12146,7 +12146,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 					Name:      "test_svm",
 					AccountID: account.ID,
 					PoolID:    pool.ID,
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				}
 				err = store.DB().Create(svm).Error
 				if err != nil {
@@ -12160,7 +12160,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 					AccountID:       account.ID,
 					EndpointAddress: "12.12.12.12",
 					PoolID:          pool.ID,
-					State:           models.LifeCycleStateREADY,
+					State:           datamodel.LifeCycleStateREADY,
 				}
 				err = store.DB().Create(node1).Error
 				if err != nil {
@@ -12173,7 +12173,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 					AccountID:       account.ID,
 					EndpointAddress: "12.12.12.13",
 					PoolID:          pool.ID,
-					State:           models.LifeCycleStateREADY,
+					State:           datamodel.LifeCycleStateREADY,
 				}
 				err = store.DB().Create(node2).Error
 				if err != nil {
@@ -12239,7 +12239,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before quota check
 		}
 
@@ -12293,7 +12293,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: poolSizeInBytes,
 		}
 
@@ -12355,7 +12355,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: poolSizeInBytes,
 			Network:     "test-network", // Set pool network to match volume network
 		}
@@ -12417,7 +12417,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 		}
 
@@ -12470,7 +12470,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 		}
 
@@ -12522,7 +12522,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12536,7 +12536,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12587,7 +12587,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12601,7 +12601,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12615,8 +12615,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			SizeInBytes:  int64(minQuotaInBytesVolume),
 		}
 		err = store.DB().Create(volume).Error
@@ -12665,7 +12665,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12679,7 +12679,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12693,7 +12693,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateDeleted,
+			State:           datamodel.LifeCycleStateDeleted,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12704,7 +12704,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12752,7 +12752,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12766,7 +12766,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12780,7 +12780,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12791,7 +12791,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12844,7 +12844,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12858,7 +12858,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12872,7 +12872,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12883,7 +12883,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12951,7 +12951,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
@@ -12965,7 +12965,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -12979,7 +12979,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -12990,7 +12990,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13060,7 +13060,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     account,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
@@ -13075,7 +13075,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13089,7 +13089,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13100,7 +13100,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13172,7 +13172,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     account,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
@@ -13187,7 +13187,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13201,7 +13201,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13212,7 +13212,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13241,7 +13241,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "testhg"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13294,7 +13294,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     account,
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
@@ -13309,7 +13309,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13323,7 +13323,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13334,7 +13334,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13363,7 +13363,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13415,7 +13415,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:             "test_pool",
 			AccountID:        account.ID,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: false,
 			SizeInBytes:      int64(maxQuotaInBytesPool),
@@ -13431,7 +13431,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13445,7 +13445,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13456,7 +13456,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13485,7 +13485,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13540,7 +13540,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:             "test_pool",
 			AccountID:        account.ID,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
 			SizeInBytes:      int64(maxQuotaInBytesPool),
@@ -13556,7 +13556,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13570,7 +13570,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13581,7 +13581,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13610,7 +13610,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13667,7 +13667,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:             "test_pool",
 			AccountID:        account.ID,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
 			SizeInBytes:      int64(maxQuotaInBytesPool),
@@ -13683,7 +13683,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13697,7 +13697,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13708,7 +13708,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13737,7 +13737,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13794,7 +13794,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:             "test_pool",
 			AccountID:        account.ID,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
 			SizeInBytes:      int64(maxQuotaInBytesPool),
@@ -13810,7 +13810,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -13824,7 +13824,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13835,7 +13835,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13864,7 +13864,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 			Name:      "testhg",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hg).Error
 		assert.NoError(tt, err, "Failed to create node")
@@ -13923,7 +13923,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 
@@ -13937,7 +13937,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		Name:      "test_pool",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	err = store.DB().Create(svm).Error
@@ -13951,7 +13951,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node1).Error
 	assert.NoError(tt, err, "Failed to create node")
@@ -13962,7 +13962,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(tt, err, "Failed to create node")
@@ -13991,7 +13991,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
 		Name:      "testhg",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(hg).Error
 	assert.NoError(tt, err, "Failed to create node")
@@ -14153,7 +14153,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "test-vault-immutable"},
 			Name:           "test_bv_immutable",
 			AccountID:      account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -14173,7 +14173,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			WeeklyBackupsToKeep:  5,
 			MonthlyBackupsToKeep: 3,
 			PolicyEnabled:        true,
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(bp).Error
 		assert.NoError(tt, err, "Failed to create backup policy")
@@ -14216,7 +14216,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "test-vault-immutable-strict"},
 			Name:           "test_bv_immutable_strict",
 			AccountID:      account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -14236,7 +14236,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
 			PolicyEnabled:        true,
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(bp).Error
 		assert.NoError(tt, err, "Failed to create backup policy with insufficient retention")
@@ -14279,7 +14279,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "test-vault-disabled-feature"},
 			Name:           "test_bv_disabled_feature",
 			AccountID:      account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -14299,7 +14299,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
 			PolicyEnabled:        true,
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(bp).Error
 		assert.NoError(tt, err, "Failed to create backup policy")
@@ -14340,7 +14340,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "test-cross-region-vault"},
 			Name:             "test_cross_region_vault",
 			AccountID:        account.ID,
-			LifeCycleState:   models.LifeCycleStateREADY,
+			LifeCycleState:   datamodel.LifeCycleStateREADY,
 			BackupVaultType:  activities.CrossRegionBackupType,
 			SourceRegionName: nillable.ToPointer(sourceRegionName),
 			BackupRegionName: nillable.ToPointer(backupRegionName),
@@ -14461,7 +14461,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update state error")).Once()
 		// Mock UpdateJob call when error occurs in defer function
-		se.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update state error").Return(nil)
+		se.On("UpdateJob", ctx, jobUUID, string(datamodel.JobsStateERROR), 0, "update state error").Return(nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14488,7 +14488,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Mock UpdateJob call when error occurs in defer function
-		se.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "workflow error").Return(nil)
+		se.On("UpdateJob", ctx, jobUUID, string(datamodel.JobsStateERROR), 0, "workflow error").Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14640,8 +14640,8 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
-			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Name: "hg1", State: models.LifeCycleStateError,
-		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, State: models.LifeCycleStateREADY}}, nil)
+			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Name: "hg1", State: datamodel.LifeCycleStateError,
+		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, State: datamodel.LifeCycleStateREADY}}, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.EqualError(tt, err, "host group hg1 is not available")
@@ -14677,8 +14677,8 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
-			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Hosts: datamodel.Hosts{Hosts: []string{"a", "b"}}, State: models.LifeCycleStateREADY,
-		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, Hosts: datamodel.Hosts{Hosts: []string{"a"}}, State: models.LifeCycleStateREADY}}, nil)
+			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Hosts: datamodel.Hosts{Hosts: []string{"a", "b"}}, State: datamodel.LifeCycleStateREADY,
+		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, Hosts: datamodel.Hosts{Hosts: []string{"a"}}, State: datamodel.LifeCycleStateREADY}}, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.EqualError(tt, err, "host : a is present in multiple host groups")
@@ -15045,7 +15045,7 @@ func TestUpdateVolume(t *testing.T) {
 				BackupVaultID:    "",
 				BackupChainBytes: nillable.GetInt64Ptr(4096),
 			},
-			State:          "READY",
+			State: "READY",
 		}
 
 		job := &datamodel.Job{WorkflowID: "wid"}
@@ -15346,7 +15346,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		job := &datamodel.Job{WorkflowID: "wid"}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15394,7 +15394,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		job := &datamodel.Job{WorkflowID: "wid"}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15564,8 +15564,8 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		job := &datamodel.Job{WorkflowID: "wid"}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
@@ -15613,8 +15613,8 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		job := &datamodel.Job{WorkflowID: "wid"}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
@@ -15703,7 +15703,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		job := &datamodel.Job{WorkflowID: "wid"}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcnv"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcnv"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcbdr"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -15745,8 +15745,8 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 		dbVolume.AccountID = 1
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 99, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 99, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15787,8 +15787,8 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 		dbVolume.AccountID = 1
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15829,7 +15829,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 		dbVolume.AccountID = 1
 		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15869,7 +15869,7 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 		dbVolume.AccountID = 1
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: datamodel.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -16055,7 +16055,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: backupVaultId},
 			Name:           "test-backup-vault",
 			AccountID:      poolView.Account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -16166,7 +16166,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: int64(1024 * 1024 * 1024),
 			Name:        "vol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
 
@@ -16922,7 +16922,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		// Mock the expected behavior for GetBackupVaultByUUIDndOwnerID
 		bv := &datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
-			LifeCycleState:        models.LifeCycleStateError,
+			LifeCycleState:        datamodel.LifeCycleStateError,
 			LifeCycleStateDetails: "Backup Vault is ready",
 		}
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(bv, nil)
@@ -16948,7 +16948,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			BackupVaultType:  activities.CrossRegionBackupType,
 			SourceRegionName: nillable.GetStringPtr(sourceRegionName),
 			BackupRegionName: nillable.GetStringPtr(backupRegionName),
-			LifeCycleState:   models.LifeCycleStateREADY,
+			LifeCycleState:   datamodel.LifeCycleStateREADY,
 		}
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(bv, nil)
 
@@ -16979,12 +16979,12 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-with-detached-backups"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
-		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{models.ServiceTypeGCNV}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{datamodel.ServiceTypeGCNV}, nil)
 		volume := &datamodel.Volume{
 			BaseModel:      datamodel.BaseModel{UUID: volUUID},
 			State:          "READY",
@@ -17012,7 +17012,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-with-detached-backups-2"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcbdr-vault"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ServiceType:    activities.GCBDRServiceType,
 		}
 		se.On("GetBackupVault", ctx, "gcbdr-vault").Return(bv, nil)
@@ -17045,12 +17045,12 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-cross-gcbdr-on-gcnv-backups"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcbdr-vault-new"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ServiceType:    activities.GCBDRServiceType,
 		}
 		se.On("GetBackupVault", ctx, "gcbdr-vault-new").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
-		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{models.ServiceTypeGCNV}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{datamodel.ServiceTypeGCNV}, nil)
 		volume := &datamodel.Volume{
 			BaseModel:      datamodel.BaseModel{UUID: volUUID},
 			State:          "READY",
@@ -17079,8 +17079,8 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-cross-gcnv-on-gcbdr-backups"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-new"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault-new").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
@@ -17113,12 +17113,12 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-mixed-families"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-mixed"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault-mixed").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1, 2}, nil)
-		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1, 2}).Return([]string{models.ServiceTypeGCNV, activities.GCBDRServiceType}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1, 2}).Return([]string{datamodel.ServiceTypeGCNV, activities.GCBDRServiceType}, nil)
 		volume := &datamodel.Volume{
 			BaseModel:      datamodel.BaseModel{UUID: volUUID},
 			State:          "READY",
@@ -17141,8 +17141,8 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-clean"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-2"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault-2").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{}, nil)
@@ -17174,8 +17174,8 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-legacy-reattach-block"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-legacy"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault-legacy").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
@@ -17207,8 +17207,8 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volUUID := "vol-orphan-backup-rows"
 		bv := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-orphan"},
-			LifeCycleState: models.LifeCycleStateREADY,
-			ServiceType:    models.ServiceTypeGCNV,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
+			ServiceType:    datamodel.ServiceTypeGCNV,
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault-orphan").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{999}, nil)
@@ -17234,7 +17234,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 
 		bp := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyId},
-			LifeCycleState: models.LifeCycleStateError,
+			LifeCycleState: datamodel.LifeCycleStateError,
 		}
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, int64(1)).Return(bp, nil)
 
@@ -17288,7 +17288,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
 				Name:      "hg1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Hosts: datamodel.Hosts{
 					Hosts: []string{"iqn.1998-01.com.vmware:host1"},
 				},
@@ -17296,7 +17296,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
 				Name:      "hg2",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Hosts: datamodel.Hosts{
 					Hosts: []string{"iqn.1998-01.com.vmware:host2"},
 				},
@@ -17404,7 +17404,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
 				Name:      "hg1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Hosts: datamodel.Hosts{
 					Hosts: []string{"iqn.1998-01.com.vmware:host1"},
 				},
@@ -17722,8 +17722,8 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:        "test_volume",
-			SizeInBytes: int64(1024 * 1024 * 1024),     // 1 GiB
-			State:       models.LifeCycleStateCreating, // Transitional state
+			SizeInBytes: int64(1024 * 1024 * 1024),        // 1 GiB
+			State:       datamodel.LifeCycleStateCreating, // Transitional state
 		}
 
 		params := &common.UpdateVolumeParams{
@@ -17735,7 +17735,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "cannot be updated, while in transitioning state")
-		assert.Contains(tt, err.Error(), models.LifeCycleStateCreating)
+		assert.Contains(tt, err.Error(), datamodel.LifeCycleStateCreating)
 	})
 
 	t.Run("SnapReserveIncreaseWithSufficientLUNSpace", func(tt *testing.T) {
@@ -18616,13 +18616,13 @@ func Test_validateUpdateVolumeRequest_LargeCapacity(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{UUID: "hg1"},
 				Name:      "HostGroup1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Hosts:     datamodel.Hosts{Hosts: []string{"host1"}},
 			},
 			{
 				BaseModel: datamodel.BaseModel{UUID: "hg2"},
 				Name:      "HostGroup2",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Hosts:     datamodel.Hosts{Hosts: []string{"host2"}},
 			},
 		}, nil)
@@ -19022,9 +19022,9 @@ func Test_validateUpdateVolumeRequest_LargeCapacity(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			State:       models.LifeCycleStateCreating, // Transitional state
-			Name:        "",                            // Empty name (could be nil in real scenario)
-			SizeInBytes: int64(10 * 1099511627776),     // 10 TiB
+			State:       datamodel.LifeCycleStateCreating, // Transitional state
+			Name:        "",                               // Empty name (could be nil in real scenario)
+			SizeInBytes: int64(10 * 1099511627776),        // 10 TiB
 		}
 
 		params := &common.UpdateVolumeParams{
@@ -20127,12 +20127,12 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create account: %v", err)
 		}
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY, Account: account}
 		err = store.DB().Create(pool).Error
 		if err != nil {
 			t.Fatalf("Failed to create pool: %v", err)
 		}
-		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: models.LifeCycleStateREADY, AccountID: account.ID}
+		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: datamodel.LifeCycleStateREADY, AccountID: account.ID}
 		err = store.DB().Create(hg).Error
 		if err != nil {
 			t.Fatalf("Failed to create host group: %v", err)
@@ -20163,7 +20163,7 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create account: %v", err)
 		}
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY, Account: account}
 		err = store.DB().Create(pool).Error
 		if err != nil {
 			t.Fatalf("Failed to create pool: %v", err)
@@ -20194,12 +20194,12 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create account: %v", err)
 		}
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY, Account: account}
 		err = store.DB().Create(pool).Error
 		if err != nil {
 			t.Fatalf("Failed to create pool: %v", err)
 		}
-		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: models.LifeCycleStateREADY, AccountID: account.ID}
+		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: datamodel.LifeCycleStateREADY, AccountID: account.ID}
 		err = store.DB().Create(hg).Error
 		if err != nil {
 			t.Fatalf("Failed to create host group: %v", err)
@@ -20294,7 +20294,7 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 			Name:         "dummy-name",
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType: models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType: datamodel.HybridReplicationParametersReplicationTypeONPREM,
 			},
 			// No BlockDevices or BlockProperties - should still pass validation
 		}
@@ -20701,7 +20701,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 		}
@@ -20716,7 +20716,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -20731,7 +20731,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -20744,7 +20744,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -20845,7 +20845,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
@@ -20860,7 +20860,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -20875,7 +20875,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -20888,7 +20888,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -20977,7 +20977,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "test-network",
 			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 		}
@@ -20992,7 +20992,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		err = store.DB().Create(svm).Error
@@ -21007,7 +21007,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -21020,7 +21020,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -22175,7 +22175,7 @@ func TestConvertDatastoreVolumeToModel_IsRegionHA(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:        "test_volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     account,
 			Pool:        pool,
 			SizeInBytes: 1073741824,
@@ -22205,7 +22205,7 @@ func TestConvertDatastoreVolumeToModel_IsRegionHA(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:        "test_volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     account,
 			Pool:        pool,
 			SizeInBytes: 1073741824,
@@ -22399,7 +22399,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}
@@ -22422,7 +22422,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -23299,11 +23299,11 @@ func TestUpdateVolumeStatus(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test-volume",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		se.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(errors.New("database error"))
-		updatedVolume, err := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+		updatedVolume, err := updateVolumeStatus(ctx, se, volume, datamodel.LifeCycleStateReverting, datamodel.LifeCycleStateRevertingDetails)
 		assert.EqualError(tt, err, "database error")
 		assert.Nil(tt, updatedVolume)
 	})
@@ -23314,15 +23314,15 @@ func TestUpdateVolumeStatus(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test-volume",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		se.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(nil)
-		updatedVolume, err := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+		updatedVolume, err := updateVolumeStatus(ctx, se, volume, datamodel.LifeCycleStateReverting, datamodel.LifeCycleStateRevertingDetails)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedVolume)
-		assert.Equal(tt, models.LifeCycleStateReverting, updatedVolume.State)
-		assert.Equal(tt, models.LifeCycleStateRevertingDetails, updatedVolume.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateReverting, updatedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateRevertingDetails, updatedVolume.StateDetails)
 	})
 }
 
@@ -23443,8 +23443,8 @@ func TestRevertVolume(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -23503,7 +23503,7 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: true,
 				SnapReserve:      0,
@@ -23565,11 +23565,11 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}
@@ -23630,7 +23630,7 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 				SnapReserve:      0,
@@ -23693,7 +23693,7 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
@@ -23706,7 +23706,7 @@ func TestRevertVolume(t *testing.T) {
 			Name:      "test_snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(snapshot).Error
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -23771,7 +23771,7 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(t, err, "Failed to create volume")
@@ -23781,7 +23781,7 @@ func TestRevertVolume(t *testing.T) {
 			Name:      "test_snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		assert.NoError(t, err, "Failed to create snapshot")
@@ -23869,7 +23869,7 @@ func TestRevertVolume(t *testing.T) {
 			AccountID: account.ID,
 			Pool:      pool,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
@@ -23882,7 +23882,7 @@ func TestRevertVolume(t *testing.T) {
 			Name:      "test_snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -23914,7 +23914,7 @@ func TestRevertVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, resultVolume)
 		assert.NotEmpty(tt, jobUUID)
-		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateReverting, resultVolume.LifeCycleState)
 		assert.Equal(tt, volume.UUID, resultVolume.UUID)
 		assert.Equal(tt, volume.Name, resultVolume.DisplayName)
 	})
@@ -24006,10 +24006,10 @@ func TestRevertVolume(t *testing.T) {
 		// Verify volume state is reverted back to READY
 		updatedVolume, volErr := store.GetVolume(ctx, volume.UUID)
 		assert.NoError(tt, volErr)
-		assert.Equal(tt, models.LifeCycleStateREADY, updatedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, updatedVolume.State)
 
 		// Verify job is deleted - GetJobByResourceUUID should return error (not found)
-		_, jobErr := store.GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeRevertVolume))
+		_, jobErr := store.GetJobByResourceUUID(ctx, volume.UUID, string(datamodel.JobTypeRevertVolume))
 		assert.Error(tt, jobErr)
 		// Check if it's a not found error (GORM returns "record not found" which may not be wrapped)
 		if !customerrors.IsNotFoundErr(jobErr) {
@@ -24072,7 +24072,7 @@ func TestRevertVolume(t *testing.T) {
 			PoolID:    pool.ID,
 			Pool:      pool,
 			Account:   account,
-			State:     models.LifeCycleStateReverting,
+			State:     datamodel.LifeCycleStateReverting,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
@@ -24097,7 +24097,7 @@ func TestRevertVolume(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -24107,8 +24107,8 @@ func TestRevertVolume(t *testing.T) {
 		// Create an ongoing revert job for the volume
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-revert-job-uuid"},
-			Type:         string(models.JobTypeRevertVolume),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeRevertVolume),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: volume.Name,
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -24130,7 +24130,7 @@ func TestRevertVolume(t *testing.T) {
 		assert.NotNil(tt, resultVolume, "Expected volume to be returned")
 		assert.Equal(tt, volume.UUID, resultVolume.UUID)
 		assert.Equal(tt, volume.Name, resultVolume.DisplayName)
-		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateReverting, resultVolume.LifeCycleState)
 	})
 
 	t.Run("WhenEnableJobResourceUUIDIndex_RevertVolumeReturnsOngoingJob", func(tt *testing.T) {
@@ -24184,7 +24184,7 @@ func TestRevertVolume(t *testing.T) {
 			PoolID:           pool.ID,
 			Pool:             pool,
 			Account:          account,
-			State:            models.LifeCycleStateReverting,
+			State:            datamodel.LifeCycleStateReverting,
 			VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
 		}
 		err = store.DB().Create(volume).Error
@@ -24204,7 +24204,7 @@ func TestRevertVolume(t *testing.T) {
 			Name:      "test_snapshot_idx",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -24214,8 +24214,8 @@ func TestRevertVolume(t *testing.T) {
 		// Set ResourceUUID directly so the resource_uuid column filter can find the job.
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-revert-job-uuid-idx"},
-			Type:         string(models.JobTypeRevertVolume),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeRevertVolume),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: volume.Name,
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			ResourceUUID: volume.UUID,
@@ -24237,7 +24237,7 @@ func TestRevertVolume(t *testing.T) {
 		assert.Equal(tt, "test-revert-job-uuid-idx", jobUUID)
 		assert.NotNil(tt, resultVolume)
 		assert.Equal(tt, volume.UUID, resultVolume.UUID)
-		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateReverting, resultVolume.LifeCycleState)
 	})
 }
 
@@ -24266,7 +24266,7 @@ func setupVolumeValidationTest(t *testing.T, poolSizeInTiB int64) (context.Conte
 		BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:        "test_pool",
 		AccountID:   account.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: poolSizeInTiB * utils.TiBInBytes,
 	}
 	err = store.DB().Create(pool).Error
@@ -24284,7 +24284,7 @@ func setupNodesAndLIFs(t *testing.T, store database.Storage, account *datamodel.
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err := store.DB().Create(svm).Error
 	assert.NoError(t, err)
@@ -24296,7 +24296,7 @@ func setupNodesAndLIFs(t *testing.T, store database.Storage, account *datamodel.
 		AccountID:       account.ID,
 		EndpointAddress: "11.11.11.11",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node1).Error
 	assert.NoError(t, err, "Failed to create node")
@@ -24307,7 +24307,7 @@ func setupNodesAndLIFs(t *testing.T, store database.Storage, account *datamodel.
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err, "Failed to create node")
@@ -24610,7 +24610,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			Name:             "test-pool",
 			AccountID:        account.ID,
 			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			AllowAutoTiering: false, // Auto tiering disabled on pool
 		}
 		err = store.DB().Create(pool).Error
@@ -24623,7 +24623,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -24637,7 +24637,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -24650,7 +24650,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -24692,7 +24692,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 				AllowAutoTiering: false, // Auto tiering disabled on pool
 				AccountID:        account.ID,
 				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
 				},
@@ -24743,7 +24743,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			Name:             "test-pool",
 			AccountID:        account.ID,
 			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			AllowAutoTiering: true, // Auto tiering enabled on pool
 		}
 		err = store.DB().Create(pool).Error
@@ -24756,7 +24756,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -24770,7 +24770,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -24783,7 +24783,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -24825,7 +24825,7 @@ func TestValidateCreateVolumeParams_HotTierBypassModeValidation(t *testing.T) {
 				AllowAutoTiering: true, // Auto tiering enabled on pool
 				AccountID:        account.ID,
 				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
 				},
@@ -25238,7 +25238,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 			Name:             "test-pool",
 			AccountID:        account.ID,
 			SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			AllowAutoTiering: true, // Auto tiering enabled on pool
 		}
 		err = store.DB().Create(pool).Error
@@ -25251,7 +25251,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25265,7 +25265,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25278,7 +25278,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -25320,7 +25320,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 				AllowAutoTiering: true, // Auto tiering enabled on pool
 				AccountID:        account.ID,
 				SizeInBytes:      int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-				State:            models.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
 				},
@@ -25332,7 +25332,7 @@ func TestHotTierBypassModeWithPausedTieringPolicy(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid", ID: 1},
 			Name:      "test-hostgroup",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(hostGroup).Error
 		if err != nil {
@@ -25397,7 +25397,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:             "test-pool",
 			AccountID:        account.ID,
 			SizeInBytes:      int64(utils.MaxQuotaInBytesLargeVolume), // 20 PiB
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Network:          "test-network",
 			LargeCapacity:    true,
 			VLMConfig:        "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-22-lssd\"}}",
@@ -25414,7 +25414,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25428,7 +25428,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25441,7 +25441,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -25544,7 +25544,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(utils.MaxQuotaInBytesLargeVolume + 1),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-22-lssd\"}}",
@@ -25560,7 +25560,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25574,7 +25574,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25587,7 +25587,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -25658,7 +25658,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(utils.MaxLvHotTierCapacity), // 2.48 PiB
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			BuildInfo:     &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
@@ -25673,7 +25673,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25687,7 +25687,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25700,7 +25700,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -25793,7 +25793,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(utils.MaxLvHotTierCapacity + 1),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 		}
@@ -25807,7 +25807,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25821,7 +25821,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25834,7 +25834,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -25895,7 +25895,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(utils.MaxLvHotTierCapacity),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			BuildInfo:     &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
@@ -25910,7 +25910,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -25924,7 +25924,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -25937,7 +25937,7 @@ func TestValidateCreateVolumeParams_LargeCapacityMaxSizeValidation(t *testing.T)
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26041,7 +26041,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			BuildInfo:     &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
@@ -26056,7 +26056,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26070,7 +26070,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26083,7 +26083,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26194,7 +26194,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 		}
@@ -26208,7 +26208,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26285,7 +26285,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 		}
@@ -26299,7 +26299,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26313,7 +26313,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26326,7 +26326,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26411,7 +26411,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024),
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			BuildInfo:     &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
@@ -26426,7 +26426,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26440,7 +26440,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26453,7 +26453,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26561,7 +26561,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-22-lssd\"}}",
@@ -26576,7 +26576,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26590,7 +26590,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26603,7 +26603,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26686,7 +26686,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:          "test-pool",
 			AccountID:     account.ID,
 			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			LargeCapacity: true,
 			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-22-lssd\"}}",
@@ -26701,7 +26701,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26715,7 +26715,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26728,7 +26728,7 @@ func TestValidateCreateVolumeParams_DefaultConstituentCountValidation(t *testing
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -26809,7 +26809,7 @@ func TestValidateCreateVolumeParams_AutoTieringVolumeSizeLimits(t *testing.T) {
 			Name:             "test-pool",
 			AccountID:        account.ID,
 			SizeInBytes:      int64(25 * 1024 * 1024 * 1024 * 1024 * 1024), // 25 PiB (larger than max volume size of 20 PiB)
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Network:          "test-network",
 			LargeCapacity:    true,
 			AllowAutoTiering: true,
@@ -26826,7 +26826,7 @@ func TestValidateCreateVolumeParams_AutoTieringVolumeSizeLimits(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -26840,7 +26840,7 @@ func TestValidateCreateVolumeParams_AutoTieringVolumeSizeLimits(t *testing.T) {
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.1",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -26853,7 +26853,7 @@ func TestValidateCreateVolumeParams_AutoTieringVolumeSizeLimits(t *testing.T) {
 			AccountID:       account.ID,
 			PoolID:          pool.ID,
 			EndpointAddress: "10.0.0.2",
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -28087,7 +28087,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
 	// Mock backup policy and backup vault
 	mockBackupPolicy := &datamodel.BackupPolicy{
 		BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-		LifeCycleState:       models.LifeCycleStateREADY,
+		LifeCycleState:       datamodel.LifeCycleStateREADY,
 		DailyBackupsToKeep:   30,
 		WeeklyBackupsToKeep:  0,
 		MonthlyBackupsToKeep: 0,
@@ -28096,7 +28096,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
 	var retentionDays int64 = 30
 	mockBackupVault := &datamodel.BackupVault{
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		ImmutableAttributes: &datamodel.ImmutableAttributes{
 			BackupMinimumEnforcedRetentionDuration: &retentionDays,
 			IsDailyBackupImmutable:                 true,
@@ -28126,7 +28126,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
 
 		// First call returns backup policy in updating state (retryable error)
 		updatingBackupPolicy := *mockBackupPolicy
-		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		updatingBackupPolicy.LifeCycleState = datamodel.LifeCycleStateUpdating
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Once()
 
 		// Second call returns backup policy in ready state
@@ -28163,7 +28163,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
 
 		// All calls return backup policy in updating state (persistent retryable error)
 		updatingBackupPolicy := *mockBackupPolicy
-		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		updatingBackupPolicy.LifeCycleState = datamodel.LifeCycleStateUpdating
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Times(3)
 
 		err := checkIsValidImmutableBackupPolicyWithRetry(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
@@ -28261,7 +28261,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry(t *testing.T) {
 
 		// First call returns backup policy in updating state (retryable error)
 		updatingBackupPolicy := *mockBackupPolicy
-		updatingBackupPolicy.LifeCycleState = models.LifeCycleStateUpdating
+		updatingBackupPolicy.LifeCycleState = datamodel.LifeCycleStateUpdating
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(&updatingBackupPolicy, nil).Once()
 
 		// Second call returns backup policy not found error (non-retryable)
@@ -28392,7 +28392,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 		// Mock backup policy in ready state
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28401,7 +28401,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 		// Mock backup vault in ready state with no immutable attributes
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:           datamodel.BaseModel{UUID: backupVaultUUID},
-			LifeCycleState:      models.LifeCycleStateREADY,
+			LifeCycleState:      datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: nil, // No immutable constraints
 		}
 
@@ -28420,7 +28420,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 		// Mock backup policy in updating state
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState: models.LifeCycleStateUpdating,
+			LifeCycleState: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
@@ -28438,13 +28438,13 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 		// Mock backup policy in ready state
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		// Mock backup vault in updating state
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
-			LifeCycleState: models.LifeCycleStateUpdating,
+			LifeCycleState: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
@@ -28466,7 +28466,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28608,7 +28608,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		// Mock backup policy in ready state
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28632,7 +28632,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		// Mock backup policy in ready state
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28641,7 +28641,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		// Mock backup vault without immutable attributes
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:           datamodel.BaseModel{UUID: backupVaultUUID},
-			LifeCycleState:      models.LifeCycleStateREADY,
+			LifeCycleState:      datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: nil, // No immutable attributes
 		}
 
@@ -28660,7 +28660,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		// Mock backup policy with incompatible retention
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   5, // Too low for immutable retention
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28670,7 +28670,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		var retentionDays int64 = 365 // 1 year retention required
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -28713,7 +28713,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_AdditionalCoverage(t *t
 		// Mock backup policy exists locally
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28753,7 +28753,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_ZeroRetentionDuration(t
 	// Mock backup policy in ready state
 	mockBackupPolicy := &datamodel.BackupPolicy{
 		BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
-		LifeCycleState:       models.LifeCycleStateREADY,
+		LifeCycleState:       datamodel.LifeCycleStateREADY,
 		DailyBackupsToKeep:   30,
 		WeeklyBackupsToKeep:  0,
 		MonthlyBackupsToKeep: 0,
@@ -28763,7 +28763,7 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck_ZeroRetentionDuration(t
 	zeroRetentionDuration := int64(0)
 	mockBackupVault := &datamodel.BackupVault{
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultUUID},
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		ImmutableAttributes: &datamodel.ImmutableAttributes{
 			BackupMinimumEnforcedRetentionDuration: &zeroRetentionDuration, // This is the key line being tested
 			IsDailyBackupImmutable:                 true,
@@ -28852,7 +28852,7 @@ func TestCheckIsValidImmutableBackupPolicyWithRetry_ErrorPaths(t *testing.T) {
 		// All attempts return a retryable error
 		updatingBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyUUID},
-			LifeCycleState: models.LifeCycleStateUpdating,
+			LifeCycleState: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(updatingBackupPolicy, nil).Times(2)
@@ -28915,7 +28915,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// Mock successful backup policy and vault
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:            datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   30,
 			WeeklyBackupsToKeep:  0,
 			MonthlyBackupsToKeep: 0,
@@ -28924,7 +28924,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -28981,7 +28981,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// Mock backup policy in updating state (will cause validation to fail)
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState: models.LifeCycleStateUpdating,
+			LifeCycleState: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).Return(mockBackupPolicy, nil)
@@ -28989,7 +28989,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// The validation will also try to get the backup vault
 		mockBackupVault := &datamodel.BackupVault{
 			BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(mockBackupVault, nil)
 
@@ -29066,7 +29066,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// Mock backup policy lookup (will be called but won't trigger immutable validation since no vault)
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).Return(mockBackupPolicy, nil)
 
@@ -29113,7 +29113,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// First call returns READY backup policy (first validation passes)
 		mockBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		// Second call returns a non-NotFound error (covers line 2153)
 		internalError := fmt.Errorf("internal database error")
@@ -29166,12 +29166,12 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		// First call returns READY backup policy (first validation passes)
 		readyBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		// Second call returns backup policy in ERROR state (covers line 2156)
 		errorBackupPolicy := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			LifeCycleState: models.LifeCycleStateError,
+			LifeCycleState: datamodel.LifeCycleStateError,
 		}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).
 			Return(readyBackupPolicy, nil).Once() // First call succeeds
@@ -29221,7 +29221,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				UUID: "volume-uuid",
 			},
 			Name:        "test-volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100000000000,
 			AccountID:   1,
 			Account: &datamodel.Account{
@@ -29253,7 +29253,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				BaseModel: datamodel.BaseModel{
 					UUID: "existing-vault-id",
 				},
-				LifeCycleState: models.LifeCycleStateREADY,
+				LifeCycleState: datamodel.LifeCycleStateREADY,
 			}, nil)
 
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "existing-policy-id", int64(1)).
@@ -29261,7 +29261,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				BaseModel: datamodel.BaseModel{
 					UUID: "existing-policy-id",
 				},
-				LifeCycleState: models.LifeCycleStateREADY,
+				LifeCycleState: datamodel.LifeCycleStateREADY,
 			}, nil)
 
 		// Act
@@ -29300,7 +29300,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				UUID: "volume-uuid",
 			},
 			Name:        "test-volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100000000000,
 			AccountID:   1,
 			Account: &datamodel.Account{
@@ -29357,7 +29357,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				UUID: "volume-uuid",
 			},
 			Name:        "test-volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100000000000,
 			AccountID:   1,
 			Account: &datamodel.Account{
@@ -29417,7 +29417,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				UUID: "volume-uuid",
 			},
 			Name:        "test-volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100000000000,
 			AccountID:   1,
 			Account: &datamodel.Account{
@@ -29458,7 +29458,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Account:   &datamodel.Account{Name: "test-account"},
 		}
 
@@ -29476,7 +29476,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Account:   &datamodel.Account{Name: "test-account"},
 		}
 
@@ -29496,7 +29496,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Account:   &datamodel.Account{Name: "test-account"},
 		}
 
@@ -29521,7 +29521,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     &datamodel.Account{Name: "test-account"},
 			AccountID:   1,
 			SizeInBytes: 1000000000000, // 1TB
@@ -29560,7 +29560,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Account:     &datamodel.Account{Name: "test-account"},
 			AccountID:   1,
 			SizeInBytes: 1000000000000, // 1TB
@@ -29620,7 +29620,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:          "test-pool",
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Account:       &datamodel.Account{Name: "test-account"},
 			AccountID:     1,
 			SizeInBytes:   1000000000000, // 1TB
@@ -29651,8 +29651,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdatePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdatePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -29694,7 +29694,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:          "test-pool",
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Account:       &datamodel.Account{Name: "test-account"},
 			AccountID:     1,
 			SizeInBytes:   1000000000000, // 1TB
@@ -29725,8 +29725,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		// Mock CreateJob to succeed with large capacity job type
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdateLargePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdateLargePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -29757,7 +29757,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Account:   &datamodel.Account{Name: "test-account"},
 		}
 
@@ -29786,7 +29786,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:             "test-pool",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          &datamodel.Account{Name: "test-account"},
 			AccountID:        1,
 			SizeInBytes:      1000000000000, // 1TB
@@ -29822,8 +29822,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdatePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdatePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -29868,7 +29868,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:         datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:              "test-pool",
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			Account:           &datamodel.Account{Name: "test-account"},
 			AccountID:         1,
 			SizeInBytes:       1000000000000, // 1TB
@@ -29901,8 +29901,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdatePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdatePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -29947,7 +29947,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:             "test-pool",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          &datamodel.Account{Name: "test-account"},
 			AccountID:        1,
 			SizeInBytes:      1000000000000, // 1TB
@@ -29971,8 +29971,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			},
 		}, nil)
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdatePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdatePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -30012,7 +30012,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:             "test-pool",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			Account:          &datamodel.Account{Name: "test-account"},
 			AccountID:        1,
 			SizeInBytes:      1000000000000, // 1TB
@@ -30048,8 +30048,8 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeUpdatePool) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeUpdatePool) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == pool.UUID &&
 				job.AccountID.Int64 == pool.AccountID &&
 				job.AccountID.Valid
@@ -30134,7 +30134,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -30262,7 +30262,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -30421,20 +30421,20 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
 		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 
 		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
 			{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-1",
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 2},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-2",
 			},
 		}, nil)
@@ -30444,7 +30444,7 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 
 		// Since DataProtection is set, the validator will query the vault
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
-			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}, nil)
 
 		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
 
@@ -30465,20 +30465,20 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
 		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 
 		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
 			{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-1",
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 2},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-2",
 			},
 		}, nil)
@@ -30488,7 +30488,7 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 
 		// Since DataProtection is set, the validator will query the vault
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
-			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}, nil)
 
 		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
 
@@ -30509,20 +30509,20 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
 		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 
 		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
 			{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-1",
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 2},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-2",
 			},
 		}, nil)
@@ -30532,7 +30532,7 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 
 		// Since DataProtection is set, the validator will query the vault
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
-			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}, nil)
 
 		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
 
@@ -30553,20 +30553,20 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
 		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 
 		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
 			{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-1",
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 2},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-2",
 			},
 		}, nil)
@@ -30576,7 +30576,7 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 
 		// Since DataProtection is set, the validator will query the vault
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
-			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}, nil)
 
 		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
 
@@ -30596,20 +30596,20 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
 		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 
 		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
 			{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-1",
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 2},
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				Name:      "node-2",
 			},
 		}, nil)
@@ -30619,7 +30619,7 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 
 		// Since DataProtection is set, the validator will query the vault
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
-			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}, nil)
 
 		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
 
@@ -30639,7 +30639,7 @@ func TestValidateCreateVolumeParams_CMEKPoolUpgradeCheck(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-cmek-uuid"},
 			AccountID:   account.ID,
 			Account:     account,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			Network:     "default",
 			SizeInBytes: 10 * utils.TiBInBytes,
 			KmsConfigID: sql.NullInt64{Valid: true, Int64: 1},
@@ -30695,7 +30695,7 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProte
 				UUID: "volume-uuid",
 			},
 			Name:        "test-volume",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100GB
 			AccountID:   1,
 			Account: &datamodel.Account{
@@ -30855,7 +30855,7 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     string(models.LifeCycleStateAvailable), // Not in CREATING state
+			State:     string(datamodel.LifeCycleStateAvailable), // Not in CREATING state
 		}
 
 		params := &common.CreateVolumeParams{
@@ -30925,7 +30925,7 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     string(models.LifeCycleStateAvailable), // Not in CREATING state
+			State:     string(datamodel.LifeCycleStateAvailable), // Not in CREATING state
 		}
 
 		params := &common.CreateVolumeParams{
@@ -31004,8 +31004,8 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    differentPool.ID,
-			State:     models.LifeCycleStateCreating, // In CREATING state
-			Pool:      differentPool,                 // Volume belongs to a different pool
+			State:     datamodel.LifeCycleStateCreating, // In CREATING state
+			Pool:      differentPool,                    // Volume belongs to a different pool
 		}
 
 		params := &common.CreateVolumeParams{
@@ -31095,7 +31095,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -31130,7 +31130,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31168,7 +31168,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -31203,7 +31203,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"ISCSI"},
 			},
@@ -31242,7 +31242,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -31277,7 +31277,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31315,7 +31315,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31359,7 +31359,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31406,7 +31406,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31453,7 +31453,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31500,7 +31500,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
@@ -31614,7 +31614,7 @@ func TestRestoreOntapModeBackup(t *testing.T) {
 
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -31694,7 +31694,7 @@ func TestRestoreOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid"},
 			ExternalUUID:     "ext-uuid",
-			State:            models.LifeCycleStateAvailable,
+			State:            datamodel.LifeCycleStateAvailable,
 			Pool:             pool,
 			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{Protocols: []string{"NFS"}},
 		}
@@ -31830,8 +31830,8 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -31889,7 +31889,7 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:    account.ID,
 			Pool:         pool,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateError, // Non-transitional state that is not READY
+			State:        datamodel.LifeCycleStateError, // Non-transitional state that is not READY
 			StateDetails: "Error state",
 		}
 		err = store.DB().Create(volume).Error
@@ -31948,7 +31948,7 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:         account.ID,
 			Pool:              pool,
 			PoolID:            pool.ID,
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 0, // Not a thin clone
 		}
 		err = store.DB().Create(volume).Error
@@ -32008,12 +32008,12 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:         account.ID,
 			Pool:              pool,
 			PoolID:            pool.ID,
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000, // Thin clone with shared bytes
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32074,12 +32074,12 @@ func TestSplitStartVolume(t *testing.T) {
 			Name:              "test_volume",
 			AccountID:         account.ID,
 			PoolID:            pool.ID, // Use existing pool ID for foreign key constraint
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32148,12 +32148,12 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:         account.ID,
 			Pool:              pool,
 			PoolID:            pool.ID,
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000, // Thin clone with shared bytes
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32163,7 +32163,7 @@ func TestSplitStartVolume(t *testing.T) {
 		// Mock splitStartVolume to bypass ONTAP calls and workflow execution
 		origSplitStartVolume := splitStartVolume
 		splitStartVolume = func(ctx context.Context, se database.Storage, temporal client.Client, p *common.SplitStartVolumeParams) (*models.Volume, string, error) {
-			vol := &models.Volume{LifeCycleState: models.LifeCycleStateSplitting}
+			vol := &models.Volume{LifeCycleState: datamodel.LifeCycleStateSplitting}
 			return vol, "test-job-uuid", nil
 		}
 		defer func() { splitStartVolume = origSplitStartVolume }()
@@ -32181,7 +32181,7 @@ func TestSplitStartVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, resultVolume)
 		assert.NotEmpty(tt, jobUUID)
-		assert.Equal(tt, models.LifeCycleStateSplitting, resultVolume.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateSplitting, resultVolume.LifeCycleState)
 	})
 	t.Run("WhenWorkflowExecutionFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -32229,12 +32229,12 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:         account.ID,
 			Pool:              pool,
 			PoolID:            pool.ID,
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32305,12 +32305,12 @@ func TestSplitStartVolume(t *testing.T) {
 			AccountID:         account.ID,
 			Pool:              pool,
 			PoolID:            pool.ID,
-			State:             models.LifeCycleStateREADY,
+			State:             datamodel.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32356,7 +32356,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32408,7 +32408,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32438,7 +32438,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32468,7 +32468,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-volume-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -32499,7 +32499,7 @@ func TestValidateSplitStartVolumeParams_WhenDependentChildThinCloneExists(t *tes
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-volume-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -32534,7 +32534,7 @@ func TestValidateSplitStartVolumeParams_WhenDependentChildCheckFails(t *testing.
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-volume-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -32564,7 +32564,7 @@ func TestValidateSplitStartVolumeParams_WhenActiveReplicationExists(t *testing.T
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-volume-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -32600,7 +32600,7 @@ func TestValidateSplitStartVolumeParams_WhenReplicationCheckFails(t *testing.T) 
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-volume-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -32796,7 +32796,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    poolData.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			Pool:      poolData,
 			Account:   account,
 			VolumeAttributes: &datamodel.VolumeAttributes{
@@ -32817,7 +32817,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
-			Type:      string(models.JobTypeCreateVolume), // Regular volume job type
+			Type:      string(datamodel.JobTypeCreateVolume), // Regular volume job type
 		}
 
 		params := &common.CreateVolumeParams{
@@ -32833,7 +32833,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 		// Mock expectations
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateVolume)).Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(datamodel.JobTypeCreateVolume)).Return(existingJob, nil)
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -32863,7 +32863,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid-456"},
-			Type:      string(models.JobTypeCreateLargeVolume), // Large volume job type
+			Type:      string(datamodel.JobTypeCreateLargeVolume), // Large volume job type
 		}
 
 		params := &common.CreateVolumeParams{
@@ -32879,7 +32879,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 		// Mock expectations
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateLargeVolume)).Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(datamodel.JobTypeCreateLargeVolume)).Return(existingJob, nil)
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -32920,7 +32920,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 		// Mock expectations - job lookup fails
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateVolume)).Return(nil, errors2.New("job not found"))
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(datamodel.JobTypeCreateVolume)).Return(nil, errors2.New("job not found"))
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -33430,7 +33430,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_KmsGrantSet(t *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -33443,7 +33443,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_KmsGrantSet(t *testing.T) {
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -33456,7 +33456,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_KmsGrantSet(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -33477,7 +33477,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_KmsGrantSet(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -33557,7 +33557,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -33570,7 +33570,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -33583,7 +33583,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -33604,7 +33604,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -33707,7 +33707,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckError(t *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -33720,7 +33720,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckError(t *testing.T) {
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -33733,7 +33733,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckError(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -33754,7 +33754,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckError(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -33846,7 +33846,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckNotFoundVault(t *test
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -33859,7 +33859,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckNotFoundVault(t *test
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -33872,7 +33872,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckNotFoundVault(t *test
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -33893,7 +33893,7 @@ func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckNotFoundVault(t *test
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -33990,7 +33990,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -34004,7 +34004,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
 		Name:           "test-backup-vault",
 		AccountID:      account.ID,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(backupVault).Error
 	if err != nil {
@@ -34016,7 +34016,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 		Name:        "test-volume",
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(minQuotaInBytesVolume + 1),
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolISCSI},
@@ -34072,7 +34072,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -34087,7 +34087,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
 		Name:           "test-backup-vault",
 		AccountID:      account.ID,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(backupVault).Error
 	if err != nil {
@@ -34099,7 +34099,7 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 		Name:        "test-volume",
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(minQuotaInBytesVolume + 1),
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolISCSI},
@@ -34213,7 +34213,7 @@ func TestValidateCRBBackupVault(t *testing.T) {
 				BackupVaultType:  activities.CrossRegionBackupType,
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
-				LifeCycleState:   models.LifeCycleStateCreating, // Not READY state
+				LifeCycleState:   datamodel.LifeCycleStateCreating, // Not READY state
 			},
 			expectError:      true,
 			expectedErrorMsg: "Cross-region backup vault must be in READY state",
@@ -34225,7 +34225,7 @@ func TestValidateCRBBackupVault(t *testing.T) {
 				BackupVaultType:  activities.CrossRegionBackupType,
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
-				LifeCycleState:   models.LifeCycleStateREADY,
+				LifeCycleState:   datamodel.LifeCycleStateREADY,
 			},
 			expectError:      true,
 			expectedErrorMsg: "cannot assign a cross-region backup vault to a volume in the destination region",
@@ -34237,7 +34237,7 @@ func TestValidateCRBBackupVault(t *testing.T) {
 				BackupVaultType:  activities.CrossRegionBackupType,
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
-				LifeCycleState:   models.LifeCycleStateREADY,
+				LifeCycleState:   datamodel.LifeCycleStateREADY,
 			},
 			expectError: false,
 		},
@@ -34306,7 +34306,7 @@ func TestValidateUpdateVolumeRequest_CMEK_ExistingKmsGrant_CMEKDisabled(t *testi
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -34320,7 +34320,7 @@ func TestValidateUpdateVolumeRequest_CMEK_ExistingKmsGrant_CMEKDisabled(t *testi
 		Name:        "test-volume",
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(minQuotaInBytesVolume + 1),
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolISCSI},
@@ -34380,7 +34380,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithoutKmsGrant(t *testing.T
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -34393,7 +34393,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithoutKmsGrant(t *testing.T
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -34406,7 +34406,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithoutKmsGrant(t *testing.T
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -34427,7 +34427,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithoutKmsGrant(t *testing.T
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -34509,7 +34509,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithKmsGrant(t *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 	err = store.DB().Create(pool).Error
@@ -34522,7 +34522,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithKmsGrant(t *testing.T) {
 		Name:      "test_svm",
 		AccountID: account.ID,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -34535,7 +34535,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithKmsGrant(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.12",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node).Error
 	assert.NoError(t, err)
@@ -34556,7 +34556,7 @@ func TestValidateCreateVolumeParams_CMEKBackupVault_WithKmsGrant(t *testing.T) {
 		AccountID:       account.ID,
 		EndpointAddress: "12.12.12.13",
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateREADY,
+		State:           datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(node2).Error
 	assert.NoError(t, err)
@@ -34639,7 +34639,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithoutKmsGrant(t *testing.
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -34653,7 +34653,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithoutKmsGrant(t *testing.
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
 		Name:           "test-backup-vault",
 		AccountID:      account.ID,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		CmekAttributes: &datamodel.CmekAttributes{
 			KmsConfigResourcePath: &kmsConfigPath,
 		},
@@ -34668,7 +34668,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithoutKmsGrant(t *testing.
 		Name:        "test-volume",
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(minQuotaInBytesVolume + 1),
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolISCSI},
@@ -34723,7 +34723,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithKmsGrant(t *testing.T) 
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -34737,7 +34737,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithKmsGrant(t *testing.T) 
 		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
 		Name:           "test-backup-vault",
 		AccountID:      account.ID,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		CmekAttributes: &datamodel.CmekAttributes{
 			KmsConfigResourcePath: &kmsConfigPath,
 		},
@@ -34752,7 +34752,7 @@ func TestValidateUpdateVolumeRequest_CMEKBackupVault_WithKmsGrant(t *testing.T) 
 		Name:        "test-volume",
 		AccountID:   account.ID,
 		PoolID:      pool.ID,
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: int64(minQuotaInBytesVolume + 1),
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolISCSI},
@@ -35092,7 +35092,7 @@ func TestAutoPoolRejectsThroughputMibps(t *testing.T) {
 			AccountID:      account.ID,
 			Account:        account,
 			QosType:        utils.QosTypeAuto,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    100 * utils.TiBInBytes,
 			PoolAttributes: &datamodel.PoolAttributes{},
 		}
@@ -35139,7 +35139,7 @@ func TestAutoPoolRejectsThroughputMibps(t *testing.T) {
 			AccountID:      account.ID,
 			Account:        account,
 			QosType:        utils.QosTypeAuto,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    100 * utils.TiBInBytes,
 			PoolAttributes: &datamodel.PoolAttributes{},
 		}
@@ -35187,7 +35187,7 @@ func TestAutoPoolRejectsThroughputMibps(t *testing.T) {
 			AccountID:      account.ID,
 			Account:        account,
 			QosType:        utils.QosTypeAuto,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    100 * utils.TiBInBytes,
 			PoolAttributes: &datamodel.PoolAttributes{},
 		}
@@ -35233,7 +35233,7 @@ func TestCreateVolume_ValidationErrorPropagated(t *testing.T) {
 			AccountID:   account.ID,
 			Account:     account,
 			QosType:     "manual",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			PoolAttributes: &datamodel.PoolAttributes{
 				ThroughputMibps: 10000,
@@ -35292,7 +35292,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			AccountID:   account.ID,
 			Account:     account,
 			QosType:     utils.QosTypeManual,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			VendorID:    "/projects/test/locations/us-west1/pools/pool-uuid",
 			Network:     "net",
@@ -35328,7 +35328,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -35363,7 +35363,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			AccountID:   account.ID,
 			Account:     account,
 			QosType:     "",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			VendorID:    "/projects/test/locations/us-west1/pools/pool-uuid",
 			Network:     "net",
@@ -35399,7 +35399,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgUUID).
 			Return(nil, customerrors.NewNotFoundErr("volume performance group", nil))
@@ -35426,7 +35426,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			AccountID:   account.ID,
 			Account:     account,
 			QosType:     "",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			VendorID:    "/projects/test/locations/us-west1/pools/pool-uuid",
 			Network:     "net",
@@ -35462,7 +35462,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgUUID).
 			Return(&datamodel.VolumePerformanceGroup{PoolID: pool.ID + 1}, nil)
@@ -35489,7 +35489,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			AccountID:   account.ID,
 			Account:     account,
 			QosType:     "",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			VendorID:    "/projects/test/locations/us-west1/pools/pool-uuid",
 			Network:     "net",
@@ -35525,7 +35525,7 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgUUID).
 			Return(&datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 7}, PoolID: pool.ID}, nil)
@@ -35564,7 +35564,7 @@ func TestValidateCreateVolumeParams_VPGCap_VSCP6089(t *testing.T) {
 				AccountID:   account.ID,
 				Account:     account,
 				QosType:     utils.QosTypeManual,
-				State:       models.LifeCycleStateREADY,
+				State:       datamodel.LifeCycleStateREADY,
 				SizeInBytes: int64(100 * utils.TiBInBytes),
 				PoolAttributes: &datamodel.PoolAttributes{
 					ThroughputMibps: 10000,
@@ -35724,7 +35724,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "us-west1-a",
@@ -35743,7 +35743,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -35757,7 +35757,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 		AccountID:          account.ID,
 		PoolID:             pool.ID,
 		SvmID:              svm.ID,
-		State:              models.LifeCycleStateREADY,
+		State:              datamodel.LifeCycleStateREADY,
 		AutoTieringEnabled: true,
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 			TieringPolicy: models2.VolumeInlineTieringPolicyAll,
@@ -35775,7 +35775,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 		AccountID: account.ID,
 		VolumeID:  parentVolume.ID,
 		Volume:    parentVolume,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{
 			LogicalSizeUsedInBytes: 1024 * 1024 * 1024, // 1GB
 		},
@@ -35872,7 +35872,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 			SvmID:     svm.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 				TieringPolicy: models2.VolumeInlineTieringPolicyAuto,
 			},
@@ -35888,7 +35888,7 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  parentVolumeAuto.ID,
 			Volume:    parentVolumeAuto,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				LogicalSizeUsedInBytes: 1024 * 1024 * 1024,
 			},
@@ -36265,7 +36265,7 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		VendorID:  "/projects/project123/locations/location123/pools/test_pool",
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "us-west1-a",
@@ -36284,7 +36284,7 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 		AccountID: account.ID,
 		PoolID:    pool.ID,
 		Pool:      pool,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	if err != nil {
@@ -36298,7 +36298,7 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 		AccountID:          account.ID,
 		PoolID:             pool.ID,
 		SvmID:              svm.ID,
-		State:              models.LifeCycleStateREADY,
+		State:              datamodel.LifeCycleStateREADY,
 		AutoTieringEnabled: true,
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 			TieringPolicy: models2.VolumeInlineTieringPolicyAuto,
@@ -36316,7 +36316,7 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 		AccountID: account.ID,
 		VolumeID:  parentVolume.ID,
 		Volume:    parentVolume,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{
 			LogicalSizeUsedInBytes: 1024 * 1024 * 1024, // 1GB
 		},
@@ -36596,7 +36596,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test-pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * utils.TiBInBytes),
 			LargeCapacity: true,
@@ -36617,7 +36617,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -36631,7 +36631,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.12",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -36644,7 +36644,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.13",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -36759,7 +36759,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test-pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * utils.TiBInBytes),
 			LargeCapacity: true,
@@ -36780,7 +36780,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -36794,7 +36794,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.14",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -36807,7 +36807,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.15",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -36922,7 +36922,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test-pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * utils.TiBInBytes),
 			LargeCapacity: true,
@@ -36943,7 +36943,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -36957,7 +36957,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.16",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -36970,7 +36970,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.17",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -37083,7 +37083,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test-pool",
 			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			Network:       "test-network",
 			SizeInBytes:   int64(100 * utils.TiBInBytes),
 			LargeCapacity: true,
@@ -37104,7 +37104,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			Name:      "test-svm",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -37118,7 +37118,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.18",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node1).Error
 		if err != nil {
@@ -37131,7 +37131,7 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 			AccountID:       account.ID,
 			EndpointAddress: "12.12.12.19",
 			PoolID:          pool.ID,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(node2).Error
 		if err != nil {
@@ -37393,7 +37393,7 @@ func TestConvertDatastoreVolumeToModel_CloneStateDetails(t *testing.T) {
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID:   "parent-vol-uuid",
 					ParentSnapshotUUID: "parent-snap-uuid",
-					State:              models.CloneStateSplitting,
+					State:              datamodel.CloneStateSplitting,
 					StateDetails:       "split in progress",
 				},
 			},
@@ -37416,7 +37416,7 @@ func TestConvertDatastoreVolumeToModel_CloneStateDetails(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 					StateDetails:     "", // empty — should remain nil
 				},
 			},
@@ -37478,7 +37478,7 @@ func TestUpdateCloneState(t *testing.T) {
 			tt.Fatalf("Failed to clear DB: %v", err)
 		}
 
-		err = updateCloneState(ctx, store, "non-existent-uuid", models.CloneStateSplitting)
+		err = updateCloneState(ctx, store, "non-existent-uuid", datamodel.CloneStateSplitting)
 		assert.Error(tt, err)
 	})
 
@@ -37525,7 +37525,7 @@ func TestUpdateCloneState(t *testing.T) {
 		}
 
 		// Should return nil (warn and skip) when VolumeAttributes is nil.
-		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		err = updateCloneState(ctx, store, volume.UUID, datamodel.CloneStateSplitting)
 		assert.NoError(tt, err)
 	})
 
@@ -37567,7 +37567,7 @@ func TestUpdateCloneState(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -37582,7 +37582,7 @@ func TestUpdateCloneState(t *testing.T) {
 			tt.Fatalf("Failed to delete volume: %v", err)
 		}
 
-		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		err = updateCloneState(ctx, store, volume.UUID, datamodel.CloneStateSplitting)
 		assert.Error(tt, err)
 	})
 
@@ -37624,7 +37624,7 @@ func TestUpdateCloneState(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -37633,7 +37633,7 @@ func TestUpdateCloneState(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		err = updateCloneState(ctx, store, volume.UUID, datamodel.CloneStateSplitting)
 		assert.NoError(tt, err)
 	})
 }
@@ -37652,7 +37652,7 @@ func TestValidateSplitStartVolumeParams_AlreadySplitting(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateSplitting, // already splitting
+				State:            datamodel.CloneStateSplitting, // already splitting
 			},
 		},
 	}
@@ -37715,12 +37715,12 @@ func TestSplitStartVolume_UpdateCloneStateFails(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -37796,12 +37796,12 @@ func TestSplitStartVolume_ReserveCloneSharedBytesFails(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -37899,12 +37899,12 @@ func TestSplitStartVolume_GetProviderFails(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38000,12 +38000,12 @@ func TestSplitStartVolume_MissingExternalUUID(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "", // missing — should trigger validation error
 		},
@@ -38104,12 +38104,12 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_OntapError(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38214,12 +38214,12 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38324,12 +38324,12 @@ func TestSplitStartVolume_WorkflowExecutionFails(t *testing.T) {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38436,12 +38436,12 @@ func newSplitStartVolumeTestEnv(t *testing.T) *splitStartVolumeTestEnv {
 		AccountID:         account.ID,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38498,12 +38498,12 @@ func TestSplitStartVolume_PersistSplitJobUUIDFails(t *testing.T) {
 		Account:           account,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 			ExternalUUID: "ext-uuid",
 		},
@@ -38517,7 +38517,7 @@ func TestSplitStartVolume_PersistSplitJobUUIDFails(t *testing.T) {
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID: "wf-job-uuid",
-		State:      string(models.JobsStateNEW),
+		State:      string(datamodel.JobsStateNEW),
 		TrackingID: 0,
 	}
 
@@ -38645,7 +38645,7 @@ func TestSplitStartVolume_WaitForTemporalEnabled_UpdateJobSucceeds(t *testing.T)
 	// Confirm the job was transitioned to WAIT_FOR_TEMPORAL in the real store.
 	updatedJob, fetchErr := env.store.GetJob(ctx, jobUUID)
 	assert.NoError(t, fetchErr)
-	assert.Equal(t, string(models.JobsStateWaitForTemporal), updatedJob.State)
+	assert.Equal(t, string(datamodel.JobsStateWaitForTemporal), updatedJob.State)
 	mockProvider.AssertExpectations(t)
 }
 

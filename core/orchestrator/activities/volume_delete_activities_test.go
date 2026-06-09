@@ -464,7 +464,7 @@ func TestDetermineSmbTeardownContext_SkipsWhenOtherSmbVolumeExists(t *testing.T)
 		BaseModel:        datamodel.BaseModel{UUID: "vol-2"},
 		PoolID:           42,
 		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolSMB}},
-		State:            models.LifeCycleStateREADY,
+		State:            datamodel.LifeCycleStateREADY,
 	}
 
 	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
@@ -4166,7 +4166,7 @@ func TestDetermineSmbTeardownContext_OtherVolumeStateDeleted(t *testing.T) {
 	}
 	otherVolume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-2"},
-		State:     models.LifeCycleStateDeleted,
+		State:     datamodel.LifeCycleStateDeleted,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{utils.ProtocolSMB},
 		},

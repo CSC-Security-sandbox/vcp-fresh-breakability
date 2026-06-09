@@ -3,7 +3,6 @@ package workflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -30,11 +29,11 @@ func UpdateVolumePerformanceGroupWorkflow(ctx workflow.Context, params *common.U
 		log.Errorf("VPG update workflow setup error: %v", err)
 		return err
 	}
-	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := wf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 	wf.Status = WorkflowStatusRunning
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to Processing: %v", err)
 		return err
 	}
@@ -43,12 +42,12 @@ func UpdateVolumePerformanceGroupWorkflow(ctx workflow.Context, params *common.U
 	if customErr != nil {
 		log.Errorf("UpdateVolumePerformanceGroupWorkflow failed: %v", customErr)
 		wf.Status = WorkflowStatusFailed
-		_ = wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		_ = wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return customErr
 	}
 
 	wf.Status = WorkflowStatusCompleted
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil); err != nil {
 		log.Errorf("Failed to update job status to Done: %v", err)
 	}
 	return nil
@@ -140,7 +139,7 @@ func (wf *vpgUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (int
 		Iops:             newIops,
 		OntapQosPolicyID: vpg.OntapQosPolicyID,
 		Description:      newDescription,
-		State:            models.LifeCycleStateREADY,
+		State:            datamodel.LifeCycleStateREADY,
 		Labels:           newLabels,
 	}
 	if err := executeActivity(ctx, vpgActivity.UpdateVPGInDB, updatedVPG).Get(ctx, nil); err != nil {

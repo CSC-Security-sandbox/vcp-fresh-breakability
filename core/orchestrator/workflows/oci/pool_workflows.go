@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
@@ -34,28 +33,28 @@ const (
 )
 
 var (
-	ociVSAFlexOcpus               = float32(env.GetFloat64("OCI_VSA_FLEX_OCPUS", 8))
-	ociVSAFlexMemoryInGBs         = float32(env.GetFloat64("OCI_VSA_FLEX_MEMORY_IN_GBS", 96))
-	vsaImageName                  = strings.TrimSpace(env.GetString("VSA_IMAGE_NAME", ""))
-	vsaMediatorImageName          = strings.TrimSpace(env.GetString("VSA_MEDIATOR_IMAGE_NAME", ""))
-	ociOntapAdminPassword         = env.GetString("OCI_ONTAP_ADMIN_PASSWORD", "")
-	ociDefinedTagNamespace        = env.GetString("OCI_DEFINED_TAG_NAMESPACE", "netapp_tags")
-	ociVSAInstanceType            = env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex")
-	ociMediatorInstanceType       = env.GetString("OCI_MEDIATOR_INSTANCE_TYPE", "VM.Standard3.Flex")
-	ociVSAUserBootargs            = env.GetString("OCI_VSA_USER_BOOTARGS", defaultOCIVSAUserBootargs)
-	localRegion                   = env.GetString("LOCAL_REGION", "")
-	ociCreator                    = env.GetString("OCI_CREATOR", "vcp")
-	secretURI                     = env.GetString("SECRET_URI", "")
-	dbHeartbeatTimeoutSec         = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
-	dataDiskCount                 = env.GetIntNotNegative("OCI_VSA_DATA_DISK_COUNT", 2)
-	extIPForNodeMgmt              = env.GetBool("OCI_VSA_EXT_IP_FOR_NODE_MGMT", false)
-	allowNonDenseShapeForVSA      = env.GetBool("OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA", true)
-	useSecondaryIPsForLIFs        = env.GetBool("OCI_VSA_USE_SECONDARY_IPS_FOR_LIFS", false)
-	disableVsaCleanupOnVLMFailure = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
-	ociExpertModeRbacURL          = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_URL", "")
-	ociExpertModeRbacHash         = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
-	ociExpertModeUsername         = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
-	ociExpertModePassword         = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
+	ociVSAFlexOcpus                = float32(env.GetFloat64("OCI_VSA_FLEX_OCPUS", 8))
+	ociVSAFlexMemoryInGBs          = float32(env.GetFloat64("OCI_VSA_FLEX_MEMORY_IN_GBS", 96))
+	vsaImageName                   = strings.TrimSpace(env.GetString("VSA_IMAGE_NAME", ""))
+	vsaMediatorImageName           = strings.TrimSpace(env.GetString("VSA_MEDIATOR_IMAGE_NAME", ""))
+	ociOntapAdminPassword          = env.GetString("OCI_ONTAP_ADMIN_PASSWORD", "")
+	ociDefinedTagNamespace         = env.GetString("OCI_DEFINED_TAG_NAMESPACE", "netapp_tags")
+	ociVSAInstanceType             = env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex")
+	ociMediatorInstanceType        = env.GetString("OCI_MEDIATOR_INSTANCE_TYPE", "VM.Standard3.Flex")
+	ociVSAUserBootargs             = env.GetString("OCI_VSA_USER_BOOTARGS", defaultOCIVSAUserBootargs)
+	localRegion                    = env.GetString("LOCAL_REGION", "")
+	ociCreator                     = env.GetString("OCI_CREATOR", "vcp")
+	secretURI                      = env.GetString("SECRET_URI", "")
+	dbHeartbeatTimeoutSec          = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
+	dataDiskCount                  = env.GetIntNotNegative("OCI_VSA_DATA_DISK_COUNT", 2)
+	extIPForNodeMgmt               = env.GetBool("OCI_VSA_EXT_IP_FOR_NODE_MGMT", false)
+	allowNonDenseShapeForVSA       = env.GetBool("OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA", true)
+	useSecondaryIPsForLIFs         = env.GetBool("OCI_VSA_USE_SECONDARY_IPS_FOR_LIFS", false)
+	disableVsaCleanupOnVLMFailure  = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
+	ociExpertModeRbacURL           = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_URL", "")
+	ociExpertModeRbacHash          = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
+	ociExpertModeUsername          = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
+	ociExpertModePassword          = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
 	parallelNumberOfNodesForITCOCI = env.GetIntNotNegative("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4)
 	ociCellNumber                  = env.GetString("LOCAL_CELL", "00")
 	ociVSASerialAllocationEnabled  = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", false)
@@ -717,7 +716,6 @@ func computeOCIVMRSInputForUpdate(
 	return perVMCapacityTB, perVMThroughputGBs, nil
 }
 
-
 func computeOCIPerVMRSInput(
 	sizeInBytes uint64,
 	throughputMibps int64,
@@ -961,7 +959,7 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	// TODO(oci-cert): once OCI expert-mode certificates are introduced, the activity will
 	// additionally revoke the cert; the same compound guard then makes revocation skippable
 	// for debug sessions, matching GCP exactly.
-	if pool.DeploymentName != "" && (!disableVsaCleanupOnVLMFailure || pool.State != models.LifeCycleStateError) {
+	if pool.DeploymentName != "" && (!disableVsaCleanupOnVLMFailure || pool.State != datamodel.LifeCycleStateError) {
 		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteOnTapCredentialsForOCI, pool).Get(hyperscalerCtx, nil)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
@@ -1264,7 +1262,7 @@ func runOCIVMRSForUpdate(
 	})
 	req := activities.IdentifyOCIResourcesRequest{
 		PoolUUID:           pool.UUID,
-		PerVMCapacityTB:  perVMCapacityTB,
+		PerVMCapacityTB:    perVMCapacityTB,
 		PerVMThroughputGBs: perVMThroughputGBs,
 	}
 	var decision *vmrs_oci.Decision
@@ -1296,7 +1294,6 @@ func validateStoredVLMConfigForUpdate(pool *datamodel.Pool, currentVlmConfig vlm
 	}
 	return nil
 }
-
 
 func buildOCIOntapCredentials(pool *datamodel.Pool) (vlm.OntapCredentials, error) {
 	if pool.PoolCredentials == nil {
@@ -1337,7 +1334,6 @@ func calculateOCIUpdatePoolBatchPlan(
 	)
 	return out, nil
 }
-
 
 func persistOCIPoolUpdate(
 	ctx workflow.Context,

@@ -11,7 +11,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -36,7 +35,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -79,7 +78,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -116,7 +115,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -150,7 +149,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -178,7 +177,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -202,7 +201,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -226,7 +225,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -250,7 +249,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -274,7 +273,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -298,7 +297,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -322,7 +321,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -346,7 +345,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -372,7 +371,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 
@@ -398,7 +397,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -434,7 +433,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -480,7 +479,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -516,7 +515,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -551,7 +550,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -584,7 +583,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.StartProjectEventParams{
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -612,7 +611,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -650,7 +649,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -688,7 +687,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -726,7 +725,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -764,7 +763,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -802,7 +801,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -840,7 +839,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		getSignedToken = func(projectNumber string) (string, error) { return "test-jwt-token", nil }
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -880,7 +879,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		}
 
 		params := &common.StartProjectEventParams{
-			State: models.StateOff, LocationId: "test-location-id",
+			State: datamodel.ResourceEventStateOff, LocationId: "test-location-id",
 			ProjectNumber: "test-project-number", XCorrelationID: "test-correlation-id",
 		}
 		result := &common.StartProjectEventResult{
@@ -1062,14 +1061,14 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 			{
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"},
 					Name:      "pool-2",
-					State:     models.LifeCycleStateError,
+					State:     datamodel.LifeCycleStateError,
 				},
 			},
 		}
@@ -1097,14 +1096,14 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 			{
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"},
 					Name:      "pool-2",
-					State:     models.LifeCycleStateCreating, // Transient state
+					State:     datamodel.LifeCycleStateCreating, // Transient state
 				},
 			},
 		}
@@ -1132,7 +1131,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 		}
@@ -1142,12 +1141,12 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{ID: 10, UUID: "volume-1"},
 				Name:      "volume-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 11, UUID: "volume-2"},
 				Name:      "volume-2",
-				State:     models.LifeCycleStateUpdating, // Transient state
+				State:     datamodel.LifeCycleStateUpdating, // Transient state
 			},
 		}
 
@@ -1172,7 +1171,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 		}
@@ -1181,7 +1180,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{ID: 10, UUID: "volume-1"},
 				Name:      "volume-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1189,12 +1188,12 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{ID: 20, UUID: "snapshot-1"},
 				Name:      "snapshot-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			{
 				BaseModel: datamodel.BaseModel{ID: 21, UUID: "snapshot-2"},
 				Name:      "snapshot-2",
-				State:     models.LifeCycleStateDeleting, // Transient state
+				State:     datamodel.LifeCycleStateDeleting, // Transient state
 			},
 		}
 
@@ -1219,21 +1218,21 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY, // Valid state
+					State:     datamodel.LifeCycleStateREADY, // Valid state
 				},
 			},
 			{
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"},
 					Name:      "pool-2",
-					State:     models.LifeCycleStateCreating, // Transient state
+					State:     datamodel.LifeCycleStateCreating, // Transient state
 				},
 			},
 			{
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 3, UUID: "pool-3"},
 					Name:      "pool-3",
-					State:     models.LifeCycleStateDisabled, // Invalid for cluster operations
+					State:     datamodel.LifeCycleStateDisabled, // Invalid for cluster operations
 				},
 			},
 		}
@@ -1260,7 +1259,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 		}
@@ -1300,7 +1299,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 		}
@@ -1309,7 +1308,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{ID: 10, UUID: "volume-1"},
 				Name:      "volume-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1333,7 +1332,7 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 				Pool: datamodel.Pool{
 					BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
 					Name:      "pool-1",
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				},
 			},
 		}
@@ -1351,37 +1350,37 @@ func TestFilterPoolsForClusterOperations(t *testing.T) {
 func TestTransientStateHelpers(t *testing.T) {
 	t.Run("isPoolInTransientState", func(tt *testing.T) {
 		// Test transient states
-		assert.True(tt, isPoolInTransientState(models.LifeCycleStateCreating))
-		assert.True(tt, isPoolInTransientState(models.LifeCycleStateUpdating))
-		assert.True(tt, isPoolInTransientState(models.LifeCycleStateDeleting))
+		assert.True(tt, isPoolInTransientState(datamodel.LifeCycleStateCreating))
+		assert.True(tt, isPoolInTransientState(datamodel.LifeCycleStateUpdating))
+		assert.True(tt, isPoolInTransientState(datamodel.LifeCycleStateDeleting))
 
 		// Test non-transient states
-		assert.False(tt, isPoolInTransientState(models.LifeCycleStateREADY))
-		assert.False(tt, isPoolInTransientState(models.LifeCycleStateError))
-		assert.False(tt, isPoolInTransientState(models.LifeCycleStateDisabled))
+		assert.False(tt, isPoolInTransientState(datamodel.LifeCycleStateREADY))
+		assert.False(tt, isPoolInTransientState(datamodel.LifeCycleStateError))
+		assert.False(tt, isPoolInTransientState(datamodel.LifeCycleStateDisabled))
 	})
 
 	t.Run("isVolumeInTransientState", func(tt *testing.T) {
 		// Test transient states
-		assert.True(tt, isVolumeInTransientState(models.LifeCycleStateCreating))
-		assert.True(tt, isVolumeInTransientState(models.LifeCycleStateUpdating))
-		assert.True(tt, isVolumeInTransientState(models.LifeCycleStateDeleting))
-		assert.True(tt, isVolumeInTransientState(models.LifeCycleStateRestoring))
+		assert.True(tt, isVolumeInTransientState(datamodel.LifeCycleStateCreating))
+		assert.True(tt, isVolumeInTransientState(datamodel.LifeCycleStateUpdating))
+		assert.True(tt, isVolumeInTransientState(datamodel.LifeCycleStateDeleting))
+		assert.True(tt, isVolumeInTransientState(datamodel.LifeCycleStateRestoring))
 
 		// Test non-transient states
-		assert.False(tt, isVolumeInTransientState(models.LifeCycleStateREADY))
-		assert.False(tt, isVolumeInTransientState(models.LifeCycleStateError))
-		assert.False(tt, isVolumeInTransientState(models.LifeCycleStateDisabled))
+		assert.False(tt, isVolumeInTransientState(datamodel.LifeCycleStateREADY))
+		assert.False(tt, isVolumeInTransientState(datamodel.LifeCycleStateError))
+		assert.False(tt, isVolumeInTransientState(datamodel.LifeCycleStateDisabled))
 	})
 
 	t.Run("isSnapshotInTransientState", func(tt *testing.T) {
 		// Test transient states
-		assert.True(tt, isSnapshotInTransientState(models.LifeCycleStateCreating))
-		assert.True(tt, isSnapshotInTransientState(models.LifeCycleStateDeleting))
+		assert.True(tt, isSnapshotInTransientState(datamodel.LifeCycleStateCreating))
+		assert.True(tt, isSnapshotInTransientState(datamodel.LifeCycleStateDeleting))
 
 		// Test non-transient states
-		assert.False(tt, isSnapshotInTransientState(models.LifeCycleStateREADY))
-		assert.False(tt, isSnapshotInTransientState(models.LifeCycleStateError))
+		assert.False(tt, isSnapshotInTransientState(datamodel.LifeCycleStateREADY))
+		assert.False(tt, isSnapshotInTransientState(datamodel.LifeCycleStateError))
 	})
 }
 

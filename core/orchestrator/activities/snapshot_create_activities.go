@@ -47,11 +47,11 @@ func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, dbSn
 	activity.RecordHeartbeat(ctx, "Updating snapshot details")
 	if snapshotCreateResponse == nil {
 		dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-		dbSnapshot.State = models.LifeCycleStateError
-		dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+		dbSnapshot.State = datamodel.LifeCycleStateError
+		dbSnapshot.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 	} else {
-		dbSnapshot.State = models.LifeCycleStateREADY
-		dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+		dbSnapshot.State = datamodel.LifeCycleStateREADY
+		dbSnapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
 		dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
 		dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes

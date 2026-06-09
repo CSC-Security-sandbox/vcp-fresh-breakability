@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -47,12 +46,12 @@ func CreateQuotaRuleWorkflow(ctx workflow.Context, params *common.CreateQuotaRul
 		return nil, err
 	}
 	// Ensure job is available before updating status
-	if err := quotaRuleWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := quotaRuleWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		logger.Infof("Quota rule workflow job state check executed with error: %v", err)
 		return nil, ConvertToVSAError(err)
 	}
 	quotaRuleWf.Status = WorkflowStatusRunning
-	err = quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for quota rule executed with error: %v", err)
 		return nil, err
@@ -61,7 +60,7 @@ func CreateQuotaRuleWorkflow(ctx workflow.Context, params *common.CreateQuotaRul
 	if customErr != nil {
 		logger.Infof("Quota rule workflow run executed with error: %v", customErr)
 		quotaRuleWf.Status = WorkflowStatusFailed
-		jobUpdateErr := quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		jobUpdateErr := quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Error for CreateQuotaRuleWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr
@@ -69,7 +68,7 @@ func CreateQuotaRuleWorkflow(ctx workflow.Context, params *common.CreateQuotaRul
 		return nil, customErr
 	}
 	quotaRuleWf.Status = WorkflowStatusCompleted
-	err = quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		logger.Errorf("Failed to update job status to Done for CreateQuotaRuleWorkflow: %v", err)
 	}
@@ -131,8 +130,8 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				logger.Infof("Quota rule creation cancelled, marking quota rule as aborted: %s", quotaRule.UUID)
 				returnErr = ConvertToVSAError(vsaerrors.New("quota rule creation cancelled by delete request"))
 			}
-			quotaRule.State = models.LifeCycleStateError
-			quotaRule.StateDetails = models.LifeCycleStateCreationErrorDetails
+			quotaRule.State = datamodel.LifeCycleStateError
+			quotaRule.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			err2 := workflow.ExecuteActivity(disconnectedCtx, commonActivity.UpdateQuotaRuleState, *quotaRule, false).Get(disconnectedCtx, nil)
 			if err2 != nil {
@@ -166,8 +165,8 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			returnErr = cancelErr
 			return
 		}
-		dbQuotaRule.State = models.LifeCycleStateREADY
-		dbQuotaRule.StateDetails = models.LifeCycleStateReadyDetails
+		dbQuotaRule.State = datamodel.LifeCycleStateREADY
+		dbQuotaRule.StateDetails = datamodel.LifeCycleStateReadyDetails
 		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleForDataProtectionVolume, dbQuotaRule).Get(ctx, nil)
 		if err != nil {
 			logger.Errorf("Failed to create quota rule for DP volume: %v", err)

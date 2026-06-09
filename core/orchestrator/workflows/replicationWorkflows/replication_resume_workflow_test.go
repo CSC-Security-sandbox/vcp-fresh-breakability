@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -116,7 +115,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 
 		params := &commonparams.ResumeReplicationParams{}
 
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		replicationModel := &datamodel.VolumeReplication{
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType: &reverseType,
@@ -295,11 +294,11 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
 		// Quota rule failures should result in DONE state (partial success), not ERROR
 		// UpdateJob signature: (ctx, jobID, status, trackingID, errorDetails)
 		// When vsaerrors.NewVCPError is used, trackingID is the error code and errorDetails contains the error message
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
 		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 			if result != nil {
 				result.IsSrcForHybridReplication = false
@@ -403,11 +402,11 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
 		// Quota rule failures should result in DONE state (partial success), not ERROR
 		// UpdateJob signature: (ctx, jobID, status, trackingID, errorDetails)
 		// When vsaerrors.NewVCPError is used, trackingID is the error code and errorDetails contains the error message
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
 		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 			if result != nil {
 				result.IsSrcForHybridReplication = false
@@ -741,11 +740,11 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		}
 
 		projectNumber := "123456789"
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
 		// Quota rule failures should result in DONE state (partial success), not ERROR
 		// UpdateJob signature: (ctx, jobID, status, trackingID, errorDetails)
 		// When vsaerrors.NewVCPError is used, trackingID is the error code and errorDetails contains the error message
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
 		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 			if result != nil {
 				result.IsSrcForHybridReplication = false
@@ -848,11 +847,11 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		}
 
 		projectNumber := "123456789"
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
 		// Quota rule failures should result in DONE state (partial success), not ERROR
 		// UpdateJob signature: (ctx, jobID, status, trackingID, errorDetails)
 		// When vsaerrors.NewVCPError is used, trackingID is the error code and errorDetails contains the error message
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
 		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 			if result != nil {
 				result.IsSrcForHybridReplication = false
@@ -1165,7 +1164,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 
 		params := &commonparams.ResumeReplicationParams{}
 
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		event := &replication.ResumeReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
@@ -1261,11 +1260,11 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStatePROCESSING), mock.Anything, mock.Anything).Return(nil)
 		// Quota rule failures should result in DONE state (partial success), not ERROR
 		// UpdateJob signature: (ctx, jobID, status, trackingID, errorDetails)
 		// When vsaerrors.NewVCPError is used, trackingID is the error code and errorDetails contains the error message
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(coreModels.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, string(datamodel.JobsStateDONE), vsaerrors.ErrResumeReplicationQuotaRuleFailure, mock.Anything).Return(nil)
 		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 			if result != nil {
 				result.IsSrcForHybridReplication = false
@@ -1456,7 +1455,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		// This confirms that isResumeQuotaRuleFailure() correctly detected the quota rule failure error
 		foundDoneWithQuotaRuleError := false
 		for _, call := range updateJobCalls {
-			if call.status == string(coreModels.JobsStateDONE) {
+			if call.status == string(datamodel.JobsStateDONE) {
 				// When vsaerrors.NewVCPError is used, trackingID should be the error code
 				assert.Equal(tt, vsaerrors.ErrResumeReplicationQuotaRuleFailure, call.trackingID, "TrackingID should be ErrResumeReplicationQuotaRuleFailure when using vsaerrors.NewVCPError")
 				// errorDetails should contain the exact quota rule error message
@@ -1469,7 +1468,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 
 		// Verify no ERROR status was set (quota rule failures should NOT cause workflow failure)
 		for _, call := range updateJobCalls {
-			assert.NotEqual(tt, string(coreModels.JobsStateERROR), call.status, "Job should not be marked as ERROR for quota rule failure - should be DONE with partial success")
+			assert.NotEqual(tt, string(datamodel.JobsStateERROR), call.status, "Job should not be marked as ERROR for quota rule failure - should be DONE with partial success")
 		}
 	})
 }

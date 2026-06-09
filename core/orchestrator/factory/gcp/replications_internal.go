@@ -54,8 +54,8 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRefreshVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRefreshVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  "Replication Sync",
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils2.GetCoRelationIDFromContext(ctx),
@@ -76,7 +76,7 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -112,8 +112,8 @@ func _performMountCheck(ctx context.Context, se database.Storage, temporal clien
 		return nil, err
 	}
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeMountCheck),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeMountCheck),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  replicationUUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils2.GetCoRelationIDFromContext(ctx),
@@ -132,7 +132,7 @@ func _performMountCheck(ctx context.Context, se database.Storage, temporal clien
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -192,8 +192,8 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 
 	// Create a job for this operation
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateVolumeReplicationAttributes),
-		State:        string(models.JobsStatePROCESSING),
+		Type:         string(datamodel.JobTypeUpdateVolumeReplicationAttributes),
+		State:        string(datamodel.JobsStatePROCESSING),
 		ResourceName: params.VolumeReplicationId,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		WorkflowID:   "UpdateVolumeReplicationAttributes-" + params.VolumeReplicationId + "-" + uuid.New().String(),
@@ -213,7 +213,7 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}

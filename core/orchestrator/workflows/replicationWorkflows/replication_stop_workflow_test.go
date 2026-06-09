@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -93,7 +92,7 @@ func TestStopReplicationWorkflow(t *testing.T) {
 
 		params := &commonparams.StopReplicationParams{}
 
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		replicationModel := &datamodel.VolumeReplication{
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType: &reverseType,
@@ -193,7 +192,7 @@ func TestStopReplicationWorkflow(t *testing.T) {
 		// Return error containing quota failure message (simulates internal describe returning Error)
 		quotaErr := vsaerrors.NewVCPError(
 			vsaerrors.ErrJobFailed,
-			errors.New("job failed with error: "+coreModels.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+			errors.New("job failed with error: "+datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure),
 		)
 		env.OnActivity("DescribeDestJobStop", mock.Anything, mock.Anything).Return(
 			vsaerrors.WrapAsNonRetryableTemporalApplicationError(quotaErr),
@@ -208,10 +207,10 @@ func TestStopReplicationWorkflow(t *testing.T) {
 		// Verify UpdateJob was called with DONE status and correct TrackingID/ErrorDetails
 		foundDoneWithQuotaRuleError := false
 		for _, call := range updateJobCalls {
-			if call.status == string(coreModels.JobsStateDONE) {
+			if call.status == string(datamodel.JobsStateDONE) {
 				assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, call.trackingID,
 					"TrackingID should be ErrBreakReplicationQuotaRuleFailure")
-				assert.Contains(tt, call.errorDetails, coreModels.VolumeReplicationBreakRelationshipQuotaRuleFailure,
+				assert.Contains(tt, call.errorDetails, datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure,
 					"Error details should contain quota rule failure message")
 				foundDoneWithQuotaRuleError = true
 				break

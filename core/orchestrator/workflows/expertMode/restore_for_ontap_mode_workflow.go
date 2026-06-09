@@ -3,7 +3,6 @@ package expertMode
 import (
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -57,11 +56,11 @@ func RestoreForOntapModeVolumeWorkflow(ctx workflow.Context, params *common.Rest
 		log.Errorf("Failed to setup RestoreForOntapModeVolumeWorkflow: %v", err)
 		return err
 	}
-	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := wf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return workflows.ConvertToVSAError(err).OriginalErr
 	}
 	wf.Status = workflows.WorkflowStatusRunning
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to PROCESSING: %v", err)
 		return err
 	}
@@ -71,7 +70,7 @@ func RestoreForOntapModeVolumeWorkflow(ctx workflow.Context, params *common.Rest
 		if !workflow.IsContinueAsNewError(customErr.OriginalErr) {
 			log.Errorf("RestoreForOntapModeVolumeWorkflow run failed: %v", customErr.OriginalErr)
 			wf.Status = workflows.WorkflowStatusFailed
-			if updateErr := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr); updateErr != nil {
+			if updateErr := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr); updateErr != nil {
 				log.Errorf("Failed to update job state to ERROR: %v", updateErr)
 			}
 			return customErr.OriginalErr
@@ -79,7 +78,7 @@ func RestoreForOntapModeVolumeWorkflow(ctx workflow.Context, params *common.Rest
 		return customErr.OriginalErr
 	}
 	wf.Status = workflows.WorkflowStatusCompleted
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil); err != nil {
 		log.Errorf("Failed to update job state to DONE: %v", err)
 		return err
 	}
@@ -138,7 +137,7 @@ func (wf *restoreForOntapModeVolumeWorkflow) Run(ctx workflow.Context, args ...i
 	defer func() {
 		// Only restore volume to READY on failure (rollback). On success, RestoreBackupWorkflow sets READY when the actual restore completes.
 		if retErr != nil {
-			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
 			}
 		}
@@ -195,7 +194,7 @@ func (wf *restoreForOntapModeVolumeWorkflow) Run(ctx workflow.Context, args ...i
 	}
 
 	// 7. Validate backup is in available or ready state (SDE uses READY, VCP uses AVAILABLE)
-	if backup.State != models.LifeCycleStateAvailable && backup.State != models.LifeCycleStateREADY {
+	if backup.State != datamodel.LifeCycleStateAvailable && backup.State != datamodel.LifeCycleStateREADY {
 		return nil, workflows.ConvertToVSAError(fmt.Errorf("cannot restore from backup '%s' which is not in available or ready state (current state: %s)",
 			backup.Name, backup.State))
 	}

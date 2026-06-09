@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -67,7 +66,7 @@ func TestVolumeHandler_Handle_NewStateTimeout_DeletesVolume(t *testing.T) {
 	handler := NewVolumeHandler()
 
 	job := &datamodel.Job{
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewPoolUpdateHandler() *PoolUpdateHandler {
 }
 
 // JobTypes enumerates the job types supported by the pool update handler.
-func (h *PoolUpdateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeUpdatePool,
-		models.JobTypeUpdateLargePool,
+func (h *PoolUpdateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeUpdatePool,
+		datamodel.JobTypeUpdateLargePool,
 	}
 }
 
@@ -57,7 +56,7 @@ func (h *PoolUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	}
 
 	// Only revert if pool is in UPDATING state
-	if pool.State != models.LifeCycleStateUpdating {
+	if pool.State != datamodel.LifeCycleStateUpdating {
 		logger.Warnf("workflow-supervisor-task: pool not in UPDATING state (%s); skipping revert", pool.State)
 		return nil
 	}
@@ -69,8 +68,8 @@ func (h *PoolUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	// Fallback if previous state not stored (for backward compatibility with old jobs)
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not stored in job attributes, using default AVAILABLE")
-		previousState = models.LifeCycleStateAvailable
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateAvailable
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	_, err = storage.UpdatePoolState(ctx, pool, previousState, previousStateDetails)

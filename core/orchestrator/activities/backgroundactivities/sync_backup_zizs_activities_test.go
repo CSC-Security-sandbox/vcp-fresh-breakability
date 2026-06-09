@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -34,7 +33,7 @@ func TestSyncZiZsActivity_GetAllBackupVaults(t *testing.T) {
 		}
 
 		expectedConditions := [][]interface{}{
-			{"life_cycle_state = ?", models.LifeCycleStateREADY},
+			{"life_cycle_state = ?", datamodel.LifeCycleStateREADY},
 		}
 
 		mockSE.On("GetMultipleBackupVaults", ctx, expectedConditions).Return(expectedVaults, nil).Once()
@@ -52,7 +51,7 @@ func TestSyncZiZsActivity_GetAllBackupVaults(t *testing.T) {
 		ctx := context.Background()
 
 		expectedConditions := [][]interface{}{
-			{"life_cycle_state = ?", models.LifeCycleStateREADY},
+			{"life_cycle_state = ?", datamodel.LifeCycleStateREADY},
 		}
 
 		mockSE.On("GetMultipleBackupVaults", ctx, expectedConditions).Return(nil, errors.New("database error")).Once()
@@ -261,7 +260,7 @@ func TestSyncZiZsActivity_CompleteFlow(t *testing.T) {
 
 		// Mock GetAllBackupVaults
 		expectedConditions := [][]interface{}{
-			{"life_cycle_state = ?", models.LifeCycleStateREADY},
+			{"life_cycle_state = ?", datamodel.LifeCycleStateREADY},
 		}
 		mockSE.On("GetMultipleBackupVaults", ctx, expectedConditions).Return(backupVaults, nil).Once()
 
@@ -313,7 +312,7 @@ func TestSyncZiZsActivity_EdgeCases(t *testing.T) {
 		ctx := context.Background()
 
 		expectedConditions := [][]interface{}{
-			{"life_cycle_state = ?", models.LifeCycleStateREADY},
+			{"life_cycle_state = ?", datamodel.LifeCycleStateREADY},
 		}
 
 		mockSE.On("GetMultipleBackupVaults", ctx, expectedConditions).Return([]*datamodel.BackupVault{}, nil).Once()

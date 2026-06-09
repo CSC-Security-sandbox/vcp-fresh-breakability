@@ -2235,7 +2235,7 @@ func TestOCIOrchestrator_UpdateRbacForPoolById_Success(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2304,7 +2304,7 @@ func TestOCIOrchestrator_UpdateRbacForPoolById_Success(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2453,7 +2453,7 @@ func TestGetPoolByOCID(t *testing.T) {
 			Pool: datamodel.Pool{
 				BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-1", ID: 100},
 				PoolExternalIdentifier: "ocid1.pool.oc1..abc",
-				State:                  models.LifeCycleStateREADY,
+				State:                  datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2746,7 +2746,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2775,7 +2775,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 		activeJobs := []*datamodel.ClusterUpgradeJob{
@@ -2808,7 +2808,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2840,7 +2840,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 		createdJob := &datamodel.ClusterUpgradeJob{
@@ -2881,7 +2881,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 		createdJob := &datamodel.ClusterUpgradeJob{
@@ -2919,7 +2919,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.16.1"},
 			},
 		}
@@ -2961,7 +2961,7 @@ func TestUpgradeCluster(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				State:     models.LifeCycleStateDisabled,
+				State:     datamodel.LifeCycleStateDisabled,
 			},
 		}
 		createdJob := &datamodel.ClusterUpgradeJob{

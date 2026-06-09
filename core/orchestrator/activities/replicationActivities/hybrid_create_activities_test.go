@@ -441,7 +441,7 @@ func TestHybridReplicationActivity_DescribeJobForHybridReplicationWorkflow(t *te
 		// Mock GetJob returning a job with DONE state
 		mockStorage.On("GetJob", ctx, *result.JobId).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: *result.JobId},
-			State:     string(models.JobsStateDONE),
+			State:     string(datamodel.JobsStateDONE),
 		}, nil)
 
 		err := activity.DescribeJobForHybridReplicationWorkflow(ctx, result)
@@ -466,7 +466,7 @@ func TestHybridReplicationActivity_DescribeJobForHybridReplicationWorkflow(t *te
 		// Mock GetJob returning a job with PROCESSING state (not finished)
 		mockStorage.On("GetJob", ctx, *result.JobId).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: *result.JobId},
-			State:     string(models.JobsStatePROCESSING),
+			State:     string(datamodel.JobsStatePROCESSING),
 		}, nil)
 
 		err := activity.DescribeJobForHybridReplicationWorkflow(ctx, result)
@@ -492,7 +492,7 @@ func TestHybridReplicationActivity_DescribeJobForHybridReplicationWorkflow(t *te
 		// Mock GetJob returning a job with ERROR state
 		mockStorage.On("GetJob", ctx, *result.JobId).Return(&datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: *result.JobId},
-			State:        string(models.JobsStateERROR),
+			State:        string(datamodel.JobsStateERROR),
 			TrackingID:   int(vsaerrors.ErrDescribingJobNotFound),
 			ErrorDetails: "job failed with error",
 		}, nil)
@@ -528,23 +528,23 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 
 		expectedJob := &datamodel.Job{
 			AccountID:     sql.NullInt64{Int64: 123, Valid: true},
-			Type:          string(models.JobTypeCreateVolume),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeCreateVolume),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  "test-volume",
 			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.AccountID.Int64 == 123 &&
-				job.Type == string(models.JobTypeCreateVolume) &&
-				job.State == string(models.JobsStateNEW) &&
+				job.Type == string(datamodel.JobTypeCreateVolume) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == "test-volume" &&
 				job.JobAttributes != nil &&
 				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
 				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
-		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeCreateVolume))
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(datamodel.JobTypeCreateVolume))
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedJob, result)
@@ -572,23 +572,23 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 
 		expectedJob := &datamodel.Job{
 			AccountID:     sql.NullInt64{Int64: 123, Valid: true},
-			Type:          string(models.JobTypeHybridReplicationEstablishPeering),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeHybridReplicationEstablishPeering),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication-id",
 			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.AccountID.Int64 == 123 &&
-				job.Type == string(models.JobTypeHybridReplicationEstablishPeering) &&
-				job.State == string(models.JobsStateNEW) &&
+				job.Type == string(datamodel.JobTypeHybridReplicationEstablishPeering) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication-id" &&
 				job.JobAttributes != nil &&
 				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
 				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
-		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(datamodel.JobTypeHybridReplicationEstablishPeering))
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedJob, result)
@@ -616,7 +616,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("database error"))
 
-		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeCreateVolume))
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(datamodel.JobTypeCreateVolume))
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -641,7 +641,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 			// HybridReplicationParameters intentionally omitted to validate nil guard.
 		}
 
-		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(datamodel.JobTypeHybridReplicationEstablishPeering))
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -671,23 +671,23 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 
 		expectedJob := &datamodel.Job{
 			AccountID:     sql.NullInt64{Int64: 123, Valid: true},
-			Type:          string(models.JobTypeHybridReplicationEstablishPeering),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeHybridReplicationEstablishPeering),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id",
 			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.AccountID.Int64 == 123 &&
-				job.Type == string(models.JobTypeHybridReplicationEstablishPeering) &&
-				job.State == string(models.JobsStateNEW) &&
+				job.Type == string(datamodel.JobTypeHybridReplicationEstablishPeering) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id" &&
 				job.JobAttributes != nil &&
 				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
 				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
-		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(datamodel.JobTypeHybridReplicationEstablishPeering))
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedJob, result)
@@ -719,7 +719,7 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerForHybridReplication(t 
 
 		existingClusterPeer := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "existing-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			OnprempCluster: "test-cluster",
 			AccountID:      123,
 			PoolID:         456,
@@ -755,7 +755,7 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerForHybridReplication(t 
 
 		newClusterPeer := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "new-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			OnprempCluster: "test-cluster",
 			AccountID:      123,
 			PoolID:         456,
@@ -1358,7 +1358,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:    datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:        models.CvpClusterPeeringStatusCREATING,
+			State:        datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails: "Creating cluster peer",
 			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 				PassPhrase: nillable.GetStringPtr("test-passphrase"),
@@ -1382,7 +1382,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		// Mock UpdateClusterPeeringRow
 		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cpr *datamodel.ClusterPeerings) bool {
-			return cpr.State == models.CvpClusterPeeringStatusPEERED &&
+			return cpr.State == datamodel.CvpClusterPeeringStatusPEERED &&
 				cpr.StateDetails == "" &&
 				cpr.ClusterPeeringAttributes != nil &&
 				cpr.ClusterPeeringAttributes.PassPhrase == nil &&
@@ -1399,7 +1399,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
 		assert.Equal(tt, "", result.ClusterPeeringRow.StateDetails)
 		assert.Nil(tt, result.ClusterPeeringRow.ClusterPeeringAttributes.PassPhrase)
 		assert.Nil(tt, result.ClusterPeeringRow.ClusterPeeringAttributes.Command)
@@ -1415,7 +1415,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:                datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:                    models.CvpClusterPeeringStatusCREATING,
+			State:                    datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:             "Creating cluster peer",
 			ClusterPeeringAttributes: nil,
 		}
@@ -1435,7 +1435,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		// Mock UpdateClusterPeeringRow
 		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cpr *datamodel.ClusterPeerings) bool {
-			return cpr.State == models.CvpClusterPeeringStatusPEERED &&
+			return cpr.State == datamodel.CvpClusterPeeringStatusPEERED &&
 				cpr.StateDetails == "" &&
 				cpr.ClusterPeeringAttributes == nil
 		})).Return(nil)
@@ -1449,7 +1449,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
 		assert.Equal(tt, "", result.ClusterPeeringRow.StateDetails)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
@@ -1462,7 +1462,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:    datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:        models.CvpClusterPeeringStatusCREATING,
+			State:        datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails: "Creating cluster peer",
 			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 				PassPhrase: nillable.GetStringPtr("test-passphrase"),
@@ -1500,7 +1500,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:    datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:        models.CvpClusterPeeringStatusCREATING,
+			State:        datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails: "Creating cluster peer",
 			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 				PassPhrase: nillable.GetStringPtr("test-passphrase"),
@@ -1541,7 +1541,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:    datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:        models.CvpClusterPeeringStatusCREATING,
+			State:        datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails: "Creating cluster peer",
 			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 				PassPhrase:      nillable.GetStringPtr("test-passphrase"),
@@ -1566,7 +1566,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		// Mock UpdateClusterPeeringRow
 		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cpr *datamodel.ClusterPeerings) bool {
-			return cpr.State == models.CvpClusterPeeringStatusPEERED &&
+			return cpr.State == datamodel.CvpClusterPeeringStatusPEERED &&
 				cpr.StateDetails == "" &&
 				cpr.ClusterPeeringAttributes != nil &&
 				cpr.ClusterPeeringAttributes.PassPhrase == nil &&
@@ -1585,7 +1585,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
 		assert.Equal(tt, "", result.ClusterPeeringRow.StateDetails)
 		assert.Nil(tt, result.ClusterPeeringRow.ClusterPeeringAttributes.PassPhrase)
 		assert.Nil(tt, result.ClusterPeeringRow.ClusterPeeringAttributes.Command)
@@ -1603,7 +1603,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:    datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:        models.CvpClusterPeeringStatusCREATING,
+			State:        datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails: "Creating cluster peer",
 			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 				PassPhrase: nillable.GetStringPtr("test-passphrase"),
@@ -1636,7 +1636,7 @@ func TestHybridReplicationActivity_SetClusterPeeringStatusToPeeredForHybridRepli
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, result.ClusterPeeringRow.State)
 		assert.Equal(tt, "", result.ClusterPeeringRow.StateDetails)
 		assert.NotNil(tt, result.DbVolReplication.HybridReplicationAttributes)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
@@ -1654,7 +1654,7 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:           models.HybridReplicationStatusPendingClusterPeer,
+				Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 				StatusDetails:    "Waiting for cluster peering",
 				StateDetailsCode: models.WaitingForClusterPeeringCode,
 			},
@@ -1667,8 +1667,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer &&
-				vr.HybridReplicationAttributes.StatusDetails == models.InitiatingSVMPeering &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer &&
+				vr.HybridReplicationAttributes.StatusDetails == datamodel.InitiatingSVMPeering &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.InitiatingSVMPeeringCode)
 		})).Return(nil)
 
@@ -1676,8 +1676,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
-		assert.Equal(tt, models.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.InitiatingSVMPeeringCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1719,7 +1719,7 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:           models.HybridReplicationStatusPendingClusterPeer,
+				Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 				StatusDetails:    "Waiting for cluster peering",
 				StateDetailsCode: models.WaitingForClusterPeeringCode,
 			},
@@ -1749,7 +1749,7 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:                        models.HybridReplicationStatusPendingClusterPeer,
+				Status:                        datamodel.HybridReplicationStatusPendingClusterPeer,
 				StatusDetails:                 "Waiting for cluster peering",
 				StateDetailsCode:              models.WaitingForClusterPeeringCode,
 				SvmPeerCommand:                nillable.GetStringPtr("vserver peer create"),
@@ -1771,8 +1771,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer &&
-				vr.HybridReplicationAttributes.StatusDetails == models.InitiatingSVMPeering &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer &&
+				vr.HybridReplicationAttributes.StatusDetails == datamodel.InitiatingSVMPeering &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.InitiatingSVMPeeringCode) &&
 				vr.HybridReplicationAttributes.SvmPeerCommand != nil &&
 				*vr.HybridReplicationAttributes.SvmPeerCommand == "vserver peer create" &&
@@ -1784,8 +1784,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
-		assert.Equal(tt, models.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.InitiatingSVMPeeringCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		// Verify other fields are preserved
 		assert.NotNil(tt, result.DbVolReplication.HybridReplicationAttributes.SvmPeerCommand)
@@ -1817,8 +1817,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer &&
-				vr.HybridReplicationAttributes.StatusDetails == models.InitiatingSVMPeering &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer &&
+				vr.HybridReplicationAttributes.StatusDetails == datamodel.InitiatingSVMPeering &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.InitiatingSVMPeeringCode)
 		})).Return(nil)
 
@@ -1826,8 +1826,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationPeeringStatusToPendingSVM
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
-		assert.Equal(tt, models.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.InitiatingSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.InitiatingSVMPeeringCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2571,7 +2571,7 @@ func TestHybridReplicationActivity_SetVolumeReplicationSVMPeeringDetails(t *test
 				BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status:           models.HybridReplicationStatusPendingClusterPeer,
+					Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 					StatusDetails:    "Waiting for cluster peering",
 					StateDetailsCode: models.WaitingForClusterPeeringCode,
 				},
@@ -2607,7 +2607,7 @@ func TestHybridReplicationActivity_SetVolumeReplicationSVMPeeringDetails(t *test
 				BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status:           models.HybridReplicationStatusPendingClusterPeer,
+					Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 					StatusDetails:    "Waiting for cluster peering",
 					StateDetailsCode: models.WaitingForClusterPeeringCode,
 				},
@@ -2625,8 +2625,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationSVMPeeringDetails(t *test
 		// Mock UpdateVolumeReplication to return success
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer &&
-				vr.HybridReplicationAttributes.StatusDetails == models.WaitingForSVMPeering &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer &&
+				vr.HybridReplicationAttributes.StatusDetails == datamodel.WaitingForSVMPeering &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.WaitingForSVMPeeringCode) &&
 				vr.HybridReplicationAttributes.SvmPeerCommand != nil &&
 				*vr.HybridReplicationAttributes.SvmPeerCommand == "vserver peer accept -vserver test-peer-svm -peer-vserver test-local-svm"
@@ -2636,8 +2636,8 @@ func TestHybridReplicationActivity_SetVolumeReplicationSVMPeeringDetails(t *test
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
-		assert.Equal(tt, models.WaitingForSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingSVMPeer, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.WaitingForSVMPeering, result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.WaitingForSVMPeeringCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		assert.NotNil(tt, result.DbVolReplication.HybridReplicationAttributes.SvmPeerCommand)
 		assert.Equal(tt, "vserver peer accept -vserver test-peer-svm -peer-vserver test-local-svm", *result.DbVolReplication.HybridReplicationAttributes.SvmPeerCommand)
@@ -2655,7 +2655,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:           models.HybridReplicationStatusPendingSVMPeer,
+				Status:           datamodel.HybridReplicationStatusPendingSVMPeer,
 				StatusDetails:    "Waiting for SVM peering",
 				StateDetailsCode: models.WaitingForSVMPeeringCode,
 			},
@@ -2668,7 +2668,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered &&
 				vr.HybridReplicationAttributes.StatusDetails == "" &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.DefaultCode)
 		})).Return(nil)
@@ -2677,7 +2677,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
 		assert.Equal(tt, "", result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
@@ -2720,7 +2720,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:           models.HybridReplicationStatusPendingSVMPeer,
+				Status:           datamodel.HybridReplicationStatusPendingSVMPeer,
 				StatusDetails:    "Waiting for SVM peering",
 				StateDetailsCode: models.WaitingForSVMPeeringCode,
 			},
@@ -2750,7 +2750,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:                        models.HybridReplicationStatusPendingSVMPeer,
+				Status:                        datamodel.HybridReplicationStatusPendingSVMPeer,
 				StatusDetails:                 "Waiting for SVM peering",
 				StateDetailsCode:              models.WaitingForSVMPeeringCode,
 				SvmPeerCommand:                nillable.ToPointer("vserver peer accept -vserver peer-svm -peer-vserver local-svm"),
@@ -2772,7 +2772,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered &&
 				vr.HybridReplicationAttributes.StatusDetails == "" &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.DefaultCode) &&
 				// Verify that other fields are preserved
@@ -2788,7 +2788,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
 		assert.Equal(tt, "", result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		// Verify that other fields are preserved
@@ -2821,7 +2821,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered &&
 				vr.HybridReplicationAttributes.StatusDetails == "" &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.DefaultCode)
 		})).Return(nil)
@@ -2830,7 +2830,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
 		assert.Equal(tt, "", result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
@@ -2845,7 +2845,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status:           models.HybridReplicationStatusSVMPeered,
+				Status:           datamodel.HybridReplicationStatusSVMPeered,
 				StatusDetails:    "Already peered",
 				StateDetailsCode: models.DefaultCode,
 			},
@@ -2858,7 +2858,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		// Mock UpdateVolumeReplication
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(vr *datamodel.VolumeReplication) bool {
 			return vr.HybridReplicationAttributes != nil &&
-				vr.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered &&
+				vr.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered &&
 				vr.HybridReplicationAttributes.StatusDetails == "" &&
 				vr.HybridReplicationAttributes.StateDetailsCode == int32(models.DefaultCode)
 		})).Return(nil)
@@ -2867,7 +2867,7 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusSVMPeered, result.DbVolReplication.HybridReplicationAttributes.Status)
 		assert.Equal(tt, "", result.DbVolReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Equal(tt, int32(models.DefaultCode), result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode)
 		mockStorage.AssertExpectations(tt)
@@ -3274,7 +3274,7 @@ func TestHybridReplicationActivity_UpdateHybridVolumeReplicationDetailsAndSetPee
 					ExternalUUID: "test-uuid",
 				},
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			ReplicationCreateResponseONTAP: &vsa.VolumeReplication{
@@ -3315,7 +3315,7 @@ func TestHybridReplicationActivity_UpdateHybridVolumeReplicationDetailsAndSetPee
 					ExternalUUID: "test-uuid",
 				},
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			ReplicationCreateResponseONTAP: &vsa.VolumeReplication{
@@ -3344,8 +3344,8 @@ func TestHybridReplicationActivity_UpdateHybridVolumeReplicationDetailsAndSetPee
 
 		// Verify that the replication was updated with correct values
 		updatedReplication := result.DbVolReplication
-		assert.Equal(tt, models.LifeCycleStateAvailable, updatedReplication.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, updatedReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, updatedReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, updatedReplication.StateDetails)
 		assert.Equal(tt, "test-relationship-id", updatedReplication.ReplicationAttributes.ExternalUUID)
 		assert.Equal(tt, "test-schedule", updatedReplication.ReplicationAttributes.ReplicationSchedule)
 		assert.Equal(tt, "test-mirror-state", *updatedReplication.MirrorState)
@@ -3359,7 +3359,7 @@ func TestHybridReplicationActivity_UpdateHybridVolumeReplicationDetailsAndSetPee
 
 		// Verify hybrid replication attributes were updated
 		assert.Equal(tt, int32(models.DefaultCode), updatedReplication.HybridReplicationAttributes.StateDetailsCode)
-		assert.Equal(tt, models.HybridReplicationStatusPeered, updatedReplication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPeered, updatedReplication.HybridReplicationAttributes.Status)
 		assert.Equal(tt, "", updatedReplication.HybridReplicationAttributes.StatusDetails)
 		assert.Nil(tt, updatedReplication.HybridReplicationAttributes.SvmPeerExpiryTime)
 		assert.Nil(tt, updatedReplication.HybridReplicationAttributes.SvmPeerCommand)
@@ -3477,7 +3477,7 @@ func TestHybridReplicationActivity_HydrateVolumeReplicationForHybridReplication(
 					DestinationVolumeName: "test-volume",
 				},
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					HybridReplicationType: nillable.ToPointer(string(models.HybridReplicationParametersReplicationTypeONPREM)),
+					HybridReplicationType: nillable.ToPointer(string(datamodel.HybridReplicationParametersReplicationTypeONPREM)),
 					Labels:                map[string]string{"key": "value"},
 				},
 			},
@@ -3519,7 +3519,7 @@ func TestHybridReplicationActivity_HydrateVolumeReplicationForHybridReplication(
 					DestinationVolumeName: "test-volume",
 				},
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					HybridReplicationType: nillable.ToPointer(string(models.HybridReplicationParametersReplicationTypeONPREM)),
+					HybridReplicationType: nillable.ToPointer(string(datamodel.HybridReplicationParametersReplicationTypeONPREM)),
 					Labels:                map[string]string{"key": "value"},
 				},
 			},
@@ -3607,7 +3607,7 @@ func TestHybridReplicationActivity_HydrateReplicationStateForHybridReplication(t
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name:  "test-replication",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationLocation:   "test-region",
 					DestinationVolumeName: "test-volume",
@@ -3724,7 +3724,7 @@ func TestHybridReplicationActivity_HydrateReplicationStateForHybridReplication(t
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name:  "test-replication",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationLocation:   "test-region",
 					DestinationVolumeName: "test-volume",
@@ -3863,7 +3863,7 @@ func TestHybridReplicationActivity_UpdateClusterPeerDetailsOnErrorActivity(t *te
 			NodeProvider: &models.Node{Name: "test-node"},
 			ClusterPeeringRow: &datamodel.ClusterPeerings{
 				BaseModel:     datamodel.BaseModel{ID: 123},
-				State:         models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+				State:         datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
 				OntapPeerUUID: "test-uuid",
 				ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 					PassPhrase: nillable.ToPointer("test-passphrase"),
@@ -3909,7 +3909,7 @@ func TestHybridReplicationActivity_UpdateClusterPeerDetailsOnErrorActivity(t *te
 			NodeProvider: &models.Node{Name: "test-node"},
 			ClusterPeeringRow: &datamodel.ClusterPeerings{
 				BaseModel:     datamodel.BaseModel{ID: 123},
-				State:         models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+				State:         datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
 				OntapPeerUUID: "test-uuid",
 				ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
 					PassPhrase: nillable.ToPointer("test-passphrase"),
@@ -3943,8 +3943,8 @@ func TestHybridReplicationActivity_UpdateClusterPeerDetailsOnErrorActivity(t *te
 		assert.Nil(tt, clusterPeering.ClusterPeeringAttributes.PassPhrase)
 		assert.Nil(tt, clusterPeering.ClusterPeeringAttributes.Command)
 		assert.Nil(tt, clusterPeering.ClusterPeeringAttributes.ExpiryTime)
-		assert.Equal(tt, models.LifeCycleStateDeleted, string(clusterPeering.State))
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, clusterPeering.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, string(clusterPeering.State))
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, clusterPeering.StateDetails)
 		assert.True(tt, clusterPeering.DeletedAt.Valid)
 
 		mockStorage.AssertExpectations(tt)
@@ -3969,7 +3969,7 @@ func TestHybridReplicationActivity_UpdateReplicationRowDetailsOnErrorActivity(t 
 				},
 			},
 			ClusterPeeringRow: &datamodel.ClusterPeerings{
-				State: models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+				State: datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
 			},
 		}
 
@@ -4000,7 +4000,7 @@ func TestHybridReplicationActivity_UpdateReplicationRowDetailsOnErrorActivity(t 
 				},
 			},
 			ClusterPeeringRow: &datamodel.ClusterPeerings{
-				State: models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+				State: datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
 			},
 		}
 
@@ -4013,7 +4013,7 @@ func TestHybridReplicationActivity_UpdateReplicationRowDetailsOnErrorActivity(t 
 
 		// Verify that the replication was updated correctly
 		replication := replicationResult.DbVolReplication
-		assert.Equal(tt, models.HybridReplicationStatusPendingClusterPeer, replication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingClusterPeer, replication.HybridReplicationAttributes.Status)
 		assert.Nil(tt, replication.HybridReplicationAttributes.SvmPeerExpiryTime)
 		assert.Nil(tt, replication.HybridReplicationAttributes.SvmPeerCommand)
 		assert.False(tt, replication.ClusterPeerId.Valid)
@@ -4038,7 +4038,7 @@ func TestHybridReplicationActivity_UpdateReplicationRowDetailsOnErrorActivity(t 
 				},
 			},
 			ClusterPeeringRow: &datamodel.ClusterPeerings{
-				State: models.CvpClusterPeeringStatusPEERED,
+				State: datamodel.CvpClusterPeeringStatusPEERED,
 			},
 		}
 
@@ -4051,7 +4051,7 @@ func TestHybridReplicationActivity_UpdateReplicationRowDetailsOnErrorActivity(t 
 
 		// Verify that the replication was updated correctly
 		replication := replicationResult.DbVolReplication
-		assert.Equal(tt, models.HybridReplicationStatusPendingClusterPeer, replication.HybridReplicationAttributes.Status)
+		assert.Equal(tt, datamodel.HybridReplicationStatusPendingClusterPeer, replication.HybridReplicationAttributes.Status)
 		assert.Nil(tt, replication.HybridReplicationAttributes.SvmPeerExpiryTime)
 		assert.Nil(tt, replication.HybridReplicationAttributes.SvmPeerCommand)
 		assert.False(tt, replication.ClusterPeerId.Valid)
@@ -5265,7 +5265,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5314,7 +5314,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5380,7 +5380,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5444,7 +5444,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5500,7 +5500,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationType:     datamodel.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5542,7 +5542,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 				replication.AccountID == 123 &&
 				replication.VolumeID == 456 &&
 				replAttrs.EndpointType == database.VolumeReplicationEndpointTypeDestination &&
-				replAttrs.ReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
+				replAttrs.ReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) &&
 				replAttrs.ReplicationSchedule == "hourly" &&
 				replAttrs.SourceSvmName == "peer-svm" &&
 				replAttrs.SourceHostName == "peer-cluster" &&
@@ -5553,9 +5553,9 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 				replAttrs.DestinationHostName == "test-cluster" &&
 				replAttrs.DestinationVolumeName == "test-volume" &&
 				replAttrs.DestinationSvmName == "test-svm" &&
-				hybridAttrs.Status == models.HybridReplicationStatusPendingClusterPeer &&
+				hybridAttrs.Status == datamodel.HybridReplicationStatusPendingClusterPeer &&
 				hybridAttrs.HybridReplicationType != nil &&
-				*hybridAttrs.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
+				*hybridAttrs.HybridReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) &&
 				hybridAttrs.Description == "test description" &&
 				hybridAttrs.PeerVolumeName == "peer-volume" &&
 				hybridAttrs.PeerSvmName == "peer-svm" &&
@@ -5582,7 +5582,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5630,7 +5630,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingClusterPeer,
+					Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5661,7 +5661,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5706,7 +5706,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5750,7 +5750,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5790,7 +5790,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{
@@ -5835,7 +5835,7 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		replicationResult := replication.CreateHybridReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-					Status: models.HybridReplicationStatusPendingSVMPeer,
+					Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 				},
 			},
 			DestinationVolume: &datamodel.Volume{

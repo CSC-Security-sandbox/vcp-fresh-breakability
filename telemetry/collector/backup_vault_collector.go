@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
@@ -33,13 +33,13 @@ const (
 // Only handles the exact job statuses from the job table: NEW, PROCESSING, ERROR, DONE
 func mapJobStatusToRotationState(status string) int64 {
 	switch status {
-	case string(models.JobsStateNEW):
+	case string(datamodel.JobsStateNEW):
 		return CmekRotationStatePending
-	case string(models.JobsStatePROCESSING):
+	case string(datamodel.JobsStatePROCESSING):
 		return CmekRotationStateInProgress
-	case string(models.JobsStateDONE):
+	case string(datamodel.JobsStateDONE):
 		return CmekRotationStateCompleted
-	case string(models.JobsStateERROR):
+	case string(datamodel.JobsStateERROR):
 		return CmekRotationStateFailed
 	default:
 		return CmekRotationStatePending

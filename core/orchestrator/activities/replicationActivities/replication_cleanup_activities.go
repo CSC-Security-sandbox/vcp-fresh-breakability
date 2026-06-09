@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -246,8 +247,8 @@ func (a *CleanupVolumeReplicationActivity) updateReplicationToErrorStateForClean
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
 	updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-		State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-		StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+		State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+		StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 	}
 	updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 		ProjectNumber:       projectNumber,

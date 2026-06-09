@@ -491,11 +491,11 @@ func (a *ReverseVolumeReplicationActivity) SetVolumeReplicationStatusToOnpremRep
 	}
 
 	// Set hybrid replication type to ONPREM
-	hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+	hybridReplicationType := string(datamodel.HybridReplicationParametersReplicationTypeONPREM)
 	dbReplication.HybridReplicationAttributes.HybridReplicationType = &hybridReplicationType
 
 	// Set status to Peered
-	dbReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPeered
+	dbReplication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPeered
 
 	// Set status details to empty string
 	dbReplication.HybridReplicationAttributes.StatusDetails = ""
@@ -638,7 +638,7 @@ func ConvertToReversedAttributesForHybridRep(originalAttrs *datamodel.Replicatio
 }
 
 func (a *ReverseVolumeReplicationActivity) HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
-	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, result.Event.Location, result.Event.VolumeResourceID)
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateReady, datamodel.HybridReplicationParametersReplicationTypeONPREM, result.Event.Location, result.Event.VolumeResourceID)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}

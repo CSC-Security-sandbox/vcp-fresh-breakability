@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -154,11 +153,11 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, newSDEDeleteConflictErr("KMS config is in transition state and cannot be deleted"))
 		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
 			JobAttributes: &datamodel.JobAttributes{
-				PreviousState:        models.LifeCycleStateREADY,
-				PreviousStateDetails: models.LifeCycleStateReadyDetails,
+				PreviousState:        datamodel.LifeCycleStateREADY,
+				PreviousStateDetails: datamodel.LifeCycleStateReadyDetails,
 			},
 		}, nil)
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Return(nil)
 
 		// Register the workflow
 		env.RegisterWorkflow(func(ctx workflow.Context, params *common.DeleteKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
@@ -213,7 +212,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		}
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, errors.New(500, "delete failed"))
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.RegisterWorkflow(func(ctx workflow.Context, params *common.DeleteKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
 			wf := &deleteKmsConfigWorkflow{}
@@ -274,11 +273,11 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUUID, params).Return(newSDEDeleteConflictErr("Conflict while deleting KMS config"))
 		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
 			JobAttributes: &datamodel.JobAttributes{
-				PreviousState:        models.LifeCycleStateDisabled,
-				PreviousStateDetails: models.LifeCycleStateDisabledDetails,
+				PreviousState:        datamodel.LifeCycleStateDisabled,
+				PreviousStateDetails: datamodel.LifeCycleStateDisabledDetails,
 			},
 		}, nil)
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -321,7 +320,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(&sdeJobUUID, nil)
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUUID, params).Return(errors.New(500, "describe failed"))
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -366,7 +365,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUUID, params).Return(nil)
 		env.OnActivity("DisableKmsServiceAccount", mock.Anything, kmsConfig).Return(nil)
 		env.OnActivity("DeleteKmsConfig", mock.Anything, kmsConfig, params).Return(errors.New(500, "db delete failed"))
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -408,7 +407,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, newSDEDeleteConflictErr("Error deleting CMEK policy - can not delete this policy as it is still in use"))
 		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{}, nil)
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -450,7 +449,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, newSDEDeleteConflictErr("Conflict while loading rollback state"))
 		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return((*datamodel.Job)(nil), errors.New(500, "rollback lookup failed"))
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -493,11 +492,11 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, newSDEDeleteConflictErr("Conflict while deleting KMS config"))
 		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
 			JobAttributes: &datamodel.JobAttributes{
-				PreviousState:        models.LifeCycleStateREADY,
-				PreviousStateDetails: models.LifeCycleStateReadyDetails,
+				PreviousState:        datamodel.LifeCycleStateREADY,
+				PreviousStateDetails: datamodel.LifeCycleStateReadyDetails,
 			},
 		}, nil)
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(errors.New(500, "restore config failed"))
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Return(errors.New(500, "restore config failed"))
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
@@ -624,14 +623,14 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
-			State:             models.LifeCycleStateCreating,
+			State:             datamodel.LifeCycleStateCreating,
 			CustomerProjectID: "123456789",
 		}
 
 		sdeJobUuid := "job-uuid"
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		// Mock cancellation handling activities using string names
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(models.JobTypeCreateKmsConfig)).Return(&common.CreateJobResult{
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(datamodel.JobTypeCreateKmsConfig)).Return(&common.CreateJobResult{
 			JobUUID:    "create-job-uuid",
 			WorkflowID: "create-workflow-id",
 		}, nil)
@@ -684,14 +683,14 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
-			State:             models.LifeCycleStateCreating,
+			State:             datamodel.LifeCycleStateCreating,
 			CustomerProjectID: "123456789",
 		}
 
 		sdeJobUuid := "job-uuid"
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		// Mock cancellation handling activities - correlation ID error means GetCreateJobByResourceUUID returns error
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(models.JobTypeCreateKmsConfig)).Return(nil, errors.New(404, "job not found"))
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(datamodel.JobTypeCreateKmsConfig)).Return(nil, errors.New(404, "job not found"))
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(&sdeJobUuid, nil)
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUuid, params).Return(nil)
@@ -738,14 +737,14 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
-			State:             models.LifeCycleStateCreating,
+			State:             datamodel.LifeCycleStateCreating,
 			CustomerProjectID: "123456789",
 		}
 
 		sdeJobUuid := "job-uuid"
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		// Make GetCreateJobByResourceUUID fail to trigger cancellation handling error
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(models.JobTypeCreateKmsConfig)).Return(nil, errors.New(404, "job not found"))
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(datamodel.JobTypeCreateKmsConfig)).Return(nil, errors.New(404, "job not found"))
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
 		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(&sdeJobUuid, nil)
 		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUuid, params).Return(nil)
@@ -796,7 +795,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "kms1-uuid",
 			},
-			State:             models.LifeCycleStateCreating,
+			State:             datamodel.LifeCycleStateCreating,
 			CustomerProjectID: "123456789",
 		}
 
@@ -805,7 +804,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		// Mock GetCreateJobByResourceUUID to return a job, then make IsWorkflowRunningActivity fail
 		// This will cause HandleCancellationInDeleteWorkflow to log warnings but still return nil
 		// However, we can test the error path by making UpdateJobStatus fail in a way that could propagate
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(models.JobTypeCreateKmsConfig)).Return(&common.CreateJobResult{
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, "kms1-uuid", mock.Anything, string(datamodel.JobTypeCreateKmsConfig)).Return(&common.CreateJobResult{
 			JobUUID:    "create-job-uuid",
 			WorkflowID: "create-workflow-id",
 		}, nil)
@@ -900,7 +899,7 @@ func TestDeleteKmsConfigWorkflow_VCPPath(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DisableGCPServiceAccountActivity", mock.Anything, kmsConfig).Return(errors.New(500, "failed to disable SA"))
-		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, kmsConfig, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 

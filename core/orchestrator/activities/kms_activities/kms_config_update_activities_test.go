@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -89,8 +88,8 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateCreated,
-			stateDetails: models.LifeCycleStateCreatedDetails,
+			state:        datamodel.LifeCycleStateCreated,
+			stateDetails: datamodel.LifeCycleStateCreatedDetails,
 		},
 		{
 			name: "UpdateToUpdatingState",
@@ -98,8 +97,8 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateUpdating,
-			stateDetails: models.LifeCycleStateUpdatingDetails,
+			state:        datamodel.LifeCycleStateUpdating,
+			stateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		},
 		{
 			name: "UpdateToErrorState",
@@ -107,7 +106,7 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateError,
+			state:        datamodel.LifeCycleStateError,
 			stateDetails: "An error occurred during processing",
 		},
 		{
@@ -116,8 +115,8 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateREADY,
-			stateDetails: models.LifeCycleStateReadyDetails,
+			state:        datamodel.LifeCycleStateREADY,
+			stateDetails: datamodel.LifeCycleStateReadyDetails,
 		},
 	}
 
@@ -162,8 +161,8 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateUpdating,
-			stateDetails: models.LifeCycleStateUpdatingDetails,
+			state:        datamodel.LifeCycleStateUpdating,
+			stateDetails: datamodel.LifeCycleStateUpdatingDetails,
 			dbError:      "database connection failed",
 		},
 		{
@@ -172,7 +171,7 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				Name:      "test-kms",
 			},
-			state:        models.LifeCycleStateError,
+			state:        datamodel.LifeCycleStateError,
 			stateDetails: "System error occurred",
 			dbError:      "invalid state transition",
 		},
@@ -214,10 +213,10 @@ func TestUpdateKmsConfigState_NotFoundReturnsSuccess(t *testing.T) {
 	}
 
 	// Return NotFoundErr to simulate already deleted record
-	mockStorage.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, models.LifeCycleStateError, "error details").Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
+	mockStorage.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, datamodel.LifeCycleStateError, "error details").Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
 
 	// Act
-	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kmsConfig, models.LifeCycleStateError, "error details")
+	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kmsConfig, datamodel.LifeCycleStateError, "error details")
 
 	// Assert - Should succeed (idempotent)
 	assert.NoError(t, err)
@@ -249,7 +248,7 @@ func TestUpdateKmsConfig_Standalone_Success(t *testing.T) {
 				"key_ring":          "test-ring",
 				"key_ring_location": "us-central1",
 				"key_project_id":    "test-project",
-				"state":             models.LifeCycleStateCreated,
+				"state":             datamodel.LifeCycleStateCreated,
 			},
 		},
 		{

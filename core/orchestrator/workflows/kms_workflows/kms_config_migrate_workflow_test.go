@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -30,7 +29,7 @@ func newTestVsaKmsConfig(uuid string) datamodel.KmsConfig {
 	return datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: uuid},
 		AccountID: 1,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		KmsAttributes: &datamodel.KmsAttributes{
 			SdeServiceAccountEmail: "sde-sa@account",
 		},
@@ -225,7 +224,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
 
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
 
@@ -290,7 +289,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
 
@@ -327,7 +326,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
 
@@ -365,7 +364,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
 
@@ -404,7 +403,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
 
@@ -446,9 +445,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.SvmActivity{})
 
-		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateError}
-		pool3 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool3"}, State: models.LifeCycleStateCreating, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
-		pool4 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(4), UUID: "pool4"}, State: models.LifeCycleStateDegraded, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: datamodel.LifeCycleStateError}
+		pool3 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool3"}, State: datamodel.LifeCycleStateCreating, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool4 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(4), UUID: "pool4"}, State: datamodel.LifeCycleStateDegraded, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool2, &pool3, &pool4)
 
@@ -490,8 +489,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateREADY}
-		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateREADY}
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateREADY}
+		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: datamodel.LifeCycleStateREADY}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1, &pool2)
 
@@ -539,7 +538,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -593,7 +592,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -648,7 +647,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -704,7 +703,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -761,7 +760,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -822,7 +821,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -884,7 +883,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -947,7 +946,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1012,7 +1011,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1077,7 +1076,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1142,7 +1141,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1211,7 +1210,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1275,12 +1274,12 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
 			}}
-		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateREADY,
+		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: datamodel.LifeCycleStateREADY,
 			DeploymentName: "cluster2",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-456",
@@ -1348,7 +1347,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1415,7 +1414,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		pool1 := datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{ID: int64(1), UUID: "pool1"},
-			State:          models.LifeCycleStateInUse,
+			State:          datamodel.LifeCycleStateInUse,
 			DeploymentName: "cluster1",
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-123",
@@ -1456,28 +1455,28 @@ func TestValidateKmsConfigForMigration(t *testing.T) { // Generated using GitHub
 	}{
 		{
 			name:          "Valid state READY",
-			state:         models.LifeCycleStateREADY,
+			state:         datamodel.LifeCycleStateREADY,
 			expectedError: nil,
 		},
 		{
 			name:          "Valid state IN_USE",
-			state:         models.LifeCycleStateInUse,
+			state:         datamodel.LifeCycleStateInUse,
 			expectedError: nil,
 		},
 		{
 			name:          "Invalid state Created",
-			state:         models.LifeCycleStateCreated,
+			state:         datamodel.LifeCycleStateCreated,
 			expectedError: errors.NewBadRequestErr("CMEK Configuration needs to be in either Ready or In_Use state for migration"),
 		},
 		{
 			name:          "Transitioning state UPDATING",
-			state:         models.LifeCycleStateUpdating,
-			expectedError: errors.NewConflictErr(fmt.Sprintf("CMEK Configuration continues to be in transitioning state after SDE migration: %s", models.LifeCycleStateUpdating)),
+			state:         datamodel.LifeCycleStateUpdating,
+			expectedError: errors.NewConflictErr(fmt.Sprintf("CMEK Configuration continues to be in transitioning state after SDE migration: %s", datamodel.LifeCycleStateUpdating)),
 		},
 		{
 			name:          "Transitioning state MIGRATING",
-			state:         models.LifeCycleStateMigrating,
-			expectedError: errors.NewConflictErr(fmt.Sprintf("CMEK Configuration continues to be in transitioning state after SDE migration: %s", models.LifeCycleStateMigrating)),
+			state:         datamodel.LifeCycleStateMigrating,
+			expectedError: errors.NewConflictErr(fmt.Sprintf("CMEK Configuration continues to be in transitioning state after SDE migration: %s", datamodel.LifeCycleStateMigrating)),
 		},
 	}
 

@@ -112,8 +112,8 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.VolumeReplication.RemoteUri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -135,7 +135,7 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			_, deleteError := se.DeleteVolumeReplication(ctx, replicationDb)
@@ -185,16 +185,16 @@ func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 
 	previousState := replicationDb.State
 	previousStateDetails := replicationDb.StateDetails
-	replicationDb.State = models.LifeCycleStateUpdating
-	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.State = datamodel.LifeCycleStateUpdating
+	replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  replicationDb.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -216,7 +216,7 @@ func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -259,8 +259,8 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 		return nil, nil, err
 	}
 
-	replicationDb.State = models.LifeCycleStateUpdating
-	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.State = datamodel.LifeCycleStateUpdating
+	replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
 	if err != nil {
@@ -273,8 +273,8 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeStopVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeStopVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  replicationDb.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -294,11 +294,11 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			// Set replication state to ERROR if workflow fails to start
-			replicationDb.State = models.LifeCycleStateError
+			replicationDb.State = datamodel.LifeCycleStateError
 			replicationDb.StateDetails = err.Error()
 			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
 				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
@@ -353,7 +353,7 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeStopVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(datamodel.JobTypeStopVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
@@ -369,8 +369,8 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeStopVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeStopVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -390,7 +390,7 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -411,8 +411,8 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 		logger.Error("Failed to execute workflow", "error", err)
 		return nil, "", err
 	}
-	dstReplication.State = models.LifeCycleStateUpdating
-	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.State = datamodel.LifeCycleStateUpdating
+	dstReplication.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 	return dstReplication, createdJob.UUID, nil
 }
@@ -436,7 +436,7 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 	ccfeURI := replication.GetCCFEURI(params.AccountName, location, params.VolumeResourceId, params.ReplicationResourceId)
 
 	// check for duplicate jobs
-	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeHybridReplicationEstablishPeering), utils.GetCoRelationIDFromContext(ctx))
+	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(datamodel.JobTypeHybridReplicationEstablishPeering), utils.GetCoRelationIDFromContext(ctx))
 	if err != nil {
 		return nil, "", err
 	}
@@ -475,15 +475,15 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 			PeerClusterName: params.PeerClusterName,
 			PeerSvmName:     params.PeerSvmName,
 			PeerIPAddresses: params.PeerIPAddresses,
-			ReplicationType: models.HybridReplicationParametersReplicationType(dstReplication.ReplicationAttributes.ReplicationType),
+			ReplicationType: datamodel.HybridReplicationParametersReplicationType(dstReplication.ReplicationAttributes.ReplicationType),
 		},
 		CorrelationID:    &params.CorrelationId,
 		DbVolReplication: dstReplication,
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeHybridReplicationEstablishPeering),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeHybridReplicationEstablishPeering),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  ccfeURI,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -501,7 +501,7 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -523,8 +523,8 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 		return nil, "", err
 	}
 
-	dstReplication.State = models.LifeCycleStateUpdating
-	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.State = datamodel.LifeCycleStateUpdating
+	dstReplication.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	return convertDataStoreReplicationToModel(dstReplication), createdJob.UUID, nil
 }
@@ -662,7 +662,7 @@ func validateQuotaRulesForVolume(ctx context.Context, se database.Storage, volum
 	// Check for quota rules in error state
 	var erroredQuotaRules []*datamodel.QuotaRule
 	for _, quotaRule := range quotaRules {
-		if quotaRule.State == models.LifeCycleStateError {
+		if quotaRule.State == datamodel.LifeCycleStateError {
 			erroredQuotaRules = append(erroredQuotaRules, quotaRule)
 		}
 	}
@@ -703,7 +703,7 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 	}
 
 	// check for duplicate jobs
-	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeCreateVolumeReplication), utils.GetCoRelationIDFromContext(ctx))
+	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(datamodel.JobTypeCreateVolumeReplication), utils.GetCoRelationIDFromContext(ctx))
 	if err != nil {
 		return nil, "", err
 	}
@@ -750,8 +750,8 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  dbRepl.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -771,7 +771,7 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			_, deleteError := se.DeleteVolumeReplication(ctx, dbRepl)
@@ -1245,16 +1245,16 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 		}
 	}
 	if dbVolumeReplication.ReplicationAttributes.EndpointType == cvpmodels.VolumeReplicationCVPV1betaEndpointTypeSrc {
-		if dbVolumeReplication.State == models.LifeCycleStateCreating ||
-			dbVolumeReplication.State == models.LifeCycleStateUpdating ||
-			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+		if dbVolumeReplication.State == datamodel.LifeCycleStateCreating ||
+			dbVolumeReplication.State == datamodel.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == datamodel.LifeCycleStateDeleting {
 			return nil, nil, errors.New("Error releasing volume Replication - Volume replication is already transitioning between states")
 		}
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeReleaseVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeReleaseVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  dbVolumeReplication.Uri,
 		AccountID:     sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1271,8 +1271,8 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	}
 
 	if dbVolumeReplication.ReplicationAttributes.EndpointType == cvpmodels.VolumeReplicationCVPV1betaEndpointTypeSrc {
-		dbVolumeReplication.State = models.LifeCycleStateDeleting
-		dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
+		dbVolumeReplication.State = datamodel.LifeCycleStateDeleting
+		dbVolumeReplication.StateDetails = datamodel.LifeCycleStateDeletingDetails
 
 		if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
 			return nil, nil, err
@@ -1282,7 +1282,7 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -1339,7 +1339,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes.ClusterLocation != nil {
 			clusterLocation = gcpgenserver.NewOptString(*dbReplication.ClusterPeer.ClusterPeeringAttributes.ClusterLocation)
 		}
-		if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer {
+		if dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingClusterPeer {
 			if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes.Command != nil {
 				command = *dbReplication.ClusterPeer.ClusterPeeringAttributes.Command
 				if dbReplication.ClusterPeer.ClusterPeeringAttributes.PassPhrase != nil {
@@ -1354,7 +1354,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 				CommandExpiryTime: gcpgenserver.NewOptDateTime(commandExpiryTime),
 				Passphrase:        gcpgenserver.NewOptString(passphrase),
 			}
-		} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer {
+		} else if dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer {
 			var svmPeerCommand string
 			if dbReplication.HybridReplicationAttributes.SvmPeerCommand != nil {
 				svmPeerCommand = *dbReplication.HybridReplicationAttributes.SvmPeerCommand
@@ -1362,7 +1362,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 			hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{
 				Command: gcpgenserver.NewOptString(svmPeerCommand),
 			}
-		} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered {
+		} else if dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered {
 			hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{
 				Command:           gcpgenserver.NewOptString(command),
 				CommandExpiryTime: gcpgenserver.NewOptDateTime(commandExpiryTime),
@@ -1459,45 +1459,45 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 	replicationJobType, hasJob := replicationHasJob(in, jobsList)
 	if hasJob {
 		switch replicationJobType {
-		case string(models.JobTypeDeleteVolumeReplication):
+		case string(datamodel.JobTypeDeleteVolumeReplication):
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateDELETING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateDeleting)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeCreateVolumeReplication):
+		case string(datamodel.JobTypeCreateVolumeReplication):
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateCREATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateCreation)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeStopVolumeReplication):
+		case string(datamodel.JobTypeStopVolumeReplication):
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateStopping)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeHybridReplicationInternalEstablish):
+		case string(datamodel.JobTypeHybridReplicationInternalEstablish):
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateREADY)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 
-		case string(models.JobTypeReverseResumeVolumeReplication):
+		case string(datamodel.JobTypeReverseResumeVolumeReplication):
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateReversing)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeResumeVolumeReplication):
+		case string(datamodel.JobTypeResumeVolumeReplication):
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateResuming)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeUpdateVolumeReplication):
+		case string(datamodel.JobTypeUpdateVolumeReplication):
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateUpdating)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
-		case string(models.JobTypeReverseHybridReplicationInternal):
+		case string(datamodel.JobTypeReverseHybridReplicationInternal):
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateSTOPPED)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGREMOTERESYNC)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
@@ -1511,7 +1511,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 
 	if dbReplication.HybridReplicationAttributes != nil {
 		if in.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED || in.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING {
-			if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer {
+			if dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingClusterPeer {
 				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGCLUSTERPEERING)
 				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePENDINGPEERING)
 				if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.StateDetails != "" {
@@ -1519,7 +1519,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 				} else {
 					out.StateDetails = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.StatusDetails)
 				}
-			} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer || dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered {
+			} else if dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer || dbReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusSVMPeered {
 				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGSVMPEERING)
 				out.StateDetails = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.StatusDetails)
 				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePENDINGPEERING)
@@ -1530,7 +1530,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		jobType := replicationJobType
 
 		// Check for PENDING_REMOTE_RESYNC status
-		if userCommands := vrAttrs.HybridReplicationUserCommands; vrAttrs.Status == models.HybridReplicationStatusPendingRemoteResync {
+		if userCommands := vrAttrs.HybridReplicationUserCommands; vrAttrs.Status == datamodel.HybridReplicationStatusPendingRemoteResync {
 			// Snapmirror commands will not be displayed to the user once the JobTypeReverseHybridReplicationInternal has timed out
 			if hasJob {
 				if userCommands != nil && len(userCommands) > 0 {
@@ -1548,13 +1548,13 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		}
 
 		// Handle EXTERNALLY_MANAGED_REPLICATION status with reverse and resume job
-		if hasJob && jobType == string(models.JobTypeReverseResumeVolumeReplication) && vrAttrs.Status == models.HybridReplicationStatusExternalManaged {
+		if hasJob && jobType == string(datamodel.JobTypeReverseResumeVolumeReplication) && vrAttrs.Status == datamodel.HybridReplicationStatusExternalManaged {
 			out.HybridReplicationUserCommands = gcpgenserver.OptHybridReplicationUserCommandsV1beta{}
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateReversing)
 		}
 
 		// Handle EXTERNALLY_MANAGED_REPLICATION status without job
-		if !hasJob && vrAttrs.Status == models.HybridReplicationStatusExternalManaged {
+		if !hasJob && vrAttrs.Status == datamodel.HybridReplicationStatusExternalManaged {
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateEXTERNALLYMANAGEDREPLICATION)
 			out.StateDetails = gcpgenserver.NewOptString(vrAttrs.StatusDetails)
@@ -1671,7 +1671,7 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeResumeVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(datamodel.JobTypeResumeVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
@@ -1704,8 +1704,8 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeResumeVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeResumeVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1725,7 +1725,7 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -1747,8 +1747,8 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	dstReplication.State = models.LifeCycleStateUpdating
-	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.State = datamodel.LifeCycleStateUpdating
+	dstReplication.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
 	return dstReplication, createdJob.UUID, nil
@@ -1785,7 +1785,7 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeUpdateVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(datamodel.JobTypeUpdateVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
@@ -1801,8 +1801,8 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1822,7 +1822,7 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -1843,8 +1843,8 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	dstReplication.State = models.LifeCycleStateUpdating
-	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.State = datamodel.LifeCycleStateUpdating
+	dstReplication.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
 	return dstReplication, createdJob.UUID, nil
@@ -1867,8 +1867,8 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 		return nil, nil, err
 	}
 
-	replicationDb.State = models.LifeCycleStateUpdating
-	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.State = datamodel.LifeCycleStateUpdating
+	replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
 	if err != nil {
@@ -1881,8 +1881,8 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeResumeVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeResumeVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  replicationDb.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1902,11 +1902,11 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			// Set replication state to ERROR if workflow fails to start
-			replicationDb.State = models.LifeCycleStateError
+			replicationDb.State = datamodel.LifeCycleStateError
 			replicationDb.StateDetails = err.Error()
 			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
 				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
@@ -1965,15 +1965,15 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	if isCleanup {
 		// For cleanup operations, only check for Updating or Deleting states
 		// Allow cleanup even if replication is in Creating state
-		if dbVolumeReplication.State == models.LifeCycleStateUpdating ||
-			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+		if dbVolumeReplication.State == datamodel.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == datamodel.LifeCycleStateDeleting {
 			return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
 		}
 	} else {
 		// For regular delete operations, check for Creating, Updating, or Deleting states
-		if dbVolumeReplication.State == models.LifeCycleStateCreating ||
-			dbVolumeReplication.State == models.LifeCycleStateUpdating ||
-			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+		if dbVolumeReplication.State == datamodel.LifeCycleStateCreating ||
+			dbVolumeReplication.State == datamodel.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == datamodel.LifeCycleStateDeleting {
 			return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
 		}
 	}
@@ -1981,8 +1981,8 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	previousState := dbVolumeReplication.State
 	previousStateDetails := dbVolumeReplication.StateDetails
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  dbVolumeReplication.Uri,
 		AccountID:     sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -2001,8 +2001,8 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	}
 
 	if !cleanupAfterReverse {
-		dbVolumeReplication.State = models.LifeCycleStateDeleting
-		dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
+		dbVolumeReplication.State = datamodel.LifeCycleStateDeleting
+		dbVolumeReplication.StateDetails = datamodel.LifeCycleStateDeletingDetails
 
 		if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
 			return nil, nil, err
@@ -2012,7 +2012,7 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -2098,7 +2098,7 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, isCleanUp, string(models.JobTypeDeleteVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, isCleanUp, string(datamodel.JobTypeDeleteVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
@@ -2136,8 +2136,8 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -2159,7 +2159,7 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -2190,8 +2190,8 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to execute workflow", "error", err)
 		return nil, "", err
 	}
-	dstReplication.State = models.LifeCycleStateDeleting
-	dstReplication.StateDetails = models.LifeCycleStateDeletingDetails
+	dstReplication.State = datamodel.LifeCycleStateDeleting
+	dstReplication.StateDetails = datamodel.LifeCycleStateDeletingDetails
 
 	return dstReplication, createdJob.UUID, nil
 }
@@ -2223,7 +2223,7 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeSyncVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(datamodel.JobTypeSyncVolumeReplication))
 	if err != nil {
 		return nil, "", err
 	}
@@ -2239,8 +2239,8 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeSyncVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeSyncVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -2260,7 +2260,7 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -2282,8 +2282,8 @@ func _syncReplication(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	dstReplication.State = models.LifeCycleStateUpdating
-	dstReplication.StateDetails = models.LifeCycleStateSyncDetails
+	dstReplication.State = datamodel.LifeCycleStateUpdating
+	dstReplication.StateDetails = datamodel.LifeCycleStateSyncDetails
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
 	return dstReplication, createdJob.UUID, nil
@@ -2306,8 +2306,8 @@ func _reverseReplicationInternal(ctx context.Context, se database.Storage, tempo
 		return nil, nil, err
 	}
 
-	replicationDb.State = models.LifeCycleStateUpdating
-	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.State = datamodel.LifeCycleStateUpdating
+	replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
 	if err != nil {
@@ -2320,8 +2320,8 @@ func _reverseReplicationInternal(ctx context.Context, se database.Storage, tempo
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeReverseVolumeReplicationInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeReverseVolumeReplicationInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  replicationDb.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -2341,11 +2341,11 @@ func _reverseReplicationInternal(ctx context.Context, se database.Storage, tempo
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			// Set replication state to ERROR if workflow fails to start
-			replicationDb.State = models.LifeCycleStateError
+			replicationDb.State = datamodel.LifeCycleStateError
 			replicationDb.StateDetails = err.Error()
 			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
 				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
@@ -2398,7 +2398,7 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		event.CommonReplicationEventParams.Location = params.Zone
 	}
 
-	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(models.JobTypeReverseResumeVolumeReplication))
+	existingReplication, existingJobUuid, err := validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se, false, string(datamodel.JobTypeReverseResumeVolumeReplication))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2406,7 +2406,7 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	var isHybridReplication bool
 	if event.ReplicationModel != nil && event.ReplicationModel.HybridReplicationAttributes != nil {
 		hybridReplicationAttributes := event.ReplicationModel.HybridReplicationAttributes
-		isHybridReplication = nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		isHybridReplication = nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		if !isHybridReplication {
 			return nil, nil, errors.NewUserInputValidationErr("Reverse is not allowed for replications created by migration flow.")
 		}
@@ -2440,8 +2440,8 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeReverseResumeVolumeReplication),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeReverseResumeVolumeReplication),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  event.ReplicationModel.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -2461,7 +2461,7 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -2495,8 +2495,8 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		return nil, nil, err
 	}
 
-	replicationDb.State = models.LifeCycleStateUpdating
-	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	replicationDb.State = datamodel.LifeCycleStateUpdating
+	replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	replicationDb.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
 	return replicationDb, &createdJob.UUID, nil

@@ -251,7 +251,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 
 func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams, existingPool *models.Pool, orchestrator factory.OrchestratorFactory) (gcpgenserver.V1betaCreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	if existingPool.State != models.LifeCycleStateCreating {
+	if existingPool.State != datamodel.LifeCycleStateCreating {
 		// Pool exists and is not in creating state, return 409 Conflict
 		return &gcpgenserver.V1betaCreatePoolConflict{
 			Code:    409,
@@ -280,7 +280,7 @@ func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, param
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
-			Done:     gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
+			Done:     gcpgenserver.NewOptBool(job.State == datamodel.JobsStateDONE || job.State == datamodel.JobsStateERROR), // Done if job is in DONE or ERROR state
 		}, nil
 	}
 }
@@ -316,7 +316,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	dummyOperationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.UUID{}.String())
 	if existingPool != nil {
 		switch existingPool.State {
-		case models.LifeCycleStateDeleting:
+		case datamodel.LifeCycleStateDeleting:
 			log := util.GetLogger(ctx)
 			poolCategory := models.GetPoolCategory(existingPool.LargeCapacity)
 			job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)))
@@ -331,9 +331,9 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 			operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
 			return &gcpgenserver.OperationV1beta{
 				Name: gcpgenserver.NewOptString(operationID),
-				Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
+				Done: gcpgenserver.NewOptBool(job.State == datamodel.JobsStateDONE || job.State == datamodel.JobsStateERROR), // Done if job is in DONE or ERROR state
 			}, nil
-		case models.LifeCycleStateCreating:
+		case datamodel.LifeCycleStateCreating:
 			if params.XCorrelationID.IsSet() && params.XCorrelationID.Value != "" {
 				log := util.GetLogger(ctx)
 				poolCategory := models.GetPoolCategory(existingPool.LargeCapacity)
@@ -347,12 +347,12 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 						operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
 						return &gcpgenserver.OperationV1beta{
 							Name: gcpgenserver.NewOptString(operationID),
-							Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR),
+							Done: gcpgenserver.NewOptBool(job.State == datamodel.JobsStateDONE || job.State == datamodel.JobsStateERROR),
 						}, nil
 					}
 				}
 			}
-		case models.LifeCycleStateUpdating:
+		case datamodel.LifeCycleStateUpdating:
 			msg := "Error deleting pool - Pool is already transitioning between states"
 			return &gcpgenserver.V1betaDeletePoolConflict{
 				Code:    409,
@@ -402,7 +402,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	if err != nil {
 		return nil, err
 	}
-	if deleted.State == models.LifeCycleStateDeleting || deleted.State == models.LifeCycleStateCreating {
+	if deleted.State == datamodel.LifeCycleStateDeleting || deleted.State == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
 			Response: resp,
@@ -1274,14 +1274,14 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 // validateUpdatePoolParams validates the parameters for updating a pool.
 // We currently only allow updating the description, size, total throughput, and total IOPS.
 func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *models.Pool) gcpgenserver.V1betaUpdatePoolRes {
-	if existingPool.State == models.LifeCycleStateUpdating {
+	if existingPool.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.V1betaUpdatePoolConflict{
 			Code:    http.StatusConflict,
 			Message: "An update operation is already in progress for this pool",
 		}
 	}
 
-	if existingPool.State == models.LifeCycleStateDegraded {
+	if existingPool.State == datamodel.LifeCycleStateDegraded {
 		return &gcpgenserver.V1betaUpdatePoolConflict{
 			Code:    http.StatusConflict,
 			Message: "Update operation is not allowed when the pool is in degraded state",
@@ -1326,7 +1326,7 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if !req.Zone.IsSet() && pa != nil && (pa.ZoneSwitchState == models.ZoneSwitching || pa.ZoneSwitchState == models.ZoneSwitched) {
+	if !req.Zone.IsSet() && pa != nil && (pa.ZoneSwitchState == datamodel.ZoneSwitching || pa.ZoneSwitchState == datamodel.ZoneSwitched) {
 		return &gcpgenserver.V1betaUpdatePoolConflict{
 			Code:    http.StatusConflict,
 			Message: "Update operation is not allowed when the pool is switching/switched to a different primary zone.",
@@ -1548,7 +1548,7 @@ func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1be
 
 			// make sure kms config is in ready or in use state then only create the kms config in VCP
 			switch sdeKmsConfig.KmsState {
-			case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
+			case datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateInUse:
 			default:
 				return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
 					Code:    http.StatusPreconditionFailed,
@@ -1721,26 +1721,26 @@ func convertCVPActiveDirectoryToModel(cvpAd *cvpmodels.ActiveDirectoryV1beta) *m
 	// Convert state
 	switch cvpAd.ActiveDirectoryState {
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY:
-		ad.State = models.LifeCycleStateREADY
-		ad.StateDetails = models.LifeCycleStateReadyDetails
+		ad.State = datamodel.LifeCycleStateREADY
+		ad.StateDetails = datamodel.LifeCycleStateReadyDetails
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateCREATING:
-		ad.State = models.LifeCycleStateCreating
-		ad.StateDetails = models.LifeCycleStateCreatingDetails
+		ad.State = datamodel.LifeCycleStateCreating
+		ad.StateDetails = datamodel.LifeCycleStateCreatingDetails
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateUPDATING:
-		ad.State = models.LifeCycleStateUpdating
-		ad.StateDetails = models.LifeCycleStateUpdatingDetails
+		ad.State = datamodel.LifeCycleStateUpdating
+		ad.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateINUSE:
-		ad.State = models.LifeCycleStateInUse
-		ad.StateDetails = models.LifeCycleStateInUseDetails
+		ad.State = datamodel.LifeCycleStateInUse
+		ad.StateDetails = datamodel.LifeCycleStateInUseDetails
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateDELETING:
-		ad.State = models.LifeCycleStateDeleting
-		ad.StateDetails = models.LifeCycleStateDeletingDetails
+		ad.State = datamodel.LifeCycleStateDeleting
+		ad.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateERROR:
-		ad.State = models.LifeCycleStateError
-		ad.StateDetails = models.LifeCycleStateError
+		ad.State = datamodel.LifeCycleStateError
+		ad.StateDetails = datamodel.LifeCycleStateError
 	default:
-		ad.State = models.LifeCycleStateREADY
-		ad.StateDetails = models.LifeCycleStateReadyDetails
+		ad.State = datamodel.LifeCycleStateREADY
+		ad.StateDetails = datamodel.LifeCycleStateReadyDetails
 	}
 
 	if cvpAd.ActiveDirectoryStateDetails != "" {

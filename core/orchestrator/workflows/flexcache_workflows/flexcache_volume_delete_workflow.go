@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -42,7 +41,7 @@ func DeleteFlexCacheVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volum
 		return err
 	}
 	flexCacheWf.Status = workflows.WorkflowStatusRunning
-	err = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = flexCacheWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for DeleteFlexCacheVolumeWorkflow: %v", err)
 		return err
@@ -52,7 +51,7 @@ func DeleteFlexCacheVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volum
 	if customErr != nil {
 		log.Errorf("DeleteFlexCacheVolumeWorkflow completed with error: %v", customErr)
 		flexCacheWf.Status = workflows.WorkflowStatusFailed
-		err2 := flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := flexCacheWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for DeleteFlexCacheVolumeWorkflow: %v", err2)
 			return err2
@@ -61,7 +60,7 @@ func DeleteFlexCacheVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volum
 	}
 
 	flexCacheWf.Status = workflows.WorkflowStatusCompleted
-	err = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = flexCacheWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for DeleteFlexCacheVolumeWorkflow: %v", err)
 	}
@@ -102,7 +101,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		commonparams.HandleCancellationForCreatingResourceParams{
 			ResourceUUID:               dbVolume.UUID,
 			ResourceState:              dbVolume.State,
-			CreateJobType:              models.JobTypeFlexCacheCreateVolume,
+			CreateJobType:              datamodel.JobTypeFlexCacheCreateVolume,
 			SignalName:                 CancelFlexCacheSignalName,
 			CancellationAckTimeout:     ackTimeout,
 			ForceTerminationAckTimeout: forceTimeout,
@@ -131,7 +130,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	ctx = workflow.WithActivityOptions(ctx, options)
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, dbVolume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to error: %v", err2)
 			}

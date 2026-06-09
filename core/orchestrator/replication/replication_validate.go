@@ -86,20 +86,20 @@ var (
 
 	// activeJobStates defines the job states that indicate a job is still in progress
 	activeJobStates = []string{
-		string(coreModels.JobsStateNEW),
-		string(coreModels.JobsStatePROCESSING),
+		string(datamodel.JobsStateNEW),
+		string(datamodel.JobsStatePROCESSING),
 	}
 	replicationJobTypes = []string{
-		string(coreModels.JobTypeCreateVolumeReplication),
-		string(coreModels.JobTypeDeleteVolumeReplication),
-		string(coreModels.JobTypeUpdateVolumeReplication),
-		string(coreModels.JobTypeResumeVolumeReplication),
-		string(coreModels.JobTypeReverseResumeVolumeReplication),
-		string(coreModels.JobTypeStopVolumeReplication),
-		string(coreModels.JobTypeCreateHybridReplication),
-		string(coreModels.JobTypeHybridReplicationEstablishPeering),
-		string(coreModels.JobTypeHybridReplicationInternalEstablish),
-		string(coreModels.JobTypeReverseHybridReplicationInternal),
+		string(datamodel.JobTypeCreateVolumeReplication),
+		string(datamodel.JobTypeDeleteVolumeReplication),
+		string(datamodel.JobTypeUpdateVolumeReplication),
+		string(datamodel.JobTypeResumeVolumeReplication),
+		string(datamodel.JobTypeReverseResumeVolumeReplication),
+		string(datamodel.JobTypeStopVolumeReplication),
+		string(datamodel.JobTypeCreateHybridReplication),
+		string(datamodel.JobTypeHybridReplicationEstablishPeering),
+		string(datamodel.JobTypeHybridReplicationInternalEstablish),
+		string(datamodel.JobTypeReverseHybridReplicationInternal),
 	}
 )
 
@@ -229,7 +229,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	// Block replication if source volume is a thin clone undergoing split operation
 	if event.SourceVolume.VolumeAttributes != nil && event.SourceVolume.VolumeAttributes.CloneParentInfo != nil {
-		if event.SourceVolume.VolumeAttributes.CloneParentInfo.State == coreModels.CloneStateSplitting {
+		if event.SourceVolume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 			logger.Error("Source volume is a thin clone undergoing split operation and cannot be used for replication", "volume_id", event.SourceVolume.UUID)
 			return nil, utilErrors.NewConflictErr("Cannot create replication as source volume is undergoing split operation")
 		}
@@ -605,11 +605,11 @@ func _verifyHybridParameters(ctx context.Context, params *common.EstablishReplic
 func _isClusterPeeringStateValid(ctx context.Context, replication *datamodel.VolumeReplication) bool {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("verifying cluster peering state for replication %s", replication.Name)
-	if replication.ClusterPeer != nil && replication.ClusterPeer.State == coreModels.CvpClusterPeeringStatusPEERED {
+	if replication.ClusterPeer != nil && replication.ClusterPeer.State == datamodel.CvpClusterPeeringStatusPEERED {
 		return true
 	}
-	if replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPendingClusterPeer &&
-		replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPendingSVMPeer {
+	if replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusPendingClusterPeer &&
+		replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusPendingSVMPeer {
 		logger.Error("Invalid hybrid replication status for establishing peering",
 			common.String("replicationUUID", replication.UUID),
 			common.String("status", string(replication.HybridReplicationAttributes.Status)))
@@ -715,7 +715,7 @@ func _checkActiveReplicationJobs(ctx context.Context, se database.Storage, accou
 		}
 	}
 	for _, j := range jobs {
-		if j.Type == coreModels.JobTypeCreateHybridReplication || j.Type == coreModels.JobTypeHybridReplicationEstablishPeering {
+		if j.Type == datamodel.JobTypeCreateHybridReplication || j.Type == datamodel.JobTypeHybridReplicationEstablishPeering {
 			// this make sure only one hybrid replication creation is in progress for a pool
 			return utilErrors.NewUserInputValidationErr("There is an active replication operation in progress for this pool. Please wait until the operation has finished and try again later.")
 		} else if j.ResourceName == ccfeUri {
@@ -882,7 +882,7 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 	}
 
 	event.SourceProjectNumber, event.DestinationProjectNumber = event.AccountName, remoteProject
-	if replication.ReplicationAttributes.EndpointType == coreModels.DstEndpoint {
+	if replication.ReplicationAttributes.EndpointType == datamodel.DstEndpoint {
 		event.SourceProjectNumber, event.DestinationProjectNumber = remoteProject, event.AccountName
 	}
 
@@ -976,7 +976,7 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 	replication := event.ReplicationModel
 
 	if IsSrcForHybridReplication(event.ReplicationModel) {
-		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusExternalManaged {
 			logger.Error("Hybrid Replication needs to be in externally managed state before resuming")
 			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before resuming")
 		}
@@ -1004,7 +1004,7 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 		return srcReplication, nil
 	}
 
-	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusPeered {
 		logger.Error("Hybrid Replication needs to be in peered state before resuming")
 		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before resuming")
 	}
@@ -1019,7 +1019,7 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateSTOPPED))
 	}
 
-	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == datamodel.SnapmirrorRelationshipTransferring {
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
 	}
 
@@ -1089,7 +1089,7 @@ func _verifySourceQuotaRules(ctx context.Context, event *ResumeReplicationEvent)
 				return utilErrors.NewUserInputValidationErr(errorMsg)
 			}
 
-			if string(state) != coreModels.LifeCycleStateREADY {
+			if string(state) != datamodel.LifeCycleStateREADY {
 				stateDetails, _ := quotaRule.StateDetails.Get()
 				logger.Warnf("Quota rule not in READY state: resourceId=%s, state=%s, stateDetails=%s",
 					quotaRule.ResourceId, state, stateDetails)
@@ -1178,9 +1178,9 @@ func _verifyDestinationQuotaRules(ctx context.Context, event *ResumeReplicationE
 
 	// Define transitioning states
 	transitioningStates := map[string]bool{
-		coreModels.LifeCycleStateCreating: true,
-		coreModels.LifeCycleStateUpdating: true,
-		coreModels.LifeCycleStateDeleting: true,
+		datamodel.LifeCycleStateCreating: true,
+		datamodel.LifeCycleStateUpdating: true,
+		datamodel.LifeCycleStateDeleting: true,
 	}
 
 	// Handle response types
@@ -1326,7 +1326,7 @@ func _verifyNewSourceQuotaRulesReverse(ctx context.Context, event *ReverseReplic
 				return utilErrors.NewUserInputValidationErr(errorMsg)
 			}
 
-			if string(state) != coreModels.LifeCycleStateREADY {
+			if string(state) != datamodel.LifeCycleStateREADY {
 				stateDetails, _ := quotaRule.StateDetails.Get()
 				logger.Warnf("Quota rule not in READY state: resourceId=%s, state=%s, stateDetails=%s",
 					quotaRule.ResourceId, state, stateDetails)
@@ -1415,9 +1415,9 @@ func _verifyNewDestinationQuotaRulesReverse(ctx context.Context, event *ReverseR
 
 	// Define transitioning states
 	transitioningStates := map[string]bool{
-		coreModels.LifeCycleStateCreating: true,
-		coreModels.LifeCycleStateUpdating: true,
-		coreModels.LifeCycleStateDeleting: true,
+		datamodel.LifeCycleStateCreating: true,
+		datamodel.LifeCycleStateUpdating: true,
+		datamodel.LifeCycleStateDeleting: true,
 	}
 
 	// Handle response types
@@ -1504,7 +1504,7 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 	logger := util.GetLogger(ctx)
 	replication := event.ReplicationModel
 	if IsSrcForHybridReplication(event.ReplicationModel) {
-		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusExternalManaged {
 			logger.Error("Hybrid Replication needs to be in externally managed state before stopping")
 			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before stopping")
 		}
@@ -1532,7 +1532,7 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 		return srcReplication, nil
 	}
 
-	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusPeered {
 		logger.Error("Hybrid Replication needs to be in peered state before stopping")
 		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before stopping")
 	}
@@ -1564,7 +1564,7 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 	logger := util.GetLogger(ctx)
 	replication := event.ReplicationModel
 	if IsSrcForHybridReplication(event.ReplicationModel) {
-		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusExternalManaged {
 			logger.Error("Hybrid Replication needs to be in externally managed state before reversing")
 			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before reversing")
 		}
@@ -1577,7 +1577,7 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 		return srcReplication, nil
 	}
 
-	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != datamodel.HybridReplicationStatusPeered {
 		logger.Error("Hybrid Replication needs to be in peered state before reversing")
 		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before reversing")
 	}
@@ -1623,12 +1623,12 @@ func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEve
 			logger.Error("Update is not allowed when Hybrid Replication is externally managed")
 			return nil, utilErrors.NewUserInputValidationErr("These fields cannot be updated when Hybrid Replication is Externally Managed")
 		}
-		if event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingRemoteResync || event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingSVMPeer || event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingClusterPeer {
+		if event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingRemoteResync || event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer || event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingClusterPeer {
 			logger.Error("Hybrid Replication can not be updated in transition state")
 			return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Hybrid Replication can not be updated in the transition state - %s", event.ReplicationModel.HybridReplicationAttributes.Status))
 		}
 		// Check if replication schedule is hourly for hybrid rep type migration
-		if nillable.GetString(event.ReplicationModel.HybridReplicationAttributes.HybridReplicationType, "") == string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION) {
+		if nillable.GetString(event.ReplicationModel.HybridReplicationAttributes.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) {
 			if event.ReplicationSchedule != nil && *event.ReplicationSchedule != models.ReplicationV1betaReplicationScheduleHOURLY {
 				logger.Error("Invalid replication schedule for hybrid rep type migration - must be hourly")
 				return nil, utilErrors.NewUserInputValidationErr("Invalid replication schedule provided.")
@@ -1808,21 +1808,21 @@ func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMul
 	if response.Replications[0].ReplicationType.Set {
 		replicationType := string(response.Replications[0].ReplicationType.Value)
 		// Check if this is a hybrid replication type (CONTINUOUS_REPLICATION, ONPREM_REPLICATION, or REVERSE_ONPREM_REPLICATION)
-		var hybridReplicationType coreModels.HybridReplicationParametersReplicationType
+		var hybridReplicationType datamodel.HybridReplicationParametersReplicationType
 		isHybrid := false
 
 		switch replicationType {
 		case "CONTINUOUS_REPLICATION":
-			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeCONTINUOUS
+			hybridReplicationType = datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS
 			isHybrid = true
 		case "ONPREM_REPLICATION":
-			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeONPREM
+			hybridReplicationType = datamodel.HybridReplicationParametersReplicationTypeONPREM
 			isHybrid = true
 		case "REVERSE_ONPREM_REPLICATION":
-			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeREVERSE
+			hybridReplicationType = datamodel.HybridReplicationParametersReplicationTypeREVERSE
 			isHybrid = true
 		case "MIGRATION":
-			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeMIGRATION
+			hybridReplicationType = datamodel.HybridReplicationParametersReplicationTypeMIGRATION
 			isHybrid = true
 		}
 
@@ -1870,13 +1870,13 @@ func _verifyReplication(ctx context.Context, event *DeleteReplicationEvent) (*co
 	}
 
 	// Edge Case where mirrorState is uninitialized but data is being transferred and state is PENDING_SVM_PEERING.
-	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStatePREPARING && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStatePREPARING && *dstReplication.RelationshipStatus == datamodel.SnapmirrorRelationshipTransferring {
 		logger.Error("Replication needs to be in stopped state")
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
 	}
 
 	if event.ReplicationModel.HybridReplicationAttributes != nil {
-		if event.ReplicationModel.State == coreModels.LifeCycleStateCreating && event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingSVMPeer {
+		if event.ReplicationModel.State == datamodel.LifeCycleStateCreating && event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer {
 			logger.Error("Hybrid Replication in pending SVM peering state")
 			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication in pending SVM peering state")
 		}
@@ -1919,27 +1919,27 @@ func MapCCFERescheduleToInternalReplicationSchedule(schedule gcpgenserver.Replic
 func mapLifecycleStateToState(state googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState) string {
 	switch state {
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating:
-		return coreModels.LifeCycleStateCreating
+		return datamodel.LifeCycleStateCreating
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable:
-		return coreModels.LifeCycleStateAvailable
+		return datamodel.LifeCycleStateAvailable
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting:
-		return coreModels.LifeCycleStateDeleting
+		return datamodel.LifeCycleStateDeleting
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted:
-		return coreModels.LifeCycleStateDeleted
+		return datamodel.LifeCycleStateDeleted
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError:
-		return coreModels.LifeCycleStateError
+		return datamodel.LifeCycleStateError
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled:
-		return coreModels.LifeCycleStateDisabled
+		return datamodel.LifeCycleStateDisabled
 	case googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating:
-		return coreModels.LifeCycleStateUpdating
+		return datamodel.LifeCycleStateUpdating
 	default:
-		return coreModels.LifeCycleStateUnknown
+		return datamodel.LifeCycleStateUnknown
 	}
 }
 
 func IsSrcForHybridReplication(replication *datamodel.VolumeReplication) bool {
 	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.HybridReplicationType != nil {
-		if *replication.HybridReplicationAttributes.HybridReplicationType == string(coreModels.HybridReplicationParametersReplicationTypeREVERSE) &&
+		if *replication.HybridReplicationAttributes.HybridReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE) &&
 			replication.ReplicationAttributes.DestinationLocation == remoteRegionCustomer {
 			return true
 		}

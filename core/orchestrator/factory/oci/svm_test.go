@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -172,7 +171,7 @@ func TestCreateSvm_DuplicateSvmOCID(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -224,7 +223,7 @@ func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -232,20 +231,20 @@ func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
 		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	preallocatedSvm := &datamodel.Svm{
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		Name:                  "svm1",
 		SvmExternalIdentifier: "ocid1.svm..a",
-		State:                 models.LifeCycleStateCreating,
+		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 
@@ -279,7 +278,7 @@ func TestCreateSvm_RaceLosesAtPreallocationReturnsConflict(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -287,14 +286,14 @@ func TestCreateSvm_RaceLosesAtPreallocationReturnsConflict(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..race", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
 		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).
 		Return(nil, utilserrors.NewConflictErr("svm already exists"))
@@ -324,7 +323,7 @@ func TestCreateSvm_NameAlreadyInUseInPool(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -332,11 +331,11 @@ func TestCreateSvm_NameAlreadyInUseInPool(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
-		Return(&datamodel.Svm{Name: "svm1", PoolID: 10, State: models.LifeCycleStateREADY}, nil)
+		Return(&datamodel.Svm{Name: "svm1", PoolID: 10, State: datamodel.LifeCycleStateREADY}, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
@@ -388,7 +387,7 @@ func TestCreateSvm_WorkflowStartFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -396,20 +395,20 @@ func TestCreateSvm_WorkflowStartFails(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
 		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	preallocatedSvm := &datamodel.Svm{
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		Name:                  "svm1",
 		SvmExternalIdentifier: "ocid1.svm..new",
-		State:                 models.LifeCycleStateCreating,
+		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 	// Workflow start failure must trigger compensation: the row we just
@@ -444,7 +443,7 @@ func TestCreateSvm_Success(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -452,20 +451,20 @@ func TestCreateSvm_Success(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
 		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	preallocatedSvm := &datamodel.Svm{
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		Name:                  "svm1",
 		SvmExternalIdentifier: "ocid1.svm..new",
-		State:                 models.LifeCycleStateCreating,
+		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 
@@ -648,7 +647,7 @@ func TestDeleteSvm_ConflictWhenDeleting(t *testing.T) {
 	svm := &datamodel.Svm{
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateDeleting),
+		State:                 string(datamodel.LifeCycleStateDeleting),
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
 
@@ -672,7 +671,7 @@ func TestDeleteSvm_ConflictWhenCreating(t *testing.T) {
 	svm := &datamodel.Svm{
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateCreating),
+		State:                 string(datamodel.LifeCycleStateCreating),
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
 
@@ -701,7 +700,7 @@ func TestDeleteSvm_NotFoundWhenSoftDeleted(t *testing.T) {
 	svm := &datamodel.Svm{
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 models.LifeCycleStateDeleted,
+		State:                 datamodel.LifeCycleStateDeleted,
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
 
@@ -731,7 +730,7 @@ func TestDeleteSvm_RaceLosesAtTransitionReturnsConflict(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateREADY),
+		State:                 string(datamodel.LifeCycleStateREADY),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
@@ -763,7 +762,7 @@ func TestDeleteSvm_TransitionGenericError(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateREADY),
+		State:                 string(datamodel.LifeCycleStateREADY),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
@@ -795,7 +794,7 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateREADY),
+		State:                 string(datamodel.LifeCycleStateREADY),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
@@ -804,7 +803,7 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateDeleting),
+		State:                 string(datamodel.LifeCycleStateDeleting),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
@@ -844,7 +843,7 @@ func TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AccountID: 1,
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "cfg",
 		},
 	}
@@ -852,20 +851,20 @@ func TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
 		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
 		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}, nil)
 	preallocatedSvm := &datamodel.Svm{
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		Name:                  "svm1",
 		SvmExternalIdentifier: "ocid1.svm..new",
-		State:                 models.LifeCycleStateCreating,
+		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 	mockStorage.EXPECT().ErroredSVM(mock.Anything, preallocatedSvm, mock.Anything).
@@ -903,7 +902,7 @@ func TestDeleteSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateREADY),
+		State:                 string(datamodel.LifeCycleStateREADY),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
@@ -912,7 +911,7 @@ func TestDeleteSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateDeleting),
+		State:                 string(datamodel.LifeCycleStateDeleting),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
@@ -944,7 +943,7 @@ func TestDeleteSvm_Success(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateREADY),
+		State:                 string(datamodel.LifeCycleStateREADY),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
@@ -953,7 +952,7 @@ func TestDeleteSvm_Success(t *testing.T) {
 		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
 		SvmExternalIdentifier: "ocid1.svm..a",
 		PoolID:                10,
-		State:                 string(models.LifeCycleStateDeleting),
+		State:                 string(datamodel.LifeCycleStateDeleting),
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)

@@ -1580,7 +1580,7 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "job-789",
 			},
-			State: models.JobsStateDONE,
+			State: datamodel.JobsStateDONE,
 		}
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(job, nil)
 
@@ -4216,7 +4216,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 				UUID:      "backup-uuid",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "backup-123",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
@@ -4276,7 +4276,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 				UUID:      "backup-uuid",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "backup-123",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
@@ -4385,7 +4385,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 				UUID:      "backup-uuid",
 				CreatedAt: time.Now().AddDate(0, 0, -10), // Created 10 days ago
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "backup-123",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
@@ -4839,7 +4839,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 				UUID:      "backup-uuid-123",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid-456",
 			BackupVault:   backupVault,
@@ -4906,7 +4906,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 				UUID:      "backup-uuid-123",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid-456",
 			BackupVault:   backupVault,
@@ -4975,7 +4975,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 				UUID:      "backup-uuid-123",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid-456",
 			BackupVault:   backupVault,
@@ -5204,7 +5204,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 				UUID:      "backup-123",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid-456",
 			BackupVault:   backupVault,
@@ -5267,7 +5267,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 				UUID:      "backup-123",
 				CreatedAt: time.Now(),
 			},
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid-456",
 			BackupVault:   backupVault,
@@ -5338,7 +5338,7 @@ func TestConvertInternalBackupVaultToDataModelFunction(t *testing.T) {
 		assert.Equal(tt, "project-number", result.AccountVendorID)
 		assert.Equal(tt, "CREATING", result.LifeCycleState)
 		assert.Equal(tt, "CROSS_REGION", result.BackupVaultType)
-		assert.Equal(tt, models.ServiceTypeGCNV, result.ServiceType)
+		assert.Equal(tt, datamodel.ServiceTypeGCNV, result.ServiceType)
 
 		assert.NotNil(tt, result.Description)
 		assert.Equal(tt, "description", *result.Description)
@@ -5391,7 +5391,7 @@ func TestConvertInternalBackupVaultToDataModelFunction(t *testing.T) {
 		assert.Nil(tt, result.ImmutableAttributes)
 		assert.Empty(tt, result.BucketDetails)
 		assert.Nil(tt, result.CmekAttributes)
-		assert.Equal(tt, models.ServiceTypeGCNV, result.ServiceType)
+		assert.Equal(tt, datamodel.ServiceTypeGCNV, result.ServiceType)
 	})
 }
 
@@ -6533,7 +6533,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
-			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			State:        gcpgenserver.NewOptString(datamodel.LifeCycleStateError),
 			StateDetails: gcpgenserver.NewOptString("error details"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateStateParams{
@@ -6557,7 +6557,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
-			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			State:        gcpgenserver.NewOptString(datamodel.LifeCycleStateError),
 			StateDetails: gcpgenserver.NewOptString("error details"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateStateParams{
@@ -6580,7 +6580,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "replication-789",
 			},
-			State:        models.LifeCycleStateError,
+			State:        datamodel.LifeCycleStateError,
 			StateDetails: "deletion error details",
 		}
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(volumeReplication, nil)
@@ -6588,7 +6588,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
-			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			State:        gcpgenserver.NewOptString(datamodel.LifeCycleStateError),
 			StateDetails: gcpgenserver.NewOptString("error details"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateStateParams{
@@ -6601,7 +6601,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 		assert.IsType(tt, &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{}, response)
 		updateStateResp := response.(*gcpgenserver.VolumeReplicationUpdateStateInternalV1beta)
 		assert.True(tt, updateStateResp.State.IsSet())
-		assert.Equal(tt, models.LifeCycleStateError, updateStateResp.State.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateError, updateStateResp.State.Value)
 		assert.True(tt, updateStateResp.StateDetails.IsSet())
 		assert.Equal(tt, "deletion error details", updateStateResp.StateDetails.Value)
 	})

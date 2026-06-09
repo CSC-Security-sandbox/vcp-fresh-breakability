@@ -11,6 +11,7 @@ import (
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -239,7 +240,7 @@ func TestV1SplitStartVolume_Success_Creating(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateCreating,
+		LifeCycleState: datamodel.LifeCycleStateCreating,
 		DisplayName:    "test-volume",
 		CreationToken:  "test-token",
 		PoolID:         "test-pool-uuid",
@@ -272,7 +273,7 @@ func TestV1SplitStartVolume_Success_Ready(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		DisplayName:    "test-volume",
 		CreationToken:  "test-token",
 		PoolID:         "test-pool-uuid",
@@ -300,7 +301,7 @@ func TestConvertModelToVolumeResponse_Nil(t *testing.T) {
 func TestConvertModelToVolumeResponse_WithSnapshotPolicy(t *testing.T) {
 	vol := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		SnapshotPolicy: &coremodels.SnapshotPolicy{
 			IsEnabled: true,
 			Schedules: []*coremodels.SnapshotPolicySchedule{
@@ -352,7 +353,7 @@ func TestConvertModelToVolumeResponse_WithExportPolicy(t *testing.T) {
 	anonUid := int64(65534)
 	vol := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		FileProperties: &coremodels.FileProperties{
 			ExportPolicy: &coremodels.ExportPolicy{
 				ExportRules: []*coremodels.ExportRule{
@@ -390,7 +391,7 @@ func TestConvertModelToVolumeResponse_WithCloneDetails_SplitComplete(t *testing.
 	splitPercent := int64(100)
 	vol := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		CloneParentInfo: &coremodels.CloneParentInfo{
 			SplitCompletePercent: &splitPercent,
 		},
@@ -409,7 +410,7 @@ func TestConvertModelToVolumeResponse_WithCloneDetails_Splitting(t *testing.T) {
 	stateDetails := "split in progress"
 	vol := &coremodels.Volume{
 		BaseModel:        coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState:   coremodels.LifeCycleStateREADY,
+		LifeCycleState:   datamodel.LifeCycleStateREADY,
 		CloneSharedBytes: 512 * 1024 * 1024,
 		CloneParentInfo: &coremodels.CloneParentInfo{
 			SplitCompletePercent: &splitPercent,
@@ -526,7 +527,7 @@ func TestV1SplitStartVolume_WithZone(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		DisplayName:    "test-volume",
 		CreationToken:  "test-token",
 		PoolID:         "test-pool-uuid",
@@ -617,7 +618,7 @@ func TestV1SplitStartVolume_ZoneSetInResponse(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	mockOrch.EXPECT().SplitStartVolume(mock.Anything, mock.Anything).Return(volume, "job-uuid", nil)
@@ -646,7 +647,7 @@ func TestConvertModelToVolumeResponse_AllFields(t *testing.T) {
 		QuotaInBytes:          1073741824,
 		SnapReserve:           10,
 		SnapshotDirectory:     true,
-		LifeCycleState:        coremodels.LifeCycleStateREADY,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
 		LifeCycleStateDetails: "all good",
 		IsDataProtection:      true,
 		ProtocolTypes:         []string{"NFSv3", "NFSv4"},
@@ -670,7 +671,7 @@ func TestConvertModelToVolumeResponse_AllFields(t *testing.T) {
 	assert.Equal(t, float64(1073741824), result.QuotaInBytes)
 	assert.Equal(t, int64(10), result.SnapReserve)
 	assert.True(t, result.SnapshotDirectory)
-	assert.Equal(t, coremodels.LifeCycleStateREADY, result.VolumeState)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, result.VolumeState)
 	assert.Equal(t, "all good", result.VolumeStateDetails)
 	assert.True(t, result.IsDataProtection)
 	assert.Equal(t, []string{"NFSv3", "NFSv4"}, result.Protocols)
@@ -688,7 +689,7 @@ func TestConvertModelToVolumeResponse_AllFields(t *testing.T) {
 func TestConvertModelToVolumeResponse_FilePropertiesWithoutExportPolicy(t *testing.T) {
 	vol := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		FileProperties: &coremodels.FileProperties{
 			JunctionPath: "/vol/test",
 		},
@@ -704,7 +705,7 @@ func TestConvertModelToVolumeResponse_CloneParentInfo_NilSplitPercent(t *testing
 	state := "CLONING"
 	vol := &coremodels.Volume{
 		BaseModel:        coremodels.BaseModel{UUID: "vol-uuid"},
-		LifeCycleState:   coremodels.LifeCycleStateREADY,
+		LifeCycleState:   datamodel.LifeCycleStateREADY,
 		CloneSharedBytes: 1024,
 		CloneParentInfo: &coremodels.CloneParentInfo{
 			ParentVolumeId:       &parentVolumeId,
@@ -1199,7 +1200,7 @@ func TestV1SplitStopVolume_Success_WithZone(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		DisplayName:    "test-volume",
 		CreationToken:  "test-token",
 		PoolID:         "test-pool-uuid",
@@ -1239,7 +1240,7 @@ func TestV1SplitStopVolume_Success_NoZone_FallsBackToRegion(t *testing.T) {
 
 	volume := &coremodels.Volume{
 		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
-		LifeCycleState: coremodels.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 		DisplayName:    "test-volume",
 	}
 

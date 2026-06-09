@@ -23,6 +23,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -178,7 +179,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
-	if pool != nil && pool.PoolAttributes != nil && (pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+	if pool != nil && pool.PoolAttributes != nil && (pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitched) {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Volume creation is not supported when the pool is switching/switched to a different primary zone.",
@@ -235,7 +236,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateCreating || volume.LifeCycleState == models.LifeCycleStatePreparing {
+	if volume.LifeCycleState == datamodel.LifeCycleStateCreating || volume.LifeCycleState == datamodel.LifeCycleStatePreparing {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -303,7 +304,7 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateReverting {
+	if volume.LifeCycleState == datamodel.LifeCycleStateReverting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -387,7 +388,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.CacheParameters = &models.CacheParameters{
 			CacheState:            cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING,
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
-			CacheStateDetails:     models.InitiatingClusterPeering,
+			CacheStateDetails:     datamodel.InitiatingClusterPeering,
 		}
 		if reqCacheProperties.PeerVolumeName.IsSet() {
 			param.CacheParameters.PeerVolumeName = reqCacheProperties.PeerVolumeName.Value
@@ -685,7 +686,45 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 					if rule.AnonUid.IsSet() {
 						exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 					}
-			} else {
+				} else {
+					switch rule.AccessType {
+					case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+						exportRule.UnixReadOnly = true
+					case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+						gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+						exportRule.UnixReadWrite = true
+					case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+						// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
+					}
+				}
+				exportRules = append(exportRules, exportRule)
+			}
+		} else {
+			// Fallback to old model if no new fields are set
+			for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
+				accessType, err := rule.AccessType.MarshalText()
+				if err != nil {
+					continue
+				}
+				exportRule := &models.ExportRule{
+					AllowedClients:      rule.GetAllowedClients(),
+					AccessType:          string(accessType),
+					NFSv3:               rule.Nfsv3.Value,
+					NFSv4:               rule.Nfsv4.Value,
+					Index:               index + 1, // adding 1 as 0 index is not supported by ontap
+					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
+					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
+					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
+					Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
+					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
+					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
+				}
+				if rule.HasRootAccess.IsSet() {
+					if val, ok := rule.HasRootAccess.Get(); ok {
+						exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
+					}
+				}
 				switch rule.AccessType {
 				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
 					exportRule.UnixReadOnly = true
@@ -695,45 +734,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
 					// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
 				}
-			}
-			exportRules = append(exportRules, exportRule)
-		}
-	} else {
-		// Fallback to old model if no new fields are set
-		for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
-			accessType, err := rule.AccessType.MarshalText()
-			if err != nil {
-				continue
-			}
-			exportRule := &models.ExportRule{
-				AllowedClients:      rule.GetAllowedClients(),
-				AccessType:          string(accessType),
-				NFSv3:               rule.Nfsv3.Value,
-				NFSv4:               rule.Nfsv4.Value,
-				Index:               index + 1, // adding 1 as 0 index is not supported by ontap
-				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
-				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
-				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
-				Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
-				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
-				Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
-			}
-			if rule.HasRootAccess.IsSet() {
-				if val, ok := rule.HasRootAccess.Get(); ok {
-					exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
-				}
-			}
-			switch rule.AccessType {
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
-				exportRule.UnixReadOnly = true
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
-				gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
-				exportRule.UnixReadWrite = true
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
-				// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
-			}
-			exportRules = append(exportRules, exportRule)
+				exportRules = append(exportRules, exportRule)
 			}
 		}
 		if len(exportRules) > exportRulesLimit {
@@ -839,15 +840,15 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if hybridReplicationParameters.ReplicationSchedule.IsSet() {
 			replicationSchedule = string(replication.MapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(hybridReplicationParameters.ReplicationSchedule.Value)))
 		}
-		replicationType := models.HybridReplicationParametersReplicationType(hybridReplicationParameters.HybridReplicationType)
+		replicationType := datamodel.HybridReplicationParametersReplicationType(hybridReplicationParameters.HybridReplicationType)
 		// return error in case replication schedule not set from swagger
-		if replicationType == models.HybridReplicationParametersReplicationTypeONPREM {
+		if replicationType == datamodel.HybridReplicationParametersReplicationTypeONPREM {
 			if nillable.IsNilOrEmpty(&replicationSchedule) {
 				msg := "Can't have empty replicationSchedule for " + string(replicationType)
 				return nil, errors.NewUserInputValidationErr(msg)
 			}
 		}
-		if replicationType == models.HybridReplicationParametersReplicationTypeMIGRATION {
+		if replicationType == datamodel.HybridReplicationParametersReplicationTypeMIGRATION {
 			replicationSchedule = SnapshotScheduleLabelHourly
 		}
 		if hybridReplicationParameters.Labels.IsSet() {
@@ -1013,7 +1014,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 	if pool != nil && pool.PoolAttributes != nil &&
-		(pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+		(pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitched) {
 		return &gcpgenserver.V1betaUpdateVolumeBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Volume update is not supported when the pool is switching/switched to a different primary zone.",
@@ -1064,7 +1065,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateUpdating {
+	if volume.LifeCycleState == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -1368,20 +1369,20 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 					exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 				}
 			}
-		if utils.IsAllSquashEnabled && rule.AllSquash.IsSet() && rule.AllSquash.Value {
-			exportRule.UnixReadWrite = true
-			exportRule.Superuser = false
-		} else {
-			switch rule.AccessType {
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
-				exportRule.UnixReadOnly = true
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
-				gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+			if utils.IsAllSquashEnabled && rule.AllSquash.IsSet() && rule.AllSquash.Value {
 				exportRule.UnixReadWrite = true
-			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
-				// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
+				exportRule.Superuser = false
+			} else {
+				switch rule.AccessType {
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+					exportRule.UnixReadOnly = true
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+					exportRule.UnixReadWrite = true
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+					// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
+				}
 			}
-		}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
 		}
 		if len(param.FileProperties.ExportPolicy.ExportRules) > exportRulesLimit {
@@ -1636,12 +1637,12 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 	}
 
 	dummyOperationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
-	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleting {
+	if volume != nil && volume.LifeCycleState == datamodel.LifeCycleStateDeleting {
 		log := util.GetLogger(ctx)
 
-		jobType := string(models.JobTypeDeleteVolume)
+		jobType := string(datamodel.JobTypeDeleteVolume)
 		if volume.LargeCapacity {
-			jobType = string(models.JobTypeDeleteLargeVolume)
+			jobType = string(datamodel.JobTypeDeleteLargeVolume)
 		}
 
 		job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, volume.UUID, jobType)
@@ -1656,17 +1657,17 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
 		return &gcpgenserver.OperationV1beta{
 			Name: gcpgenserver.NewOptString(operationID),
-			Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
+			Done: gcpgenserver.NewOptBool(job.State == datamodel.JobsStateDONE || job.State == datamodel.JobsStateERROR), // Done if job is in DONE or ERROR state
 		}, nil
 	}
 
-	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleted {
+	if volume != nil && volume.LifeCycleState == datamodel.LifeCycleStateDeleted {
 		// in case the pool is deleted, we should return 404 as the volumes is no longer accessible
 		pool, getPoolErr := h.Orchestrator.GetPoolByName(ctx, volume.PoolName, params.ProjectNumber, 0)
 		if getPoolErr != nil && !errors.IsNotFoundErr(getPoolErr) {
 			logger.Info("Failed to get pool while deleting volume", "poolName", volume.PoolName, "error", getPoolErr.Error())
 		}
-		if pool.State == models.LifeCycleStateDeleting || pool.State == models.LifeCycleStateDeleted {
+		if pool.State == datamodel.LifeCycleStateDeleting || pool.State == datamodel.LifeCycleStateDeleted {
 			return &gcpgenserver.V1betaDeleteVolumeNotFound{
 				Code:    404,
 				Message: "Volume not found",
@@ -1693,7 +1694,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 		}
 
 		if pool != nil && pool.PoolAttributes != nil &&
-			(pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+			(pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == datamodel.ZoneSwitched) {
 			return &gcpgenserver.V1betaDeleteVolumeBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: "Volume delete is not supported when the pool is switching/switched to a different primary zone.",
@@ -1743,7 +1744,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateDeleting || volume.LifeCycleState == models.LifeCycleStateCreating {
+	if volume.LifeCycleState == datamodel.LifeCycleStateDeleting || volume.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -3156,7 +3157,7 @@ func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgense
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateCreating || volume.LifeCycleState == models.LifeCycleStatePreparing {
+	if volume.LifeCycleState == datamodel.LifeCycleStateCreating || volume.LifeCycleState == datamodel.LifeCycleStatePreparing {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,

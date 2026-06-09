@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 )
 
 func TestConvertKmsConfigStateV1beta(t *testing.T) {
@@ -17,63 +17,63 @@ func TestConvertKmsConfigStateV1beta(t *testing.T) {
 	}{
 		{
 			name:            "CREATED state",
-			status:          models.LifeCycleStateCreated,
+			status:          datamodel.LifeCycleStateCreated,
 			stateDetails:    "",
 			expectedState:   "KEY_CHECK_PENDING",
 			expectedDetails: "Credentials created and key check pending",
 		},
 		{
 			name:            "KEY_CHECK_PENDING state",
-			status:          models.LifeCycleStateKeyCheckPending,
+			status:          datamodel.LifeCycleStateKeyCheckPending,
 			stateDetails:    "",
 			expectedState:   "KEY_CHECK_PENDING",
 			expectedDetails: "Credentials created and key check pending",
 		},
 		{
 			name:            "IN_USE state",
-			status:          models.LifeCycleStateInUse,
+			status:          datamodel.LifeCycleStateInUse,
 			stateDetails:    "",
 			expectedState:   "IN_USE",
 			expectedDetails: "Kms config in use",
 		},
 		{
 			name:            "DELETED state",
-			status:          models.LifeCycleStateDeleted,
+			status:          datamodel.LifeCycleStateDeleted,
 			stateDetails:    "",
 			expectedState:   "DELETED",
 			expectedDetails: "Kms config deleted",
 		},
 		{
 			name:            "UPDATING state",
-			status:          models.LifeCycleStateUpdating,
+			status:          datamodel.LifeCycleStateUpdating,
 			stateDetails:    "",
 			expectedState:   "UPDATING",
 			expectedDetails: "Updating Kms config",
 		},
 		{
 			name:            "DELETING state",
-			status:          models.LifeCycleStateDeleting,
+			status:          datamodel.LifeCycleStateDeleting,
 			stateDetails:    "",
 			expectedState:   "DELETING",
 			expectedDetails: "Deleting Kms config",
 		},
 		{
 			name:            "CREATING state",
-			status:          models.LifeCycleStateCreating,
+			status:          datamodel.LifeCycleStateCreating,
 			stateDetails:    "",
 			expectedState:   "CREATING",
 			expectedDetails: "Creating Kms config",
 		},
 		{
 			name:            "READY state",
-			status:          models.LifeCycleStateREADY,
+			status:          datamodel.LifeCycleStateREADY,
 			stateDetails:    "",
 			expectedState:   "READY",
 			expectedDetails: "Kms config is ready for use",
 		},
 		{
 			name:            "MIGRATING state",
-			status:          models.LifeCycleStateMigrating,
+			status:          datamodel.LifeCycleStateMigrating,
 			stateDetails:    "",
 			expectedState:   "MIGRATING",
 			expectedDetails: "Kms config is in migrating state",

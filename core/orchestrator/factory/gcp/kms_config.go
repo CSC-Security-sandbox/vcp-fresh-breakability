@@ -91,11 +91,11 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 			if err != nil {
 				if createdJob != nil {
 					// Mark the job as error
-					_ = se.UpdateJob(ctx, createdJob.UUID, models.LifeCycleStateError, createdJob.TrackingID, err.Error())
+					_ = se.UpdateJob(ctx, createdJob.UUID, datamodel.LifeCycleStateError, createdJob.TrackingID, err.Error())
 				}
 				if kmsConfig != nil {
 					// bring back the kms config to original state
-					_, delError := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
+					_, delError := se.DeleteKmsConfig(ctx, kmsConfig.UUID, datamodel.LifeCycleStateError, err.Error())
 					if delError != nil {
 						logger.Error("Failed to delete kms config after create error", "error", delError)
 					}
@@ -111,8 +111,8 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	kmsConfig = &datamodel.KmsConfig{}
 	kmsConfig.CreatedAt = time.Now()
 	kmsConfig.UUID = params.UUID // Use the uuid of the sde; this is to make sure CCFE gets the same UUID as SDE for PO volume creation
-	kmsConfig.State = models.LifeCycleStateCreating
-	kmsConfig.StateDetails = models.LifeCycleStateCreatingDetails
+	kmsConfig.State = datamodel.LifeCycleStateCreating
+	kmsConfig.StateDetails = datamodel.LifeCycleStateCreatingDetails
 	kmsConfig.AccountID = account.ID
 	kmsConfig.UpdatedAt = time.Now()
 	kmsConfig.KeyName = parsedKeyFullPath.CryptoKey
@@ -143,8 +143,8 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateKmsConfig),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateKmsConfig),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.ResourceID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: kmsConfig.UUID},
@@ -173,7 +173,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		if waitForTemporalEnabled {
 			// Update job to pending state if workflow fails to start, so that pending job processor can pick it up later, do not return error
 			logger.Info("Updating job to pending state, so that pending job processor can pick it up later")
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job to temporal pending state", "error", updateErr)
 			}
@@ -362,7 +362,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	logger := util.GetLogger(ctx)
 	var createdJob *datamodel.Job = nil
 	var kmsConfig *datamodel.KmsConfig = nil
-	kmsConfigOriginalState := models.LifeCycleStateUnknown
+	kmsConfigOriginalState := datamodel.LifeCycleStateUnknown
 
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
@@ -374,7 +374,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 			if err != nil {
 				if createdJob != nil {
 					// Mark the job as error
-					_ = se.UpdateJob(ctx, createdJob.UUID, models.LifeCycleStateError, createdJob.TrackingID, err.Error())
+					_ = se.UpdateJob(ctx, createdJob.UUID, datamodel.LifeCycleStateError, createdJob.TrackingID, err.Error())
 				}
 				if kmsConfig != nil {
 					// bring back the kms config to original state
@@ -391,9 +391,9 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	if err == nil {
 		kmsConfigOriginalState = kmsConfig.State
 		kmsConfigOriginalStateDetails = kmsConfig.StateDetails
-		if kmsConfig.State == models.LifeCycleStateCreating {
+		if kmsConfig.State == datamodel.LifeCycleStateCreating {
 			existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
-				ctx, se, params.KmsConfigID, "KMS config", models.JobTypeCreateKmsConfig, models.JobTypeDeleteKmsConfig, logger)
+				ctx, se, params.KmsConfigID, "KMS config", datamodel.JobTypeCreateKmsConfig, datamodel.JobTypeDeleteKmsConfig, logger)
 			if err != nil {
 				logger.Warnf("KMS config %s cannot be deleted: existing create job not present and state is in CREATING", params.KmsConfigID)
 				return nil, "", err
@@ -403,12 +403,12 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 			}
 			logger.Info("Delete request with same correlation ID as create, proceeding with cancellation", "kms_config_uuid", params.KmsConfigID)
 			isCancellationRequest = true
-		} else if utils.IsTransitionalState(kmsConfig.State) && kmsConfig.State != models.LifeCycleStateDeleting {
+		} else if utils.IsTransitionalState(kmsConfig.State) && kmsConfig.State != datamodel.LifeCycleStateDeleting {
 			logger.Errorf("KMS config %s cannot be deleted, while in transitioning state: %s", params.KmsConfigID, kmsConfig.State)
 			return nil, "", errors.NewConflictErr(fmt.Sprintf("KMS config is in transition state and cannot be deleted, state: %s", kmsConfig.State))
 		}
 
-		existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, params.KmsConfigID, models.JobTypeDeleteKmsConfig, logger)
+		existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, params.KmsConfigID, datamodel.JobTypeDeleteKmsConfig, logger)
 		if existingJobUUID != "" {
 			return convertDataStoreKmsConfigToModel(kmsConfig), existingJobUUID, nil
 		}
@@ -423,7 +423,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 
 		// Skipping state update for cancellation requests - cancellation will be handled in workflow
 		if !isCancellationRequest {
-			kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+			kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails)
 			if err != nil {
 				return nil, "", err
 			}
@@ -445,13 +445,13 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 				SdeKmsConfigUUID: params.KmsConfigID,
 			},
 		}
-		kmsConfigOriginalState = models.LifeCycleStateUnknown
+		kmsConfigOriginalState = datamodel.LifeCycleStateUnknown
 		kmsConfigOriginalStateDetails = ""
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteKmsConfig),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeDeleteKmsConfig),
+		State:        string(datamodel.JobsStateNEW),
 		ResourceName: kmsConfig.ResourceID,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
@@ -485,7 +485,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		if waitForTemporalEnabled {
 			logger.Info("Updating job to pending state, so that pending job processor can pick it up later")
 			// Update job to pending state if workflow fails to start, so that pending job processor can pick it up later
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateWaitForTemporal), createdJob.TrackingID, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job to temporal pending state", "error", updateErr)
 			}
@@ -552,8 +552,8 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeMigrateKmsConfig),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeMigrateKmsConfig),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -571,7 +571,7 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	if localEntryPresent {
-		_, errUpdateState := se.UpdateKmsConfigState(ctx, params.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails)
+		_, errUpdateState := se.UpdateKmsConfigState(ctx, params.UUID, datamodel.LifeCycleStateMigrating, datamodel.LifeCycleStateMigratingDetails)
 		if errUpdateState != nil {
 			return "", errUpdateState
 		}
@@ -617,7 +617,7 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Check if KMS config is in Migrating state
-	if kmsConfig.State == models.LifeCycleStateMigrating {
+	if kmsConfig.State == datamodel.LifeCycleStateMigrating {
 		return nil, nil, errors.NewConflictErr("KMS config is currently in Migrating state and cannot be rotated")
 	}
 
@@ -641,8 +641,8 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 
 	// Create a new job for the rotation
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeRotateKmsConfig),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeRotateKmsConfig),
+		State:        string(datamodel.JobsStateNEW),
 		ResourceName: kmsConfig.Name,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
@@ -722,7 +722,7 @@ func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 }
 
 func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) error {
-	if kmsConfig.State == models.LifeCycleStateCreating || kmsConfig.State == models.LifeCycleStateError {
+	if kmsConfig.State == datamodel.LifeCycleStateCreating || kmsConfig.State == datamodel.LifeCycleStateError {
 		return errors.NewConflictErr("can not update a gcpKmsConfig which is in creating or error state.")
 	}
 
@@ -747,7 +747,7 @@ func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, km
 		return errors.NewConflictErr("can not delete this policy as it is still in use by one or more pools")
 	}
 
-	if kmsConfig.State == models.LifeCycleStateCreating {
+	if kmsConfig.State == datamodel.LifeCycleStateCreating {
 		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating")
 	}
 
@@ -890,8 +890,8 @@ func convertDatastoreJobToModel(job *datamodel.Job) *models.Job {
 		},
 		CorrelationID: job.CorrelationID,
 		RequestID:     job.RequestID,
-		Type:          models.JobType(job.Type),
-		State:         models.JobState(job.State),
+		Type:          datamodel.JobType(job.Type),
+		State:         datamodel.JobState(job.State),
 		StateDetails:  "", // datamodel.Job doesn't have StateDetails field
 		TrackingID:    job.TrackingID,
 		ErrorDetails:  []byte(job.ErrorDetails),
@@ -913,7 +913,7 @@ func convertDatastoreJobToModel(job *datamodel.Job) *models.Job {
 }
 
 func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigState string, accountId int64, localEntry bool) (string, error) {
-	if kmsConfigState == models.LifeCycleStateUpdating || kmsConfigState == models.LifeCycleStateMigrating {
+	if kmsConfigState == datamodel.LifeCycleStateUpdating || kmsConfigState == datamodel.LifeCycleStateMigrating {
 		jobMigration, dbErr := se.GetOngoingMigrateKmsConfigJob(ctx, accountId)
 		if dbErr != nil {
 			if errors.IsNotFoundErr(dbErr) {
@@ -924,7 +924,7 @@ func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigS
 		}
 		return jobMigration.UUID, nil
 	}
-	if kmsConfigState != models.LifeCycleStateREADY && kmsConfigState != models.LifeCycleStateInUse {
+	if kmsConfigState != datamodel.LifeCycleStateREADY && kmsConfigState != datamodel.LifeCycleStateInUse {
 		return "", errors.NewBadRequestErr("CMEK Configuration needs to be in either Ready or In_Use state for migration")
 	}
 	return "", nil
@@ -932,21 +932,21 @@ func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigS
 
 func convertKmsConfigStateV1beta(status, stateDetails string) (state, details string) {
 	switch status {
-	case models.LifeCycleStateCreated, models.LifeCycleStateKeyCheckPending:
+	case datamodel.LifeCycleStateCreated, datamodel.LifeCycleStateKeyCheckPending:
 		return cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, "Credentials created and key check pending"
-	case models.LifeCycleStateInUse:
+	case datamodel.LifeCycleStateInUse:
 		return cvpModels.KmsConfigV1betaKmsStateINUSE, "Kms config in use"
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return cvpModels.KmsConfigV1betaKmsStateDELETED, "Kms config deleted"
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return cvpModels.KmsConfigV1betaKmsStateUPDATING, "Updating Kms config"
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return cvpModels.KmsConfigV1betaKmsStateDELETING, "Deleting Kms config"
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return cvpModels.KmsConfigV1betaKmsStateCREATING, "Creating Kms config"
-	case models.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		return cvpModels.KmsConfigV1betaKmsStateREADY, "Kms config is ready for use"
-	case models.LifeCycleStateMigrating:
+	case datamodel.LifeCycleStateMigrating:
 		return cvpModels.KmsConfigV1betaKmsStateMIGRATING, "Kms config is in migrating state"
 	default:
 		if strings.Contains(strings.ToLower(status), "error") {
@@ -986,15 +986,15 @@ func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models
 		// Convert SDE state to internal state
 		switch kmsConfig.KmsState.Value {
 		case gcpserver.KmsConfigV1betaKmsStateREADY:
-			modelKmsConfig.State = models.LifeCycleStateREADY
+			modelKmsConfig.State = datamodel.LifeCycleStateREADY
 		case gcpserver.KmsConfigV1betaKmsStateKEYCHECKPENDING:
-			modelKmsConfig.State = models.LifeCycleStateKeyCheckPending
+			modelKmsConfig.State = datamodel.LifeCycleStateKeyCheckPending
 		case gcpserver.KmsConfigV1betaKmsStateUPDATING:
-			modelKmsConfig.State = models.LifeCycleStateUpdating
+			modelKmsConfig.State = datamodel.LifeCycleStateUpdating
 		case gcpserver.KmsConfigV1betaKmsStateINUSE:
-			modelKmsConfig.State = models.LifeCycleStateInUse
+			modelKmsConfig.State = datamodel.LifeCycleStateInUse
 		case gcpserver.KmsConfigV1betaKmsStateERROR:
-			modelKmsConfig.State = models.LifeCycleStateError
+			modelKmsConfig.State = datamodel.LifeCycleStateError
 		default:
 			modelKmsConfig.State = models.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
 		}

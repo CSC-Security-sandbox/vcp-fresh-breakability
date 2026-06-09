@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -141,9 +140,9 @@ func (a *FlexCachePrepopulateActivity) UpdateJobAndVolumeStatus(
 
 	switch jobStatus.State {
 	case common.OntapJobStateSuccess:
-		jobState = string(models.JobsStateDONE)
+		jobState = string(datamodel.JobsStateDONE)
 	case common.OntapJobStateFailure:
-		jobState = string(models.JobsStateERROR)
+		jobState = string(datamodel.JobsStateERROR)
 		errorDetails = jobStatus.ErrorMessage
 	default:
 		// Still processing - don't update
@@ -199,7 +198,7 @@ func (a *FlexCachePrepopulateActivity) MarkOrphanedPrepopulateJob(
 	logger.Infof("Marking prepopulate job %s as orphaned (volume %s not found)", jobUUID, volumeUUID)
 
 	errorDetails := fmt.Sprintf("Volume %s was deleted, prepopulate job cannot complete", volumeUUID)
-	err := a.SE.UpdateJob(ctx, jobUUID, string(models.JobsStateERROR), 0, errorDetails)
+	err := a.SE.UpdateJob(ctx, jobUUID, string(datamodel.JobsStateERROR), 0, errorDetails)
 	if err != nil {
 		logger.Errorf("Failed to mark orphaned job %s: %v", jobUUID, err)
 		return fmt.Errorf("failed to mark orphaned job: %w", err)

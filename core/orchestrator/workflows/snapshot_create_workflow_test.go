@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -81,7 +80,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowWorkflowExecutesSucces
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -136,7 +135,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -223,7 +222,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnJobStatusUpdate
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -276,7 +275,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnFinalJobStatusU
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
 
@@ -325,7 +324,7 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -380,7 +379,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnJobInErrorState
 	// Mock GetJob to return job in ERROR state
 	jobInErrorState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateERROR),
+		State:     string(datamodel.JobsStateERROR),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil)
 
@@ -432,7 +431,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowSucceedsWhenJobNotInEr
 	// Mock GetJob to return job in NEW state (not ERROR)
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
 
@@ -481,7 +480,7 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflow_CancellationHandling(
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()

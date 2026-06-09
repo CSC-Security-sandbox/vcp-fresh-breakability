@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -215,7 +216,7 @@ func TestUpdateBackupVaultStateDetails_SetsCrossProjectVaultForCrossProject(t *t
 		Name:                  "cross-project-vault",
 		LifeCycleState:        "READY",
 		LifeCycleStateDetails: "ready",
-		ServiceType:           coremodels.ServiceTypeCrossProject,
+		ServiceType:           datamodel.ServiceTypeCrossProject,
 	}
 
 	res := updateBackupVaultStateDetails([]*coremodels.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
@@ -238,7 +239,7 @@ func TestUpdateBackupVaultStateDetails_NoCrossProjectVaultForGCNV(t *testing.T) 
 		Name:                  "gcnv-vault",
 		LifeCycleState:        "READY",
 		LifeCycleStateDetails: "ready",
-		ServiceType:           coremodels.ServiceTypeGCNV,
+		ServiceType:           datamodel.ServiceTypeGCNV,
 	}
 
 	res := updateBackupVaultStateDetails([]*coremodels.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
@@ -294,7 +295,7 @@ func TestConvertCoreToCvpBackupVault_SetsCrossProjectVaultForCrossProject(t *tes
 		BackupVaultID:  "vault-id",
 		Name:           "cross-project-vault",
 		LifeCycleState: "READY",
-		ServiceType:    coremodels.ServiceTypeCrossProject,
+		ServiceType:    datamodel.ServiceTypeCrossProject,
 		CreatedAt:      time.Now(),
 	}
 
@@ -308,7 +309,7 @@ func TestConvertCoreToCvpBackupVault_DoesNotSetCrossProjectVaultForGCNV(t *testi
 		BackupVaultID:  "vault-id",
 		Name:           "gcnv-vault",
 		LifeCycleState: "READY",
-		ServiceType:    coremodels.ServiceTypeGCNV,
+		ServiceType:    datamodel.ServiceTypeGCNV,
 		CreatedAt:      time.Now(),
 	}
 
@@ -479,7 +480,7 @@ func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	mockOrchestrator.On("ListBackupVaults", mock.Anything, "12345").Return(nil, errors2.New("orchestrator error"))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -577,7 +578,7 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 			BackupVaultID:         "bvid-cross-project",
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "ready",
-			ServiceType:           coremodels.ServiceTypeCrossProject,
+			ServiceType:           datamodel.ServiceTypeCrossProject,
 		}
 
 		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-cross-project", "12345").Return(vcpBv, nil)
@@ -1657,7 +1658,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateUpdating,
+					State:            datamodel.LifeCycleStateUpdating,
 					DailyBackupLimit: 60,
 				},
 			}, nil).Once()
@@ -1666,7 +1667,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateREADY,
+					State:            datamodel.LifeCycleStateREADY,
 					DailyBackupLimit: 60,
 				},
 			}, nil).Once()
@@ -1695,7 +1696,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateUpdating,
+					State:            datamodel.LifeCycleStateUpdating,
 					DailyBackupLimit: 60,
 				},
 			}, nil)
@@ -1745,7 +1746,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateREADY,
+					State:            datamodel.LifeCycleStateREADY,
 					DailyBackupLimit: 60,
 				},
 			}, nil)
@@ -1773,7 +1774,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateUpdating,
+					State:            datamodel.LifeCycleStateUpdating,
 					DailyBackupLimit: 60,
 				},
 			}, nil).Once()
@@ -1782,7 +1783,7 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 			map[string]*coremodels.BackupPolicy{
 				"policy-1": {
 					BackupPolicyUUID: "policy-1",
-					State:            coremodels.LifeCycleStateREADY,
+					State:            datamodel.LifeCycleStateREADY,
 					DailyBackupLimit: 5, // Too low for immutable period, will cause validation error
 				},
 			}, nil).Once()
@@ -4523,7 +4524,7 @@ func TestV1betaUpdateBackupVaultNotEnabled(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -4549,7 +4550,7 @@ func TestV1betaUpdateBackupVaultReturnsInvalidLocation(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -4583,7 +4584,7 @@ func TestV1betaUpdateBackupVaultReturnsNotFound(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -4615,7 +4616,7 @@ func TestV1betaUpdateBackupVaultReturnsError(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -4652,7 +4653,7 @@ func TestV1betaUpdateBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -4687,7 +4688,7 @@ func TestV1betaUpdateBackupVaultReturnsNotFoundWhenUseVCPRegion(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, bvName, "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
@@ -4732,7 +4733,7 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -4787,7 +4788,7 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOpera
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -4842,7 +4843,7 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -4896,7 +4897,7 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -4946,7 +4947,7 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithBackupVaultFailsWithBadRequest(t
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -5679,7 +5680,7 @@ func TestV1betaDeleteBackupVaultReturnsInvalidLocation(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -5701,7 +5702,7 @@ func TestV1betaDeleteBackupVaultNotEnabled(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -5734,7 +5735,7 @@ func TestV1betaDeleteBackupVaultReturnsNotFound(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -5766,7 +5767,7 @@ func TestV1betaDeleteBackupVaultReturnsError(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -5803,7 +5804,7 @@ func TestV1betaDeleteBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
@@ -5837,7 +5838,7 @@ func TestV1betaDeleteBackupVaultReturnsNotFoundWhenUseVCPRegion(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, bvName, "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
@@ -5869,7 +5870,7 @@ func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -5908,7 +5909,7 @@ func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOpera
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -5947,7 +5948,7 @@ func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -5988,7 +5989,7 @@ func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -6025,7 +6026,7 @@ func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultBadRequestFails(t *te
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -6070,7 +6071,7 @@ func TestReturnsBackupVaultV1betaWhenAllFieldsAreSet(t *testing.T) {
 		KmsConfigResourcePath:    nillable.GetStringPtr("kms-config-path"),
 		BackupsPrimaryKeyVersion: nillable.GetStringPtr("backups-primary-key-version"),
 		EncryptionState:          nillable.GetStringPtr("encryption-state"),
-		ServiceType:              coremodels.ServiceTypeCrossProject,
+		ServiceType:              datamodel.ServiceTypeCrossProject,
 	}
 
 	result := convertCoreModelsToBackupVaultV1beta(beta)
@@ -6467,7 +6468,7 @@ func TestV1betaUpdateBackupVault_WithKmsConfigResourcePathAndBackupsPrimaryKeyVe
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -6512,7 +6513,7 @@ func TestV1betaUpdateBackupVault_CMEK_AddCMEKToNonCMEKVault(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -6558,7 +6559,7 @@ func TestV1betaUpdateBackupVault_CMEK_ChangeKmsConfigResourcePath(t *testing.T) 
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	ctx := context.Background()
 	resID := "vault-id"
@@ -6621,7 +6622,7 @@ func TestV1betaRotateCmekBackupsNotEnabled(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -6660,7 +6661,7 @@ func TestV1betaRotateCmekBackupsInvalidLocation(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -6699,7 +6700,7 @@ func TestV1betaRotateCmekBackupsSuccess(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	// Simulate backup vault existing in VCP.
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
@@ -6751,14 +6752,14 @@ func TestV1betaRotateCmekBackups_ConflictWhenVaultInTransition(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	// Simulate backup vault in transition state (DELETING).
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(&coremodels.BackupVaultV1beta{
 			BackupVaultID:         "vault-id",
 			Name:                  "bv-name",
-			LifeCycleState:        coremodels.LifeCycleStateDeleting,
+			LifeCycleState:        datamodel.LifeCycleStateDeleting,
 			LifeCycleStateDetails: "Deleting",
 		}, nil)
 
@@ -6800,7 +6801,7 @@ func TestV1betaRotateCmekBackups_InternalServerErrorFromGetBackupVault(t *testin
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	// Force GetBackupVaultByUUID to return a non-NotFound error so the handler
 	// returns an internal server error instead of falling back to SDE.
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
@@ -6846,7 +6847,7 @@ func TestV1betaRotateCmekBackups_NotFoundWhenUseVCPRegion(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	bvName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
@@ -6889,13 +6890,13 @@ func TestV1betaRotateCmekBackups_MapsUserInputValidationErrorToBadRequest(t *tes
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(&coremodels.BackupVaultV1beta{
 			BackupVaultID:         "vault-id",
 			Name:                  "bv-name",
-			LifeCycleState:        coremodels.LifeCycleStateREADY,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
 			LifeCycleStateDetails: "Available",
 		}, nil)
 
@@ -6940,7 +6941,7 @@ func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 	// Simulate backup vault lookup in VCP.
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
@@ -7010,7 +7011,7 @@ func TestV1betaRotateCmekBackupsUnauthorized(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	// VCP lookup should fail so handler falls back to SDE/CVP path.
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
@@ -7072,7 +7073,7 @@ func TestV1betaRotateCmekBackupsForbidden(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7133,7 +7134,7 @@ func TestV1betaRotateCmekBackupsNotFound(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7194,7 +7195,7 @@ func TestV1betaRotateCmekBackupsConflict(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7255,7 +7256,7 @@ func TestV1betaRotateCmekBackupsUnprocessableEntity(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7316,7 +7317,7 @@ func TestV1betaRotateCmekBackupsTooManyRequests(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7377,7 +7378,7 @@ func TestV1betaRotateCmekBackupsDefaultError(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7433,7 +7434,7 @@ func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
@@ -7495,7 +7496,7 @@ func TestV1betaRotateCmekBackupsNotImplemented(t *testing.T) {
 	}
 
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
+	stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 	vaultName := "vault-id"
 	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
 		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))

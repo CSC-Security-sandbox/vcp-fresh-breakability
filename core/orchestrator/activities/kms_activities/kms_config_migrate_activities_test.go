@@ -267,8 +267,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		Name:             "vol1",
 		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "externalUUID"},
 		Svm:              &datamodel.Svm{Name: "svmName"},
-		State:            models.LifeCycleStateREADY,
-		StateDetails:     models.LifeCycleStateReadyDetails,
+		State:            datamodel.LifeCycleStateREADY,
+		StateDetails:     datamodel.LifeCycleStateReadyDetails,
 	}
 	volumes = append(volumes, &vol1)
 	node := &models.Node{Name: "nodeName"}
@@ -290,13 +290,13 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		}{
 			{
 				name:         "NotInReadyState",
-				state:        models.LifeCycleStateError,
-				stateDetails: models.LifeCycleStateUpdateErrorDetails,
+				state:        datamodel.LifeCycleStateError,
+				stateDetails: datamodel.LifeCycleStateUpdateErrorDetails,
 			},
 			{
 				name:         "InUpdatingStateButNotMigrating",
-				state:        models.LifeCycleStateUpdating,
-				stateDetails: models.LifeCycleStateUpdatingDetails,
+				state:        datamodel.LifeCycleStateUpdating,
+				stateDetails: datamodel.LifeCycleStateUpdatingDetails,
 			},
 		}
 
@@ -332,8 +332,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		vol2 := datamodel.Volume{Name: "vol2",
 			VolumeAttributes: nil,
 			Svm:              &datamodel.Svm{Name: "svmName"},
-			State:            models.LifeCycleStateUpdating,
-			StateDetails:     models.LifeCycleStateVolMigratingDetails,
+			State:            datamodel.LifeCycleStateUpdating,
+			StateDetails:     datamodel.LifeCycleStateVolMigratingDetails,
 		}
 		var volumesErr []*datamodel.Volume
 		volumesErr = append(volumesErr, &vol2)
@@ -359,8 +359,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		vol3 := datamodel.Volume{Name: "vol3",
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "externalUUID"},
 			Svm:              nil,
-			State:            models.LifeCycleStateREADY,
-			StateDetails:     models.LifeCycleStateReadyDetails,
+			State:            datamodel.LifeCycleStateREADY,
+			StateDetails:     datamodel.LifeCycleStateReadyDetails,
 		}
 		volumesSvmNil = append(volumesSvmNil, &vol3)
 
@@ -401,8 +401,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
 		volDataModel := datamodel.Volume{Name: "volume",
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateVolMigratingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateVolMigratingDetails,
 		}
 		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
@@ -431,8 +431,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
 		volDataModel := datamodel.Volume{Name: "volume",
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
@@ -460,8 +460,8 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
 		volDataModel := datamodel.Volume{Name: "volume",
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateVolMigratingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateVolMigratingDetails,
 		}
 		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()

@@ -26,7 +26,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -824,11 +823,11 @@ func ExtractLunNameFromPath(fullLunName string) string {
 
 func IsTransitionalState(state string) bool {
 	transitionalStates := map[string]struct{}{
-		models.LifeCycleStateCreating:  {},
-		models.LifeCycleStateUpdating:  {},
-		models.LifeCycleStateDeleting:  {},
-		models.LifeCycleStateReverting: {},
-		models.LifeCycleStateSplitting: {},
+		datamodel.LifeCycleStateCreating:  {},
+		datamodel.LifeCycleStateUpdating:  {},
+		datamodel.LifeCycleStateDeleting:  {},
+		datamodel.LifeCycleStateReverting: {},
+		datamodel.LifeCycleStateSplitting: {},
 	}
 	_, exists := transitionalStates[state]
 	return exists
@@ -1404,7 +1403,7 @@ func _getSourceVolumePathFromBackup(backup *datamodel.Backup) string {
 	}
 	accountIdentifier := backup.Attributes.AccountIdentifier
 	if backup.BackupVault != nil &&
-		backup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject &&
 		backup.Attributes.VolumeAccountName != "" {
 		accountIdentifier = backup.Attributes.VolumeAccountName
 	}
@@ -1424,7 +1423,7 @@ func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
 	}
 	accountIdentifier := backup.Attributes.AccountIdentifier
 	if backup.BackupVault != nil &&
-		backup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject &&
 		backup.Attributes.VolumeAccountName != "" {
 		accountIdentifier = backup.Attributes.VolumeAccountName
 	}

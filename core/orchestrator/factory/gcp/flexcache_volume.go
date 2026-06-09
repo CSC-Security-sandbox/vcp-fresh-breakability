@@ -91,7 +91,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		PoolID:      pool.ID,
 		SvmID:       svm.ID,
 		Pool:        dbPool,
-		State:       coremodels.LifeCycleStatePreparing,
+		State:       datamodel.LifeCycleStatePreparing,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CreationToken:  params.CreationToken,
 			Protocols:      params.Protocols,
@@ -167,8 +167,8 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	// so the create operation finishes immediately for clients: the control/sequence workflow
 	// may be queued, and a single in-flight op per resource must not block on establish work.
 	createJob := &datamodel.Job{
-		Type:          string(coremodels.JobTypeFlexCacheCreateVolume),
-		State:         string(coremodels.JobsStateDONE),
+		Type:          string(datamodel.JobTypeFlexCacheCreateVolume),
+		State:         string(datamodel.JobsStateDONE),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -187,8 +187,8 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	}
 
 	establishJob := &datamodel.Job{
-		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
-		State:         string(coremodels.JobsStateNEW),
+		Type:          string(datamodel.JobTypeFlexCacheEstablishPeering),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -278,8 +278,8 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 	}
 
 	job := &datamodel.Job{
-		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
-		State:         string(coremodels.JobsStateNEW),
+		Type:          string(datamodel.JobTypeFlexCacheEstablishPeering),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -372,9 +372,9 @@ func _verifyVolumeState(ctx context.Context, dbVolume *datamodel.Volume) error {
 	logger := utilGetLogger(ctx)
 	logger.Debugf("verifying volume state: name=%s, state=%s", dbVolume.Name, dbVolume.State)
 	// Establish Volume Peering can be tried if the volume is in PREPARING state
-	if dbVolume.State != coremodels.LifeCycleStatePreparing {
+	if dbVolume.State != datamodel.LifeCycleStatePreparing {
 		return errors.NewUserInputValidationErr(fmt.Sprintf("volume %s must be in %s state (current: %s)",
-			dbVolume.Name, coremodels.LifeCycleStatePreparing, dbVolume.State))
+			dbVolume.Name, datamodel.LifeCycleStatePreparing, dbVolume.State))
 	}
 	return nil
 }
@@ -412,8 +412,8 @@ func _checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage,
 	}
 	for _, job := range jobs {
 		// Check if there is any FlexCache establish peering job in progress for the same volume with required params and in healthy state
-		if job.Type == string(coremodels.JobTypeFlexCacheEstablishPeering) || job.Type == string(coremodels.JobTypeFlexCacheInternalPeering) {
-			if flexCacheParamsMatch(dbVolume, params) && (job.State != string(coremodels.JobsStateERROR) && job.State != string(coremodels.JobsStateDONE)) {
+		if job.Type == string(datamodel.JobTypeFlexCacheEstablishPeering) || job.Type == string(datamodel.JobTypeFlexCacheInternalPeering) {
+			if flexCacheParamsMatch(dbVolume, params) && (job.State != string(datamodel.JobsStateERROR) && job.State != string(datamodel.JobsStateDONE)) {
 				return true, job.UUID, nil
 			}
 		}

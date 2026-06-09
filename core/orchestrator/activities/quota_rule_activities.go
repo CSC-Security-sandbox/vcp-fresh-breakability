@@ -1239,35 +1239,35 @@ func (a *QuotaRuleCommonActivity) UpdateQuotaRuleState(ctx context.Context, quot
 
 	if isCleanupDelete { // Cleanup delete case
 		updatedAt := time.Now()
-		currentQuotaRule.State = models.LifeCycleStateDeleted
-		currentQuotaRule.StateDetails = models.LifeCycleStateDeletedDetails
+		currentQuotaRule.State = datamodel.LifeCycleStateDeleted
+		currentQuotaRule.StateDetails = datamodel.LifeCycleStateDeletedDetails
 		currentQuotaRule.UpdatedAt = updatedAt
 		currentQuotaRule.DeletedAt = &gorm.DeletedAt{Time: updatedAt, Valid: true}
 		logger.Infof("Cleanup delete case: marking quota rule as DELETED from CREATING state: uuid=%s", quotaRule.UUID)
-	} else if quotaRule.State == models.LifeCycleStateError {
+	} else if quotaRule.State == datamodel.LifeCycleStateError {
 		// If quotaRule.State is ERROR (set by defer blocks), set it to ERROR regardless of current state
 		logger.Infof("Setting quota rule state to ERROR: uuid=%s", quotaRule.UUID)
-		currentQuotaRule.State = models.LifeCycleStateError
+		currentQuotaRule.State = datamodel.LifeCycleStateError
 		currentQuotaRule.StateDetails = quotaRule.StateDetails
 		currentQuotaRule.UpdatedAt = time.Now()
-	} else if currentQuotaRule.State == models.LifeCycleStateCreating {
+	} else if currentQuotaRule.State == datamodel.LifeCycleStateCreating {
 		// If quota rule is in CREATING state, transition to READY
 		logger.Infof("Quota rule is in CREATING state, transitioning to READY: uuid=%s", quotaRule.UUID)
-		currentQuotaRule.State = models.LifeCycleStateREADY
-		currentQuotaRule.StateDetails = models.LifeCycleStateReadyDetails
-	} else if currentQuotaRule.State == models.LifeCycleStateUpdating {
+		currentQuotaRule.State = datamodel.LifeCycleStateREADY
+		currentQuotaRule.StateDetails = datamodel.LifeCycleStateReadyDetails
+	} else if currentQuotaRule.State == datamodel.LifeCycleStateUpdating {
 		currentQuotaRule.DiskLimitInKib = quotaRule.DiskLimitInKib
 		currentQuotaRule.Description = quotaRule.Description
-		currentQuotaRule.State = models.LifeCycleStateREADY
-		currentQuotaRule.StateDetails = models.LifeCycleStateReadyDetails
+		currentQuotaRule.State = datamodel.LifeCycleStateREADY
+		currentQuotaRule.StateDetails = datamodel.LifeCycleStateReadyDetails
 
 		logger.Infof("Quota rule is in UPDATING state, transitioning to READY: uuid=%s", quotaRule.UUID)
 		currentQuotaRule.UpdatedAt = time.Now()
-	} else if currentQuotaRule.State == models.LifeCycleStateDeleting {
+	} else if currentQuotaRule.State == datamodel.LifeCycleStateDeleting {
 		updatedAt := time.Now()
 		currentQuotaRule.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-		currentQuotaRule.State = models.LifeCycleStateDeleted
-		currentQuotaRule.StateDetails = models.LifeCycleStateDeletedDetails
+		currentQuotaRule.State = datamodel.LifeCycleStateDeleted
+		currentQuotaRule.StateDetails = datamodel.LifeCycleStateDeletedDetails
 		currentQuotaRule.UpdatedAt = updatedAt
 		currentQuotaRule.DeletedAt = &gorm.DeletedAt{Time: updatedAt, Valid: true}
 	}

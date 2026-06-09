@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -32,20 +31,20 @@ func UpdateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *commo
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := repWf.Run(ctx, params, replication)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 

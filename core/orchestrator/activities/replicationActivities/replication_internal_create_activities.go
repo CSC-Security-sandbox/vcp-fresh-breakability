@@ -56,8 +56,8 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 	se := a.SE
 	logger := util.GetLogger(ctx)
 
-	replication.State = models.LifeCycleStateAvailable
-	replication.StateDetails = models.LifeCycleStateAvailableDetails
+	replication.State = datamodel.LifeCycleStateAvailable
+	replication.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	if replicationCreateResponseONTAP != nil {
 		replication.ReplicationAttributes.ExternalUUID = replicationCreateResponseONTAP.RelationshipID
 		replication.ReplicationAttributes.ReplicationSchedule = replicationCreateResponseONTAP.ReplicationSchedule
@@ -134,7 +134,7 @@ func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context
 func convertReplicationDbModelToDataModel(replicationDb *datamodel.VolumeReplication) models.VolumeReplication {
 	return models.VolumeReplication{
 		Name:  replicationDb.Name,
-		State: strings.ToLower(models.LifeCycleStateAvailable),
+		State: strings.ToLower(datamodel.LifeCycleStateAvailable),
 		ReplicationAttributes: &models.ReplicationDetails{
 			DestinationRegion:     replicationDb.ReplicationAttributes.DestinationLocation,
 			DestinationVolumeName: replicationDb.ReplicationAttributes.DestinationVolumeName,

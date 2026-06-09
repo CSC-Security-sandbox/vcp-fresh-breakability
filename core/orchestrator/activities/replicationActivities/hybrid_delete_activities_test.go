@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -81,7 +80,7 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 		expectedError := errors.New("failed to create job")
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.Type == "DELETE_VOLUME" &&
-				job.State == string(models.JobsStateNEW) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == fmt.Sprintf("projects/%s/locations/%s/volumes/%s", dstProjectNumber, "us-central1", "dest-vol-uuid")
 		})).Return(nil, expectedError)
 
@@ -117,12 +116,12 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 				UUID: "job-uuid-123",
 			},
 			Type:  "DELETE_VOLUME",
-			State: string(models.JobsStateNEW),
+			State: string(datamodel.JobsStateNEW),
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.Type == "DELETE_VOLUME" &&
-				job.State == string(models.JobsStateNEW) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.AccountID.Int64 == int64(1) &&
 				job.AccountID.Valid == true &&
 				job.ResourceName == fmt.Sprintf("projects/%s/locations/%s/volumes/%s", dstProjectNumber, "us-central1", "dest-vol-uuid") &&
@@ -164,12 +163,12 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 				UUID: "job-uuid-456",
 			},
 			Type:  "FORCE_DELETE_VOLUME",
-			State: string(models.JobsStateNEW),
+			State: string(datamodel.JobsStateNEW),
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.Type == "FORCE_DELETE_VOLUME" &&
-				job.State == string(models.JobsStateNEW) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.AccountID.Int64 == int64(1) &&
 				job.AccountID.Valid == true &&
 				job.ResourceName == fmt.Sprintf("projects/%s/locations/%s/volumes/%s", dstProjectNumber, "us-east1", "another-vol-uuid") &&

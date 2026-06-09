@@ -176,8 +176,8 @@ func (o *GCPOrchestrator) UpdateHostGroup(ctx context.Context, params *common.Up
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateHostGroup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateHostGroup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  hg.Name,
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),

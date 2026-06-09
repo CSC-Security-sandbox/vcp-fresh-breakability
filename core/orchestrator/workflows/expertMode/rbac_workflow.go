@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -50,15 +49,15 @@ func UpdateRbacForSinglePoolWorkflow(ctx workflow.Context, poolId string) error 
 		return workflows.ConvertToVSAError(err)
 	}
 
-	if err = rbacWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = rbacWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return workflows.ConvertToVSAError(err)
 	}
 	rbacWF.Status = workflows.WorkflowStatusRunning
-	err = rbacWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		rbacWF.Status = workflows.WorkflowStatusFailed
 		originalErr := err
-		updateErr := rbacWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), originalErr)
+		updateErr := rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), originalErr)
 		if updateErr != nil {
 			rbacWF.Logger.Errorf("Failed to update job status to Error for UpdateRbacForSinglePoolWorkflow: %v", updateErr)
 		}
@@ -68,7 +67,7 @@ func UpdateRbacForSinglePoolWorkflow(ctx workflow.Context, poolId string) error 
 	_, customErr := rbacWF.RunForSinglePool(ctx, poolId)
 	if customErr != nil {
 		rbacWF.Status = workflows.WorkflowStatusFailed
-		updateErr := rbacWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		updateErr := rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if updateErr != nil {
 			rbacWF.Logger.Errorf("Failed to update job status to Error for UpdateRbacForSinglePoolWorkflow: %v", updateErr)
 		}
@@ -76,7 +75,7 @@ func UpdateRbacForSinglePoolWorkflow(ctx workflow.Context, poolId string) error 
 	}
 
 	rbacWF.Status = workflows.WorkflowStatusCompleted
-	err = rbacWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return err
 	}
@@ -92,17 +91,17 @@ func UpdateRbacForPoolsWorkflow(ctx workflow.Context) error {
 		return workflows.ConvertToVSAError(err)
 	}
 
-	if err = rbacWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = rbacWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return workflows.ConvertToVSAError(err)
 	}
 	rbacWF.Status = workflows.WorkflowStatusRunning
-	err = rbacWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		rbacWF.Status = workflows.WorkflowStatusFailed
 		// Preserve the original error - try to update job status to ERROR (best effort)
 		// but return the original error to maintain consistency with error handling at lines 62-70
 		originalErr := err
-		updateErr := rbacWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), originalErr)
+		updateErr := rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), originalErr)
 		if updateErr != nil {
 			rbacWF.Logger.Errorf("Failed to update job status to Error for UpdateRbacForPoolsWorkflow: %v", updateErr)
 		}
@@ -113,14 +112,14 @@ func UpdateRbacForPoolsWorkflow(ctx workflow.Context) error {
 		rbacWF.Status = workflows.WorkflowStatusFailed
 		// Preserve the original error - try to update job status to ERROR (best effort)
 		// but always return the original error to maintain consistency with error handling at lines 58-65
-		updateErr := rbacWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		updateErr := rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if updateErr != nil {
 			rbacWF.Logger.Errorf("Failed to update job status to Error for UpdateRbacForPoolsWorkflow: %v", updateErr)
 		}
 		return workflows.ConvertToVSAError(customErr)
 	}
 	rbacWF.Status = workflows.WorkflowStatusCompleted
-	err = rbacWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = rbacWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return err
 	}

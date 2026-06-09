@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -71,7 +70,7 @@ func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
 	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
 	commonActivities := &activities.CommonActivities{}
 
-	filterStates := []string{models.LifeCycleStateREADY, models.LifeCycleStateUpdating, models.LifeCycleStateDegraded}
+	filterStates := []string{datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateDegraded}
 	var pools []*database.PoolIdentifier
 	err = workflow.ExecuteActivity(ctx, commonActivities.ListPoolsUUID, filterStates).Get(ctx, &pools)
 	if err != nil {
@@ -382,8 +381,8 @@ func (wf *autoTieringHotTierAutoResizeWorkflow) Run(ctx workflow.Context, args .
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdatePool),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeUpdatePool),
+		State:        string(datamodel.JobsStateNEW),
 		IsAdminJob:   true,
 		ResourceName: pool.UUID,
 		AccountID:    sql.NullInt64{Int64: pool.AccountID, Valid: true},

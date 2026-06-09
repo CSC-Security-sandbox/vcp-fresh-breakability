@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -71,7 +70,7 @@ func TestDeleteKmsConfig_Success(t *testing.T) {
 	params := &common.DeleteKmsConfigParams{
 		KmsConfigID: "uuid",
 	}
-	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(kms, nil)
+	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeletedDetails).Return(kms, nil)
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -94,7 +93,7 @@ func TestDeleteKmsConfig_Error(t *testing.T) {
 	params := &common.DeleteKmsConfigParams{
 		KmsConfigID: "uuid",
 	}
-	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(nil, errors.New("some error"))
+	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeletedDetails).Return(nil, errors.New("some error"))
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -118,7 +117,7 @@ func TestDeleteKmsConfig_NotFoundReturnsSuccess(t *testing.T) {
 		KmsConfigID: "uuid",
 	}
 	// Return NotFoundErr to simulate already deleted record
-	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
+	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeletedDetails).Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -138,14 +137,14 @@ func TestDeleteKmsConfigState_Success(t *testing.T) {
 	activity := KmsConfigActivity{SE: mockStorage}
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 
-	mockStorage.On("UpdateKmsConfigState", mock.Anything, "uuid", models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(kms, nil)
+	mockStorage.On("UpdateKmsConfigState", mock.Anything, "uuid", datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(kms, nil)
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
 	env.RegisterActivity(activity.UpdateKmsConfigState)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kms, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kms, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails)
 
 	// Assert
 	assert.NoError(t, err)
@@ -158,14 +157,14 @@ func TestDeleteKmsConfigState_Error(t *testing.T) {
 	activity := KmsConfigActivity{SE: mockStorage}
 	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
 
-	mockStorage.On("UpdateKmsConfigState", mock.Anything, "uuid", models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(nil, errors.New("some error"))
+	mockStorage.On("UpdateKmsConfigState", mock.Anything, "uuid", datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(nil, errors.New("some error"))
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
 	env.RegisterActivity(activity.UpdateKmsConfigState)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kms, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kms, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails)
 
 	// Assert
 	assert.Error(t, err)
@@ -183,7 +182,7 @@ func TestUpdateServiceAccountAsDisabled_Success(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails).Return(kms.ServiceAccount, nil)
+	mockStorage.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(kms.ServiceAccount, nil)
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -205,7 +204,7 @@ func TestUpdateServiceAccountAsDisabled_Error(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails).Return(nil, errors.New("update error"))
+	mockStorage.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(nil, errors.New("update error"))
 
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()

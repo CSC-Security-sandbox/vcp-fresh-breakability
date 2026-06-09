@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -35,10 +35,10 @@ func StopReplicationWorkflow(ctx workflow.Context, params *commonparams.StopRepl
 	}
 	logger := util.GetLogger(ctx)
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := repWf.Run(ctx, event)
@@ -50,19 +50,19 @@ func StopReplicationWorkflow(ctx workflow.Context, params *commonparams.StopRepl
 			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
 			quotaRuleErr := vsaerrors.NewVCPError(
 				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
-				errors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+				errors.New(datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure),
 			)
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
+			err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), quotaRuleErr)
 			return nil, err
 		}
 
 		// For all other errors, mark workflow as failed
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -151,14 +151,14 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if err != nil {
 			// Check if this is a quota rule failure from internal stop
 			// Check error message directly before conversion
-			if quotaRuleSyncEnabled && strings.Contains(err.Error(), models.VolumeReplicationBreakRelationshipQuotaRuleFailure) {
+			if quotaRuleSyncEnabled && strings.Contains(err.Error(), datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure) {
 				// Return quota-specific error to be handled specially by error handler
 				// This allows the workflow to be marked as completed (partial success) instead of failed
 				// (Same pattern as internal stop workflow)
 				return nil, workflows.ConvertToVSAError(
 					vsaerrors.NewVCPError(
 						vsaerrors.ErrBreakReplicationQuotaRuleFailure,
-						vsaerrors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+						vsaerrors.New(datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure),
 					),
 				)
 			}

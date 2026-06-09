@@ -287,7 +287,7 @@ func TestDeletePool_ConflictWhileCreating(t *testing.T) {
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.compartment..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.compartment..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateCreating},
+		Pool: datamodel.Pool{State: datamodel.LifeCycleStateCreating},
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
@@ -308,7 +308,7 @@ func TestDeletePool_ConflictWhenAlreadyDeleting(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &datamodel.PoolAttributes{},
 		},
 	}, nil)
@@ -320,7 +320,7 @@ func TestDeletePool_ConflictWhenAlreadyDeleting(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err), "already-deleting must map to a conflict, not idempotent success")
 	assert.Contains(t, err.Error(), "transition state")
-	assert.Contains(t, err.Error(), models.LifeCycleStateDeleting,
+	assert.Contains(t, err.Error(), datamodel.LifeCycleStateDeleting,
 		"error must surface the actual state (DELETING) so callers can disambiguate from other transitions")
 	assert.Nil(t, pool, "no pool model is returned alongside a conflict error")
 	assert.Equal(t, "", wf)
@@ -333,7 +333,7 @@ func TestDeletePool_TransitionalStateConflict(t *testing.T) {
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.compartment..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.compartment..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateUpdating},
+		Pool: datamodel.Pool{State: datamodel.LifeCycleStateUpdating},
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
@@ -354,7 +354,7 @@ func TestDeletePool_DeletingPoolFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).Return(errors.New("state transition failed"))
@@ -377,7 +377,7 @@ func TestDeletePool_ExecuteWorkflowFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).Return(nil)
@@ -631,8 +631,8 @@ func TestUpdatePool_AccountNotFound(t *testing.T) {
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(nil, gorm.ErrRecordNotFound)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsNotFoundErr(err))
@@ -645,8 +645,8 @@ func TestUpdatePool_GetAccountGenericError(t *testing.T) {
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(nil, errors.New("db down"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.Equal(t, "db down", err.Error())
@@ -661,8 +661,8 @@ func TestUpdatePool_PoolNotFound(t *testing.T) {
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsNotFoundErr(err))
@@ -675,12 +675,12 @@ func TestUpdatePool_PoolNotReady(t *testing.T) {
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateCreating},
+		Pool: datamodel.Pool{State: datamodel.LifeCycleStateCreating},
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
@@ -698,16 +698,16 @@ func TestUpdatePool_UpdatingPoolDbFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(nil, errors.New("state transition failed"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		TotalThroughputMibps: 128,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "state transition failed")
@@ -723,7 +723,7 @@ func TestUpdatePool_WorkflowFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
@@ -737,9 +737,9 @@ func TestUpdatePool_WorkflowFails(t *testing.T) {
 		Return(nil, errors.New("temporal start failed"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		TotalThroughputMibps: 128,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "temporal start failed")
@@ -755,7 +755,7 @@ func TestUpdatePool_WorkflowFailsAndRollbackFails(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
@@ -769,9 +769,9 @@ func TestUpdatePool_WorkflowFailsAndRollbackFails(t *testing.T) {
 		Return(nil, errors.New("temporal unavailable"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		TotalThroughputMibps: 128,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "temporal unavailable")
@@ -786,8 +786,8 @@ func TestUpdatePool_GetPoolByNameGenericError(t *testing.T) {
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, errors.New("query timeout"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.Equal(t, "query timeout", err.Error())
@@ -803,14 +803,14 @@ func TestUpdatePool_PoolInUpdatingState_Returns409(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		},
 	}, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
@@ -825,13 +825,13 @@ func TestUpdatePool_PoolInDeletedState_Returns400(t *testing.T) {
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateDeleted},
+		Pool: datamodel.Pool{State: datamodel.LifeCycleStateDeleted},
 	}, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsBadRequestErr(err))
@@ -847,12 +847,12 @@ func TestUpdatePool_PoolInDeletingState(t *testing.T) {
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateDeleting},
+		Pool: datamodel.Pool{State: datamodel.LifeCycleStateDeleting},
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName: "ocid1.tenancy..x",
-		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
@@ -874,7 +874,7 @@ func TestUpdatePool_ClusterUpgradePending_Returns409(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(
@@ -913,7 +913,7 @@ func TestUpdatePool_ClusterUpgradeInProgress_Returns409(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(
@@ -961,7 +961,7 @@ func TestUpdatePool_ClusterUpgradeTerminalStatesDoNotBlock(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    1024 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
@@ -1011,7 +1011,7 @@ func TestUpdatePool_ClusterUpgradeLookupDbError_PropagatesError(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:      "p1",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
 	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").
@@ -1040,7 +1040,7 @@ func TestUpdatePool_AllowedFromErrorStateRetry(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateError,
+			State:          datamodel.LifeCycleStateError,
 			SizeInBytes:    1024 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
@@ -1060,10 +1060,10 @@ func TestUpdatePool_AllowedFromErrorStateRetry(t *testing.T) {
 		Return(nil, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps: 256,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		SizeInBytes:            2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps:   256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1081,7 +1081,7 @@ func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    1024 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
@@ -1101,10 +1101,10 @@ func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
 		Return(nil, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps: 256,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		SizeInBytes:            2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps:   256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1476,7 +1476,7 @@ func TestUpdatePool_NodeCapacityCoverageMismatchRejected(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
@@ -1524,7 +1524,7 @@ func TestUpdatePool_NodeCapacitiesCollapseToPoolTotal(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    200 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, IsRegionalHA: true},
 		},
@@ -1589,7 +1589,7 @@ func TestUpdatePool_NodeCapacitiesCollapseOverwritesStaleSizeInBytes(t *testing.
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    200 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, IsRegionalHA: true},
 		},
@@ -1652,7 +1652,7 @@ func TestUpdatePool_QueriesByPoolExternalIdentifier(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "target-pool",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
@@ -1670,10 +1670,10 @@ func TestUpdatePool_QueriesByPoolExternalIdentifier(t *testing.T) {
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..target",
-		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps: 128,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..target",
+		SizeInBytes:            2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps:   128,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1690,7 +1690,7 @@ func TestUpdatePool_HappyPathWithThroughput(t *testing.T) {
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			SizeInBytes:    1024 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
@@ -1715,9 +1715,9 @@ func TestUpdatePool_HappyPathWithThroughput(t *testing.T) {
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:          "ocid1.tenancy..x",
-		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
-		TotalThroughputMibps: 256,
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewPoolDeleteHandler() *PoolDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the pool delete handler.
-func (h *PoolDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeletePool,
-		models.JobTypeDeleteLargePool,
+func (h *PoolDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeletePool,
+		datamodel.JobTypeDeleteLargePool,
 	}
 }
 
@@ -50,7 +49,7 @@ func (h *PoolDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	}
 
 	// Handle PROCESSING state timeout: update pool state to ERROR
-	if job.State == string(models.JobsStatePROCESSING) {
+	if job.State == string(datamodel.JobsStatePROCESSING) {
 		return h.handleProcessingTimeout(ctx, job, storage, logger)
 	}
 
@@ -71,12 +70,12 @@ func (h *PoolDeleteHandler) handleProcessingTimeout(ctx context.Context, job *da
 	}
 
 	// Only transition if pool is in DELETING state
-	if pool.State != models.LifeCycleStateDeleting {
+	if pool.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: pool %s not in DELETING state (%s); skipping state transition", pool.UUID, pool.State)
 		return nil
 	}
 
-	_, err = storage.UpdatePoolState(ctx, pool, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+	_, err = storage.UpdatePoolState(ctx, pool, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails)
 	if err != nil {
 		return fmt.Errorf("update pool state to ERROR: %w", err)
 	}
@@ -98,7 +97,7 @@ func (h *PoolDeleteHandler) handleNewStateTimeout(ctx context.Context, job *data
 	}
 
 	// Only revert if pool is in DELETING state
-	if pool.State != models.LifeCycleStateDeleting {
+	if pool.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: pool not in DELETING state (%s); skipping revert", pool.State)
 		return nil
 	}
@@ -110,8 +109,8 @@ func (h *PoolDeleteHandler) handleNewStateTimeout(ctx context.Context, job *data
 	// Fallback if previous state not stored (for backward compatibility with old jobs)
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not stored in job attributes, using default AVAILABLE")
-		previousState = models.LifeCycleStateAvailable
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateAvailable
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	_, err = storage.UpdatePoolState(ctx, pool, previousState, previousStateDetails)

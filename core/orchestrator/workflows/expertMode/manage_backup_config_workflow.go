@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -33,15 +32,15 @@ func ManageBackupConfigWorkflow(ctx workflow.Context, volume *datamodel.ExpertMo
 	if err := wf.Setup(ctx, volume); err != nil {
 		return err
 	}
-	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := wf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return workflows.ConvertToVSAError(err)
 	}
 	wf.Status = workflows.WorkflowStatusRunning
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		wf.Status = workflows.WorkflowStatusFailed
 		log := util.GetLogger(ctx)
 		log.Errorf("Failed to update job status to PROCESSING: %v", err)
-		jobErr := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		jobErr := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		if jobErr != nil {
 			log.Errorf("Failed to update job status to ERROR: %v", jobErr)
 		}
@@ -52,7 +51,7 @@ func ManageBackupConfigWorkflow(ctx workflow.Context, volume *datamodel.ExpertMo
 	if cerr != nil {
 		wf.Status = workflows.WorkflowStatusFailed
 		log := util.GetLogger(ctx)
-		jobErr := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), cerr)
+		jobErr := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), cerr)
 		if jobErr != nil {
 			log.Errorf("Failed to update job status to ERROR: %v", jobErr)
 		}
@@ -60,7 +59,7 @@ func ManageBackupConfigWorkflow(ctx workflow.Context, volume *datamodel.ExpertMo
 	}
 
 	wf.Status = workflows.WorkflowStatusCompleted
-	return wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	return wf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 }
 
 func (wf *manageBackupConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -110,7 +109,7 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 	defer func() {
 		if err != nil {
 			if restoreErr := workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeStateInDB,
-				volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); restoreErr != nil {
+				volume.UUID, datamodel.LifeCycleStateAvailable).Get(ctx, nil); restoreErr != nil {
 				log.Errorf("Failed to restore expert mode volume %s state to AVAILABLE after failure: %v", volume.UUID, restoreErr)
 			}
 		}
@@ -323,7 +322,7 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 
 	// Restore volume state to AVAILABLE on success (the defer only runs on failure).
 	err = workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeStateInDB,
-		volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil)
+		volume.UUID, datamodel.LifeCycleStateAvailable).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to update expert mode volume %s state to AVAILABLE: %v", volume.UUID, err)
 		return nil, workflows.ConvertToVSAError(err)

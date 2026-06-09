@@ -2501,7 +2501,6 @@ func TestVserverModifyRule_RestrictedFields(t *testing.T) {
 	})
 }
 
-
 func TestCLIOnlyAllowArgs(t *testing.T) {
 	t.Run("WhenOnlyAllowedArgs_ShouldPass", func(t *testing.T) {
 		cond := CLIOnlyAllowArgs("-vserver", "-language")

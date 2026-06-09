@@ -11,14 +11,14 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -329,15 +329,15 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 
 func validateUpdatePoolState(state, poolExternalIdentifier string) error {
 	switch state {
-	case models.LifeCycleStateREADY, models.LifeCycleStateError:
+	case datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateError:
 		return nil
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return customerrors.NewBadRequestErr(fmt.Sprintf("pool %s is deleted and cannot be updated", poolExternalIdentifier))
-	case models.LifeCycleStateUpdating,
-		models.LifeCycleStateCreating,
-		models.LifeCycleStateDeleting,
-		models.LifeCycleStatePreparing,
-		models.LifeCycleStateMigrating:
+	case datamodel.LifeCycleStateUpdating,
+		datamodel.LifeCycleStateCreating,
+		datamodel.LifeCycleStateDeleting,
+		datamodel.LifeCycleStatePreparing,
+		datamodel.LifeCycleStateMigrating:
 		return customerrors.NewConflictErr(fmt.Sprintf("pool cannot be updated: an operation is already in progress (state=%s)", state))
 	default:
 		return customerrors.NewConflictErr(fmt.Sprintf("pool cannot be updated in state %s, must be READY or ERROR after a failed update", state))

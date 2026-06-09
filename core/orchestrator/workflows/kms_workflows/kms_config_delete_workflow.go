@@ -3,7 +3,6 @@ package kms_workflows
 import (
 	"net/http"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -39,18 +38,18 @@ func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusRunning
-	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = kmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	_, customErr := kmsConfigWf.Run(ctx, kmsConfig, params)
 	if customErr != nil {
 		kmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = kmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusCompleted
-	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = kmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -110,7 +109,7 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		commonparams.HandleCancellationForCreatingResourceParams{
 			ResourceUUID:               kmsConfig.UUID,
 			ResourceState:              kmsConfig.State,
-			CreateJobType:              models.JobTypeCreateKmsConfig,
+			CreateJobType:              datamodel.JobTypeCreateKmsConfig,
 			SignalName:                 CancelKmsConfigSignalName,
 			CancellationAckTimeout:     ackTimeout,
 			ForceTerminationAckTimeout: forceTimeout,
@@ -192,17 +191,17 @@ func getDeleteKmsConfigRollbackState(ctx workflow.Context) (string, string, erro
 
 func resolveDeleteKmsConfigFailureState(ctx workflow.Context, workflowErr error, kmsConfig *datamodel.KmsConfig) (string, string) {
 	if !shouldRestorePreviousStateOnDeleteFailure(workflowErr, kmsConfig) {
-		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+		return datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails
 	}
 
 	previousState, previousStateDetails, rollbackErr := getDeleteKmsConfigRollbackState(ctx)
 	if rollbackErr != nil {
 		util.GetLogger(ctx).Errorf("Failed to load rollback state for KMS config delete: %v", rollbackErr)
-		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+		return datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails
 	}
 	if previousState == "" {
 		util.GetLogger(ctx).Warnf("Previous KMS config state missing for failed delete, moving config to ERROR: %s", kmsConfig.UUID)
-		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+		return datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails
 	}
 
 	return previousState, previousStateDetails

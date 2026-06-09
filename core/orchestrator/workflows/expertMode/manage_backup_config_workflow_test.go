@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
@@ -46,7 +45,7 @@ func baseVolume() *datamodel.ExpertModeVolumes {
 		Name:      "test-volume",
 		AccountID: 1,
 		PoolID:    1,
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Name:      "test-account",
@@ -120,7 +119,7 @@ func mockStateRestore(env *testsuite.TestWorkflowEnvironment, expertModeActivity
 func mockJobFlow(mockStorage *database.MockStorage, updateJobCalls int) {
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).Times(updateJobCalls)
@@ -687,7 +686,7 @@ func TestManageBackupConfigWorkflow(t *testing.T) {
 		// Job is already PROCESSING, not NEW — EnsureJobState will reject it.
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStatePROCESSING),
+			State:     string(datamodel.JobsStatePROCESSING),
 		}, nil)
 
 		env.ExecuteWorkflow(ManageBackupConfigWorkflow, baseVolume(), baseParams())
@@ -706,7 +705,7 @@ func TestManageBackupConfigWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// First UpdateJob (PROCESSING) fails; second (ERROR) may or may not be called.
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -1410,7 +1409,7 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 			Return(nil)
 		// Capture the arguments to assert UUID and state.
 		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB,
-			mock.Anything, "vol-uuid", models.LifeCycleStateAvailable).
+			mock.Anything, "vol-uuid", datamodel.LifeCycleStateAvailable).
 			Return(nil)
 
 		env.ExecuteWorkflow(ManageBackupConfigWorkflow, baseVolume(), baseParams())
@@ -1484,7 +1483,7 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 			Return(assert.AnError)
 		// Defer must call UpdateExpertModeVolumeStateInDB with READY.
 		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB,
-			mock.Anything, "vol-uuid", models.LifeCycleStateAvailable).
+			mock.Anything, "vol-uuid", datamodel.LifeCycleStateAvailable).
 			Return(nil)
 
 		env.ExecuteWorkflow(ManageBackupConfigWorkflow, baseVolume(), baseParams())
@@ -1649,7 +1648,7 @@ func TestBuildVolumeFromExpertMode(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "u", ID: 99},
 			AccountID: 5,
 			PoolID:    3,
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		params := baseParams()
 

@@ -17,19 +17,19 @@ var convertToVolumeReplicationsInternalV1Beta = _convertToVolumeReplicationsInte
 
 func mapReplicationStateToInternalLifeCycleState(state string) gcpgenserver.VolumeReplicationInternalV1betaLifeCycleState {
 	switch state {
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating
-	case models.LifeCycleStateAvailable:
+	case datamodel.LifeCycleStateAvailable:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateAvailable
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleting
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleted
-	case models.LifeCycleStateError:
+	case datamodel.LifeCycleStateError:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateError
-	case models.LifeCycleStateDisabled:
+	case datamodel.LifeCycleStateDisabled:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDisabled
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateUpdating
 	default:
 		return gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateAvailable
@@ -38,9 +38,9 @@ func mapReplicationStateToInternalLifeCycleState(state string) gcpgenserver.Volu
 
 func mapEndpointTypeToInternal(endpointType string) gcpgenserver.VolumeReplicationInternalV1betaEndpointType {
 	switch endpointType {
-	case models.SrcEndpoint:
+	case datamodel.SrcEndpoint:
 		return gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc
-	case models.DstEndpoint:
+	case datamodel.DstEndpoint:
 		return gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst
 	default:
 		return ""
@@ -49,11 +49,11 @@ func mapEndpointTypeToInternal(endpointType string) gcpgenserver.VolumeReplicati
 
 func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplicationInternalV1betaMirrorState {
 	switch mirrorState {
-	case models.OntapUninitialized:
+	case datamodel.OntapUninitialized:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING
-	case models.OntapBrokenOff:
+	case datamodel.OntapBrokenOff:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED
-	case models.OntapSnapmirrored:
+	case datamodel.OntapSnapmirrored:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED
 	default:
 		return gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
@@ -62,17 +62,17 @@ func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplication
 
 func mapRelationshipStatusToInternal(relationshipStatus string) gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatus {
 	switch relationshipStatus {
-	case models.SnapmirrorRelationshipIdle, models.SnapmirrorRelationshipSuccess, models.SnapmirrorRelationshipFinalizing:
+	case datamodel.SnapmirrorRelationshipIdle, datamodel.SnapmirrorRelationshipSuccess, datamodel.SnapmirrorRelationshipFinalizing:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle
-	case models.SnapmirrorRelationshipTransferring:
+	case datamodel.SnapmirrorRelationshipTransferring:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring
-	case models.SnapmirrorRelationshipFailed:
+	case datamodel.SnapmirrorRelationshipFailed:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusFailed
-	case models.SnapmirrorRelationshipAborted:
+	case datamodel.SnapmirrorRelationshipAborted:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusAborted
-	case models.SnapmirrorRelationshipQueued:
+	case datamodel.SnapmirrorRelationshipQueued:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusQueued
-	case models.SnapmirrorRelationshipHardAborted:
+	case datamodel.SnapmirrorRelationshipHardAborted:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted
 	default:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle
@@ -148,8 +148,8 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		retObj.Labels = convertJSONBLabelsToOptLabels(replication.ReplicationAttributes.Labels)
 	}
 
-	if nillable.GetString(replication.RelationshipStatus, "") == models.SnapmirrorRelationshipTransferring {
-		if nillable.GetString(replication.MirrorState, "") == models.OntapUninitialized {
+	if nillable.GetString(replication.RelationshipStatus, "") == datamodel.SnapmirrorRelationshipTransferring {
+		if nillable.GetString(replication.MirrorState, "") == datamodel.OntapUninitialized {
 			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING)
 		} else {
 			retObj.MirrorState = gcpgenserver.NewOptVolumeReplicationInternalV1betaMirrorState(gcpgenserver.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING)
@@ -230,9 +230,9 @@ func convertBackupDataModelToInternalBackupsV1beta(backup *datamodel.Backup, isR
 	var state gcpgenserver.InternalBackupV1betaState
 	// Need to convert states as DB models and API models have different states
 	switch backup.State {
-	case models.LifeCycleStateAvailable:
+	case datamodel.LifeCycleStateAvailable:
 		state = gcpgenserver.InternalBackupV1betaStateREADY
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		state = gcpgenserver.InternalBackupV1betaStateUPDATING
 	default:
 		state = gcpgenserver.InternalBackupV1betaState(backup.State)

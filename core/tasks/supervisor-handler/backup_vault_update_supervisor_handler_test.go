@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestBackupVaultUpdateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeUpdateBackupVault)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateBackupVault)
 }
 
 func TestNewBackupVaultUpdateHandler(t *testing.T) {
@@ -92,8 +91,8 @@ func TestBackupVaultUpdateHandler_Handle_SkipsNonUpdatingState(t *testing.T) {
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
 
@@ -106,8 +105,8 @@ func TestBackupVaultUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 	storage := database.NewMockStorage(t)
 	handler := NewBackupVaultUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -119,8 +118,8 @@ func TestBackupVaultUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
 	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, previousState, previousStateDetails).
@@ -140,11 +139,11 @@ func TestBackupVaultUpdateHandler_Handle_SuccessWithFallbackToReady(t *testing.T
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
-	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).
+	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).
 		Return(backupVault, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -155,8 +154,8 @@ func TestBackupVaultUpdateHandler_Handle_UpdateBackupVaultStateError(t *testing.
 	storage := database.NewMockStorage(t)
 	handler := NewBackupVaultUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -168,8 +167,8 @@ func TestBackupVaultUpdateHandler_Handle_UpdateBackupVaultStateError(t *testing.
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()

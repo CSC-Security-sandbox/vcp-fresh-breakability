@@ -118,9 +118,9 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		filter := utils2.CreateFilterWithConditions(
 			utils2.NewFilterCondition("resource_name", "=", params.Name),
 			utils2.NewFilterCondition("account_id", "=", account.ID),
-			utils2.NewFilterCondition("type", "=", string(models.JobTypeCreateSnapshot)),
-			utils2.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
-			utils2.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
+			utils2.NewFilterCondition("type", "=", string(datamodel.JobTypeCreateSnapshot)),
+			utils2.NewFilterCondition("state", "!=", string(datamodel.JobsStateDONE)),
+			utils2.NewFilterCondition("state", "!=", string(datamodel.JobsStateERROR)),
 			utils2.NewFilterCondition("job_attributes ->> 'volume_uuid'", "=", volume.UUID))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
@@ -132,7 +132,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 			for _, job := range jobs {
 				for _, snapshot := range existingSnapshots {
 					if snapshot.Name == job.ResourceName {
-						if snapshot.State == models.LifeCycleStateREADY {
+						if snapshot.State == datamodel.LifeCycleStateREADY {
 							logger.Warnf("Snapshot with name %s already exists", snapshot.Name)
 							return nil, "", customerrors.NewConflictErr("snapshot already exists")
 						} else {
@@ -156,8 +156,8 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 				logger.Warnf("Error occurred, marking snapshot as ERROR. Snapshot UUID: %s", dbSnapshot.UUID)
 				now := time.Now()
 				dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-				dbSnapshot.State = models.LifeCycleStateError
-				dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+				dbSnapshot.State = datamodel.LifeCycleStateError
+				dbSnapshot.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 				if _, updateErr := se.UpdateSnapshot(ctx, dbSnapshot); updateErr != nil {
 					logger.Errorf("Failed to mark snapshot as ERROR: %v", updateErr)
 				}
@@ -199,8 +199,8 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	job = &datamodel.Job{
-		Type:          string(models.JobTypeCreateSnapshot),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateSnapshot),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -366,8 +366,8 @@ func createSnapshotSync(ctx context.Context, se database.Storage, dbSnapshot *da
 		return nil, fmt.Errorf("snapshot create response is nil")
 	}
 
-	dbSnapshot.State = models.LifeCycleStateREADY
-	dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+	dbSnapshot.State = datamodel.LifeCycleStateREADY
+	dbSnapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
 	dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
 	dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
@@ -543,7 +543,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	if snapshot.State == models.LifeCycleStateCreating || snapshot.State == models.LifeCycleStateUpdating || snapshot.State == models.LifeCycleStateDeleting {
+	if snapshot.State == datamodel.LifeCycleStateCreating || snapshot.State == datamodel.LifeCycleStateUpdating || snapshot.State == datamodel.LifeCycleStateDeleting {
 		logger.Errorf("Snapshot %s cannot be update, while in transitioning state: %s", params.SnapshotUUID, snapshot.State)
 		return nil, "", customerrors.NewConflictErr("Snapshot is in transition state and cannot be updated, state: " + snapshot.State)
 	}
@@ -588,16 +588,16 @@ func validateCreateSnapshotOperation(volume *datamodel.Volume, params *common.Cr
 		return customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
 	}
 
-	if volume.State == models.LifeCycleStateCreating {
+	if volume.State == datamodel.LifeCycleStateCreating {
 		return customerrors.NewConflictErr("Cannot create a snapshot when volume is in creating stage.")
 	}
-	if volume.State == models.LifeCycleStateDeleting {
+	if volume.State == datamodel.LifeCycleStateDeleting {
 		return customerrors.NewConflictErr("Cannot create a snapshot when volume is in deleting stage.")
 	}
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
 		cloneState := volume.VolumeAttributes.CloneParentInfo.State
-		if cloneState == models.CloneStateSplitting {
+		if cloneState == datamodel.CloneStateSplitting {
 			return customerrors.NewConflictErr("Cannot create a snapshot when volume is undergoing split operation.")
 		}
 	}
@@ -622,12 +622,12 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	if volume.State == models.LifeCycleStateDeleting {
+	if volume.State == datamodel.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewConflictErr("Volume of the snapshot is being deleted")
 	}
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
-		if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+		if volume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 			return nil, "", customerrors.NewConflictErr("Snapshot deletion is not allowed when the volume is splitting")
 		}
 	}
@@ -644,8 +644,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	var existingDeleteJobUUID string
 	snapshot.Volume = volume
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
-	if snapshot.State == models.LifeCycleStateCreating {
-		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(ctx, se, snapshot.UUID, "snapshot", models.JobTypeCreateSnapshot, models.JobTypeDeleteSnapshot, logger)
+	if snapshot.State == datamodel.LifeCycleStateCreating {
+		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(ctx, se, snapshot.UUID, "snapshot", datamodel.JobTypeCreateSnapshot, datamodel.JobTypeDeleteSnapshot, logger)
 		if err != nil {
 			logger.Warnf("Snapshot %s cannot be deleted: existing create job not present and state is in CREATING", snapshot.UUID)
 			return nil, "", err
@@ -654,11 +654,11 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 			return ConvertDatastoreSnapshotToModel(snapshot), existingDeleteJobUUID, nil
 		}
 		logger.Infof("Create job found for snapshot %s with matching correlation ID, skipping state update to DELETING", snapshot.UUID)
-	} else if utils.IsTransitionalState(snapshot.State) && snapshot.State != models.LifeCycleStateDeleting {
+	} else if utils.IsTransitionalState(snapshot.State) && snapshot.State != datamodel.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Snapshot is in transition state and cannot be deleted, state: %s", snapshot.State))
 	}
 
-	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, snapshot.UUID, models.JobTypeDeleteSnapshot, logger)
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, snapshot.UUID, datamodel.JobTypeDeleteSnapshot, logger)
 	if existingJobUUID != "" {
 		return ConvertDatastoreSnapshotToModel(snapshot), existingJobUUID, nil
 	}
@@ -666,8 +666,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	previousState := snapshot.State
 	previousStateDetails := snapshot.StateDetails
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteSnapshot),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteSnapshot),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  snapshot.Name,
 		AccountID:     sql.NullInt64{Int64: snapshot.Account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -686,8 +686,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		if err != nil {
 			// Revert snapshot state back to READY
 			logger.Warnf("Error occurred during snapshot deletion, reverting snapshot state to READY. Snapshot UUID: %s", snapshot.UUID)
-			snapshot.State = models.LifeCycleStateREADY
-			snapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			snapshot.State = datamodel.LifeCycleStateREADY
+			snapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 			if _, updateErr := se.UpdateSnapshot(ctx, snapshot); updateErr != nil {
 				logger.Errorf("Failed to revert snapshot state to READY: %v", updateErr)
 			}
@@ -707,7 +707,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Only update state to DELETING if snapshot is not in CREATING state (cancellation will be handled in workflow)
-	if snapshot.State != models.LifeCycleStateCreating {
+	if snapshot.State != datamodel.LifeCycleStateCreating {
 		if err = se.DeletingSnapshot(ctx, snapshot); err != nil {
 			return nil, "", err
 		}
@@ -790,19 +790,19 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		logger.Errorf("Failed to validate volume ownership")
 		return "", err
 	}
-	if dbVolume.State == models.LifeCycleStateRetained {
+	if dbVolume.State == datamodel.LifeCycleStateRetained {
 		return "", customerrors.NewNotFoundErr("Volume", nil)
 	}
-	if dbVolume.State == models.LifeCycleStateDeleting {
+	if dbVolume.State == datamodel.LifeCycleStateDeleting {
 		return "", customerrors.NewConflictErr("Volume of the snapshot is being deleted.")
 	}
-	if dbVolume.State == models.VolumeStateOffline {
+	if dbVolume.State == datamodel.VolumeStateOffline {
 		return "", customerrors.NewConflictErr("Volume is offline.")
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteSnapmirrorSnapshotsInternal),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteSnapmirrorSnapshotsInternal),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  dbVolume.Name,
 		AccountID:     sql.NullInt64{Int64: dbVolume.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -29,7 +28,7 @@ func (o *GCPOrchestrator) CreateJob(ctx context.Context, params *common.CreateJo
 
 	jobState := params.State
 	if jobState == "" {
-		jobState = models.JobsStateNEW
+		jobState = datamodel.JobsStateNEW
 	}
 
 	job := &datamodel.Job{

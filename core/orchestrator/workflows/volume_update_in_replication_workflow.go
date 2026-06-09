@@ -2,7 +2,6 @@ package workflows
 
 import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -35,20 +34,20 @@ func UpdateVolumeInReplicationWorkflow(ctx workflow.Context, params *common.Upda
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return err
 	}
 	_, customErr := volumeWf.Run(ctx, volume, params)
 	if customErr != nil {
 		volumeWf.Status = WorkflowStatusFailed
-		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err != nil {
 			return err
 		}
 	}
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 
@@ -98,7 +97,7 @@ func (wf *updateVolumeInReplication) Run(ctx workflow.Context, args ...interface
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateUpdateErrorDetails).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to error: %v", err2)
 			}

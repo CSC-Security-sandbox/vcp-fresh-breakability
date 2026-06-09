@@ -122,7 +122,7 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 	if err != nil {
 		return nil, "", err
 	}
-	if dbBackupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+	if dbBackupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 		return nil, "", customerrors.NewUserInputValidationErr("backup policy is not in a valid state for update")
 	}
 
@@ -140,8 +140,8 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 			// If workflowLaunchErr is not nil, the workflow launch attempt failed after updating the backup policy state,
 			// so we must revert the backup policy to its previous state.
 			updates := map[string]interface{}{
-				"life_cycle_state":         models.LifeCycleStateREADY,
-				"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+				"life_cycle_state":         datamodel.LifeCycleStateREADY,
+				"life_cycle_state_details": datamodel.LifeCycleStateReadyDetails,
 			}
 			_, err2 := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
 			if err2 != nil {
@@ -149,7 +149,7 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 			}
 
 			// Update the job state to ERROR
-			err2 = se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, workflowLaunchErr.Error())
+			err2 = se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, workflowLaunchErr.Error())
 			if err2 != nil {
 				logger.Errorf("Failed to update job state to ERROR in database: %v", err2)
 			}
@@ -158,7 +158,7 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 		if backupPolicyUpdateErr != nil {
 			// If backupPolicyUpdateErr is not nil, the update to the backup policy failed after creating the job,
 			// so we must update the job state to ERROR.
-			err2 := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, backupPolicyUpdateErr.Error())
+			err2 := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, backupPolicyUpdateErr.Error())
 			if err2 != nil {
 				logger.Errorf("Failed to update job state to ERROR in database: %v", err2)
 			}
@@ -167,8 +167,8 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 
 	// Create a job for backup policy update
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateBackupPolicy),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateBackupPolicy),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -186,8 +186,8 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 	}
 
 	updates := map[string]interface{}{
-		"life_cycle_state":         models.LifeCycleStateUpdating,
-		"life_cycle_state_details": models.LifeCycleStateUpdatingDetails,
+		"life_cycle_state":         datamodel.LifeCycleStateUpdating,
+		"life_cycle_state_details": datamodel.LifeCycleStateUpdatingDetails,
 	}
 	updatingBackupPolicy, backupPolicyUpdateErr := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
 	if backupPolicyUpdateErr != nil {
@@ -235,7 +235,7 @@ func validateBackupLimits(ctx context.Context, se database.Storage, params *comm
 	}
 	conditions = [][]interface{}{
 		{"type = ?", backupTypeMANUAL},
-		{"state != ?", models.LifeCycleStateError},
+		{"state != ?", datamodel.LifeCycleStateError},
 	}
 	backupsCountByVolume, err := se.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
 	if err != nil {
@@ -276,7 +276,7 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 	if err != nil {
 		return nil, "", err
 	}
-	if dbBackupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+	if dbBackupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 		return nil, "", customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 	}
 
@@ -289,8 +289,8 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 	}
 
 	updates := map[string]interface{}{
-		"life_cycle_state":         models.LifeCycleStateDeleting,
-		"life_cycle_state_details": models.LifeCycleStateDeletingDetails,
+		"life_cycle_state":         datamodel.LifeCycleStateDeleting,
+		"life_cycle_state_details": datamodel.LifeCycleStateDeletingDetails,
 	}
 	updatedBackupPolicy, err := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
 	if err != nil {
@@ -301,8 +301,8 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 		if err != nil {
 			// If there is an error, revert the state to READY
 			_, revertErr := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, map[string]interface{}{
-				"life_cycle_state":         models.LifeCycleStateREADY,
-				"life_cycle_state_details": models.LifeCycleStateAvailableDetails,
+				"life_cycle_state":         datamodel.LifeCycleStateREADY,
+				"life_cycle_state_details": datamodel.LifeCycleStateAvailableDetails,
 			})
 			if revertErr != nil {
 				logger.Error("Failed to revert backup policy state after delete failure", "error", revertErr)
@@ -310,7 +310,7 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 		}
 		if createdJob != nil && err != nil {
 			// If a job was created, update its state to ERROR if there was an error
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job state", "error", updateErr, "jobUUID", createdJob.UUID)
 			}
@@ -318,8 +318,8 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 	}()
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteBackupPolicy),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteBackupPolicy),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -454,8 +454,8 @@ func (o *GCPOrchestrator) CreateBackupPolicy(ctx context.Context, params *common
 		WeeklyBackupsToKeep:   int64(0),
 		MonthlyBackupsToKeep:  int64(0),
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateREADY,
-		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
+		LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 	}
 	if params.DailyBackupLimit != nil {
 		dbBackupPolicy.DailyBackupsToKeep = *params.DailyBackupLimit

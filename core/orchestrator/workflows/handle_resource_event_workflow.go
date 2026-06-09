@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -37,7 +36,7 @@ func UpdateResourceStateONWorkflow(ctx workflow.Context, params *common.UpdateRe
 		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
-	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -45,10 +44,10 @@ func UpdateResourceStateONWorkflow(ctx workflow.Context, params *common.UpdateRe
 	defer func() {
 		if customErr != nil {
 			updateResourceWF.Status = WorkflowStatusFailed
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		} else {
 			updateResourceWF.Status = WorkflowStatusCompleted
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -171,7 +170,7 @@ func UpdateResourceStateOFFWorkflow(ctx workflow.Context, params *common.UpdateR
 		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
-	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -179,10 +178,10 @@ func UpdateResourceStateOFFWorkflow(ctx workflow.Context, params *common.UpdateR
 	defer func() {
 		if customErr != nil {
 			updateResourceWF.Status = WorkflowStatusFailed
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		} else {
 			updateResourceWF.Status = WorkflowStatusCompleted
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -305,7 +304,7 @@ func UpdateResourceStateCommonResourceOFFWorkflow(ctx workflow.Context, params *
 		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
-	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -313,10 +312,10 @@ func UpdateResourceStateCommonResourceOFFWorkflow(ctx workflow.Context, params *
 	defer func() {
 		if customErr != nil {
 			updateResourceWF.Status = WorkflowStatusFailed
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		} else {
 			updateResourceWF.Status = WorkflowStatusCompleted
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -436,7 +435,7 @@ func UpdateResourceStateCommonResourceONWorkflow(ctx workflow.Context, params *c
 		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
-	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -444,10 +443,10 @@ func UpdateResourceStateCommonResourceONWorkflow(ctx workflow.Context, params *c
 	defer func() {
 		if customErr != nil {
 			updateResourceWF.Status = WorkflowStatusFailed
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		} else {
 			updateResourceWF.Status = WorkflowStatusCompleted
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -567,7 +566,7 @@ func UpdateResourceStateDELETEWorkflow(ctx workflow.Context, params *common.Upda
 		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
-	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -575,10 +574,10 @@ func UpdateResourceStateDELETEWorkflow(ctx workflow.Context, params *common.Upda
 	defer func() {
 		if customErr != nil {
 			updateResourceWF.Status = WorkflowStatusFailed
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		} else {
 			updateResourceWF.Status = WorkflowStatusCompleted
-			err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = updateResourceWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -614,7 +613,7 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 	updateResourceStateParams := args[0].(*common.UpdateResourceStateParams)
 
 	// Validate this is a storage pool or volume delete operation
-	if updateResourceStateParams.State != models.StateDelete ||
+	if updateResourceStateParams.State != datamodel.ResourceEventStateDelete ||
 		(updateResourceStateParams.ResourceType != common.ResourceStateV1ResourceTypeStoragePool &&
 			updateResourceStateParams.ResourceType != common.ResourceStateV1ResourceTypeVolume) {
 		return nil, ConvertToVSAError(errors.NewBadRequestErr("DELETE workflow only supports storage pool and volume deletion"))

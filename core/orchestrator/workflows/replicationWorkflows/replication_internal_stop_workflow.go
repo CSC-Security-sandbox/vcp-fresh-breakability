@@ -39,10 +39,10 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 		return nil, err
 	}
 	stopRepWf.Status = workflows.WorkflowStatusRunning
-	err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = stopRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		stopRepWf.Status = workflows.WorkflowStatusFailed
-		err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = stopRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := stopRepWf.Run(ctx, replicationDb, forceStop)
@@ -56,19 +56,19 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
 			quotaRuleErr := vsaerrors.NewVCPError(
 				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
-				errors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+				errors.New(datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure),
 			)
-			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
+			err = stopRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), quotaRuleErr)
 			return nil, err
 		}
 
 		// For all other errors, mark workflow as failed
 		stopRepWf.Status = workflows.WorkflowStatusFailed
-		err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = stopRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	stopRepWf.Status = workflows.WorkflowStatusCompleted
-	err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = stopRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -125,7 +125,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 	defer func() {
 		if err != nil {
 			// On panic, mark volume replication in error state
-			dbReplication.State = models.LifeCycleStateError
+			dbReplication.State = datamodel.LifeCycleStateError
 			dbReplication.StateDetails = err.Error()
 			err2 := workflow.ExecuteActivity(ctx, replicationCommonActivity.UpdateReplicationState, *dbReplication).Get(ctx, nil)
 			if err2 != nil {
@@ -241,7 +241,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, workflows.ConvertToVSAError(
 			vsaerrors.NewVCPError(
 				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
-				vsaerrors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+				vsaerrors.New(datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure),
 			),
 		)
 	}

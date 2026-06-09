@@ -162,7 +162,7 @@ func (s *UnitTestSuite) setupTestWorkflowEnv(t *testing.T) {
 	s.env.RegisterActivity(poolActivity.GetPoolView)
 	s.env.RegisterActivity(volumeCreateActivity.ValidatePoolStateForVolumeCreate)
 	// Default: pool state validation sees READY pool so existing tests are unchanged
-	mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateREADY}}, nil).Maybe()
+	mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PoolView{Pool: datamodel.Pool{State: datamodel.LifeCycleStateREADY}}, nil).Maybe()
 
 	// Register VPG activities (needed when throughputMibps is provided)
 	// Use the stored activity reference so tests can override mocks using the same function reference
@@ -174,7 +174,7 @@ func (s *UnitTestSuite) setupTestWorkflowEnv(t *testing.T) {
 	// Set default mock responses for commonly used activities
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(CreateTestVolume(), nil).Maybe()
@@ -286,9 +286,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WhenPoolStateNotReady_Fails() 
 		poolState     string
 		expectedError string
 	}{
-		{"CreatingPool", models.LifeCycleStateCreating, "Specified pool is in CREATING state, hence volume cannot be created"},
-		{"DeletingPool", models.LifeCycleStateDeleting, "Specified pool is in DELETING state, hence volume cannot be created"},
-		{"DeletedPool", models.LifeCycleStateDeleted, "Specified pool is in DELETED state, hence volume cannot be created"},
+		{"CreatingPool", datamodel.LifeCycleStateCreating, "Specified pool is in CREATING state, hence volume cannot be created"},
+		{"DeletingPool", datamodel.LifeCycleStateDeleting, "Specified pool is in DELETING state, hence volume cannot be created"},
+		{"DeletedPool", datamodel.LifeCycleStateDeleted, "Specified pool is in DELETED state, hence volume cannot be created"},
 	}
 	for _, tc := range testCases {
 		s.T().Run(tc.name, func(t *testing.T) {
@@ -377,11 +377,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithThroughputMibps_CreatesVPG
 
 	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
 		UUID:   "ad-uuid",
-		Status: models.LifeCycleStateInUse,
+		Status: datamodel.LifeCycleStateInUse,
 	}, nil).Maybe()
 	s.env.OnActivity("GetActiveDirectoryForPool", mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
 		UUID:   "ad-uuid",
-		Status: models.LifeCycleStateInUse,
+		Status: datamodel.LifeCycleStateInUse,
 	}, nil).Maybe()
 	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -1748,7 +1748,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceed
 	// Register activities
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
@@ -6536,7 +6536,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusProcessingError
 	// Mock UpdateJobStatus to return error for PROCESSING state
 	expectedError := errors.New("failed to update job status to PROCESSING")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(expectedError)
 
 	// Execute workflow
@@ -6592,13 +6592,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusDoneError() {
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state (successful completion)
 	expectedError := errors.New("failed to update job status to DONE")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails == ""
+		return job.State == string(datamodel.JobsStateDONE) && job.ErrorDetails == ""
 	})).Return(expectedError)
 
 	// Execute workflow
@@ -6633,13 +6633,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusErrorDetailsErr
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state with error details
 	errorDetailsUpdateError := errors.New("failed to update job status with error details")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
+		return job.State == string(datamodel.JobsStateERROR) && job.ErrorDetails != ""
 	})).Return(errorDetailsUpdateError)
 
 	// Mock GetVolumeFromONTAPAgain to return error
@@ -7477,7 +7477,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -7560,7 +7560,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	// Mock activities to ensure successful execution through the specific lines
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -7765,7 +7765,7 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
 	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -8740,7 +8740,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_VolumeTooSmal
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 10737418240, // 10GB - larger than volume
-		State:       models.LifeCycleStateAvailable,
+		State:       datamodel.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName: "test-bucket",
@@ -9094,7 +9094,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 1073741824, // 1GB
-		State:       models.LifeCycleStateAvailable,
+		State:       datamodel.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName:               "test-bucket",
@@ -9188,7 +9188,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 1073741824, // 1GB
-		State:       models.LifeCycleStateAvailable,
+		State:       datamodel.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName:       "test-bucket",
@@ -9404,7 +9404,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationCheckErrorConversi
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	// Activities after GetJob may not be called if cancellation is detected early
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
@@ -9439,7 +9439,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationInDeferBlock() {
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 
 	// Send cancellation signal and make KMS activity fail to trigger defer block (covers lines 763-764, 768)
@@ -9475,7 +9475,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterRestoreFromBa
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("token", nil)
 	s.env.OnActivity(s.volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.BackupRestoreMetadata{
@@ -9519,7 +9519,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeGetAggregate
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	// GetAggregatesFromOntap will be called before cancellation - send signal immediately after it completes
@@ -9571,7 +9571,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterPreWorkflow()
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -9618,7 +9618,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterCreateSnapsho
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	// Send cancellation signal immediately after CreateSnapshotPolicyInONTAP completes (covers line 912)
@@ -9668,7 +9668,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationInRestoreFromBacku
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("token", nil)
 	s.env.OnActivity(s.volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.BackupRestoreMetadata{
@@ -9711,7 +9711,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforePostWorkflow
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9764,7 +9764,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeBackupPolicy
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9817,7 +9817,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeUpdateVolume
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9861,7 +9861,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9873,7 +9873,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(true, nil)
 	// GetVolumeByVolumeID takes (ctx, volumeID) - 2 arguments
-	s.env.OnActivity(s.volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(&datamodel.Volume{State: models.LifeCycleStateREADY}, nil)
+	s.env.OnActivity(s.volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(&datamodel.Volume{State: datamodel.LifeCycleStateREADY}, nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
@@ -9881,7 +9881,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	// Verify UpdateVolumeStateInDB was called (error logged at line 768)
-	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, mock.Anything, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails)
+	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, mock.Anything, datamodel.LifeCycleStateError, datamodel.LifeCycleStateCreationErrorDetails)
 }
 
 // Test_CreateVolumeWorkflow_CancellationAfterDeferSetup tests line 776: checkCancellation() call after defer setup
@@ -9914,7 +9914,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterDeferSetup() 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil).Maybe()
@@ -9955,7 +9955,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterRestoreFromBa
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("token", nil)
 	s.env.OnActivity(s.volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.BackupRestoreMetadata{
@@ -10004,7 +10004,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationForLargeVolumeAggr
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 	// Send cancellation signal when GetAggregatesFromOntap completes, so it's available for the next cancellation check (line 986)
@@ -10053,7 +10053,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeRestoreWorkf
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("token", nil)
 	s.env.OnActivity(s.volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.BackupRestoreMetadata{
@@ -10104,7 +10104,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_MultiplePostWorkflows() {
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -10577,7 +10577,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	s.env.OnActivity(volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "test-backup",
-		State:       models.LifeCycleStateAvailable,
+		State:       datamodel.LifeCycleStateAvailable,
 		SizeInBytes: volume.SizeInBytes / 2, // Set backup size to be smaller than volume size
 		Attributes: &datamodel.BackupAttributes{
 			Protocols:                volume.VolumeAttributes.Protocols,
@@ -10906,7 +10906,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesActiveDirectory
 		UUID:   "ad-uuid",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateREADY,
+		Status: datamodel.LifeCycleStateREADY,
 	}
 
 	// SVM with ActiveDirectoryID already set (Valid = true)
@@ -10946,8 +10946,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesActiveDirectory
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateInUse,
-		models.LifeCycleStateInUseDetails).Return(nil).Once()
+		datamodel.LifeCycleStateInUse,
+		datamodel.LifeCycleStateInUseDetails).Return(nil).Once()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
@@ -10995,7 +10995,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_DoesNotUpdateActiveDir
 		UUID:   "ad-uuid",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateInUse, // Already in use
+		Status: datamodel.LifeCycleStateInUse, // Already in use
 	}
 
 	// SVM with ActiveDirectoryID set
@@ -11081,7 +11081,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesSvmActiveDirect
 		UUID:   "ad-uuid",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateREADY,
+		Status: datamodel.LifeCycleStateREADY,
 	}
 
 	// SVM WITHOUT ActiveDirectoryID set (Valid = false)
@@ -11138,8 +11138,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesSvmActiveDirect
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateInUse,
-		models.LifeCycleStateInUseDetails).Return(nil).Once()
+		datamodel.LifeCycleStateInUse,
+		datamodel.LifeCycleStateInUseDetails).Return(nil).Once()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
@@ -11167,15 +11167,15 @@ func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_UpdatesWhenReady(
 		UUID:   "ad-uuid-ready",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateREADY,
+		Status: datamodel.LifeCycleStateREADY,
 	}
 
 	// Mock the activity to verify it's called
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid-ready",
-		models.LifeCycleStateInUse,
-		models.LifeCycleStateInUseDetails).Return(nil).Once()
+		datamodel.LifeCycleStateInUse,
+		datamodel.LifeCycleStateInUseDetails).Return(nil).Once()
 
 	// Execute the helper function directly in the workflow context
 	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
@@ -11209,7 +11209,7 @@ func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_DoesNotUpdateWhen
 		UUID:   "ad-uuid-in-use",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateInUse, // Not READY
+		Status: datamodel.LifeCycleStateInUse, // Not READY
 	}
 
 	// UpdateActiveDirectoryState should NOT be called
@@ -11243,7 +11243,7 @@ func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_ReturnsErrorOnFai
 		UUID:   "ad-uuid-error",
 		Domain: "example.com",
 		DNS:    "8.8.8.8",
-		Status: models.LifeCycleStateREADY,
+		Status: datamodel.LifeCycleStateREADY,
 	}
 
 	// Mock the activity to return an error - allow multiple calls due to potential retries
@@ -11251,8 +11251,8 @@ func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_ReturnsErrorOnFai
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid-error",
-		models.LifeCycleStateInUse,
-		models.LifeCycleStateInUseDetails).Return(expectedError)
+		datamodel.LifeCycleStateInUse,
+		datamodel.LifeCycleStateInUseDetails).Return(expectedError)
 
 	// Execute the helper function in workflow context
 	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
@@ -11473,7 +11473,7 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_UpdateLargeConstituentCount() {
 			// Mock GetJob activity - return NEW state for workflow job
 			s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 				BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-				State:     string(models.JobsStateNEW),
+				State:     string(datamodel.JobsStateNEW),
 			}, nil).Maybe()
 
 			// Mock volume create activities

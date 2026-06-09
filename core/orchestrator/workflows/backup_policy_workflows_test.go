@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -49,7 +48,7 @@ func (s *BackupPolicyWorkflowsTestSuite) setupMockStorage() *database.MockStorag
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	return mockStorage
 }
@@ -71,7 +70,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestEnableBackupPolicyWorkflow_Success(
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
@@ -106,8 +105,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestEnableBackupPolicyWorkflow_Success(
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -131,7 +130,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDisableBackupPolicyWorkflow_Success
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
@@ -166,8 +165,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDisableBackupPolicyWorkflow_Success
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -188,7 +187,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_GetAuthJ
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", errors.New("failed to get auth token"))
 	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
@@ -221,8 +220,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_GetAuthJ
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -245,7 +244,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update backup policy in SDE"))
@@ -279,8 +278,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -303,7 +302,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
@@ -338,8 +337,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
@@ -368,7 +367,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
@@ -403,8 +402,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
@@ -433,7 +432,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
@@ -468,8 +467,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
@@ -498,7 +497,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
@@ -533,8 +532,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
@@ -563,7 +562,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
@@ -598,8 +597,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
@@ -630,7 +629,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseB
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
@@ -666,8 +665,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseB
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -693,7 +692,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBac
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
@@ -729,8 +728,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBac
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -758,7 +757,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
@@ -796,8 +795,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -823,7 +822,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Success(
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
@@ -841,8 +840,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Success(
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -882,8 +881,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_GetAuthJ
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -912,7 +911,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup policy in SDE"))
@@ -928,8 +927,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -958,7 +957,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
@@ -975,8 +974,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -1005,7 +1004,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
@@ -1023,8 +1022,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -1049,7 +1048,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockScheduler := scheduler.NewMockScheduler(t)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -1067,11 +1066,11 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		// Setup mocks
 		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("SDE deletion failed"))
-		env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
+		env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		// Test data
@@ -1085,8 +1084,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         false,
-			LifeCycleState:        models.LifeCycleStateDeleting,
-			LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateDeleting,
+			LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		params := &common.DeleteBackupPolicyParams{
 			Name:           dbBackupPolicy.Name,
@@ -1114,7 +1113,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockScheduler := scheduler.NewMockScheduler(t)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -1132,13 +1131,13 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		// Setup mocks
 		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("VCP deletion failed"))
-		env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
+		env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		// Test data
@@ -1152,8 +1151,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         false,
-			LifeCycleState:        models.LifeCycleStateDeleting,
-			LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateDeleting,
+			LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		params := &common.DeleteBackupPolicyParams{
 			Name:           dbBackupPolicy.Name,
@@ -1196,11 +1195,11 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowStateRoll
 	// Setup mocks - simulate SDE failure and rollback failure
 	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("SDE deletion failed"))
-	env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(errors.New("rollback failed"))
+	env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(errors.New("rollback failed"))
 	env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	dbBackupPolicy := &datamodel.BackupPolicy{
@@ -1213,8 +1212,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowStateRoll
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -1256,7 +1255,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowSuccessNo
 	// Setup mocks for successful execution
 	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
@@ -1274,8 +1273,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowSuccessNo
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	params := &common.DeleteBackupPolicyParams{
 		Name:           dbBackupPolicy.Name,
@@ -1305,7 +1304,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_EnsureJo
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 
 	params := &common.UpdateBackupPolicyParams{
@@ -1335,8 +1334,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_EnsureJo
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         true,
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
 
@@ -1356,7 +1355,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_EnsureJo
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 
 	params := &common.DeleteBackupPolicyParams{
@@ -1381,8 +1380,8 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_EnsureJo
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
 

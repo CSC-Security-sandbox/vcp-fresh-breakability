@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -39,7 +40,7 @@ func TestV1RotateGcpKmsConfig_Success(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		StateDetails:      "ready",
 		KeyRing:           "test-keyring",
 		KeyRingLocation:   "us-central1",
@@ -58,8 +59,8 @@ func TestV1RotateGcpKmsConfig_Success(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		Type:         models.JobTypeRotateKmsConfig,
-		State:        models.JobsStateNEW,
+		Type:         datamodel.JobTypeRotateKmsConfig,
+		State:        datamodel.JobsStateNEW,
 		WorkflowID:   "test-workflow-id",
 		ResourceName: "test-resource",
 		JobAttributes: &models.JobAttributes{
@@ -147,8 +148,8 @@ func TestV1RotateGcpKmsConfig_WithCorrelationID(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		Type:         models.JobTypeRotateKmsConfig,
-		State:        models.JobsStateNEW,
+		Type:         datamodel.JobTypeRotateKmsConfig,
+		State:        datamodel.JobsStateNEW,
 		WorkflowID:   "test-workflow-id",
 		ResourceName: "test-resource",
 		JobAttributes: &models.JobAttributes{
@@ -440,7 +441,7 @@ func TestV1RotateGcpKmsConfig_RotationEnabled(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		StateDetails:      "ready",
 		KeyRing:           "test-keyring",
 		KeyRingLocation:   "us-central1",
@@ -459,8 +460,8 @@ func TestV1RotateGcpKmsConfig_RotationEnabled(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		Type:         models.JobTypeRotateKmsConfig,
-		State:        models.JobsStateNEW,
+		Type:         datamodel.JobTypeRotateKmsConfig,
+		State:        datamodel.JobsStateNEW,
 		WorkflowID:   "test-workflow-id",
 		ResourceName: "test-resource",
 		JobAttributes: &models.JobAttributes{
@@ -519,7 +520,7 @@ func TestConvertKmsConfigToApiResponse_FullData(t *testing.T) {
 		},
 		Name:              "test-kms-config",
 		Description:       "Test description",
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		StateDetails:      "Ready for use",
 		KeyRing:           "test-keyring",
 		KeyRingLocation:   "us-central1",
@@ -538,8 +539,8 @@ func TestConvertKmsConfigToApiResponse_FullData(t *testing.T) {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		Type:         models.JobTypeRotateKmsConfig,
-		State:        models.JobsStateNEW,
+		Type:         datamodel.JobTypeRotateKmsConfig,
+		State:        datamodel.JobsStateNEW,
 		WorkflowID:   "test-workflow-id",
 		ResourceName: "test-resource",
 		JobAttributes: &models.JobAttributes{
@@ -582,7 +583,7 @@ func TestConvertKmsConfigToApiResponse_FullData(t *testing.T) {
 	assert.Equal(t, now, result.UpdatedAt.Value)
 
 	assert.True(t, result.State.IsSet())
-	assert.Equal(t, oasgenserver.GcpKmsConfigV1State(models.LifeCycleStateREADY), result.State.Value)
+	assert.Equal(t, oasgenserver.GcpKmsConfigV1State(datamodel.LifeCycleStateREADY), result.State.Value)
 
 	assert.True(t, result.StateDetails.IsSet())
 	assert.Equal(t, "Kms config is ready for use", result.StateDetails.Value)
@@ -608,8 +609,8 @@ func TestConvertKmsConfigToApiResponse_MinimalData(t *testing.T) {
 		BaseModel: models.BaseModel{
 			UUID: jobUUID,
 		},
-		Type:  models.JobTypeRotateKmsConfig,
-		State: models.JobsStateNEW,
+		Type:  datamodel.JobTypeRotateKmsConfig,
+		State: datamodel.JobsStateNEW,
 	}
 
 	// Execute
@@ -639,8 +640,8 @@ func TestConvertKmsConfigToApiResponse_NilKmsConfig(t *testing.T) {
 		BaseModel: models.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:  models.JobTypeRotateKmsConfig,
-		State: models.JobsStateNEW,
+		Type:  datamodel.JobTypeRotateKmsConfig,
+		State: datamodel.JobsStateNEW,
 	}
 	result := convertKmsConfigToApiResponse(nil, mockJob)
 

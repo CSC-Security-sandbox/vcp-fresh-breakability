@@ -13,6 +13,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -214,7 +215,7 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if snapshot.LifeCycleState == coremodels.LifeCycleStateCreating {
+	if snapshot.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -364,7 +365,7 @@ func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V
 	if err != nil {
 		return nil, err
 	}
-	if deleted.LifeCycleState == coremodels.LifeCycleStateDeleting || deleted.LifeCycleState == coremodels.LifeCycleStateCreating {
+	if deleted.LifeCycleState == datamodel.LifeCycleStateDeleting || deleted.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
 			Response: resp,

@@ -2154,7 +2154,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitCompletePercent_C
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &oldPercent,
-				State:                models.CloneStateSplitting,
+				State:                datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -2228,7 +2228,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitCompletePercent_C
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &oldPercent,
-				State:                models.CloneStateErrorInSplitting,
+				State:                datamodel.CloneStateErrorInSplitting,
 				StateDetails:         "previous error",
 			},
 		},
@@ -2270,7 +2270,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitCompletePercent_C
 	assert.NotNil(t, updatedVol.VolumeAttributes)
 	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
 	// SPLIT_FAILED state must be cleared to SPLITTING
-	assert.Equal(t, models.CloneStateSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, datamodel.CloneStateSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
 	assert.Equal(t, "", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
 }
 
@@ -2300,7 +2300,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_PercentDrop
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &prevPercent,
-				State:                models.CloneStateSplitting,
+				State:                datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -2323,7 +2323,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_PercentDrop
 	splitJob := &datamodel.Job{
 		ErrorDetails: "ONTAP split failed: insufficient space",
 	}
-	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(splitJob, nil)
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(datamodel.JobTypeSplitVolume)).Return(splitJob, nil)
 
 	input := &ProcessOntapVolumeMatchingInput{
 		DbVolumes: []*datamodel.Volume{dbVolume},
@@ -2346,7 +2346,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_PercentDrop
 	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
 	assert.NotNil(t, updatedVol.VolumeAttributes)
 	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
-	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, datamodel.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
 	assert.Equal(t, "ONTAP split failed: insufficient space", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
 	// Parent UUIDs must be preserved
 	assert.Equal(t, "parent-vol-uuid", updatedVol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
@@ -2380,7 +2380,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_JobFetchErr
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &prevPercent,
-				State:                models.CloneStateSplitting,
+				State:                datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -2399,7 +2399,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_JobFetchErr
 		},
 	}
 
-	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(nil, errors.New("job not found"))
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(datamodel.JobTypeSplitVolume)).Return(nil, errors.New("job not found"))
 
 	input := &ProcessOntapVolumeMatchingInput{
 		DbVolumes: []*datamodel.Volume{dbVolume},
@@ -2420,7 +2420,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_JobFetchErr
 	assert.NotNil(t, result)
 	assert.Len(t, result.UpdatedVolumeByUUID, 1)
 	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
-	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, datamodel.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
 	assert.Equal(t, "Split operation encountered an error in ONTAP", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
@@ -2451,7 +2451,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_NilJob(t *t
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &prevPercent,
-				State:                models.CloneStateSplitting,
+				State:                datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -2471,7 +2471,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_NilJob(t *t
 	}
 
 	// Job exists but has no error details
-	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(nil, nil)
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(datamodel.JobTypeSplitVolume)).Return(nil, nil)
 
 	input := &ProcessOntapVolumeMatchingInput{
 		DbVolumes: []*datamodel.Volume{dbVolume},
@@ -2492,7 +2492,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_NilJob(t *t
 	assert.NotNil(t, result)
 	assert.Len(t, result.UpdatedVolumeByUUID, 1)
 	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
-	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, datamodel.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
 	assert.Equal(t, "Split operation encountered an error in ONTAP", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
@@ -2523,7 +2523,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_AlreadyFail
 				ParentVolumeUUID:     "parent-vol-uuid",
 				ParentSnapshotUUID:   "parent-snap-uuid",
 				SplitCompletePercent: &prevPercent,
-				State:                models.CloneStateErrorInSplitting, // already SPLIT_FAILED
+				State:                datamodel.CloneStateErrorInSplitting, // already SPLIT_FAILED
 				StateDetails:         "existing error",
 			},
 		},
@@ -2653,7 +2653,7 @@ func Test_syncUpdatedVolumesToDatabase_PreservesAllVolumeAttributeFields(t *test
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID:   "parent-vol-uuid",
 					ParentSnapshotUUID: "parent-snap-uuid",
-					State:              models.CloneStateSplitting,
+					State:              datamodel.CloneStateSplitting,
 				},
 			},
 		},
@@ -2705,7 +2705,7 @@ func Test_syncUpdatedVolumesToDatabase_PreservesAllVolumeAttributeFields(t *test
 				// CloneParentInfo must be overwritten with the new value.
 				attrs.CloneParentInfo != nil &&
 				attrs.CloneParentInfo.ParentVolumeUUID == "parent-vol-uuid" &&
-				attrs.CloneParentInfo.State == models.CloneStateSplitting
+				attrs.CloneParentInfo.State == datamodel.CloneStateSplitting
 		}),
 	).Return(nil)
 

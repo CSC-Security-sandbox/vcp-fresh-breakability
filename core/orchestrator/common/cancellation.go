@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -22,7 +21,7 @@ import (
 type WorkflowCancellationParams struct {
 	ResourceUUID  string
 	CorrelationID string
-	CreateJobType models.JobType
+	CreateJobType datamodel.JobType
 	SignalName    string
 	// CancellationAckTimeout is the duration to wait for graceful cancellation acknowledgment after sending
 	// a cancellation signal to the create workflow. If the workflow doesn't acknowledge within
@@ -224,7 +223,7 @@ func HandleCancellationInDeleteWorkflow(
 		logger.Infof("Create workflow %s is already completed, updating job state", createJobResult.WorkflowID)
 		createJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: createJobResult.JobUUID},
-			State:        string(models.JobsStateERROR),
+			State:        string(datamodel.JobsStateERROR),
 			TrackingID:   vsaerrors.ErrInternalServerError,
 			ErrorDetails: "Resource creation cancelled due to delete request",
 		}
@@ -286,7 +285,7 @@ func HandleCancellationInDeleteWorkflow(
 	// Updating create job with error details
 	createJob := &datamodel.Job{
 		BaseModel:    datamodel.BaseModel{UUID: createJobResult.JobUUID},
-		State:        string(models.JobsStateERROR),
+		State:        string(datamodel.JobsStateERROR),
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: errorMessage,
 	}
@@ -304,7 +303,7 @@ func HandleCancellationInDeleteWorkflow(
 type HandleCancellationForCreatingResourceParams struct {
 	ResourceUUID               string
 	ResourceState              string
-	CreateJobType              models.JobType
+	CreateJobType              datamodel.JobType
 	SignalName                 string
 	CancellationAckTimeout     time.Duration
 	ForceTerminationAckTimeout time.Duration
@@ -313,7 +312,7 @@ type HandleCancellationForCreatingResourceParams struct {
 // HandleCancellationForCreatingResource is a helper function that handles cancellation logic for resources in CREATING state within delete workflows.
 func HandleCancellationForCreatingResource(ctx workflow.Context, logger log.Logger, params HandleCancellationForCreatingResourceParams, getCreateJobActivity interface{}, cancellationActivity CancellationActivityMethods, commonActivity CommonActivityMethods) error {
 	// Only handle cancellation if resource is in CREATING state
-	if params.ResourceState != models.LifeCycleStateCreating {
+	if params.ResourceState != datamodel.LifeCycleStateCreating {
 		return nil
 	}
 	// Get correlation ID from workflow context

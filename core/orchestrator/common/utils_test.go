@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -1141,8 +1140,8 @@ func TestConvertDatastoreOperationToModel(t *testing.T) {
 		assert.Nil(t, got.DeletedAt)
 		assert.Equal(t, "corr-1", got.CorrelationID)
 		assert.Equal(t, 100, got.TrackingID)
-		assert.Equal(t, models.JobType("CREATE_VOLUME"), got.Type)
-		assert.Equal(t, models.JobState("PROCESSING"), got.State)
+		assert.Equal(t, datamodel.JobType("CREATE_VOLUME"), got.Type)
+		assert.Equal(t, datamodel.JobState("PROCESSING"), got.State)
 		assert.Equal(t, "projects/p/locations/loc/volumes/vol", got.ResourceName)
 		assert.Equal(t, []byte("some error"), got.ErrorDetails)
 		assert.NotNil(t, got.JobAttributes)
@@ -1168,8 +1167,8 @@ func TestConvertDatastoreOperationToModel(t *testing.T) {
 		assert.NotNil(t, got)
 		assert.Equal(t, int64(1), got.ID)
 		assert.Equal(t, "j1", got.UUID)
-		assert.Equal(t, models.JobType("CREATE_VOLUME_REPLICATION"), got.Type)
-		assert.Equal(t, models.JobState("NEW"), got.State)
+		assert.Equal(t, datamodel.JobType("CREATE_VOLUME_REPLICATION"), got.Type)
+		assert.Equal(t, datamodel.JobState("NEW"), got.State)
 		assert.NotNil(t, got.JobAttributes)
 		assert.Equal(t, "vol-uuid", got.JobAttributes.ResourceUUID)
 		assert.Equal(t, "pool-uuid", got.JobAttributes.PoolUUID)

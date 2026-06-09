@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -80,7 +79,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) AfterTest() {
 func (s *RestoreForOntapModeWorkflowTestSuite) setDefaultGetJobNEW() {
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 }
 
@@ -163,7 +162,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Success() {
 	backup := &datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "backup-name",
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 1024,
 		VolumeUUID:  "other-volume-uuid",
 		BackupVault: backupVault,
@@ -190,7 +189,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Success_StatusQuery() {
 	backup := &datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "backup-name",
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 1024,
 		VolumeUUID:  "other-volume-uuid",
 		BackupVault: backupVault,
@@ -219,7 +218,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Run_EnsureJobStateFails() {
 	params := makeRestoreParams()
 	// Only mock GetJob to return PROCESSING so EnsureJobState(ctx, NEW) fails before Run; no other activity mocks.
 	s.env.OnActivity(s.commonActivity.GetJob, mock.Anything, "default-test-workflow-id").
-		Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}, State: string(models.JobsStatePROCESSING)}, nil).Maybe()
+		Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}, State: string(datamodel.JobsStatePROCESSING)}, nil).Maybe()
 	s.env.ExecuteWorkflow(RestoreForOntapModeVolumeWorkflow, params)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -256,7 +255,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Run_SameVolumeRestoreRejecte
 	backup := &datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "backup-name",
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 1024,
 		VolumeUUID:  "emv-uuid", // same as params.ExpertModeVolume.UUID so workflow rejects same-volume full restore
 		BackupVault: backupVault,
@@ -280,7 +279,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Run_CreateRestoreWorkflowFai
 	backup := &datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "backup-name",
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 1024,
 		VolumeUUID:  "other-uuid",
 		BackupVault: backupVault,
@@ -308,7 +307,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Run_VolumeSizeInsufficient()
 	backup := &datamodel.Backup{
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
 		Name:        "backup-name",
-		State:       models.LifeCycleStateREADY,
+		State:       datamodel.LifeCycleStateREADY,
 		SizeInBytes: 1024,
 		VolumeUUID:  "other-uuid",
 		BackupVault: backupVault,

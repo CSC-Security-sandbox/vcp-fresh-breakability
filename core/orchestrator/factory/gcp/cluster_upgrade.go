@@ -63,7 +63,7 @@ func _upgradeCluster(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", customerrors.NewUnavailableErr("Failed to retrieve cluster information")
 	}
 
-	if pool.State != models.LifeCycleStateREADY && pool.State != models.LifeCycleStateDisabled {
+	if pool.State != datamodel.LifeCycleStateREADY && pool.State != datamodel.LifeCycleStateDisabled {
 		logger.Warn("Cluster is not in a valid state for upgrade", "clusterId", params.ClusterID, "currentState", pool.State)
 		return nil, "", customerrors.NewBadRequestErr("Cluster must be in READY or DISABLED state for upgrade. Current state: " + pool.State)
 	}

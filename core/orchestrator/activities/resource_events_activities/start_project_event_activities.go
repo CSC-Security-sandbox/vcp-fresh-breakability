@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -269,7 +268,7 @@ func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.
 	var vsaError bool
 
 	for _, pool := range allPools {
-		if pool.State == models.LifeCycleStateDisabled {
+		if pool.State == datamodel.LifeCycleStateDisabled {
 			logger.Infof("Skipping pool %s (%s) - in DISABLED state", pool.Name, pool.UUID)
 			continue
 		}
@@ -282,7 +281,7 @@ func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.
 		}
 
 		// Only process READY or ERROR pools for cluster health check and operations
-		if pool.State != models.LifeCycleStateREADY && pool.State != models.LifeCycleStateError {
+		if pool.State != datamodel.LifeCycleStateREADY && pool.State != datamodel.LifeCycleStateError {
 			logger.Infof("Skipping pool %s (%s) - not in READY or ERROR state: %s", pool.Name, pool.UUID, pool.State)
 			vsaError = true
 			continue
@@ -345,9 +344,9 @@ func (j *StartProjectEventActivity) FilterPoolsForClusterOperations(ctx context.
 // isPoolInTransientState checks if pool is in a transient state
 func isPoolInTransientState(state string) bool {
 	transientStates := []string{
-		models.LifeCycleStateCreating,
-		models.LifeCycleStateUpdating,
-		models.LifeCycleStateDeleting,
+		datamodel.LifeCycleStateCreating,
+		datamodel.LifeCycleStateUpdating,
+		datamodel.LifeCycleStateDeleting,
 	}
 	for _, transientState := range transientStates {
 		if state == transientState {
@@ -360,10 +359,10 @@ func isPoolInTransientState(state string) bool {
 // isVolumeInTransientState checks if volume is in a transient state
 func isVolumeInTransientState(state string) bool {
 	transientStates := []string{
-		models.LifeCycleStateCreating,
-		models.LifeCycleStateUpdating,
-		models.LifeCycleStateDeleting,
-		models.LifeCycleStateRestoring,
+		datamodel.LifeCycleStateCreating,
+		datamodel.LifeCycleStateUpdating,
+		datamodel.LifeCycleStateDeleting,
+		datamodel.LifeCycleStateRestoring,
 	}
 	for _, transientState := range transientStates {
 		if state == transientState {
@@ -376,8 +375,8 @@ func isVolumeInTransientState(state string) bool {
 // isSnapshotInTransientState checks if snapshot is in a transient state
 func isSnapshotInTransientState(state string) bool {
 	transientStates := []string{
-		models.LifeCycleStateCreating,
-		models.LifeCycleStateDeleting,
+		datamodel.LifeCycleStateCreating,
+		datamodel.LifeCycleStateDeleting,
 	}
 	for _, transientState := range transientStates {
 		if state == transientState {

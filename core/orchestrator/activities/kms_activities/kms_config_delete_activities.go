@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -60,7 +59,7 @@ func (j *KmsConfigActivity) DisableKmsServiceAccount(ctx context.Context, kmsCon
 		return nil
 	}
 	activity.RecordHeartbeat(ctx, "Disabling KMS service account")
-	_, err := se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails)
+	_, err := se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 	return err
 }
 
@@ -71,7 +70,7 @@ func (a *KmsConfigActivity) DeleteKmsConfig(ctx context.Context, kmsConfig *data
 	se := a.SE
 
 	activity.RecordHeartbeat(ctx, "Deleting KMS configuration from database")
-	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails)
+	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeletedDetails)
 	if err != nil {
 		// Idempotent delete: When a CREATE workflow is cancelled and rolled back, it may delete the KMS config record before the DELETE
 		// workflow runs. In this case, the record won't exist in the database, but the delete operation should still succeed since the

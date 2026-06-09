@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -88,7 +87,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 				IsAdhocBackupImmutable:                 false,
 			},
 			CrossRegionBackupVaultName: &dstBVname,
-			ServiceType:                coremodels.ServiceTypeGCNV,
+			ServiceType:                datamodel.ServiceTypeGCNV,
 		}
 
 		result, err := ConvertToBackupVaultDataModel(bv, locationId)
@@ -122,7 +121,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 				IsAdhocBackupImmutable:                 false,
 			},
 			CrossRegionBackupVaultName: nil,
-			ServiceType:                coremodels.ServiceTypeGCNV,
+			ServiceType:                datamodel.ServiceTypeGCNV,
 		}
 
 		result, err := _convertToBackupVaultDataModel(bv, locationId)
@@ -629,7 +628,7 @@ func TestWaitForSDECmekRotationCompletion_Completed(t *testing.T) {
 		BackupVaultID: "vault-123",
 	}
 
-	state := coremodels.EncryptionStateCompleted
+	state := datamodel.EncryptionStateCompleted
 	mockClient.On("V1betaListBackupVaults", mock.Anything).
 		Return(&backup_vault.V1betaListBackupVaultsOK{
 			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
@@ -668,7 +667,7 @@ func TestWaitForSDECmekRotationCompletion_Failed(t *testing.T) {
 		BackupVaultID: "vault-123",
 	}
 
-	state := coremodels.EncryptionStateFailed
+	state := datamodel.EncryptionStateFailed
 	mockClient.On("V1betaListBackupVaults", mock.Anything).
 		Return(&backup_vault.V1betaListBackupVaultsOK{
 			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
@@ -1040,8 +1039,8 @@ func TestUpdateDeletedBackupVaultStateInCaseOfErrorSuccess(t *testing.T) {
 		AccountID: 1,
 		Name:      "test-vault",
 	}
-	state := coremodels.LifeCycleStateREADY
-	stateDetails := coremodels.LifeCycleStateAvailableDetails
+	state := datamodel.LifeCycleStateREADY
+	stateDetails := datamodel.LifeCycleStateAvailableDetails
 
 	restored := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
@@ -1072,8 +1071,8 @@ func TestUpdateDeletedBackupVaultStateInCaseOfErrorFailure(t *testing.T) {
 		AccountID: 1,
 		Name:      "test-vault",
 	}
-	state := coremodels.LifeCycleStateREADY
-	stateDetails := coremodels.LifeCycleStateAvailableDetails
+	state := datamodel.LifeCycleStateREADY
+	stateDetails := datamodel.LifeCycleStateAvailableDetails
 
 	mockStorage.On("RestoreDeletedBackupVault", ctx, "bv-uuid", int64(1), state, stateDetails).Return(nil, errors.New("restore failed")).Once()
 
@@ -2089,7 +2088,7 @@ func TestCleanupBackupVault(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			Name:        "cross-project-vault",
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		scheduledEnabled := true
@@ -2132,7 +2131,7 @@ func TestCleanupBackupVault(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			Name:        "cross-project-vault",
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		sameAccountVolume := &datamodel.Volume{
@@ -2166,7 +2165,7 @@ func TestCleanupBackupVault(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			Name:        "cross-project-vault",
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		// Mock detach failure
@@ -2210,7 +2209,7 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 		vault := &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		scheduledEnabled := true
@@ -2265,7 +2264,7 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 		vault := &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		crossProjectVolume := &datamodel.Volume{
@@ -2398,7 +2397,7 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 		vault := &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
 			AccountID:   100,
-			ServiceType: coremodels.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 
 		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{}, nil)
@@ -3923,8 +3922,8 @@ func TestBackupVaultActivity_ApplyBackupVaultUpdateParams(t *testing.T) {
 		assert.Equal(t, bv.BaseModel, got.BaseModel)
 		assert.Equal(t, bv.AccountID, got.AccountID)
 		assert.Equal(t, bv.ExternalUUID, got.ExternalUUID)
-		assert.Equal(t, coremodels.LifeCycleStateREADY, got.LifeCycleState)
-		assert.Equal(t, coremodels.LifeCycleStateAvailableDetails, got.LifeCycleStateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateREADY, got.LifeCycleState)
+		assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, got.LifeCycleStateDetails)
 	})
 
 	t.Run("keeps_description_when_params_description_nil", func(t *testing.T) {

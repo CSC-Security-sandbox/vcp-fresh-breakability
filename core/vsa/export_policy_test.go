@@ -2614,8 +2614,8 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashFlagDisabled(t *testing.
 
 func TestConvertStorageExportPolicyRuleToONTAP_ReadNoneEmitsNever(t *testing.T) {
 	tests := []struct {
-		name  string
-		rule  ExportRule
+		name string
+		rule ExportRule
 	}{
 		{
 			name: "READ_NONE with NFSv3 set",

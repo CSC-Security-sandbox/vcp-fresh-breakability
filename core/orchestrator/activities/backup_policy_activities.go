@@ -11,7 +11,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -50,8 +49,8 @@ func (j *BackupPolicyActivity) UpdateBackupPolicyInVCP(ctx context.Context, para
 	se := j.SE
 
 	updates := map[string]interface{}{
-		"life_cycle_state":         models.LifeCycleStateREADY,
-		"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+		"life_cycle_state":         datamodel.LifeCycleStateREADY,
+		"life_cycle_state_details": datamodel.LifeCycleStateReadyDetails,
 	}
 	if params.Description != nil {
 		updates["description"] = *params.Description
@@ -83,8 +82,8 @@ func (j *BackupPolicyActivity) RevertBackupPolicyUpdateInVCP(ctx context.Context
 		"daily_backups_to_keep":    dbBackupPolicy.DailyBackupsToKeep,
 		"weekly_backups_to_keep":   dbBackupPolicy.WeeklyBackupsToKeep,
 		"monthly_backups_to_keep":  dbBackupPolicy.MonthlyBackupsToKeep,
-		"life_cycle_state":         models.LifeCycleStateREADY,
-		"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+		"life_cycle_state":         datamodel.LifeCycleStateREADY,
+		"life_cycle_state_details": datamodel.LifeCycleStateReadyDetails,
 	}
 	updated, err := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
 	if err != nil {
@@ -344,8 +343,8 @@ func _convertToBackupPolicyDataModel(backupPolicy *cvpmodels.BackupPolicyDetails
 		monthlyLimit = *backupPolicy.MonthlyBackupLimit
 	}
 	var lifeCycleStateDetails string
-	if backupPolicy.State == models.LifeCycleStateREADY {
-		lifeCycleStateDetails = models.LifeCycleStateAvailableDetails
+	if backupPolicy.State == datamodel.LifeCycleStateREADY {
+		lifeCycleStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 	return &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{

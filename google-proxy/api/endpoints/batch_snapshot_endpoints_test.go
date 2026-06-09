@@ -18,6 +18,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -223,7 +224,7 @@ func TestV1betaBatchListSnapshots_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		snap := makeVCPModelSnapshot("snap-1", "res-1", models.LifeCycleStateREADY)
+		snap := makeVCPModelSnapshot("snap-1", "res-1", datamodel.LifeCycleStateREADY)
 		mockOrch.On("GetSnapshotsByUUIDs", mock.Anything, []string{"snap-1"}, mock.Anything).
 			Return([]*models.Snapshot{snap}, nil)
 
@@ -279,7 +280,7 @@ func TestV1betaBatchListSnapshots_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		snap := makeVCPModelSnapshot("snap-1", "res-1", models.LifeCycleStateREADY)
+		snap := makeVCPModelSnapshot("snap-1", "res-1", datamodel.LifeCycleStateREADY)
 		mockOrch.On("GetSnapshotsByUUIDs", mock.Anything, []string{"snap-1"}, mock.Anything).
 			Return([]*models.Snapshot{snap}, nil)
 
@@ -314,7 +315,7 @@ func TestV1betaBatchListSnapshots_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		vcpSnap := makeVCPModelSnapshot("vcp-1", "vcp-res", models.LifeCycleStateREADY)
+		vcpSnap := makeVCPModelSnapshot("vcp-1", "vcp-res", datamodel.LifeCycleStateREADY)
 		mockOrch.On("GetSnapshotsByUUIDs", mock.Anything, []string{"vcp-1", "sde-1"}, mock.Anything).
 			Return([]*models.Snapshot{vcpSnap}, nil)
 
@@ -385,7 +386,7 @@ func TestV1betaBatchListSnapshots_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		vcpSnap := makeVCPModelSnapshot("vcp-1", "vcp-res", models.LifeCycleStateREADY)
+		vcpSnap := makeVCPModelSnapshot("vcp-1", "vcp-res", datamodel.LifeCycleStateREADY)
 		mockOrch.On("GetSnapshotsByUUIDs", mock.Anything, []string{"vcp-1"}, mock.Anything).
 			Return([]*models.Snapshot{vcpSnap}, nil)
 
@@ -497,7 +498,7 @@ func TestMapLifecycleToBatchSnapshotState(t *testing.T) {
 }
 
 func TestConvertSnapshotToBatchSnapshot(t *testing.T) {
-	snap := makeVCPModelSnapshot("id-1", "res", models.LifeCycleStateREADY)
+	snap := makeVCPModelSnapshot("id-1", "res", datamodel.LifeCycleStateREADY)
 	t.Run("nilFieldSet", func(tt *testing.T) {
 		out := convertSnapshotToBatchSnapshot(snap, nil)
 		assert.True(tt, out.SnapshotId.Set)

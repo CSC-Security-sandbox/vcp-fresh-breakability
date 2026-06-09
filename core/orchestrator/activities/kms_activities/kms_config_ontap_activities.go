@@ -76,7 +76,7 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 		return nil, err
 	}
 
-	_, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, coreModels.LifeCycleStateInUse, coreModels.LifeCycleStateInUseDetails)
+	_, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails)
 	if err != nil {
 		return nil, err
 	}

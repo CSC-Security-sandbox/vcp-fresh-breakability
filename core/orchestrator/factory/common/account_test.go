@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"gorm.io/gorm"
@@ -31,7 +30,7 @@ func TestGetAccount(t *testing.T) {
 					UUID: "test-uuid",
 				},
 				Name:  "test-account",
-				State: models.AccountStateEnabled,
+				State: datamodel.AccountStateEnabled,
 			},
 			mockError:     nil,
 			expectedError: false,
@@ -87,7 +86,7 @@ func TestCreateAccount(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				Name:  "new-account",
-				State: models.AccountStateEnabled,
+				State: datamodel.AccountStateEnabled,
 			},
 			mockError:     nil,
 			expectedError: false,
@@ -109,7 +108,7 @@ func TestCreateAccount(t *testing.T) {
 			mockStorage.EXPECT().
 				CreateAccount(ctx, mock.MatchedBy(func(account *datamodel.Account) bool {
 					return account.Name == tt.accountName &&
-						account.State == models.AccountStateEnabled &&
+						account.State == datamodel.AccountStateEnabled &&
 						account.UUID != ""
 				})).
 				Return(tt.mockAccount, tt.mockError)
@@ -123,7 +122,7 @@ func TestCreateAccount(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 				assert.Equal(t, tt.accountName, result.Name)
-				assert.Equal(t, models.AccountStateEnabled, result.State)
+				assert.Equal(t, datamodel.AccountStateEnabled, result.State)
 				assert.NotEmpty(t, result.UUID)
 			}
 		})
@@ -150,14 +149,14 @@ func TestGetOrCreateAccount(t *testing.T) {
 			getAccountResult: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-uuid"},
 				Name:      "existing-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			getAccountError: nil,
 			expectedError:   false,
 			expectedAccount: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-uuid"},
 				Name:      "existing-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			scenario: "exists_enabled",
 		},
@@ -167,7 +166,7 @@ func TestGetOrCreateAccount(t *testing.T) {
 			getAccountResult: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "disabled-uuid"},
 				Name:      "disabled-account",
-				State:     models.AccountStateDisabled,
+				State:     datamodel.AccountStateDisabled,
 			},
 			getAccountError: nil,
 			expectedError:   true,
@@ -184,7 +183,7 @@ func TestGetOrCreateAccount(t *testing.T) {
 					DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
 				},
 				Name:  "deleted-account",
-				State: models.AccountStateEnabled,
+				State: datamodel.AccountStateEnabled,
 			},
 			getAccountError: nil,
 			expectedError:   true,
@@ -199,14 +198,14 @@ func TestGetOrCreateAccount(t *testing.T) {
 			createAccountResult: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "new-uuid"},
 				Name:      "new-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			createAccountError: nil,
 			expectedError:      false,
 			expectedAccount: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "new-uuid"},
 				Name:      "new-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			scenario: "create_success",
 		},
@@ -220,14 +219,14 @@ func TestGetOrCreateAccount(t *testing.T) {
 			secondGetAccountResult: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "race-uuid"},
 				Name:      "race-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			secondGetAccountError: nil,
 			expectedError:         false,
 			expectedAccount: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "race-uuid"},
 				Name:      "race-account",
-				State:     models.AccountStateEnabled,
+				State:     datamodel.AccountStateEnabled,
 			},
 			scenario: "create_race_condition",
 		},
@@ -262,7 +261,7 @@ func TestGetOrCreateAccount(t *testing.T) {
 				mockStorage.EXPECT().
 					CreateAccount(ctx, mock.MatchedBy(func(account *datamodel.Account) bool {
 						return account.Name == tt.accountName &&
-							account.State == models.AccountStateEnabled
+							account.State == datamodel.AccountStateEnabled
 					})).
 					Return(tt.createAccountResult, tt.createAccountError).
 					Once()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewReplicationDeleteHandler() *ReplicationDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the replication delete handler.
-func (h *ReplicationDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeleteVolumeReplicationInternal,
-		models.JobTypeDeleteVolumeReplication,
+func (h *ReplicationDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeleteVolumeReplicationInternal,
+		datamodel.JobTypeDeleteVolumeReplication,
 	}
 }
 
@@ -57,7 +56,7 @@ func (h *ReplicationDeleteHandler) Handle(ctx context.Context, job *datamodel.Jo
 	}
 
 	// Only revert if replication is in DELETING state
-	if replication.State != models.LifeCycleStateDeleting {
+	if replication.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: replication %s not in DELETING state (%s); skipping delete cleanup", replication.UUID, replication.State)
 		return nil
 	}
@@ -68,8 +67,8 @@ func (h *ReplicationDeleteHandler) Handle(ctx context.Context, job *datamodel.Jo
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for replication %s, defaulting to AVAILABLE", replication.UUID)
-		previousState = models.LifeCycleStateAvailable
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateAvailable
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	replication.State = previousState

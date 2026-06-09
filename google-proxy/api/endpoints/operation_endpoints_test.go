@@ -14,6 +14,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -191,7 +192,7 @@ func TestReturnsBadRequestForJobStateError(t *testing.T) {
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:      models.JobsStateERROR,
+		State:      datamodel.JobsStateERROR,
 		TrackingID: 1123,
 	}
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
@@ -225,7 +226,7 @@ func TestReturnsOperationForJobStateNew(t *testing.T) {
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:      models.JobsStateNEW,
+		State:      datamodel.JobsStateNEW,
 		TrackingID: 1123,
 	}
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
@@ -259,7 +260,7 @@ func TestReturnsOperationForJobStateProcessing(t *testing.T) {
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:      models.JobsStatePROCESSING,
+		State:      datamodel.JobsStatePROCESSING,
 		TrackingID: 1123,
 	}
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
@@ -293,7 +294,7 @@ func TestReturnsOperationForJobStateDone(t *testing.T) {
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:      models.JobsStateDONE,
+		State:      datamodel.JobsStateDONE,
 		TrackingID: 1123,
 	}
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
@@ -429,7 +430,7 @@ func TestReturnsOperationForJobStateWaitForTemporal(t *testing.T) {
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:      models.JobsStateWaitForTemporal,
+		State:      datamodel.JobsStateWaitForTemporal,
 		TrackingID: 1123,
 	}
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
@@ -470,7 +471,7 @@ func TestReturnsOperationForJobStateErrorWithRestoreVolumeValidation(t *testing.
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:        models.JobsStateERROR,
+		State:        datamodel.JobsStateERROR,
 		TrackingID:   7008, // vsaerrors.ErrRestoreVolumeValidation
 		ErrorDetails: []byte("Custom restore volume validation error message"),
 	}
@@ -511,7 +512,7 @@ func TestReturnsOperationForJobStateErrorWithSnapshotNotAllowedForVolume(t *test
 	}
 	mockAsync := &async.MockClientService{}
 	job := &models.Job{
-		State:        models.JobsStateERROR,
+		State:        datamodel.JobsStateERROR,
 		TrackingID:   vsaerrors.ErrSnapshotNotAllowedForVolume,
 		ErrorDetails: []byte("snapshot creation operation not allowed for this volume"),
 	}
@@ -554,7 +555,7 @@ func TestReturnsOperationForJobStateErrorWithKMSMigrationSdeClientError(t *testi
 	mockAsync := &async.MockClientService{}
 	sdeDetails := "kms key is disabled or missing IAM binding"
 	job := &models.Job{
-		State:        models.JobsStateERROR,
+		State:        datamodel.JobsStateERROR,
 		TrackingID:   vsaerrors.ErrKMSMigrationSdeClientError,
 		ErrorDetails: []byte(sdeDetails),
 	}
@@ -593,8 +594,8 @@ func TestV1betaDescribeOperation_RotateCmekBackupsErrorSurfacesDetailsAnd400OnKm
 	}
 	details := "KMS key mismatch after rotation for object bucket/obj: expected v280, got v279"
 	job := &models.Job{
-		Type:         models.JobTypeRotateCmekBackups,
-		State:        models.JobsStateERROR,
+		Type:         datamodel.JobTypeRotateCmekBackups,
+		State:        datamodel.JobsStateERROR,
 		TrackingID:   vsaerrors.ErrGCPResourceProvisionError,
 		ErrorDetails: []byte(details),
 	}
@@ -630,8 +631,8 @@ func TestV1betaDescribeOperation_RotateCmekBackupsErrorWithoutKmsMismatchKeepsCa
 	}
 	details := "RotateBucketCmekActivity failed for bucket b: context deadline exceeded"
 	job := &models.Job{
-		Type:         models.JobTypeRotateCmekBackups,
-		State:        models.JobsStateERROR,
+		Type:         datamodel.JobTypeRotateCmekBackups,
+		State:        datamodel.JobsStateERROR,
 		TrackingID:   vsaerrors.ErrGCPResourceProvisionError,
 		ErrorDetails: []byte(details),
 	}
@@ -656,7 +657,7 @@ func TestDescribeOperationSurfaceJobErrorDetails(t *testing.T) {
 	assert.False(t, describeOperationSurfaceJobErrorDetails(nil))
 
 	rotateWithDetails := &models.Job{
-		Type:         models.JobTypeRotateCmekBackups,
+		Type:         datamodel.JobTypeRotateCmekBackups,
 		ErrorDetails: []byte("any"),
 	}
 	assert.True(t, describeOperationSurfaceJobErrorDetails(rotateWithDetails))
@@ -716,7 +717,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_NEW(t *testing.T) {
 	// Mock job with NEW state
 	job := &models.Job{
 		TrackingID: 2001,
-		State:      models.JobsStateNEW,
+		State:      datamodel.JobsStateNEW,
 	}
 
 	mockOrch.On("GetJob", mock.Anything, mock.Anything).Return(job, nil)
@@ -756,7 +757,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_DONE(t *testing.T) {
 
 	job := &models.Job{
 		TrackingID: 2002,
-		State:      models.JobsStateDONE,
+		State:      datamodel.JobsStateDONE,
 	}
 
 	operationId := "ba2c8826-2627-057c-42ba-343ee7ab1ebe"
@@ -793,7 +794,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_ERROR(t *testing.T) {
 
 	job := &models.Job{
 		TrackingID: 4001,
-		State:      models.JobsStateERROR,
+		State:      datamodel.JobsStateERROR,
 	}
 
 	operationId := "ba2c8826-2627-057c-42ba-343ee7ab1ebe"
@@ -836,7 +837,7 @@ func TestV1betaInternalDescribeOperation_Success(t *testing.T) {
 			UUID: operationId,
 		},
 		TrackingID: 2001,
-		State:      models.JobsStateDONE,
+		State:      datamodel.JobsStateDONE,
 	}
 
 	mockOrchestrator.EXPECT().GetJob(mock.Anything, operationId).Return(job, nil)
@@ -883,7 +884,7 @@ func TestV1betaInternalDescribeOperation_JobInProgress(t *testing.T) {
 		},
 		CorrelationID: "test-correlation-id",
 		TrackingID:    0,
-		State:         models.JobsStatePROCESSING,
+		State:         datamodel.JobsStatePROCESSING,
 		WorkflowID:    "CreateVolumeWorkflow_test",
 	}
 
@@ -931,7 +932,7 @@ func TestV1betaInternalDescribeOperation_JobError(t *testing.T) {
 		},
 		CorrelationID: "test-correlation-id",
 		TrackingID:    vsaerrors.ErrDatabaseConnectionClosed,
-		State:         models.JobsStateERROR,
+		State:         datamodel.JobsStateERROR,
 		WorkflowID:    "CreateVolumeWorkflow_test",
 		ErrorDetails:  []byte("Database connection was closed unexpectedly"),
 	}
@@ -983,7 +984,7 @@ func TestV1betaInternalDescribeOperation_RestoreVolumeValidationError(t *testing
 		},
 		CorrelationID: "test-correlation-id",
 		TrackingID:    vsaerrors.ErrRestoreVolumeValidation,
-		State:         models.JobsStateERROR,
+		State:         datamodel.JobsStateERROR,
 		WorkflowID:    "RestoreVolumeWorkflow_test",
 		ErrorDetails:  []byte(customErrorDetails),
 	}
@@ -1035,7 +1036,7 @@ func TestV1betaInternalDescribeOperation_SnapshotNotAllowedForVolumeError(t *tes
 		},
 		CorrelationID: "test-correlation-id",
 		TrackingID:    vsaerrors.ErrSnapshotNotAllowedForVolume,
-		State:         models.JobsStateERROR,
+		State:         datamodel.JobsStateERROR,
 		WorkflowID:    "CreateSnapshotWorkflow_test",
 		ErrorDetails:  []byte(customErrorDetails),
 	}
@@ -1088,7 +1089,7 @@ func TestV1betaInternalDescribeOperation_KMSMigrationSdeClientError(t *testing.T
 		},
 		CorrelationID: "test-correlation-id",
 		TrackingID:    vsaerrors.ErrKMSMigrationSdeClientError,
-		State:         models.JobsStateERROR,
+		State:         datamodel.JobsStateERROR,
 		WorkflowID:    "MigrateKmsConfigWorkflow_test",
 		ErrorDetails:  []byte(customErrorDetails),
 	}
@@ -1208,14 +1209,14 @@ func TestV1betaInternalDescribeOperation_DatabaseError(t *testing.T) {
 func TestV1betaInternalDescribeOperation_JobStatesMapping(t *testing.T) {
 	testCases := []struct {
 		name         string
-		jobState     models.JobState
+		jobState     datamodel.JobState
 		expectedDone bool
 	}{
-		{"New Job", models.JobsStateNEW, false},
-		{"Processing Job", models.JobsStatePROCESSING, false},
-		{"Waiting for Temporal", models.JobsStateWaitForTemporal, false},
-		{"Done Job", models.JobsStateDONE, true},
-		{"Error Job", models.JobsStateERROR, true},
+		{"New Job", datamodel.JobsStateNEW, false},
+		{"Processing Job", datamodel.JobsStatePROCESSING, false},
+		{"Waiting for Temporal", datamodel.JobsStateWaitForTemporal, false},
+		{"Done Job", datamodel.JobsStateDONE, true},
+		{"Error Job", datamodel.JobsStateERROR, true},
 	}
 
 	for _, tc := range testCases {
@@ -1283,8 +1284,8 @@ func TestV1betaDescribeOperation_ResumeVolumeReplication_QuotaRuleFailure(t *tes
 
 	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeResumeVolumeReplication,
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeResumeVolumeReplication,
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}
@@ -1331,8 +1332,8 @@ func TestV1betaDescribeOperation_ReverseResumeVolumeReplication_QuotaRuleFailure
 
 	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeReverseResumeVolumeReplication,
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeReverseResumeVolumeReplication,
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}
@@ -1381,8 +1382,8 @@ func TestV1betaDescribeOperation_StopVolumeReplication_QuotaRuleFailure(t *testi
 
 	errorDetails := "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeStopVolumeReplication, // Main stop job type (not internal)
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeStopVolumeReplication, // Main stop job type (not internal)
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}
@@ -1430,8 +1431,8 @@ func TestV1betaInternalDescribeOperation_StopInternal_QuotaRuleFailure(t *testin
 
 	errorDetails := "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeStopVolumeReplicationInternal,
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeStopVolumeReplicationInternal,
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}
@@ -1471,8 +1472,8 @@ func TestV1betaDescribeOperation_Done_NoQuotaRuleFailure(t *testing.T) {
 	}
 
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeResumeVolumeReplication,
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeResumeVolumeReplication,
 		ErrorDetails: []byte(""),
 		TrackingID:   0,
 	}
@@ -1514,8 +1515,8 @@ func TestV1betaDescribeOperation_InternalResume_NoMetadata(t *testing.T) {
 	// Internal resume should NOT trigger metadata even with quota error
 	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
 	job := &models.Job{
-		State:        models.JobsStateDONE,
-		Type:         models.JobTypeResumeVolumeReplicationInternal,
+		State:        datamodel.JobsStateDONE,
+		Type:         datamodel.JobTypeResumeVolumeReplicationInternal,
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}

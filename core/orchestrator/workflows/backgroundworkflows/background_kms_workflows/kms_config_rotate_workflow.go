@@ -3,7 +3,6 @@ package background_kms_workflows
 import (
 	"errors"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -31,7 +30,7 @@ func RotateKmsConfigWorkflow(ctx workflow.Context, params *common.RotateKmsConfi
 	}
 
 	rotateKmsConfigWf.Status = workflows.WorkflowStatusRunning
-	err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -39,12 +38,12 @@ func RotateKmsConfigWorkflow(ctx workflow.Context, params *common.RotateKmsConfi
 	_, customError := rotateKmsConfigWf.Run(ctx, params)
 	if customError != nil {
 		rotateKmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSRotate, customError)))
+		err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSRotate, customError)))
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	rotateKmsConfigWf.Status = workflows.WorkflowStatusCompleted
-	err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = rotateKmsConfigWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

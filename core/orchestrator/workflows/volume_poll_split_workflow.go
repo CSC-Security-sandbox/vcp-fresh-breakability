@@ -69,7 +69,7 @@ func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for VolumePollSplitWorkflow, continuing as new:%v", err)
 		return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
@@ -84,7 +84,7 @@ func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 		}
 		log.Errorf("VolumePollSplitWorkflow completed with error: %v", errRun)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errRun)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to ERROR for VolumePollSplitWorkflow: %v", err2)
 			return err2
@@ -93,7 +93,7 @@ func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for VolumePollSplitWorkflow, continuing as new:  %v", err)
 		return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
@@ -166,7 +166,7 @@ func (wf *volumePollSplitWorkflow) Run(ctx workflow.Context, args ...interface{}
 			// synchronously before the workflow was dispatched).
 			// classifyONTAPSplitError sets the user-facing message in CustomError.Message
 			// and stores the raw ONTAP text in OriginalErr (already logged at poll time).
-			cloneState = models.CloneStateErrorInSplitting
+			cloneState = datamodel.CloneStateErrorInSplitting
 			stateDetails = runErr.GetMessage()
 		}
 		if updateErr := workflow.ExecuteActivity(

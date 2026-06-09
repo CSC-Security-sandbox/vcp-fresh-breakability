@@ -14,7 +14,7 @@ type CreateFlexCacheResult struct {
 	SVMPeer           *vsa.SvmPeer
 	VolumeResponse    *vsa.VolumeResponse
 	JobInput          *JobActivityInput
-	ActiveJobType     models.JobType
+	ActiveJobType     datamodel.JobType
 	ErrorTrackingID   int
 	ErrorMessage      string
 	ClusterPeerAction Action

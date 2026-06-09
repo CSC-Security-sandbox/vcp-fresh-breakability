@@ -1855,11 +1855,11 @@ func TestUpdatesSVMStatusToErrorWhenMarkedForDeletion(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	svms := []*datamodel.Svm{
-		{State: coremodel.LifeCycleStateDeleting, BaseModel: datamodel.BaseModel{ID: 1}},
+		{State: datamodel.LifeCycleStateDeleting, BaseModel: datamodel.BaseModel{ID: 1}},
 	}
 
 	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
-	mockStorage.On("ErroredSVM", ctx, svms[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(nil)
+	mockStorage.On("ErroredSVM", ctx, svms[0], datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 	err := activities.FailedSVMs(ctx, mockStorage, pool)
 
@@ -1886,11 +1886,11 @@ func TestReturnsErrorWhenErroredSVMFails(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	svms := []*datamodel.Svm{
-		{State: coremodel.LifeCycleStateDeleting},
+		{State: datamodel.LifeCycleStateDeleting},
 	}
 
 	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
-	mockStorage.On("ErroredSVM", ctx, svms[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update SVM"))
+	mockStorage.On("ErroredSVM", ctx, svms[0], datamodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update SVM"))
 
 	err := activities.FailedSVMs(ctx, mockStorage, pool)
 
@@ -1904,7 +1904,7 @@ func TestSkipsSVMsNotMarkedForDeletion(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	svms := []*datamodel.Svm{
-		{State: coremodel.LifeCycleStateREADY},
+		{State: datamodel.LifeCycleStateREADY},
 	}
 
 	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
@@ -1920,11 +1920,11 @@ func TestUpdatesNodeStatusToErrorWhenMarkedForDeletion(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	nodes := []*datamodel.Node{
-		{State: coremodel.LifeCycleStateDeleting},
+		{State: datamodel.LifeCycleStateDeleting},
 	}
 
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("ErroredNode", ctx, nodes[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(nil)
+	mockStorage.On("ErroredNode", ctx, nodes[0], datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 	err := activities.FailedNodes(ctx, mockStorage, pool)
 
@@ -1951,11 +1951,11 @@ func TestReturnsErrorWhenErroredNodeFails(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	nodes := []*datamodel.Node{
-		{State: coremodel.LifeCycleStateDeleting},
+		{State: datamodel.LifeCycleStateDeleting},
 	}
 
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
-	mockStorage.On("ErroredNode", ctx, nodes[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update node"))
+	mockStorage.On("ErroredNode", ctx, nodes[0], datamodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update node"))
 
 	err := activities.FailedNodes(ctx, mockStorage, pool)
 
@@ -1969,7 +1969,7 @@ func TestSkipsNodesNotMarkedForDeletion(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	nodes := []*datamodel.Node{
-		{State: coremodel.LifeCycleStateREADY},
+		{State: datamodel.LifeCycleStateREADY},
 	}
 
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
@@ -2096,7 +2096,7 @@ func Test_UpdatesAllSVMsToDeletingSuccessfully(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	svms := []*datamodel.Svm{
-		{Name: "svm1", State: coremodel.LifeCycleStateDeleting},
+		{Name: "svm1", State: datamodel.LifeCycleStateDeleting},
 		{Name: "svm2"},
 	}
 
@@ -2114,7 +2114,7 @@ func Test_DeletingAllNodesSuccessfully(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	nodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: coremodel.LifeCycleStateDeleting},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: datamodel.LifeCycleStateDeleting},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2"},
 	}
 
@@ -4448,7 +4448,7 @@ func TestMarksPoolAndResourcesAsFailedWhenErroredResourceSucceeds(t *testing.T) 
 	err := activity.FailedPool(ctx, pool, "error during pool deletion")
 
 	assert.NoError(t, err)
-	assert.Equal(t, coremodel.LifeCycleStateError, pool.State)
+	assert.Equal(t, datamodel.LifeCycleStateError, pool.State)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -5321,11 +5321,11 @@ func TestPoolActivity_FailedPool_Success(t *testing.T) {
 			UUID: "test-uuid",
 		},
 		Name:  "test-pool",
-		State: coremodel.LifeCycleStateError,
+		State: datamodel.LifeCycleStateError,
 	}
 
 	mockStorage.On("ErroredResource", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
-		return p.State == coremodel.LifeCycleStateError
+		return p.State == datamodel.LifeCycleStateError
 	}), errMsg).Return(expectedPool, nil)
 
 	originalFailedSVMs := activities.FailedSVMs
@@ -5347,7 +5347,7 @@ func TestPoolActivity_FailedPool_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, coremodel.LifeCycleStateError, pool.State)
+	assert.Equal(t, datamodel.LifeCycleStateError, pool.State)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -5367,7 +5367,7 @@ func TestPoolActivity_FailedPool_ErroredResourceFails(t *testing.T) {
 	errMsg := "test error message"
 
 	mockStorage.On("ErroredResource", ctx, mock.MatchedBy(func(p *datamodel.Pool) bool {
-		return p.State == coremodel.LifeCycleStateError
+		return p.State == datamodel.LifeCycleStateError
 	}), errMsg).Return(nil, errors.New("database error"))
 
 	// Act
@@ -6014,7 +6014,7 @@ func TestUpdatingPool(t *testing.T) {
 		env.RegisterActivity(activity.UpdatingPool)
 
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
-		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: coremodel.LifeCycleStateUpdating, StateDetails: coremodel.LifeCycleStateUpdatingDetails}
+		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: datamodel.LifeCycleStateUpdating, StateDetails: datamodel.LifeCycleStateUpdatingDetails}
 
 		mockSE.On("UpdatingPool", mock.Anything, pool).Return(seResult, nil)
 		encodedValue, err := env.ExecuteActivity(activity.UpdatingPool, pool)
@@ -6023,8 +6023,8 @@ func TestUpdatingPool(t *testing.T) {
 		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, coremodel.LifeCycleStateUpdating, result.State)
-		assert.Equal(t, coremodel.LifeCycleStateUpdatingDetails, result.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateUpdating, result.State)
+		assert.Equal(t, datamodel.LifeCycleStateUpdatingDetails, result.StateDetails)
 	})
 	t.Run("WhenUpdatingPoolReturnsError", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
@@ -6050,14 +6050,14 @@ func TestUpdatePoolState(t *testing.T) {
 		activity := &activities.PoolActivity{SE: mockSE}
 		ctx := context.Background()
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
-		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: coremodel.LifeCycleStateInUse, StateDetails: coremodel.LifeCycleStateInUseDetails}
+		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: datamodel.LifeCycleStateInUse, StateDetails: datamodel.LifeCycleStateInUseDetails}
 
-		mockSE.On("UpdatePoolState", ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails).Return(seResult, nil)
-		result, err := activity.UpdatePoolState(ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails)
+		mockSE.On("UpdatePoolState", ctx, pool, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails).Return(seResult, nil)
+		result, err := activity.UpdatePoolState(ctx, pool, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, coremodel.LifeCycleStateInUse, result.State)
-		assert.Equal(t, coremodel.LifeCycleStateInUseDetails, result.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateInUse, result.State)
+		assert.Equal(t, datamodel.LifeCycleStateInUseDetails, result.StateDetails)
 	})
 	t.Run("WhenUpdatePoolStateReturnsError", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
@@ -6065,8 +6065,8 @@ func TestUpdatePoolState(t *testing.T) {
 		ctx := context.Background()
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
-		mockSE.On("UpdatePoolState", ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool state update ran into error")))
-		result, err := activity.UpdatePoolState(ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails)
+		mockSE.On("UpdatePoolState", ctx, pool, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool state update ran into error")))
+		result, err := activity.UpdatePoolState(ctx, pool, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails)
 		assert.Nil(t, result)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "pool state update ran into error")
@@ -6536,7 +6536,7 @@ func TestUpdatedPool_Success(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
 		Name:      "test-pool",
-		State:     coremodel.LifeCycleStateInUse,
+		State:     datamodel.LifeCycleStateInUse,
 	}
 
 	mockSE.On("UpdatedPool", mock.Anything, pool).Return(expectedPool, nil)
@@ -6609,7 +6609,7 @@ func TestUpdatedPoolWithVLMConfig_Success(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:   datamodel.BaseModel{ID: 1},
 		Name:        "test-pool",
-		State:       coremodel.LifeCycleStateInUse,
+		State:       datamodel.LifeCycleStateInUse,
 		VLMConfig:   vlmConfigAsStr,
 		SizeInBytes: 1000,
 	}
@@ -6697,7 +6697,7 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringEnabled(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:        datamodel.BaseModel{ID: 1},
 		Name:             "test-pool",
-		State:            coremodel.LifeCycleStateInUse,
+		State:            datamodel.LifeCycleStateInUse,
 		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
 		SizeInBytes:      2000,
 		Description:      "Updated description",
@@ -6775,7 +6775,7 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringOneWayEnablement(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:        datamodel.BaseModel{ID: 1},
 		Name:             "test-pool",
-		State:            coremodel.LifeCycleStateInUse,
+		State:            datamodel.LifeCycleStateInUse,
 		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
 		SizeInBytes:      3000,
 		Description:      "Updated description",
@@ -6849,7 +6849,7 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringDisabled(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:        datamodel.BaseModel{ID: 1},
 		Name:             "test-pool",
-		State:            coremodel.LifeCycleStateInUse,
+		State:            datamodel.LifeCycleStateInUse,
 		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
 		SizeInBytes:      5000,
 		Description:      "Updated description",
@@ -6922,7 +6922,7 @@ func TestUpdatedPoolWithVLMConfig_PreserveBucketName(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:        datamodel.BaseModel{ID: 1},
 		Name:             "test-pool",
-		State:            coremodel.LifeCycleStateInUse,
+		State:            datamodel.LifeCycleStateInUse,
 		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
 		SizeInBytes:      4000,
 		Description:      "Updated description",
@@ -7000,7 +7000,7 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringWithIOPS(t *testing.T) {
 	expectedPool := &datamodel.Pool{
 		BaseModel:        datamodel.BaseModel{ID: 1},
 		Name:             "test-pool",
-		State:            coremodel.LifeCycleStateInUse,
+		State:            datamodel.LifeCycleStateInUse,
 		VLMConfig:        "{\"deployment\":{\"provider\":\"gcp\"}}",
 		SizeInBytes:      5000,
 		Description:      "Updated description with IOPS",
@@ -10309,7 +10309,7 @@ func TestUpdateZoneSwitchPoolAttributes_NilPoolAttributes_ReturnsError(t *testin
 		PoolAttributes: nil,
 	}
 
-	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitching)
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, datamodel.ZoneSwitching)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil PoolAttributes")
 	mockStorage.AssertNotCalled(t, "UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything)
@@ -10327,12 +10327,12 @@ func TestUpdateZoneSwitchPoolAttributes_Success(t *testing.T) {
 
 	mockStorage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		got, ok := updates["pool_attributes"].(*datamodel.PoolAttributes)
-		return ok && got == pa && got.ZoneSwitchState == coremodel.ZoneSwitching
+		return ok && got == pa && got.ZoneSwitchState == datamodel.ZoneSwitching
 	})).Return(nil).Once()
 
-	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitching)
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, datamodel.ZoneSwitching)
 	require.NoError(t, err)
-	assert.Equal(t, coremodel.ZoneSwitching, pa.ZoneSwitchState)
+	assert.Equal(t, datamodel.ZoneSwitching, pa.ZoneSwitchState)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -10348,7 +10348,7 @@ func TestUpdateZoneSwitchPoolAttributes_UpdatePoolFieldsError(t *testing.T) {
 	dbErr := fmt.Errorf("database write failed")
 	mockStorage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.Anything).Return(dbErr).Once()
 
-	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitched)
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, datamodel.ZoneSwitched)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, dbErr)
 	mockStorage.AssertExpectations(t)
@@ -15053,9 +15053,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithCreatePoolJobType(t
 		CorrelationID: correlationID,
 	}
 
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreatePool)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreatePool))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -15078,9 +15078,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithLargePoolJobType(t 
 		CorrelationID: correlationID,
 	}
 
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateLargePool)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreateLargePool)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateLargePool))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreateLargePool))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -15097,9 +15097,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_NotFound(t *testing.T) {
 	resourceUUID := "test-resource-uuid"
 	correlationID := "test-correlation-id"
 
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(nil, errors.New("not found"))
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreatePool)).Return(nil, errors.New("not found"))
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreatePool))
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -15121,9 +15121,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_CorrelationIDMismatch(t *testin
 		CorrelationID: differentCorrelationID,
 	}
 
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreatePool)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreatePool))
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -15145,9 +15145,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_EmptyCorrelationID(t *testing.T
 		CorrelationID: "some-correlation-id",
 	}
 
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreatePool)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreatePool))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -15171,9 +15171,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithVolumeJobType(t *te
 	}
 
 	// Test with volume job type - demonstrating generic functionality
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateVolume)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreateVolume)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateVolume))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreateVolume))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -15197,9 +15197,9 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithSnapshotJobType(t *
 	}
 
 	// Test with snapshot job type - demonstrating generic functionality
-	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateSnapshot)).Return(createJob, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(datamodel.JobTypeCreateSnapshot)).Return(createJob, nil)
 
-	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateSnapshot))
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(datamodel.JobTypeCreateSnapshot))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

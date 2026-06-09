@@ -230,7 +230,7 @@ func TestSplitVolumeArgs_FailedWorkflowJob_UpdateVolumeFieldsFails(t *testing.T)
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-1"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			CloneParentInfo: &datamodel.CloneParentInfo{State: models.CloneStateSplitting},
+			CloneParentInfo: &datamodel.CloneParentInfo{State: datamodel.CloneStateSplitting},
 		},
 	}
 
@@ -252,7 +252,7 @@ func TestSplitVolumeArgs_FailedWorkflowJob_SetsCloneStateToErrorInSplitting(t *t
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-1"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			CloneParentInfo: &datamodel.CloneParentInfo{State: models.CloneStateSplitting},
+			CloneParentInfo: &datamodel.CloneParentInfo{State: datamodel.CloneStateSplitting},
 		},
 	}
 
@@ -264,7 +264,7 @@ func TestSplitVolumeArgs_FailedWorkflowJob_SetsCloneStateToErrorInSplitting(t *t
 				return false
 			}
 			return attrs.CloneParentInfo != nil &&
-				attrs.CloneParentInfo.State == models.CloneStateErrorInSplitting &&
+				attrs.CloneParentInfo.State == datamodel.CloneStateErrorInSplitting &&
 				attrs.CloneParentInfo.StateDetails == reason
 		}),
 	).Return(nil)

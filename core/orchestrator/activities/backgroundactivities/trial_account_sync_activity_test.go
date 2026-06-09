@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/trial"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -161,7 +160,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{UUID: "acct-uuid", ID: 1},
 		Name:      "proj-1",
-		State:     models.AccountStateEnabled,
+		State:     datamodel.AccountStateEnabled,
 		AccountMetadata: &datamodel.AccountMetadata{
 			TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 		},
@@ -199,7 +198,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 		account2 := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "acct-uuid-2", ID: 2},
 			Name:      "proj-2",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 			AccountMetadata: &datamodel.AccountMetadata{
 				TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 			},
@@ -207,7 +206,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 		account3 := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "acct-uuid-3", ID: 3},
 			Name:      "proj-3",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 			AccountMetadata: &datamodel.AccountMetadata{
 				TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 			},
@@ -286,7 +285,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 		blankNameAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "blank-name"},
 			Name:      "   ",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 			AccountMetadata: &datamodel.AccountMetadata{
 				TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 			},
@@ -353,7 +352,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 		account2 := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "acct-uuid-page-2", ID: 2},
 			Name:      "proj-page-2",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 			AccountMetadata: &datamodel.AccountMetadata{
 				TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 			},
@@ -389,7 +388,7 @@ func TestTrialAccountSyncActivity_SyncTrialAccounts(t *testing.T) {
 		euAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "eu-acct"},
 			Name:      "eu-proj",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 			AccountMetadata: &datamodel.AccountMetadata{
 				TrialMode: &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end},
 			},

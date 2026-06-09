@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ipscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -109,7 +108,7 @@ func readyPoolWithSubnet(tenantProject, subnet, zone string) *datamodel.PoolView
 	return &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-1"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			ClusterDetails: datamodel.ClusterDetails{
 				RegionalTenantProject: tenantProject,
 				SubnetNames:           []string{subnet},
@@ -235,18 +234,18 @@ func TestInternalReservedIPDetector_Detect_CoversAdditionalSkipBranches(t *testi
 		{Pool: datamodel.Pool{PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: ""}}}, // empty zone
 		{Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "bad-zone"},
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "not-a-zone"},
 		}},
 		{Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "no-tp"},
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"},
 			ClusterDetails: datamodel.ClusterDetails{SubnetNames: []string{"sn1"}},
 		}},
 		{Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "no-sn"},
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"},
 			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "tp"},
 		}},

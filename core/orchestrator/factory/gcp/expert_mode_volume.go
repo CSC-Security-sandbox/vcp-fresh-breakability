@@ -65,7 +65,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 		return nil, "", customerrors.NewUserInputValidationErr("volume does not belong to the specified pool")
 	}
 
-	if expertModeVolume.State == models.LifeCycleStateDeleting || expertModeVolume.State == models.LifeCycleStateDeleted {
+	if expertModeVolume.State == datamodel.LifeCycleStateDeleting || expertModeVolume.State == datamodel.LifeCycleStateDeleted {
 		return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("volume is not in a ready state (current state: %s)", expertModeVolume.State))
 	}
 
@@ -140,7 +140,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			return nil, "", customerrors.NewNotFoundErr("backup vault", params.BackupVaultID)
 		}
 		if bv != nil {
-			if bv.LifeCycleState == models.LifeCycleStateError {
+			if bv.LifeCycleState == datamodel.LifeCycleStateError {
 				return nil, "", customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
 			if err := validateCRBBackupVault(bv, params.Region); err != nil {
@@ -178,7 +178,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			if backupPolicy == nil && env.UseVCPRegion {
 				return nil, "", customerrors.NewNotFoundErr("backup policy", params.BackupPolicyID)
 			}
-			if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+			if backupPolicy != nil && backupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 				return nil, "", customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 			}
 			if params.ScheduledBackupEnabled == nil {
@@ -231,8 +231,8 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 	previousState := expertModeVolume.State
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeManageBackupConfigExpertModeVolume),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeManageBackupConfigExpertModeVolume),
+		State:        string(datamodel.JobsStateNEW),
 		ResourceName: expertModeVolume.Name,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
@@ -253,7 +253,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 	// Defer 1: mark job as ERROR if anything after this point fails.
 	defer func() {
 		if err != nil && createdJob != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to ERROR", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -262,7 +262,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 	// Mark volume as UPDATING so concurrent operations are blocked while the workflow runs.
 	// Work on a copy to avoid mutating the struct returned from the DB.
 	volCopy := *expertModeVolume
-	volCopy.State = models.LifeCycleStateUpdating
+	volCopy.State = datamodel.LifeCycleStateUpdating
 	_, err = se.UpdateExpertModeVolume(ctx, &volCopy)
 	if err != nil {
 		logger.Error("Failed to update expert mode volume state to UPDATING", "volumeUUID", expertModeVolume.UUID, "error", err)
@@ -373,7 +373,7 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 
 	// Check runs at restore start only. If a previous restore failed and left state in ERROR/RESTORING,
 	// this check fails and blocks starting a new restore until state is corrected (e.g. by defer in SFR workflow).
-	if expertModeVolume.State != models.LifeCycleStateAvailable && expertModeVolume.State != models.LifeCycleStateREADY {
+	if expertModeVolume.State != datamodel.LifeCycleStateAvailable && expertModeVolume.State != datamodel.LifeCycleStateREADY {
 		return "", customerrors.NewUserInputValidationErr("Volume is not available")
 	}
 
@@ -418,7 +418,7 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 		return "", err
 	}
 
-	if backup.State != models.LifeCycleStateAvailable {
+	if backup.State != datamodel.LifeCycleStateAvailable {
 		return "", customerrors.NewUserInputValidationErr("Cannot restore files from backup which is not available")
 	}
 
@@ -426,8 +426,8 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 	stateUpdated := false
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRestoreFilesBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRestoreFilesBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  expertModeVolume.UUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{},
@@ -451,7 +451,7 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 				}
 			}
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -459,7 +459,7 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 	}()
 
 	err = se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
-		"state": models.LifeCycleStateRestoring,
+		"state": datamodel.LifeCycleStateRestoring,
 	})
 	if err != nil {
 		logger.Error("Failed to update expert mode volume state to restoring", "error", err)
@@ -521,7 +521,7 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 		return "", err
 	}
 
-	if expertModeVolume.State != models.LifeCycleStateAvailable {
+	if expertModeVolume.State != datamodel.LifeCycleStateAvailable {
 		return "", customerrors.NewUserInputValidationErr("Volume is not available")
 	}
 
@@ -530,8 +530,8 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 	stateUpdated := false
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRestoreOntapModeBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRestoreOntapModeBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  expertModeVolume.UUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{},
@@ -555,7 +555,7 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 				}
 			}
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -563,7 +563,7 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 	}()
 
 	err = se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
-		"state": models.LifeCycleStateRestoring,
+		"state": datamodel.LifeCycleStateRestoring,
 	})
 	if err != nil {
 		logger.Error("Failed to update expert mode volume state to restoring", "error", err)
@@ -688,7 +688,7 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		PoolID:      dbPoolView.ID,
 		AccountID:   dbPoolView.AccountID,
 		Style:       params.Style,
-		State:       models.LifeCycleStateCreating,
+		State:       datamodel.LifeCycleStateCreating,
 		SvmID:       svm.ID,
 	}
 	if isCloneCreate {
@@ -722,8 +722,8 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	// Create a job for the volume creation workflow
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateExpertModeVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateExpertModeVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  createdVolume.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: createdVolume.UUID, PoolUUID: dbPoolView.UUID},
@@ -740,7 +740,7 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
@@ -908,12 +908,12 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	}
 
 	// Check if volume is already deleted
-	if volume.State == models.LifeCycleStateDeleted {
+	if volume.State == datamodel.LifeCycleStateDeleted {
 		return nil
 	}
 
 	previousState := volume.State
-	volume.State = models.LifeCycleStateDeleting
+	volume.State = datamodel.LifeCycleStateDeleting
 	_, err = se.UpdateExpertModeVolume(ctx, volume)
 	if err != nil {
 		logger.Error("Failed to update volume state to DELETING", "volumeUUID", volume.UUID, "error", err)
@@ -925,8 +925,8 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	// Create a job for the volume deletion workflow
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteExpertModeVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteExpertModeVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
@@ -943,7 +943,7 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	// Defer statement to mark job as errored and revert volume state if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			// Revert volume state only if it was successfully marked as deleting
@@ -997,12 +997,12 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 		return customerrors.NewBadRequestErr("Volume size must be greater than or equal to 0")
 	}
 
-	if volume.State == models.LifeCycleStateDeleted || volume.State == models.LifeCycleStateError {
+	if volume.State == datamodel.LifeCycleStateDeleted || volume.State == datamodel.LifeCycleStateError {
 		logger.Error("Volume is deleted, cannot update", "volumeUUID", volume.ExternalUUID)
 		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is deleted", volume.ExternalUUID))
 	}
 
-	if volume.State == models.LifeCycleStateCreating || volume.State == models.LifeCycleStateDeleting || volume.State == models.LifeCycleStateUpdating {
+	if volume.State == datamodel.LifeCycleStateCreating || volume.State == datamodel.LifeCycleStateDeleting || volume.State == datamodel.LifeCycleStateUpdating {
 		logger.Error("Volume is in a transitional state and cannot be updated", "volumeUUID", volume.ExternalUUID, "state", volume.State)
 		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is in a transitional state and cannot be updated", volume.ExternalUUID))
 	}
@@ -1087,7 +1087,7 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	}
 
 	previousState := volume.State
-	volume.State = models.LifeCycleStateUpdating
+	volume.State = datamodel.LifeCycleStateUpdating
 
 	volumeMarkedAsUpdating := true
 
@@ -1104,7 +1104,7 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	defer func() {
 		if err != nil {
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 				}
 			}
@@ -1122,8 +1122,8 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	// Create a job for the volume update workflow
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateExpertModeVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateExpertModeVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
@@ -1296,7 +1296,7 @@ func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
 	}
 
-	if volume.State == models.LifeCycleStateCreating || volume.State == models.LifeCycleStateDeleting || volume.State == models.LifeCycleStateUpdating {
+	if volume.State == datamodel.LifeCycleStateCreating || volume.State == datamodel.LifeCycleStateDeleting || volume.State == datamodel.LifeCycleStateUpdating {
 		return customerrors.NewBadRequestErr(fmt.Sprintf("volume '%s' is in a transitional state and cannot be renamed", params.VolumeName))
 	}
 
@@ -1312,7 +1312,7 @@ func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	oldName := volume.Name
 	previousState := volume.State
 	volume.Name = params.NewName
-	volume.State = models.LifeCycleStateUpdating
+	volume.State = datamodel.LifeCycleStateUpdating
 	volumeMarkedAsUpdating := true
 
 	oldVolume := &datamodel.ExpertModeVolumes{
@@ -1334,7 +1334,7 @@ func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	defer func() {
 		if err != nil {
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 				}
 			}
@@ -1350,8 +1350,8 @@ func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateExpertModeVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateExpertModeVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
@@ -1436,7 +1436,7 @@ func _startExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, te
 	if volume.AccountID != account.ID {
 		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
 	}
-	if volume.State != models.LifeCycleStateAvailable {
+	if volume.State != datamodel.LifeCycleStateAvailable {
 		return customerrors.NewBadRequestErr(fmt.Sprintf("volume must be AVAILABLE to start flexclone split, current state: %s", volume.State))
 	}
 	if volume.VolumeAttributes == nil || !volume.VolumeAttributes.IsFlexclone {
@@ -1449,7 +1449,7 @@ func _startExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, te
 	}
 
 	previousState := volume.State
-	volume.State = models.LifeCycleStateUpdating
+	volume.State = datamodel.LifeCycleStateUpdating
 	volumeMarkedAsUpdating := true
 
 	updatedVolume, err := se.UpdateExpertModeVolume(ctx, volume)
@@ -1462,7 +1462,7 @@ func _startExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, te
 	defer func() {
 		if err != nil {
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
 					logger.Error("Failed to update flexclone split job to ERROR", "jobID", createdJob.UUID, "error", jobErr)
 				}
 			}
@@ -1477,8 +1477,8 @@ func _startExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, te
 
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeExpertModeFlexCloneSplit),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeFlexCloneSplit),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  updatedVolume.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: updatedVolume.UUID, PoolUUID: updatedVolume.Pool.UUID},

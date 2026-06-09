@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestBackupVaultDeleteHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeDeleteBackupVault)
+	require.Contains(t, jobTypes, datamodel.JobTypeDeleteBackupVault)
 }
 
 func TestNewBackupVaultDeleteHandler(t *testing.T) {
@@ -92,8 +91,8 @@ func TestBackupVaultDeleteHandler_Handle_SkipsNonDeletingState(t *testing.T) {
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
 
@@ -106,8 +105,8 @@ func TestBackupVaultDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 	storage := database.NewMockStorage(t)
 	handler := NewBackupVaultDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -119,8 +118,8 @@ func TestBackupVaultDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
 	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, previousState, previousStateDetails).
@@ -140,11 +139,11 @@ func TestBackupVaultDeleteHandler_Handle_SuccessWithFallbackToReady(t *testing.T
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()
-	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).
+	storage.EXPECT().UpdateBackupVaultState(mock.Anything, backupVault, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).
 		Return(backupVault, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -155,8 +154,8 @@ func TestBackupVaultDeleteHandler_Handle_UpdateBackupVaultStateError(t *testing.
 	storage := database.NewMockStorage(t)
 	handler := NewBackupVaultDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -168,8 +167,8 @@ func TestBackupVaultDeleteHandler_Handle_UpdateBackupVaultStateError(t *testing.
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
-		LifeCycleState:        models.LifeCycleStateDeleting,
-		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateDeleting,
+		LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(backupVault, nil).Once()

@@ -3,7 +3,6 @@ package expertMode
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -29,15 +28,15 @@ func ExpertModeFlexCloneSplitWorkflow(ctx workflow.Context, volume *datamodel.Ex
 	if err := wf.Setup(ctx, volume); err != nil {
 		return nil, err
 	}
-	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := wf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	wf.Status = workflows.WorkflowStatusRunning
-	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := wf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		wf.Status = workflows.WorkflowStatusFailed
 		log := util.GetLogger(ctx)
 		log.Errorf("Failed to update job status to PROCESSING: %v", err)
-		jobErr := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		jobErr := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		if jobErr != nil {
 			log.Errorf("Failed to update job status to ERROR: %v", jobErr)
 		}
@@ -47,14 +46,14 @@ func ExpertModeFlexCloneSplitWorkflow(ctx workflow.Context, volume *datamodel.Ex
 	if cerr != nil {
 		wf.Status = workflows.WorkflowStatusFailed
 		log := util.GetLogger(ctx)
-		err2 := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), cerr)
+		err2 := wf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), cerr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to ERROR: %v", err2)
 		}
 		return nil, cerr
 	}
 	wf.Status = workflows.WorkflowStatusCompleted
-	return nil, wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	return nil, wf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 }
 
 func (wf *expertModeFlexCloneSplitWorkflow) Setup(ctx workflow.Context, input interface{}) error {

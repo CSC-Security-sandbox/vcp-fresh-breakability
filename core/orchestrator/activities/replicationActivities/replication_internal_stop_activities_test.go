@@ -214,8 +214,8 @@ func TestBreakVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			MirrorState:        models.OntapBrokenOff,
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapBrokenOff,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -227,7 +227,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapmirror)
-		assert.Equal(tt, models.OntapBrokenOff, snapmirror.MirrorState)
+		assert.Equal(tt, datamodel.OntapBrokenOff, snapmirror.MirrorState)
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("BreakVolumeReplicationSkipsWhenUninitialized", func(tt *testing.T) {
@@ -244,8 +244,8 @@ func TestBreakVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			MirrorState:        models.OntapUninitialized,
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapUninitialized,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -256,7 +256,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapmirror)
-		assert.Equal(tt, models.OntapUninitialized, snapmirror.MirrorState)
+		assert.Equal(tt, datamodel.OntapUninitialized, snapmirror.MirrorState)
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("BreakVolumeReplicationFailsToGetDetails", func(tt *testing.T) {
@@ -300,8 +300,8 @@ func TestBreakVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			MirrorState:        models.OntapBrokenOff,
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapBrokenOff,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -340,8 +340,8 @@ func TestBreakVolumeReplication(t *testing.T) {
 			ExternalUUID:       "external-uuid",
 			RelationshipID:     "rel-id",
 			TransferUUID:       "transfer-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
-			MirrorState:        models.OntapSnapmirrored,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
+			MirrorState:        datamodel.OntapSnapmirrored,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -349,7 +349,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(transferringReplication, nil).Once()
 		mockProvider.On("AbortVolumeReplication", mock.MatchedBy(func(v *vsa.VolumeReplication) bool {
-			return v.RelationshipID == "rel-id" && v.TransferUUID == "transfer-uuid" && v.RelationshipStatus == models.SnapmirrorRelationshipAborted
+			return v.RelationshipID == "rel-id" && v.TransferUUID == "transfer-uuid" && v.RelationshipStatus == datamodel.SnapmirrorRelationshipAborted
 		})).Return(transferringReplication, nil).Once()
 		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(nil, errors.New("break failed")).Once()
 
@@ -380,7 +380,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -416,7 +416,7 @@ func TestAbortVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 			TransferUUID:       "transfer-uuid",
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -429,7 +429,7 @@ func TestAbortVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.AbortVolumeReplication(ctx, replication, node, true)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapmirror)
-		assert.Equal(tt, models.SnapmirrorRelationshipAborted, snapmirror.RelationshipStatus)
+		assert.Equal(tt, datamodel.SnapmirrorRelationshipAborted, snapmirror.RelationshipStatus)
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("AbortVolumeReplicationForceStopNotSet", func(tt *testing.T) {
@@ -533,7 +533,7 @@ func TestAbortVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 			TransferUUID:       "",
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -563,7 +563,7 @@ func TestAbortVolumeReplication(t *testing.T) {
 		node := &models.Node{}
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 			TransferUUID:       "transfer-uuid",
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -724,15 +724,15 @@ func TestUpdateQuotaRulesStateToError(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(123),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule, nil)
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == "quota-rule-uuid-1" &&
-				qr.State == models.LifeCycleStateError &&
-				qr.StateDetails == models.LifeCycleStateCreationErrorDetails
+				qr.State == datamodel.LifeCycleStateError &&
+				qr.StateDetails == datamodel.LifeCycleStateCreationErrorDetails
 		})).Return(currentQuotaRule, nil)
 
 		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule})
@@ -787,8 +787,8 @@ func TestUpdateQuotaRulesStateToError(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(123),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule, nil)
@@ -832,8 +832,8 @@ func TestUpdateQuotaRulesStateToError(t *testing.T) {
 			},
 			Name:         "test-quota-rule-1",
 			AccountID:    int64(123),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		currentQuotaRule2 := &datamodel.QuotaRule{
@@ -842,18 +842,18 @@ func TestUpdateQuotaRulesStateToError(t *testing.T) {
 			},
 			Name:         "test-quota-rule-2",
 			AccountID:    int64(123),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule1, nil)
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.UUID == "quota-rule-uuid-1" && qr.State == models.LifeCycleStateError
+			return qr.UUID == "quota-rule-uuid-1" && qr.State == datamodel.LifeCycleStateError
 		})).Return(currentQuotaRule1, nil)
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-2", int64(123)).Return(currentQuotaRule2, nil)
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.UUID == "quota-rule-uuid-2" && qr.State == models.LifeCycleStateError
+			return qr.UUID == "quota-rule-uuid-2" && qr.State == datamodel.LifeCycleStateError
 		})).Return(currentQuotaRule2, nil)
 
 		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule1, failedQuotaRule2})
@@ -874,20 +874,20 @@ func TestUpdateVolumeReplicationForQuotaError(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
 			},
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(rep *datamodel.VolumeReplication) bool {
 			return rep.UUID == "replication-uuid" &&
-				rep.State == models.LifeCycleStateError &&
-				rep.StateDetails == models.VolumeReplicationBreakRelationshipQuotaRuleFailure
+				rep.State == datamodel.LifeCycleStateError &&
+				rep.StateDetails == datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure
 		})).Return(nil)
 
 		err := activity.UpdateVolumeReplicationForQuotaError(ctx, replication)
 		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateError, replication.State)
-		assert.Equal(t, models.VolumeReplicationBreakRelationshipQuotaRuleFailure, replication.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateError, replication.State)
+		assert.Equal(t, datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure, replication.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -902,8 +902,8 @@ func TestUpdateVolumeReplicationForQuotaError(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
 			},
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.Anything).Return(errors.New("database update error"))

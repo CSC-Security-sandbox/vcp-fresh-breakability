@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewBackupVaultUpdateHandler() *BackupVaultUpdateHandler {
 }
 
 // JobTypes enumerates the job types supported by the backup vault update handler.
-func (h *BackupVaultUpdateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeUpdateBackupVault,
+func (h *BackupVaultUpdateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeUpdateBackupVault,
 	}
 }
 
@@ -56,7 +55,7 @@ func (h *BackupVaultUpdateHandler) Handle(ctx context.Context, job *datamodel.Jo
 	}
 
 	// Only revert if backup vault is in UPDATING state
-	if backupVault.LifeCycleState != models.LifeCycleStateUpdating {
+	if backupVault.LifeCycleState != datamodel.LifeCycleStateUpdating {
 		logger.Infof("workflow-supervisor-task: backup vault %s not in UPDATING state (%s); skipping update cleanup", backupVault.UUID, backupVault.LifeCycleState)
 		return nil
 	}
@@ -67,8 +66,8 @@ func (h *BackupVaultUpdateHandler) Handle(ctx context.Context, job *datamodel.Jo
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for backup vault %s, defaulting to READY", backupVault.UUID)
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	if _, err := storage.UpdateBackupVaultState(ctx, backupVault, previousState, previousStateDetails); err != nil {

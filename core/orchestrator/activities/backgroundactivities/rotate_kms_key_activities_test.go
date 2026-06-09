@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -1007,7 +1006,7 @@ func TestRotateKmsSAKeyActivity_ValidateKeyRotationRequiredActivity(t *testing.T
 		}
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
-			State:     models.LifeCycleStateMigrating,
+			State:     datamodel.LifeCycleStateMigrating,
 		}
 
 		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
@@ -1902,8 +1901,8 @@ func TestRotateKmsSAKeyActivity_BatchPoolsForKeyRotationActivity(t *testing.T) {
 		activity := &RotateKmsSAKeyActivity{SE: mockSE}
 
 		poolViews := []*datamodel.PoolView{
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateInUse}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: datamodel.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: datamodel.LifeCycleStateInUse}},
 		}
 
 		// Mock listPoolsByKmsConfigId
@@ -1927,9 +1926,9 @@ func TestRotateKmsSAKeyActivity_BatchPoolsForKeyRotationActivity(t *testing.T) {
 		activity := &RotateKmsSAKeyActivity{SE: mockSE}
 
 		poolViews := []*datamodel.PoolView{
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateDeleting}}, // Should be filtered out
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: models.LifeCycleStateInUse}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: datamodel.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: datamodel.LifeCycleStateDeleting}}, // Should be filtered out
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: datamodel.LifeCycleStateInUse}},
 		}
 
 		originalListPools := listPoolsByKmsConfigId
@@ -1952,9 +1951,9 @@ func TestRotateKmsSAKeyActivity_BatchPoolsForKeyRotationActivity(t *testing.T) {
 		activity := &RotateKmsSAKeyActivity{SE: mockSE}
 
 		poolViews := []*datamodel.PoolView{
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateError}, VolumeCount: 0}, // Should be filtered out (no volumes)
-			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: models.LifeCycleStateError}, VolumeCount: 5}, // Should be included (has volumes)
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: datamodel.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: datamodel.LifeCycleStateError}, VolumeCount: 0}, // Should be filtered out (no volumes)
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: datamodel.LifeCycleStateError}, VolumeCount: 5}, // Should be included (has volumes)
 		}
 
 		originalListPools := listPoolsByKmsConfigId
@@ -2228,7 +2227,7 @@ func TestRotateKmsSAKeyActivity_MigratePoolToNewKeyActivity(t *testing.T) {
 		activity := &RotateKmsSAKeyActivity{SE: mockSE}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, State: models.LifeCycleStateError,
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, State: datamodel.LifeCycleStateError,
 		}
 
 		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)

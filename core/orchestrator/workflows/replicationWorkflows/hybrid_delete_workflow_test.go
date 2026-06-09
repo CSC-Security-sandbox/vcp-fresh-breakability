@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -163,7 +162,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			Zone:                  "us-central1-a",
 		}
 
-		migrationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
@@ -284,7 +283,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			Zone:                  "us-central1-a",
 		}
 
-		migrationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
@@ -390,7 +389,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			Zone:                  "us-central1-a",
 		}
 
-		migrationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
@@ -630,7 +629,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: models.HybridReplicationStatusPendingClusterPeer,
+						Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:        "customer",
@@ -666,7 +665,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "job-uuid-123",
 			},
-			Type:       string(models.JobTypeHybridReplicationDeleteVolume),
+			Type:       string(datamodel.JobTypeHybridReplicationDeleteVolume),
 			WorkflowID: "child-workflow-id",
 		}
 
@@ -737,7 +736,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: models.HybridReplicationStatusPendingSVMPeer,
+						Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:        "customer",
@@ -773,7 +772,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "job-uuid-123",
 			},
-			Type:       string(models.JobTypeHybridReplicationDeleteVolume),
+			Type:       string(datamodel.JobTypeHybridReplicationDeleteVolume),
 			WorkflowID: "child-workflow-id",
 		}
 
@@ -846,7 +845,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: models.HybridReplicationStatusPeered,
+						Status: datamodel.HybridReplicationStatusPeered,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:        "customer",
@@ -882,7 +881,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "job-uuid-123",
 			},
-			Type:       string(models.JobTypeHybridReplicationDeleteVolume),
+			Type:       string(datamodel.JobTypeHybridReplicationDeleteVolume),
 			WorkflowID: "child-workflow-id",
 		}
 
@@ -1184,7 +1183,7 @@ func TestHybridReplicationDeleteWorkflow(t *testing.T) {
 			Zone:                  "us-central1-a",
 		}
 
-		migrationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{

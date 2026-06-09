@@ -160,7 +160,7 @@ type DevFlags struct {
 	EnableIlbSupport              bool `json:"enable_ilb_support"`                // Enable ILB support
 	DisableBootDiskSnapshotPolicy bool `json:"disable_boot_disk_snapshot_policy"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
 	DisableAzureVNetCreation      bool `json:"disable_azure_vnet_creation"`       // Skip Azure VNet/subnet/NSG creation and use existing network
-	UseSecondaryIPsForLIFs        bool `json:"use_secondary_ips_for_lifs"`         // OCI: use secondary IPs for all LIFs (movable between VMs); false = use primary IPs (existing behaviour)
+	UseSecondaryIPsForLIFs        bool `json:"use_secondary_ips_for_lifs"`        // OCI: use secondary IPs for all LIFs (movable between VMs); false = use primary IPs (existing behaviour)
 }
 
 type SnapshotConfig struct {
@@ -291,7 +291,6 @@ type SPConfig struct {
 }
 
 func (s SPConfig) SizeGiB() int64 { return ParseSizeStringGiB(s.Size) }
-
 
 func ParseSizeStringGiB(s string) int64 {
 	end := 0
@@ -561,20 +560,20 @@ type ModifySVMResponse struct {
 }
 
 type UpdateVSAClusterDeploymentRequest struct {
-	VLMConfig                VLMConfig          `json:"vlm_config"`                   // VLM configuration
-	NumHAPair                int                `json:"num_ha_pair"`                  // Number of HA pairs to be created
-	SPConfig                 SPConfig           `json:"spconfig"`                     // Storagepool specific configuration
-	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`            // ONTAP credentials for the VSA cluster
-	NewInstanceType          string             `json:"new_instance_type"`            // Instance type for the storage pool
+	VLMConfig                VLMConfig          `json:"vlm_config"`                       // VLM configuration
+	NumHAPair                int                `json:"num_ha_pair"`                      // Number of HA pairs to be created
+	SPConfig                 SPConfig           `json:"spconfig"`                         // Storagepool specific configuration
+	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`                // ONTAP credentials for the VSA cluster
+	NewInstanceType          string             `json:"new_instance_type"`                // Instance type for the storage pool
 	DataDiskVpus             *int64             `json:"data_disk_vpus,omitempty"`         // OCI only: per-data-disk VPU override (1..120, step 10); nil = leave unchanged
 	VSAFlexOcpus             *float32           `json:"vsa_flex_ocpus,omitempty"`         // OCI only: VSA flex OCPUs for update (applied to VLMConfig when set); nil = leave unchanged
 	VSAFlexMemoryInGBs       *float32           `json:"vsa_flex_memory_in_gbs,omitempty"` // OCI only: VSA flex memory in GB for update (applied to VLMConfig when set); nil = leave unchanged
-	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                // ONTAP upgrade configuration
-	HAPairIndices            []int              `json:"ha_pair_indices"`              // Selected HA pair indices for targeted operations
-	ITCRecovery              bool               `json:"itc_recovery"`                 // Flag to indicate if this is a recovery operation (ITC)
-	BucketName               string             `json:"bucket_name"`                  // GCP Bucket Name
-	AutoTierThreshold        int64              `json:"auto_tier_threshold"`          // Auto tiering threshold percentage (0-100)
-	AllowHAPairLimitOverride bool               `json:"allow_ha_pair_limit_override"` // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
+	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                    // ONTAP upgrade configuration
+	HAPairIndices            []int              `json:"ha_pair_indices"`                  // Selected HA pair indices for targeted operations
+	ITCRecovery              bool               `json:"itc_recovery"`                     // Flag to indicate if this is a recovery operation (ITC)
+	BucketName               string             `json:"bucket_name"`                      // GCP Bucket Name
+	AutoTierThreshold        int64              `json:"auto_tier_threshold"`              // Auto tiering threshold percentage (0-100)
+	AllowHAPairLimitOverride bool               `json:"allow_ha_pair_limit_override"`     // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
 }
 
 type UpdateMediatorRequest struct {

@@ -3,7 +3,6 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -36,25 +35,25 @@ func ReverseHybridReplicationWorkflow(ctx workflow.Context, params *commonparams
 		return err
 	}
 
-	if err = volumeRepWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeRepWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 
 	volumeRepWf.Status = workflows.WorkflowStatusRunning
-	err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		volumeRepWf.Status = workflows.WorkflowStatusFailed
-		err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, customErr := volumeRepWf.Run(ctx, event, params)
 	if customErr != nil {
 		volumeRepWf.Status = workflows.WorkflowStatusFailed
-		_ = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		_ = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return customErr
 	}
 	volumeRepWf.Status = workflows.WorkflowStatusCompleted
-	err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 
@@ -147,7 +146,7 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 	var pollJob datamodel.Job
 	if reverseResult.IsSrcForHybridReplication {
 		// For source hybrid replication, use fallback workflow
-		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(models.JobTypeReverseHybridReplicationFallbackInternal)).Get(ctx, &pollJob)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(datamodel.JobTypeReverseHybridReplicationFallbackInternal)).Get(ctx, &pollJob)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -176,7 +175,7 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 		}
 	} else {
 		// For destination hybrid replication, use poll workflow
-		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(models.JobTypeReverseHybridReplicationInternal)).Get(ctx, &pollJob)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(datamodel.JobTypeReverseHybridReplicationInternal)).Get(ctx, &pollJob)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

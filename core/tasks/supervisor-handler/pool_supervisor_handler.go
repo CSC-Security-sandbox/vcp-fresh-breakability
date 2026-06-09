@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewPoolHandler() *PoolHandler {
 }
 
 // JobTypes enumerates the job types supported by the pool handler.
-func (h *PoolHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreatePool,
-		models.JobTypeCreateLargePool,
+func (h *PoolHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreatePool,
+		datamodel.JobTypeCreateLargePool,
 	}
 }
 

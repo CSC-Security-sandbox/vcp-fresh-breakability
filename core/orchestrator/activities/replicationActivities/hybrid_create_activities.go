@@ -55,16 +55,16 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 	job := &datamodel.Job{
 		AccountID: sql.NullInt64{Int64: replicationResult.DestinationVolume.AccountID, Valid: true},
 		Type:      jobType,
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DestinationVolume.UUID,
 			PoolUUID: replicationResult.DestinationVolume.Pool.UUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
-	if jobType == string(models.JobTypeCreateVolume) {
+	if jobType == string(datamodel.JobTypeCreateVolume) {
 		resourceName = replicationResult.DestinationVolume.Name
-	} else if jobType == string(models.JobTypeHybridReplicationEstablishPeering) || jobType == string(models.JobTypeHybridReplicationInternalEstablish) {
+	} else if jobType == string(datamodel.JobTypeHybridReplicationEstablishPeering) || jobType == string(datamodel.JobTypeHybridReplicationInternalEstablish) {
 		if replicationResult.HybridReplicationParameters == nil || replicationResult.HybridReplicationParameters.ResourceID == "" {
 			return nil, errors.NewVCPError(errors.ErrBadRequest, fmt.Errorf("missing hybrid replication resource ID"))
 		}
@@ -123,13 +123,13 @@ func (a *HybridReplicationActivity) DescribeJobForHybridReplicationWorkflow(ctx 
 	}
 
 	// Check if job is finished
-	if job.State == string(models.JobsStateDONE) {
+	if job.State == string(datamodel.JobsStateDONE) {
 		logger.Debugf("Job %s is done successfully", *result.JobId)
 		return nil
 	}
 
 	// Check if job failed
-	if job.State == string(models.JobsStateERROR) {
+	if job.State == string(datamodel.JobsStateERROR) {
 		// Get error message from tracking ID, similar to V1betaInternalDescribeOperation
 		errMsg := errors.GetErrorMessageByTrackingID(job.TrackingID)
 		detailedErrorMessage := errMsg.Message
@@ -207,7 +207,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerForHybridReplication(c
 	// Cluster peer doesn't exist, create a new one
 	logger.Debugf("Creating new cluster peering database entry")
 	newClusterPeer := &datamodel.ClusterPeerings{
-		State:          models.CvpClusterPeeringStatusCREATING,
+		State:          datamodel.CvpClusterPeeringStatusCREATING,
 		OnprempCluster: result.HybridReplicationParameters.PeerClusterName,
 		AccountID:      result.DestinationVolume.AccountID,
 		PoolID:         result.DestinationVolume.PoolID,
@@ -262,7 +262,7 @@ func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.
 		logger.Debugf("No existing volume replication found for URI: %s", ccfeReplicationUri)
 	}
 
-	mirrorState := models.OntapUninitialized
+	mirrorState := datamodel.OntapUninitialized
 	emptyUUID := uuid.UUID{}.String()
 	// Create replication attributes
 	replicationAttributes := &datamodel.ReplicationDetails{
@@ -287,7 +287,7 @@ func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.
 
 	// Create hybrid replication attributes
 	hybridReplicationAttributes := &datamodel.HybridReplicationAttribute{
-		Status:                models.HybridReplicationStatusPendingClusterPeer,
+		Status:                datamodel.HybridReplicationStatusPendingClusterPeer,
 		HybridReplicationType: nillable.ToPointer(string(result.HybridReplicationParameters.ReplicationType)),
 		Description:           result.HybridReplicationParameters.Description,
 		Labels:                result.HybridReplicationParameters.Labels,
@@ -426,8 +426,8 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 		if clusterPeering.ClusterPeeringAttributes == nil {
 			clusterPeering.ClusterPeeringAttributes = &datamodel.ClusterPeeringAttributes{}
 		}
-		clusterPeering.StateDetails = models.InitiatingClusterPeering
-		clusterPeering.State = models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		clusterPeering.StateDetails = datamodel.InitiatingClusterPeering
+		clusterPeering.State = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
 		err = se.UpdateClusterPeeringRow(ctx, clusterPeering)
 		if err != nil {
 			logger.Errorf("Failed to update cluster peering row: %v", err)
@@ -538,8 +538,8 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 		clusterPeering.ClusterPeeringAttributes.Command = &clusterPeerCommand
 		// Set expiry time
 		clusterPeering.ClusterPeeringAttributes.ExpiryTime = convertedExpiryTime
-		clusterPeering.State = models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
-		clusterPeering.StateDetails = models.WaitingForClusterPeering
+		clusterPeering.State = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		clusterPeering.StateDetails = datamodel.WaitingForClusterPeering
 	}
 	clusterPeering.OntapPeerUUID = clusterPeerFromOntap.ExternalUUID
 	// Set passphrase from ONTAP cluster peer
@@ -561,7 +561,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 		logger.Errorf("Failed to update cluster peering row: %v", err)
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
-	if result.ClusterPeeringRow.State != models.CvpClusterPeeringStatusPEERED {
+	if result.ClusterPeeringRow.State != datamodel.CvpClusterPeeringStatusPEERED {
 		result.CurrentHydrateState = models.VolumeReplicationHydrateStatePendingClusterPeering
 	} else {
 		result.CurrentHydrateState = models.VolumeReplicationHydrateStatePendingSvmPeering
@@ -661,7 +661,7 @@ func (a *HybridReplicationActivity) SetClusterPeeringStatusToPeeredForHybridRepl
 		clusterPeering.ClusterPeeringAttributes.ExpiryTime = nil
 	}
 	// Update state and status
-	clusterPeering.State = models.CvpClusterPeeringStatusPEERED
+	clusterPeering.State = datamodel.CvpClusterPeeringStatusPEERED
 	clusterPeering.StateDetails = ""
 	// Update cluster peer in database
 	err := se.UpdateClusterPeeringRow(ctx, clusterPeering)
@@ -685,8 +685,8 @@ func (a *HybridReplicationActivity) SetVolumeReplicationPeeringStatusToPendingSV
 	se := a.SE
 	volumeRep := result.DbVolReplication
 	if volumeRep.HybridReplicationAttributes != nil {
-		volumeRep.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingSVMPeer
-		volumeRep.HybridReplicationAttributes.StatusDetails = models.InitiatingSVMPeering
+		volumeRep.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPendingSVMPeer
+		volumeRep.HybridReplicationAttributes.StatusDetails = datamodel.InitiatingSVMPeering
 		volumeRep.HybridReplicationAttributes.StateDetailsCode = models.InitiatingSVMPeeringCode
 	}
 	err := se.UpdateVolumeReplication(ctx, volumeRep)
@@ -791,8 +791,8 @@ func (a *HybridReplicationActivity) SetVolumeReplicationSVMPeeringDetails(ctx co
 	se := a.SE
 	volumeRep := result.DbVolReplication
 	if volumeRep.HybridReplicationAttributes != nil {
-		volumeRep.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingSVMPeer
-		volumeRep.HybridReplicationAttributes.StatusDetails = models.WaitingForSVMPeering
+		volumeRep.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPendingSVMPeer
+		volumeRep.HybridReplicationAttributes.StatusDetails = datamodel.WaitingForSVMPeering
 		volumeRep.HybridReplicationAttributes.StateDetailsCode = models.WaitingForSVMPeeringCode
 		volumeRep.HybridReplicationAttributes.SvmPeerCommand = nillable.ToPointer(
 			fmt.Sprintf("vserver peer accept -vserver %s -peer-vserver %s", result.HybridReplicationParameters.PeerSvmName, result.DestinationVolume.Svm.Name),
@@ -813,7 +813,7 @@ func (a *HybridReplicationActivity) SetSVMPeeringToPeered(ctx context.Context, r
 	se := a.SE
 	volumeRep := result.DbVolReplication
 	if volumeRep.HybridReplicationAttributes != nil {
-		volumeRep.HybridReplicationAttributes.Status = models.HybridReplicationStatusSVMPeered
+		volumeRep.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusSVMPeered
 		volumeRep.HybridReplicationAttributes.StatusDetails = ""
 		volumeRep.HybridReplicationAttributes.StateDetailsCode = models.DefaultCode
 	}
@@ -1010,8 +1010,8 @@ func (a *HybridReplicationActivity) UpdateHybridVolumeReplicationDetailsAndSetPe
 	logger.Debugf("UpdateHybridVolumeReplicationDetailsAndSetPeeringStatus - updating replication details and setting peering status to peered")
 	replication := result.DbVolReplication
 	// Update replication details from ONTAP response
-	replication.State = models.LifeCycleStateAvailable
-	replication.StateDetails = models.LifeCycleStateAvailableDetails
+	replication.State = datamodel.LifeCycleStateAvailable
+	replication.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	if result.ReplicationCreateResponseONTAP != nil {
 		replication.ReplicationAttributes.ExternalUUID = result.ReplicationCreateResponseONTAP.RelationshipID
 		replication.ReplicationAttributes.ReplicationSchedule = result.ReplicationCreateResponseONTAP.ReplicationSchedule
@@ -1030,7 +1030,7 @@ func (a *HybridReplicationActivity) UpdateHybridVolumeReplicationDetailsAndSetPe
 	// Set hybrid replication peering status to peered
 	if replication.HybridReplicationAttributes != nil {
 		replication.HybridReplicationAttributes.StateDetailsCode = models.DefaultCode
-		replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPeered
+		replication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPeered
 		replication.HybridReplicationAttributes.StatusDetails = ""
 		replication.HybridReplicationAttributes.SvmPeerExpiryTime = nil
 		replication.HybridReplicationAttributes.SvmPeerCommand = nil
@@ -1077,12 +1077,12 @@ func (a *HybridReplicationActivity) HydrateVolumeReplicationForHybridReplication
 	if hydrationEnabled {
 		logger := util.GetLogger(ctx)
 		logger.Debugf("Hydrating volume replication for hybrid replication: %s", result.HybridReplicationParameters.ResourceID)
-		var replicationType models.HybridReplicationParametersReplicationType
+		var replicationType datamodel.HybridReplicationParametersReplicationType
 		if result.DbVolReplication.HybridReplicationAttributes != nil {
-			if *(result.DbVolReplication.HybridReplicationAttributes.HybridReplicationType) == string(models.HybridReplicationParametersReplicationTypeONPREM) {
-				replicationType = models.HybridReplicationParametersReplicationTypeONPREM
+			if *(result.DbVolReplication.HybridReplicationAttributes.HybridReplicationType) == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) {
+				replicationType = datamodel.HybridReplicationParametersReplicationTypeONPREM
 			} else {
-				replicationType = models.HybridReplicationParametersReplicationTypeMIGRATION
+				replicationType = datamodel.HybridReplicationParametersReplicationTypeMIGRATION
 			}
 		}
 		// Convert the database volume replication to models.VolumeReplication for hydration
@@ -1139,7 +1139,7 @@ func (a *HybridReplicationActivity) HydrateReplicationStateForHybridReplication(
 				logger.Debugf("hydrating to %s", models.VolumeReplicationHydrateStatePendingClusterPeering)
 				return a.HydrateLocalReplicationSateForHybridReplication(ctx, result, models.VolumeReplicationHydrateStatePendingClusterPeering)
 			}
-		} else if result.DbVolReplication != nil && result.DbVolReplication.State == models.LifeCycleStateAvailable {
+		} else if result.DbVolReplication != nil && result.DbVolReplication.State == datamodel.LifeCycleStateAvailable {
 			if !a.isSameAsCurrentHydrateState(result, models.VolumeReplicationHydrateStateReady) {
 				a.setCurrentReplicationHydrateState(result, models.VolumeReplicationHydrateStateReady)
 				logger.Debugf("hydrating to %s", models.VolumeReplicationHydrateStateReady)
@@ -1179,7 +1179,7 @@ func (a *HybridReplicationActivity) HydrateLocalReplicationSateForHybridReplicat
 
 // UpdateSVMPeerOnErrorActivity gets the SVM peer and deletes it from ONTAP
 func (a *HybridReplicationActivity) UpdateSVMPeerOnErrorActivity(ctx context.Context, result *replication.CreateHybridReplicationResult) error {
-	if result.DbVolReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer {
+	if result.DbVolReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer {
 		logger := util.GetLogger(ctx)
 		logger.Debugf("GetAndDeleteSVMPeerForHybridReplication - Getting SVM peer between local SVM: %s and peer SVM: %s",
 			result.DestinationVolume.Svm.Name, result.HybridReplicationParameters.PeerSvmName)
@@ -1224,17 +1224,17 @@ func (a *HybridReplicationActivity) UpdateClusterPeerDetailsOnErrorActivity(ctx 
 	// Update cluster peering record with ONTAP cluster peer details
 
 	clusterPeering := result.ClusterPeeringRow
-	if clusterPeering.State == models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING ||
-		clusterPeering.State == models.CvpClusterPeeringStatusCREATING ||
-		(result.ClusterPeeringRow.State == models.CvpClusterPeeringStatusPEERED &&
-			result.DbVolReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer) {
+	if clusterPeering.State == datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING ||
+		clusterPeering.State == datamodel.CvpClusterPeeringStatusCREATING ||
+		(result.ClusterPeeringRow.State == datamodel.CvpClusterPeeringStatusPEERED &&
+			result.DbVolReplication.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer) {
 		if clusterPeering.ClusterPeeringAttributes != nil {
 			clusterPeering.ClusterPeeringAttributes.PassPhrase = nil
 			clusterPeering.ClusterPeeringAttributes.Command = nil
 			clusterPeering.ClusterPeeringAttributes.ExpiryTime = nil
 		}
 		// Update state and status
-		clusterPeering.State = models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		clusterPeering.State = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
 		// Delete cluster peer from ONTAP if it exists
 		if clusterPeering.OntapPeerUUID != "" {
 			logger.Infof("Attempting to delete cluster peer from ONTAP: %s", clusterPeering.OntapPeerUUID)
@@ -1260,8 +1260,8 @@ func (a *HybridReplicationActivity) UpdateClusterPeerDetailsOnErrorActivity(ctx 
 		logger.Infof("Marking cluster peer row for deletion: %d", clusterPeering.ID)
 		clusterPeering.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 		clusterPeering.UpdatedAt = clusterPeering.DeletedAt.Time
-		clusterPeering.State = models.LifeCycleStateDeleted
-		clusterPeering.StateDetails = models.LifeCycleStateDeletedDetails
+		clusterPeering.State = datamodel.LifeCycleStateDeleted
+		clusterPeering.StateDetails = datamodel.LifeCycleStateDeletedDetails
 		// Update cluster peer in database (this will save the deletion state)
 		err := se.UpdateClusterPeeringRow(ctx, clusterPeering)
 		if err != nil {
@@ -1281,14 +1281,14 @@ func (a *HybridReplicationActivity) UpdateReplicationRowDetailsOnErrorActivity(c
 	// Update replication details from ONTAP response
 	oldState := replication.HybridReplicationAttributes.Status
 
-	replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingClusterPeer
-	replication.State = models.LifeCycleStateError
-	replication.StateDetails = models.LifeCycleStateCreationErrorDetails
+	replication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPendingClusterPeer
+	replication.State = datamodel.LifeCycleStateError
+	replication.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 
-	if oldState == models.HybridReplicationStatusSVMPeered {
-		replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusSVMPeered
-	} else if result.ClusterPeeringRow.State == models.CvpClusterPeeringStatusPEERED && oldState == models.HybridReplicationStatusPendingSVMPeer {
-		replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingSVMPeer
+	if oldState == datamodel.HybridReplicationStatusSVMPeered {
+		replication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusSVMPeered
+	} else if result.ClusterPeeringRow.State == datamodel.CvpClusterPeeringStatusPEERED && oldState == datamodel.HybridReplicationStatusPendingSVMPeer {
+		replication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPendingSVMPeer
 	}
 
 	// Set hybrid replication peering status to peered

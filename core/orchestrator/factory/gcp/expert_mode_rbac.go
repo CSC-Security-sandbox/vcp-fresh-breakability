@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -34,8 +33,8 @@ func _updateRbacForPools(ctx context.Context, se database.Storage, temporal clie
 	// Create a job for the RBAC update workflow
 	// Since this is a system-level operation, we don't need an account
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false}, // No specific account for system-level operation
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -59,7 +58,7 @@ func _updateRbacForPools(ctx context.Context, se database.Storage, temporal clie
 
 	if err != nil {
 		logger.Error("Failed to start RBAC update workflow", "workflowID", createdJob.WorkflowID, "error", err)
-		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
+		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
 			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", updateErr)
 		}
 		return "", fmt.Errorf("failed to start RBAC update workflow: %w", err)
@@ -75,8 +74,8 @@ func UpdateRbacForPoolById(ctx context.Context, se database.Storage, temporal cl
 	logger := util.GetLogger(ctx)
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		ResourceUUID:  poolId,
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -102,7 +101,7 @@ func UpdateRbacForPoolById(ctx context.Context, se database.Storage, temporal cl
 
 	if err != nil {
 		logger.Error("Failed to start single pool RBAC update workflow", "workflowID", createdJob.WorkflowID, "poolId", poolId, "error", err)
-		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
+		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
 			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", updateErr)
 		}
 		return "", fmt.Errorf("failed to start single pool RBAC update workflow: %w", err)

@@ -96,7 +96,7 @@ func TestValidatePoolStateForVolumeCreate_ReadyPool_ReturnsNil(t *testing.T) {
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
-	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateREADY}}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: datamodel.LifeCycleStateREADY}}
 
 	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
 
@@ -111,7 +111,7 @@ func TestValidatePoolStateForVolumeCreate_PoolInDeletingState_ReturnsError(t *te
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
-	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateDeleting}}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: datamodel.LifeCycleStateDeleting}}
 	volumeUUID := "vol-uuid"
 
 	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
@@ -136,7 +136,7 @@ func TestValidatePoolStateForVolumeCreate_PoolInCreatingState_ReturnsNil(t *test
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
-	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateCreating}}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: datamodel.LifeCycleStateCreating}}
 
 	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
 
@@ -151,7 +151,7 @@ func TestValidatePoolStateForVolumeCreate_DeletingState_EmptyVolumeUUID_DoesNotC
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
-	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateDeleting}}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: datamodel.LifeCycleStateDeleting}}
 
 	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
 	// DeleteVolume must not be called when volumeUUID is empty
@@ -4500,13 +4500,13 @@ func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
 		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
 			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
 				BackupPolicyID: backupPolicyUUID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 			},
 		}
 		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
 			Payload: mockBackupPolicy,
 		}, nil)
-		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: models.LifeCycleStateREADY, LifeCycleStateDetails: models.LifeCycleStateAvailableDetails}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: datamodel.LifeCycleStateREADY, LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails}, nil)
 
 		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
 		assert.NoError(t, err)
@@ -4567,7 +4567,7 @@ func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
 		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
 			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
 				BackupPolicyID: backupPolicyUUID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 			},
 		}
 		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
@@ -7216,7 +7216,7 @@ func TestFinaliseRestoredVolume_Success(t *testing.T) {
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:      "test-volume",
-		State:     models.LifeCycleStateRestoring, // Initial state
+		State:     datamodel.LifeCycleStateRestoring, // Initial state
 	}
 
 	// Mock UpdateVolume to succeed
@@ -7227,8 +7227,8 @@ func TestFinaliseRestoredVolume_Success(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateREADY, volume.State)
-	assert.Equal(t, models.LifeCycleStateAvailableDetails, volume.StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, volume.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, volume.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -7240,7 +7240,7 @@ func TestFinaliseRestoredVolume_UpdateVolumeError(t *testing.T) {
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:      "test-volume",
-		State:     models.LifeCycleStateRestoring, // Initial state
+		State:     datamodel.LifeCycleStateRestoring, // Initial state
 	}
 	expectedError := errors.New("database update failed")
 
@@ -7254,8 +7254,8 @@ func TestFinaliseRestoredVolume_UpdateVolumeError(t *testing.T) {
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedError.Error())
 	// State should still be updated even if database update fails
-	assert.Equal(t, models.LifeCycleStateREADY, volume.State)
-	assert.Equal(t, models.LifeCycleStateAvailableDetails, volume.StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, volume.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, volume.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -15716,7 +15716,7 @@ func TestConvertGoogleProxyBackupToDatamodel(t *testing.T) {
 		assert.Equal(t, "backup-uuid-minimal", result.UUID)
 		assert.Equal(t, "minimal-backup", result.Name)
 		assert.Equal(t, "volume-uuid-minimal", result.VolumeUUID)
-		assert.Equal(t, string(models.LifeCycleStateAvailable), result.State)
+		assert.Equal(t, string(datamodel.LifeCycleStateAvailable), result.State)
 		assert.Equal(t, "", result.Description)
 		assert.Equal(t, "", result.Type)
 		assert.Equal(t, int64(0), result.SizeInBytes)

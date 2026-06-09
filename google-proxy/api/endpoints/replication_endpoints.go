@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -82,7 +83,7 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateCreating {
+	if volumeRep.State == datamodel.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -313,7 +314,7 @@ func (h Handler) V1betaEstablishPeering(ctx context.Context, req *gcpgenserver.E
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -685,7 +686,7 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -775,7 +776,7 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -857,7 +858,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 			return nil, err
 		}
 	}
-	if volumeRep.State == models2.LifeCycleStateDeleting {
+	if volumeRep.State == datamodel.LifeCycleStateDeleting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -977,7 +978,7 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -1049,7 +1050,7 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -1129,7 +1130,7 @@ func (h Handler) V1betaReverseAndResumeReplication(ctx context.Context, params g
 		}, nil
 	}
 
-	if volumeRep.State == models2.LifeCycleStateUpdating {
+	if volumeRep.State == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,

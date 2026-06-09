@@ -4,13 +4,13 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -62,21 +62,21 @@ func ReplicationCleanupWorkflow(ctx workflow.Context, params *commonparams.Delet
 		return nil, err
 	}
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := repWf.Run(ctx, event)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -145,7 +145,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		commonparams.HandleCancellationForCreatingResourceParams{
 			ResourceUUID:               replicationUUID,
 			ResourceState:              replicationState,
-			CreateJobType:              models.JobTypeCreateVolumeReplication,
+			CreateJobType:              datamodel.JobTypeCreateVolumeReplication,
 			SignalName:                 CancelReplicationSignalName,
 			CancellationAckTimeout:     ackTimeout,
 			ForceTerminationAckTimeout: forceTimeout,

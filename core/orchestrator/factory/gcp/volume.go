@@ -260,7 +260,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Debug("No existing volume found with the given name in the same zone, proceeding to create a new volume",
 			"volume_name", params.Name, "zone", params.Zone)
 	} else {
-		if vol.State != models.LifeCycleStateCreating {
+		if vol.State != datamodel.LifeCycleStateCreating {
 			// Provide appropriate error message based on pool type
 			var errorMsg string
 			if isRegionalPool {
@@ -276,9 +276,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			}
 
 			// Determine the correct job type based on whether it's a large capacity volume
-			jobType := string(models.JobTypeCreateVolume)
+			jobType := string(datamodel.JobTypeCreateVolume)
 			if params.LargeCapacity {
-				jobType = string(models.JobTypeCreateLargeVolume)
+				jobType = string(datamodel.JobTypeCreateLargeVolume)
 			}
 
 			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, jobType)
@@ -292,7 +292,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if hp := params.HybridReplicationParameters; hp != nil {
 		// check for duplicate jobs
-		existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeCreateHybridReplication), utils.GetCoRelationIDFromContext(ctx))
+		existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(datamodel.JobTypeCreateHybridReplication), utils.GetCoRelationIDFromContext(ctx))
 		if err != nil {
 			return nil, "", err
 		}
@@ -342,7 +342,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
 			}
 			// Block if parent volume is in DELETING state
-			if dbSnapshot.Volume != nil && dbSnapshot.Volume.State == models.LifeCycleStateDeleting {
+			if dbSnapshot.Volume != nil && dbSnapshot.Volume.State == datamodel.LifeCycleStateDeleting {
 				logger.Error("Parent volume is in deleting state and cannot be used for volume creation", "snapshot_id", dbSnapshot.UUID, "volume_id", dbSnapshot.Volume.UUID, "volume_state", dbSnapshot.Volume.State)
 				return nil, "", customerrors.NewUserInputValidationErr("Parent volume is in deleting state and cannot be used for volume creation")
 			}
@@ -354,7 +354,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot volume protocol type does not match requested volume protocol type. Please use the correct snapshot and retry again.")
 			}
 		}
-		if dbSnapshot != nil && dbSnapshot.State != models.LifeCycleStateREADY {
+		if dbSnapshot != nil && dbSnapshot.State != datamodel.LifeCycleStateREADY {
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 		}
@@ -466,7 +466,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.VolumeAttributes.CloneParentInfo = &datamodel.CloneParentInfo{
 			ParentSnapshotUUID: params.SnapshotID,
 			ParentVolumeUUID:   parentVolumeUUID,
-			State:              models.CloneStateCloned,
+			State:              datamodel.CloneStateCloned,
 		}
 		// Capture the at-creation shared-bytes baseline. splitStart later zeroes
 		// volumes.clones_shared_bytes to reserve pool capacity, so without this
@@ -620,8 +620,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -633,13 +633,13 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.LargeCapacity {
-		job.Type = string(models.JobTypeCreateLargeVolume)
+		job.Type = string(datamodel.JobTypeCreateLargeVolume)
 	}
 
 	wf := workflows.CreateVolumeWorkflow
 
 	if params.HybridReplicationParameters != nil {
-		job.Type = string(models.JobTypeCreateHybridReplication)
+		job.Type = string(datamodel.JobTypeCreateHybridReplication)
 		job.ResourceName = fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
 			params.AccountName,
 			location,
@@ -657,7 +657,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Defer to mark job as error if workflow execution fails
 	defer func() {
 		if err != nil {
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
 			}
@@ -691,11 +691,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Set volume state for API response (volume will be created in workflow with this state)
 	// For restore operations, set RESTORING state; otherwise set CREATING state
 	if params.BackupPath != "" {
-		dbVolume.State = models.LifeCycleStateRestoring
-		dbVolume.StateDetails = models.LifeCycleStateRestoringDetails
+		dbVolume.State = datamodel.LifeCycleStateRestoring
+		dbVolume.StateDetails = datamodel.LifeCycleStateRestoringDetails
 	} else {
-		dbVolume.State = models.LifeCycleStateCreating
-		dbVolume.StateDetails = models.LifeCycleStateCreatingDetails
+		dbVolume.State = datamodel.LifeCycleStateCreating
+		dbVolume.StateDetails = datamodel.LifeCycleStateCreatingDetails
 	}
 
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
@@ -723,7 +723,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// Check if volume is in REVERTING state - if so, check for existing revert jobs for idempotency
-	if volume.State == models.LifeCycleStateReverting {
+	if volume.State == datamodel.LifeCycleStateReverting {
 		resourceUUIDCol := "job_attributes ->> 'resource_uuid'"
 		if utils.EnableJobResourceUUIDIndex {
 			resourceUUIDCol = "resource_uuid"
@@ -731,9 +731,9 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		filter := dbUtils.CreateFilterWithConditions(
 			dbUtils.NewFilterCondition("resource_name", "=", volume.Name),
 			dbUtils.NewFilterCondition("account_id", "=", volume.AccountID),
-			dbUtils.NewFilterCondition("type", "=", string(models.JobTypeRevertVolume)),
-			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
-			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
+			dbUtils.NewFilterCondition("type", "=", string(datamodel.JobTypeRevertVolume)),
+			dbUtils.NewFilterCondition("state", "!=", string(datamodel.JobsStateDONE)),
+			dbUtils.NewFilterCondition("state", "!=", string(datamodel.JobsStateERROR)),
 			dbUtils.NewFilterCondition(resourceUUIDCol, "=", volume.UUID))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
@@ -752,7 +752,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", customerrors.NewConflictErr("volume is in transition state and cannot be reverted, state: " + volume.State)
 	}
 
-	if volume.State != models.LifeCycleStateREADY {
+	if volume.State != datamodel.LifeCycleStateREADY {
 		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
 	}
 
@@ -761,7 +761,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
-		if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+		if volume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 			return nil, "", customerrors.NewConflictErr("Reverting to a snapshot is not allowed when the volume is splitting")
 		}
 	}
@@ -774,14 +774,14 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// Validate snapshot state
-	if snapshot.State != models.LifeCycleStateREADY {
+	if snapshot.State != datamodel.LifeCycleStateREADY {
 		logger.Error("Snapshot is not in a valid state for volume revert", "snapshot_state", snapshot.State)
 		return nil, "", customerrors.NewConflictErr("Snapshot is not in a valid state for volume revert. Please wait for the snapshot to be ready and retry again.")
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRevertVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRevertVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID},
@@ -809,7 +809,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	previousState := volume.State
 	previousStateDetails := volume.StateDetails
-	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+	volume, err = updateVolumeStatus(ctx, se, volume, datamodel.LifeCycleStateReverting, datamodel.LifeCycleStateRevertingDetails)
 	if err != nil {
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
@@ -818,7 +818,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	defer func() {
 		if err != nil {
 			// Revert volume state back to previous state if it was set to REVERTING
-			if volume.State == models.LifeCycleStateReverting {
+			if volume.State == datamodel.LifeCycleStateReverting {
 				logger.Warnf("Error occurred during volume revert, reverting volume state to READY. Volume UUID: %s", volume.UUID)
 				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
 					"state":         previousState,
@@ -1190,7 +1190,7 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 	}
 
 	// Check if backup policy is in updating state
-	if backupPolicy.LifeCycleState == models.LifeCycleStateUpdating {
+	if backupPolicy.LifeCycleState == datamodel.LifeCycleStateUpdating {
 		return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("Cannot validate immutable backup policy: backup policy '%v' is currently being updated. Please wait for the policy update to complete.", backupPolicyUUID))
 	}
 
@@ -1214,7 +1214,7 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 	}
 
 	// Check if backup vault is in updating state
-	if backupVault.LifeCycleState == models.LifeCycleStateUpdating {
+	if backupVault.LifeCycleState == datamodel.LifeCycleStateUpdating {
 		return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("Cannot validate immutable backup policy: backup vault '%s' is currently being updated. Please wait for the vault update to complete.", backupVaultUUID))
 	}
 
@@ -1289,12 +1289,12 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	if hp := params.HybridReplicationParameters; hp != nil {
 		replicationType := hp.ReplicationType
 		replicationSchedule := hp.ReplicationSchedule
-		if replicationType == models.HybridReplicationParametersReplicationTypeREVERSE || replicationType == models.HybridReplicationParametersReplicationTypeCONTINUOUS {
+		if replicationType == datamodel.HybridReplicationParametersReplicationTypeREVERSE || replicationType == datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS {
 			msg := "Hybrid replication is not allowed for replicationType: " + string(replicationType)
 			return customerrors.NewUserInputValidationErr(msg)
 		}
 
-		if replicationType == models.HybridReplicationParametersReplicationTypeONPREM {
+		if replicationType == datamodel.HybridReplicationParametersReplicationTypeONPREM {
 			if nillable.IsNilOrEmpty(&replicationSchedule) {
 				msg := "Can't have empty replicationSchedule for " + string(replicationType)
 				return customerrors.NewUserInputValidationErr(msg)
@@ -1455,7 +1455,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 
 		if dbSnapshot.Volume != nil && dbSnapshot.Volume.VolumeAttributes != nil && dbSnapshot.Volume.VolumeAttributes.CloneParentInfo != nil {
-			if dbSnapshot.Volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+			if dbSnapshot.Volume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 				logger.Error("Cannot restore volume from snapshot as parent volume is undergoing split operation", "volume_id", dbSnapshot.Volume.UUID)
 				return customerrors.NewConflictErr("Cannot restore volume from snapshot as the parent volume is undergoing split operation")
 			}
@@ -1504,11 +1504,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	switch pool.State {
-	case models.LifeCycleStateCreating, models.LifeCycleStateDeleting, models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateCreating, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeleted:
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Specified pool is in %s state, hence volume cannot be created", pool.State))
-	case models.LifeCycleStateError:
+	case datamodel.LifeCycleStateError:
 		return customerrors.NewUserInputValidationErr("Pool is currently unavailable for creating volume")
-	case models.LifeCycleStateDegraded:
+	case datamodel.LifeCycleStateDegraded:
 		if pool.KmsConfigID.Valid {
 			return customerrors.NewConflictErr("Pool is in degraded state, hence CMEK enabled volumes cannot be created")
 		}
@@ -1536,7 +1536,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return err
 	}
 
-	if svm.State != models.LifeCycleStateREADY {
+	if svm.State != datamodel.LifeCycleStateREADY {
 		return customerrors.NewUserInputValidationErr("svm is not ready")
 	}
 
@@ -1556,7 +1556,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	for _, node := range nodes {
-		if node.State != models.LifeCycleStateREADY {
+		if node.State != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("node is not ready")
 		}
 		lif, err := se.GetLifForNode(ctx, node.ID, node.AccountID)
@@ -1574,7 +1574,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return err
 		}
 		if bv != nil {
-			if bv.LifeCycleState == models.LifeCycleStateError {
+			if bv.LifeCycleState == datamodel.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
 			if err := validateCRBBackupVault(bv, params.Region); err != nil {
@@ -1641,7 +1641,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 				nil,
 			)
 		}
-		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+		if backupPolicy != nil && backupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 		}
 	}
@@ -1700,7 +1700,7 @@ func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volum
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
 		cloneState := volume.VolumeAttributes.CloneParentInfo.State
-		if cloneState == models.CloneStateSplitting {
+		if cloneState == datamodel.CloneStateSplitting {
 			return customerrors.NewConflictErr("Volume deletion is not allowed when the volume is splitting")
 		}
 	}
@@ -2073,8 +2073,8 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			},
 			DisplayName:           volume.Name,
 			AccountName:           volume.Account.Name,
-			LifeCycleState:        models.LifeCycleStateDeleted,
-			LifeCycleStateDetails: models.LifeCycleStateDeletedDetails,
+			LifeCycleState:        datamodel.LifeCycleStateDeleted,
+			LifeCycleStateDetails: datamodel.LifeCycleStateDeletedDetails,
 			QuotaInBytes:          uint64(volume.SizeInBytes),
 		}, "", nil
 	}
@@ -2084,18 +2084,18 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Flag to determine if we should use non-sequential execution (for same correlation ID case)
 	useNonSequentialExecution := false
 	// Determine the correct delete job type based on volume type
-	deleteJobType := models.JobTypeDeleteVolume
-	createJobType := models.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
-		deleteJobType = models.JobTypeDeleteLargeVolume
-		createJobType = models.JobTypeCreateLargeVolume
+		deleteJobType = datamodel.JobTypeDeleteLargeVolume
+		createJobType = datamodel.JobTypeCreateLargeVolume
 	}
 	if volume.CacheParameters != nil {
-		deleteJobType = models.JobTypeFlexCacheDeleteVolume
-		createJobType = models.JobTypeFlexCacheCreateVolume
+		deleteJobType = datamodel.JobTypeFlexCacheDeleteVolume
+		createJobType = datamodel.JobTypeFlexCacheCreateVolume
 	}
 
-	if volume.State == models.LifeCycleStateCreating {
+	if volume.State == datamodel.LifeCycleStateCreating {
 		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
 			ctx, se, volume.UUID, "volume", createJobType, deleteJobType, logger)
 		if err != nil {
@@ -2107,7 +2107,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 		useNonSequentialExecution = true
 		logger.Infof("Create job found for volume %s with matching correlation ID %s, using non-sequential execution for immediate delete workflow start", volume.UUID, correlationID)
-	} else if utils.IsTransitionalState(volume.State) && volume.State != models.LifeCycleStateDeleting {
+	} else if utils.IsTransitionalState(volume.State) && volume.State != datamodel.LifeCycleStateDeleting {
 		logger.Errorf("Volume %s cannot be deleted, while in transitioning state: %s", volume.Name, volume.State)
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("volume is in transition state and cannot be deleted, state: %s", volume.State))
 	}
@@ -2137,7 +2137,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	previousStateDetails := volume.StateDetails
 	job := &datamodel.Job{
 		Type:          string(deleteJobType),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -2153,7 +2153,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if volume.CacheParameters != nil {
 		workflowFunc = flexcache_workflows.DeleteFlexCacheVolumeWorkflow
-		if volume.State == models.LifeCycleStatePreparing {
+		if volume.State == datamodel.LifeCycleStatePreparing {
 			useNonSequentialExecution = true
 		}
 	}
@@ -2167,17 +2167,17 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Defer to mark job as error if workflow execution fails
 	defer func() {
 		if err != nil {
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
 			}
 		}
 	}()
 
-	if volume.State != models.LifeCycleStateCreating {
+	if volume.State != datamodel.LifeCycleStateCreating {
 		err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateDeleting,
-			"state_details": models.LifeCycleStateDeletingDetails,
+			"state":         datamodel.LifeCycleStateDeleting,
+			"state_details": datamodel.LifeCycleStateDeletingDetails,
 		})
 		if err != nil {
 			logger.Error("Failed to update volume state in database", "error", err)
@@ -2188,8 +2188,8 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	defer func() {
 		if err != nil {
 			volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-				"state":         models.LifeCycleStateError,
-				"state_details": models.LifeCycleStateDeletionErrorDetails,
+				"state":         datamodel.LifeCycleStateError,
+				"state_details": datamodel.LifeCycleStateDeletionErrorDetails,
 			})
 			if volumeUpdateErr != nil {
 				logger.Error("Failed to update volume state to ERROR", "volume_id", volume.UUID, "error", volumeUpdateErr)
@@ -2243,9 +2243,9 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	// If volume is in CREATING state (correlation IDs matched), keep it as CREATING in the response
 	// Otherwise, set it to DELETING
-	if volume.State != models.LifeCycleStateCreating {
-		volume.State = models.LifeCycleStateDeleting
-		volume.StateDetails = models.LifeCycleStateDeletingDetails
+	if volume.State != datamodel.LifeCycleStateCreating {
+		volume.State = datamodel.LifeCycleStateDeleting
+		volume.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	}
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
 }
@@ -2538,9 +2538,9 @@ func validateBackupVaultFamilySwitch(currentVault, newVault *datamodel.BackupVau
 	cur := currentVault.ServiceType
 	newSt := newVault.ServiceType
 	curGCBDR := cur == activities.GCBDRServiceType
-	curGCNV := cur == models.ServiceTypeGCNV
+	curGCNV := cur == datamodel.ServiceTypeGCNV
 	newGCBDR := newSt == activities.GCBDRServiceType
-	newGCNV := newSt == models.ServiceTypeGCNV
+	newGCNV := newSt == datamodel.ServiceTypeGCNV
 
 	sameFamily := (curGCBDR && newGCBDR) || (curGCNV && newGCNV)
 	if volumeHasBackups && !sameFamily {
@@ -2614,7 +2614,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 						if err := validateBackupVaultFamilySwitch(currentVault, newVault, volumeHasBackups); err != nil {
 							return nil, "", err
 						}
-						if newVault != nil && newVault.ServiceType == models.ServiceTypeGCNV && newVault.AccountID != dbVolume.AccountID {
+						if newVault != nil && newVault.ServiceType == datamodel.ServiceTypeGCNV && newVault.AccountID != dbVolume.AccountID {
 							return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
 						}
 					}
@@ -2659,7 +2659,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				if errVault != nil && !customerrors.IsNotFoundErr(errVault) {
 					return nil, "", errVault
 				}
-				if incomingVault != nil && incomingVault.ServiceType == models.ServiceTypeGCNV && incomingVault.AccountID != dbVolume.AccountID {
+				if incomingVault != nil && incomingVault.ServiceType == datamodel.ServiceTypeGCNV && incomingVault.AccountID != dbVolume.AccountID {
 					return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
 				}
 				if utils.EnableBackupVaultSwitching && noVaultAttachedPrior {
@@ -2722,8 +2722,8 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	previousState := dbVolume.State
 	previousStateDetails := dbVolume.StateDetails
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateVolume),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeUpdateVolume),
+		State:        string(datamodel.JobsStateNEW),
 		ResourceName: dbVolume.Name,
 		AccountID:    sql.NullInt64{Int64: dbVolume.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
@@ -2737,7 +2737,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	wf := workflows.UpdateVolumeWorkflow
 	if isReplication {
-		job.Type = string(models.JobTypeUpdateVolumeInReplication)
+		job.Type = string(datamodel.JobTypeUpdateVolumeInReplication)
 		wf = workflows.UpdateVolumeInReplicationWorkflow
 	}
 
@@ -2753,7 +2753,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Defer to mark job as error if workflow execution fails
 	defer func() {
 		if err != nil && createdJob != nil {
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error())
 			if updateErr != nil {
 				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
 			}
@@ -2778,7 +2778,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		dbVolume.VolumeAttributes.FileProperties.UnixPermissions = params.FileProperties.UnixPermissions
 	}
 
-	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 	if err != nil {
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
@@ -2787,8 +2787,8 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	defer func() {
 		if err != nil && createdJob != nil {
 			volumeUpdateErr := se.UpdateVolumeFields(ctx, originalDBVolume.UUID, map[string]interface{}{
-				"state":         models.LifeCycleStateError,
-				"state_details": models.LifeCycleStateUpdateErrorDetails,
+				"state":         datamodel.LifeCycleStateError,
+				"state_details": datamodel.LifeCycleStateUpdateErrorDetails,
 			})
 			if volumeUpdateErr != nil {
 				logger.Error("Failed to update volume state to ERROR", "volume_id", originalDBVolume.UUID, "error", volumeUpdateErr)
@@ -2863,7 +2863,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
-	if volume.State == models.LifeCycleStateUpdating {
+	if volume.State == datamodel.LifeCycleStateUpdating {
 		return customerrors.NewConflictErr("An update operation is already in progress for this volume")
 	} else if utils.IsTransitionalState(volume.State) {
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Volume %s cannot be updated, while in transitioning state: %s", volume.Name, volume.State))
@@ -3034,7 +3034,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 					return err
 				}
 			}
-			if bv.LifeCycleState == models.LifeCycleStateError {
+			if bv.LifeCycleState == datamodel.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
 			if err := validateCRBBackupVault(bv, params.Region); err != nil {
@@ -3058,7 +3058,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 				nil,
 			)
 		}
-		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+		if backupPolicy != nil && backupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 		}
 	}
@@ -3068,7 +3068,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
 		}
-		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+		if backupPolicy != nil && backupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 		}
 	}
@@ -3273,7 +3273,7 @@ func validateCRBBackupVault(backupVault *datamodel.BackupVault, region string) e
 		if *backupVault.SourceRegionName == *backupVault.BackupRegionName {
 			return customerrors.NewBadRequestErr("Backup region must be different from source region for cross-region backup vault")
 		}
-		if backupVault.LifeCycleState != models.LifeCycleStateREADY {
+		if backupVault.LifeCycleState != datamodel.LifeCycleStateREADY {
 			return customerrors.NewBadRequestErr("Cross-region backup vault must be in READY state")
 		}
 		if *backupVault.BackupRegionName == region {
@@ -3294,7 +3294,7 @@ func validateBlockProperties(ctx context.Context, se database.Storage, hostGroup
 		}
 		uniqueHostSet := make(map[string]bool)
 		for _, hostGroup := range hostGroups {
-			if hostGroup.State != models.LifeCycleStateREADY {
+			if hostGroup.State != datamodel.LifeCycleStateREADY {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
 			}
 			for _, host := range hostGroup.Hosts.Hosts {
@@ -3481,7 +3481,7 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 	logger := util.GetLogger(ctx)
 
 	// Validate pool state - only scale pools in a stable state
-	if pool.State != models.LifeCycleStateREADY {
+	if pool.State != datamodel.LifeCycleStateREADY {
 		logger.Warnf("Pool not in ready state poolID: %s, state: %s", pool.UUID, pool.State)
 		return
 	}
@@ -3559,7 +3559,7 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
 	job := &datamodel.Job{
 		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  pool.UUID,
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -3576,7 +3576,7 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 	previousStateDetails := pool.StateDetails
 
 	// Put the pool in updating state before the operation
-	if _, poolErr := se.UpdatePoolState(ctx, pool, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails); poolErr != nil {
+	if _, poolErr := se.UpdatePoolState(ctx, pool, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails); poolErr != nil {
 		logger.Error("Failed to update pool state to ERROR", "poolID", pool.UUID, "error", poolErr)
 	}
 
@@ -3625,7 +3625,7 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 		return "", err
 	}
 
-	if volume.State != models.LifeCycleStateREADY {
+	if volume.State != datamodel.LifeCycleStateREADY {
 		return "", customerrors.NewUserInputValidationErr("Volume is not ready")
 	}
 
@@ -3652,13 +3652,13 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	stateUpdated := false
 
 	// Update volume state to RESTORING
-	volume.State = models.LifeCycleStateRestoring
-	volume.StateDetails = models.LifeCycleStateRestoringDetails
+	volume.State = datamodel.LifeCycleStateRestoring
+	volume.StateDetails = datamodel.LifeCycleStateRestoringDetails
 
 	// Create a job for the restore files operation
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRestoreFilesBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRestoreFilesBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.UUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{},
@@ -3686,7 +3686,7 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 
 			// Mark job as error if it was created
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -3694,7 +3694,7 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	}()
 
 	// Update volume state in database
-	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateRestoring, models.LifeCycleStateRestoringDetails)
+	volume, err = updateVolumeStatus(ctx, se, volume, datamodel.LifeCycleStateRestoring, datamodel.LifeCycleStateRestoringDetails)
 	if err != nil {
 		logger.Error("Failed to update volume state to restoring", "error", err)
 		return "", err
@@ -3842,7 +3842,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		return nil, "", customerrors.NewConflictErr("volume is in transition state and cannot be split, state: " + volume.State)
 	}
 
-	if volume.State != models.LifeCycleStateREADY {
+	if volume.State != datamodel.LifeCycleStateREADY {
 		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
 	}
 
@@ -3852,8 +3852,8 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeSplitVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeSplitVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID},
@@ -3887,12 +3887,12 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 
 	// Update clone state to SPLITTING when split starts
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
-		err = updateCloneState(ctx, se, volume.UUID, models.CloneStateSplitting)
+		err = updateCloneState(ctx, se, volume.UUID, datamodel.CloneStateSplitting)
 		if err != nil {
 			logger.Error("Failed to update clone state to SPLITTING", "error", err)
 			return nil, "", err
 		}
-		volume.VolumeAttributes.CloneParentInfo.State = models.CloneStateSplitting
+		volume.VolumeAttributes.CloneParentInfo.State = datamodel.CloneStateSplitting
 		volume.VolumeAttributes.CloneParentInfo.StateDetails = ""
 	}
 
@@ -3948,7 +3948,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 					} else {
 						updatedAttrs := *currentVolume.VolumeAttributes
 						cloneInfo := *currentVolume.VolumeAttributes.CloneParentInfo
-						cloneInfo.State = models.CloneStateCloned
+						cloneInfo.State = datamodel.CloneStateCloned
 						cloneInfo.StateDetails = ""
 						updatedAttrs.CloneParentInfo = &cloneInfo
 						if cloneStateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
@@ -3985,7 +3985,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 				} else {
 					updatedAttrs := *currentVolume.VolumeAttributes
 					cloneInfo := *currentVolume.VolumeAttributes.CloneParentInfo
-					cloneInfo.State = models.CloneStateErrorInSplitting
+					cloneInfo.State = datamodel.CloneStateErrorInSplitting
 					cloneInfo.StateDetails = cloneStateDetails
 					updatedAttrs.CloneParentInfo = &cloneInfo
 					if cloneStateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
@@ -4091,7 +4091,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 				delay := waitForTemporalUpdateInitDelay
 				var lastErr error
 				for attempt := 1; attempt <= waitForTemporalUpdateMaxRetries; attempt++ {
-					lastErr = se.UpdateJob(bgCtx, jobUUID, string(models.JobsStateWaitForTemporal), trackingID, workflowStartErr)
+					lastErr = se.UpdateJob(bgCtx, jobUUID, string(datamodel.JobsStateWaitForTemporal), trackingID, workflowStartErr)
 					if lastErr == nil {
 						bgLogger.Infof("Split job %s successfully updated to WAIT_FOR_TEMPORAL (attempt %d, elapsed %s)", jobUUID, attempt, time.Since(retryStart))
 						return
@@ -4218,7 +4218,7 @@ func _splitStopVolume(ctx context.Context, se database.Storage, params *common.S
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
 		updatedAttrs := *volume.VolumeAttributes
 		cloneParentInfo := *volume.VolumeAttributes.CloneParentInfo
-		cloneParentInfo.State = models.CloneStateCloned
+		cloneParentInfo.State = datamodel.CloneStateCloned
 		cloneParentInfo.StateDetails = ""
 		updatedAttrs.CloneParentInfo = &cloneParentInfo
 		if updateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
@@ -4289,7 +4289,7 @@ func _validateSplitStopVolumeParams(ctx context.Context, volume *datamodel.Volum
 		logger.Errorf("Volume %s is not a thin clone volume (missing clone parent metadata), cannot stop split", volume.Name)
 		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split stop operation")
 	}
-	if volume.VolumeAttributes.CloneParentInfo.State != models.CloneStateSplitting {
+	if volume.VolumeAttributes.CloneParentInfo.State != datamodel.CloneStateSplitting {
 		return customerrors.NewConflictErr("volume split is not in progress, current clone state: " + volume.VolumeAttributes.CloneParentInfo.State)
 	}
 	return nil
@@ -4302,7 +4302,7 @@ func _validateSplitStartVolumeParams(ctx context.Context, se database.Storage, v
 		logger.Errorf("Volume %s is not a thin clone volume (missing clone parent metadata), cannot perform split operation", volume.Name)
 		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split operation")
 	}
-	if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+	if volume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 		return customerrors.NewConflictErr("volume split is already in progress")
 	}
 

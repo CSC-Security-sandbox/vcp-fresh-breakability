@@ -101,8 +101,8 @@ func Test_checkActiveReplicationJobs(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		otherPoolJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
-			Type:          string(coreModels.JobTypeCreateVolumeReplication),
-			State:         string(coreModels.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeCreateVolumeReplication),
+			State:         string(datamodel.JobsStatePROCESSING),
 			ResourceName:  ccfeURI,
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: "other-pool-uuid"},
 		}
@@ -126,8 +126,8 @@ func Test_checkActiveReplicationJobs(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		job := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
-			Type:          string(coreModels.JobTypeCreateHybridReplication),
-			State:         string(coreModels.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeCreateHybridReplication),
+			State:         string(datamodel.JobsStatePROCESSING),
 			ResourceName:  "some-other-uri",
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
 		}
@@ -142,8 +142,8 @@ func Test_checkActiveReplicationJobs(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		job := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-2"},
-			Type:          string(coreModels.JobTypeHybridReplicationEstablishPeering),
-			State:         string(coreModels.JobsStateNEW),
+			Type:          string(datamodel.JobTypeHybridReplicationEstablishPeering),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  "some-uri",
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
 		}
@@ -158,8 +158,8 @@ func Test_checkActiveReplicationJobs(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		job := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-3"},
-			Type:          string(coreModels.JobTypeCreateVolumeReplication),
-			State:         string(coreModels.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeCreateVolumeReplication),
+			State:         string(datamodel.JobsStatePROCESSING),
 			ResourceName:  ccfeURI,
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
 		}
@@ -174,8 +174,8 @@ func Test_checkActiveReplicationJobs(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		job := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-4"},
-			Type:          string(coreModels.JobTypeUpdateVolumeReplication),
-			State:         string(coreModels.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeUpdateVolumeReplication),
+			State:         string(datamodel.JobsStatePROCESSING),
 			ResourceName:  ccfeURI,
 			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
 		}
@@ -1020,7 +1020,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			CreationToken:    "token-1",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-vol-uuid",
-				State:            coreModels.CloneStateSplitting,
+				State:            datamodel.CloneStateSplitting,
 			},
 		}
 		eventCopy.SourceVolume = volumeCopy
@@ -3806,7 +3806,7 @@ func TestValidateReplicationParams(t *testing.T) {
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:      "us-east4-1",
 					DestinationLocation: "us-central1-a",
-					EndpointType:        string(coreModels.DstEndpoint),
+					EndpointType:        string(datamodel.DstEndpoint),
 				},
 				RemoteUri: "projects/987654321/locations/us-central1/volumes/test-volume/replications/test-replication",
 			},
@@ -4243,8 +4243,8 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 	})
 	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
-		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := datamodel.HybridReplicationStatusPendingSVMPeer
 		eventWithHybridNotPeered := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -4270,8 +4270,8 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusPeered
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusPeered
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -4304,7 +4304,7 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -4349,8 +4349,8 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusExternalManaged
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusExternalManaged
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -4395,7 +4395,7 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -4431,7 +4431,7 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -4481,7 +4481,7 @@ func TestVerifySourceQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_ValidatesQuotaRules", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:         "srcPath",
@@ -4532,7 +4532,7 @@ func TestVerifySourceQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_WithNonReadyQuotaRules_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:         "srcPath",
@@ -4586,7 +4586,7 @@ func TestVerifySourceQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_WithAPIError_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:         "srcPath",
@@ -4950,7 +4950,7 @@ func TestVerifyDestinationQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_ValidatesQuotaRules", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -5000,7 +5000,7 @@ func TestVerifyDestinationQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_WithTransitioningStates_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -5053,7 +5053,7 @@ func TestVerifyDestinationQuotaRules(t *testing.T) {
 
 	t.Run("WhenHybridReplication_WithAPIError_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -5665,8 +5665,8 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 	})
 	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
-		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := datamodel.HybridReplicationStatusPendingSVMPeer
 		eventWithHybridNotPeered := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -5692,8 +5692,8 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusPeered
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusPeered
 		hybridEvent := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -5726,7 +5726,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -5771,8 +5771,8 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusExternalManaged
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusExternalManaged
 		hybridEvent := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -5817,7 +5817,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -5861,7 +5861,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+						Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 					},
 				},
 			},
@@ -5877,7 +5877,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &StopReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -6233,13 +6233,13 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 				DestinationProjectNumber: "destinationProjectNumber",
 				DstToken:                 "dstToken",
 				ReplicationModel: &datamodel.VolumeReplication{
-					State: coreModels.LifeCycleStateCreating,
+					State: datamodel.LifeCycleStateCreating,
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						DestinationLocation:        "dstLocation",
 						DestinationReplicationUUID: "dstUUID",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+						Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 					},
 				},
 			},
@@ -6375,7 +6375,7 @@ func TestVerifyDstReplicationSync(t *testing.T) {
 	}
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ResumeReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -6555,7 +6555,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		event1 := *event
 		event1.Description = nillable.ToPointer("New description")
 		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
-			Status: coreModels.HybridReplicationStatusPendingRemoteResync,
+			Status: datamodel.HybridReplicationStatusPendingRemoteResync,
 		}
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
@@ -6570,7 +6570,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		event1 := *event
 		event1.Description = nillable.ToPointer("New description")
 		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
-			Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+			Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 		}
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
@@ -6585,7 +6585,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		event1 := *event
 		event1.Description = nillable.ToPointer("New description")
 		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
-			Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+			Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 		}
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
@@ -6597,7 +6597,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		event1 := *event
 		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleDAILY)
 		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
@@ -6613,7 +6613,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		event1 := *event
 		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleEVERY10MINUTES)
 		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
@@ -6629,7 +6629,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mirrorState := "STOPPED"
 		relationshipStatus := "IDLE"
 		dstReplication := &coreModels.VolumeReplication{
@@ -6653,7 +6653,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mirrorState := "STOPPED"
 		relationshipStatus := "IDLE"
 		dstReplication := &coreModels.VolumeReplication{
@@ -6678,7 +6678,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		continuousType := string(coreModels.HybridReplicationParametersReplicationTypeCONTINUOUS)
+		continuousType := string(datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS)
 		mirrorState := "STOPPED"
 		relationshipStatus := "IDLE"
 		dstReplication := &coreModels.VolumeReplication{
@@ -6712,7 +6712,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mirrorState := "STOPPED"
 		relationshipStatus := "IDLE"
 		dstReplication := &coreModels.VolumeReplication{
@@ -6772,8 +6772,8 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 
 	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
-		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := datamodel.HybridReplicationStatusPendingSVMPeer
 		eventWithHybridNotPeered := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				DstBasePath:              "dstPath",
@@ -6799,8 +6799,8 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusPeered
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusPeered
 		hybridEvent := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -6835,8 +6835,8 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-		status := coreModels.HybridReplicationStatusExternalManaged
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+		status := datamodel.HybridReplicationStatusExternalManaged
 		hybridEvent := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -6886,7 +6886,7 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -6935,7 +6935,7 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -6973,7 +6973,7 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		hybridEvent := &ReverseReplicationEvent{
 			CommonReplicationEventParams: CommonReplicationEventParams{
 				SrcBasePath:              "srcPath",
@@ -7868,37 +7868,37 @@ func TestMapLifecycleStateToState(t *testing.T) {
 			{
 				name:          "Creating",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
-				expectedState: coreModels.LifeCycleStateCreating,
+				expectedState: datamodel.LifeCycleStateCreating,
 			},
 			{
 				name:          "Available",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
-				expectedState: coreModels.LifeCycleStateAvailable,
+				expectedState: datamodel.LifeCycleStateAvailable,
 			},
 			{
 				name:          "Updating",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
-				expectedState: coreModels.LifeCycleStateUpdating,
+				expectedState: datamodel.LifeCycleStateUpdating,
 			},
 			{
 				name:          "Disabled",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
-				expectedState: coreModels.LifeCycleStateDisabled,
+				expectedState: datamodel.LifeCycleStateDisabled,
 			},
 			{
 				name:          "Deleting",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
-				expectedState: coreModels.LifeCycleStateDeleting,
+				expectedState: datamodel.LifeCycleStateDeleting,
 			},
 			{
 				name:          "Deleted",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
-				expectedState: coreModels.LifeCycleStateDeleted,
+				expectedState: datamodel.LifeCycleStateDeleted,
 			},
 			{
 				name:          "Error",
 				inputState:    googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
-				expectedState: coreModels.LifeCycleStateError,
+				expectedState: datamodel.LifeCycleStateError,
 			},
 		}
 
@@ -7913,19 +7913,19 @@ func TestMapLifecycleStateToState(t *testing.T) {
 		// Test with an unknown/invalid state
 		unknownState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("unknown")
 		result := mapLifecycleStateToState(unknownState)
-		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Unknown state should map to LifeCycleStateUnknown")
+		assert.Equal(t, datamodel.LifeCycleStateUnknown, result, "Unknown state should map to LifeCycleStateUnknown")
 	})
 	t.Run("EmptyState", func(tt *testing.T) {
 		// Test with empty state
 		emptyState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("")
 		result := mapLifecycleStateToState(emptyState)
-		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Empty state should map to LifeCycleStateUnknown")
+		assert.Equal(t, datamodel.LifeCycleStateUnknown, result, "Empty state should map to LifeCycleStateUnknown")
 	})
 	t.Run("CaseSensitivity", func(tt *testing.T) {
 		// Test that the function is case-sensitive (should not match uppercase)
 		uppercaseState := googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState("CREATING")
 		result := mapLifecycleStateToState(uppercaseState)
-		assert.Equal(t, coreModels.LifeCycleStateUnknown, result, "Uppercase state should map to LifeCycleStateUnknown")
+		assert.Equal(t, datamodel.LifeCycleStateUnknown, result, "Uppercase state should map to LifeCycleStateUnknown")
 	})
 	t.Run("AllEnumValuesCovered", func(tt *testing.T) {
 		// Verify that all possible enum values are handled
@@ -7941,7 +7941,7 @@ func TestMapLifecycleStateToState(t *testing.T) {
 
 		for _, state := range allStates {
 			result := mapLifecycleStateToState(state)
-			assert.NotEqual(t, coreModels.LifeCycleStateUnknown, result, "State %s should not map to unknown", state)
+			assert.NotEqual(t, datamodel.LifeCycleStateUnknown, result, "State %s should not map to unknown", state)
 		}
 	})
 }
@@ -7956,37 +7956,37 @@ func TestConvertReplicationResponseToModels(t *testing.T) {
 			{
 				name:           "CreatingState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
-				expectedState:  coreModels.LifeCycleStateCreating,
+				expectedState:  datamodel.LifeCycleStateCreating,
 			},
 			{
 				name:           "AvailableState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
-				expectedState:  coreModels.LifeCycleStateAvailable,
+				expectedState:  datamodel.LifeCycleStateAvailable,
 			},
 			{
 				name:           "UpdatingState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
-				expectedState:  coreModels.LifeCycleStateUpdating,
+				expectedState:  datamodel.LifeCycleStateUpdating,
 			},
 			{
 				name:           "DisabledState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
-				expectedState:  coreModels.LifeCycleStateDisabled,
+				expectedState:  datamodel.LifeCycleStateDisabled,
 			},
 			{
 				name:           "DeletingState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
-				expectedState:  coreModels.LifeCycleStateDeleting,
+				expectedState:  datamodel.LifeCycleStateDeleting,
 			},
 			{
 				name:           "DeletedState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
-				expectedState:  coreModels.LifeCycleStateDeleted,
+				expectedState:  datamodel.LifeCycleStateDeleted,
 			},
 			{
 				name:           "ErrorState",
 				lifecycleState: googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
-				expectedState:  coreModels.LifeCycleStateError,
+				expectedState:  datamodel.LifeCycleStateError,
 			},
 		}
 
@@ -8081,7 +8081,7 @@ func TestConvertReplicationResponseToModels(t *testing.T) {
 		result := convertReplicationResponseToModels(response)
 
 		assert.NotNil(t, result, "Result should not be nil")
-		assert.Equal(t, coreModels.LifeCycleStateUnknown, result.State, "Unknown state should map to LifeCycleStateUnknown")
+		assert.Equal(t, datamodel.LifeCycleStateUnknown, result.State, "Unknown state should map to LifeCycleStateUnknown")
 		assert.Equal(t, "test state details", result.StateDetails, "State details should match")
 	})
 
@@ -8115,7 +8115,7 @@ func TestConvertReplicationResponseToModels(t *testing.T) {
 		result := convertReplicationResponseToModels(response)
 
 		assert.NotNil(t, result, "Result should not be nil")
-		assert.Equal(t, coreModels.LifeCycleStateAvailable, result.State, "State should be mapped correctly")
+		assert.Equal(t, datamodel.LifeCycleStateAvailable, result.State, "State should be mapped correctly")
 		assert.Equal(t, "test state details", result.StateDetails, "State details should match")
 		assert.Equal(t, "test-replication", result.Name, "Name should match")
 		assert.Equal(t, "test-uuid", result.UUID, "UUID should match")
@@ -8240,8 +8240,8 @@ func TestIsPoolInONTAPMode(t *testing.T) {
 }
 
 func TestIsSrcForHybridReplication(t *testing.T) {
-	reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
-	migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+	reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
+	migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 
 	t.Run("ReturnsTrue_WhenAllConditionsMet", func(tt *testing.T) {
 		replication := &datamodel.VolumeReplication{
@@ -8458,7 +8458,7 @@ func Test_verifyEstablishPeering(t *testing.T) {
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				PeerSvmName:    "different-svm",
 				PeerVolumeName: "different-volume",
-				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status:         datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
@@ -8487,12 +8487,12 @@ func Test_verifyEstablishPeering(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
 			ClusterPeer: &datamodel.ClusterPeerings{
-				State: coreModels.CvpClusterPeeringStatusPEERED,
+				State: datamodel.CvpClusterPeeringStatusPEERED,
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				PeerSvmName:    params.PeerSvmName,
 				PeerVolumeName: params.PeerVolumeName,
-				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status:         datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
@@ -8523,7 +8523,7 @@ func Test_verifyEstablishPeering(t *testing.T) {
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				PeerSvmName:    params.PeerSvmName,
 				PeerVolumeName: params.PeerVolumeName,
-				Status:         coreModels.HybridReplicationStatusPeered, // Not PendingClusterPeer or PendingSVMPeer
+				Status:         datamodel.HybridReplicationStatusPeered, // Not PendingClusterPeer or PendingSVMPeer
 			},
 		}
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
@@ -8554,7 +8554,7 @@ func Test_verifyEstablishPeering(t *testing.T) {
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				PeerSvmName:    params.PeerSvmName,
 				PeerVolumeName: params.PeerVolumeName,
-				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status:         datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
@@ -8586,7 +8586,7 @@ func Test_verifyEstablishPeering(t *testing.T) {
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				PeerSvmName:    params.PeerSvmName,
 				PeerVolumeName: params.PeerVolumeName,
-				Status:         coreModels.HybridReplicationStatusPendingSVMPeer,
+				Status:         datamodel.HybridReplicationStatusPendingSVMPeer,
 			},
 		}
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
@@ -8707,10 +8707,10 @@ func Test_verifyClusterPeering(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
 			ClusterPeer: &datamodel.ClusterPeerings{
-				State: coreModels.CvpClusterPeeringStatusPEERED,
+				State: datamodel.CvpClusterPeeringStatusPEERED,
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -8723,10 +8723,10 @@ func Test_verifyClusterPeering(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
 			ClusterPeer: &datamodel.ClusterPeerings{
-				State: coreModels.CvpClusterPeeringStatusCREATING,
+				State: datamodel.CvpClusterPeeringStatusCREATING,
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -8740,7 +8740,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -8754,7 +8754,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+				Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 			},
 		}
 
@@ -8768,7 +8768,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPeered,
+				Status: datamodel.HybridReplicationStatusPeered,
 			},
 		}
 
@@ -8782,7 +8782,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusSVMPeered,
+				Status: datamodel.HybridReplicationStatusSVMPeered,
 			},
 		}
 
@@ -8796,7 +8796,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusExternalManaged,
+				Status: datamodel.HybridReplicationStatusExternalManaged,
 			},
 		}
 
@@ -8810,7 +8810,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -8824,7 +8824,7 @@ func Test_verifyClusterPeering(t *testing.T) {
 			Name:        "test-replication",
 			ClusterPeer: nil,
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+				Status: datamodel.HybridReplicationStatusPendingSVMPeer,
 			},
 		}
 

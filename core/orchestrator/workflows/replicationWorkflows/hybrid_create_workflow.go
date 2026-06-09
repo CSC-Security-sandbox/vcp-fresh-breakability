@@ -52,20 +52,20 @@ func CreateHybridReplicationWorkflow(ctx workflow.Context, params *common.Create
 		return nil, err
 	}
 	volumeWf.Status = workflows.WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		volumeWf.Status = workflows.WorkflowStatusFailed
-		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := volumeWf.Run(ctx, volume, params)
 	if customErr != nil {
 		volumeWf.Status = workflows.WorkflowStatusFailed
-		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	volumeWf.Status = workflows.WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -132,7 +132,7 @@ func (wf *createHybridReplicationWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	var childWorkflowResult gcpgenserver.V1betaDescribeVolumeRes
-	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(models.JobTypeCreateVolume)).Get(ctx, &createdJob)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(datamodel.JobTypeCreateVolume)).Get(ctx, &createdJob)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -191,7 +191,7 @@ func (wf *createHybridReplicationWorkflow) Run(ctx workflow.Context, args ...int
 
 	var establishPeeringJob datamodel.Job
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(models.JobTypeHybridReplicationEstablishPeering)).Get(ctx, &establishPeeringJob)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(datamodel.JobTypeHybridReplicationEstablishPeering)).Get(ctx, &establishPeeringJob)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -230,23 +230,23 @@ func EstablishPeeringWorkflow(ctx workflow.Context, replicationResult replicatio
 		return err
 	}
 	createEstablishPeeringWF.Status = workflows.WorkflowStatusRunning
-	err = createEstablishPeeringWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = createEstablishPeeringWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		createEstablishPeeringWF.Status = workflows.WorkflowStatusFailed
-		err = createEstablishPeeringWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = createEstablishPeeringWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, workflowErr := createEstablishPeeringWF.Run(ctx, replicationResult, volume)
 	if workflowErr != nil {
 		createEstablishPeeringWF.Status = workflows.WorkflowStatusFailed
-		err2 := createEstablishPeeringWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := createEstablishPeeringWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			createEstablishPeeringWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	createEstablishPeeringWF.Status = workflows.WorkflowStatusCompleted
-	err2 := createEstablishPeeringWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := createEstablishPeeringWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		createEstablishPeeringWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -348,7 +348,7 @@ func (wf *createEstablishPeeringWorkflow) Run(ctx workflow.Context, args ...inte
 
 	var internalEstablishJob datamodel.Job
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(models.JobTypeHybridReplicationInternalEstablish)).Get(ctx, &internalEstablishJob)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReplication, &replicationResult, string(datamodel.JobTypeHybridReplicationInternalEstablish)).Get(ctx, &internalEstablishJob)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -384,23 +384,23 @@ func InternalEstablishWorkflow(ctx workflow.Context, replicationResult replicati
 		return err
 	}
 	createInternalEstablishWF.Status = workflows.WorkflowStatusRunning
-	err = createInternalEstablishWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = createInternalEstablishWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		createInternalEstablishWF.Status = workflows.WorkflowStatusFailed
-		err = createInternalEstablishWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = createInternalEstablishWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, workflowErr := createInternalEstablishWF.Run(ctx, replicationResult, volume)
 	if workflowErr != nil {
 		createInternalEstablishWF.Status = workflows.WorkflowStatusFailed
-		err2 := createInternalEstablishWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := createInternalEstablishWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			createInternalEstablishWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	createInternalEstablishWF.Status = workflows.WorkflowStatusCompleted
-	err2 := createInternalEstablishWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := createInternalEstablishWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		createInternalEstablishWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -545,22 +545,22 @@ func updateStateDetailsAndCode(result *replication.CreateHybridReplicationResult
 		switch vsaErr.TrackingID {
 		case vsaerrors.ErrClusterPeerNotAvailable:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.ClusterPeeringExpiredCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.ClusterPeeringExpired
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.ClusterPeeringExpired
 		case vsaerrors.ErrClusterPeerTimeout:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.ClusterPeeringExpiredCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.ClusterPeeringExpired
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.ClusterPeeringExpired
 		case vsaerrors.ErrorCreateClusterPeerCVISourceClusterUnreachable:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.SourceClusterUnreachableCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.ClusterPeeringSourceUnreachable
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.ClusterPeeringSourceUnreachable
 		case vsaerrors.ErrSVMPeerTimeout:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.SVMPeeringExpiredCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.SVMPeeringExpired
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.SVMPeeringExpired
 		case vsaerrors.ErrSVMPeerNotAvailable:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.ErrorDuringSVMPeeringCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.ErrorDuringSVMPeering
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.ErrorDuringSVMPeering
 		case vsaerrors.ErrClusterPeerError:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.ErrorDuringClusterPeerCode
-			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = models.ErrorDuringClusterPeer
+			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = datamodel.ErrorDuringClusterPeer
 		default:
 			result.DbVolReplication.HybridReplicationAttributes.StateDetailsCode = models.DefaultCode
 			result.DbVolReplication.HybridReplicationAttributes.StatusDetails = getOriginalErrorCause(err)

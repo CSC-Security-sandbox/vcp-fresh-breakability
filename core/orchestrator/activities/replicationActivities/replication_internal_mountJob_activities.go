@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	failedStates        = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
+	failedStates        = []string{datamodel.SnapmirrorRelationshipFailed, datamodel.SnapmirrorRelationshipAborted, datamodel.SnapmirrorRelationshipHardAborted}
 	mountJobRetryWindow = time.Duration(env.GetInt("ONTAP_TRANSIENT_ERROR_RETRY_MINUTES", 90)) * time.Minute
 )
 
@@ -53,7 +53,7 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 		logger.Infof("Transfer aborted, No data transfer is in progress for replication %s", dbReplication.UUID)
 		return nil
 	}
-	if snapmirror.MirrorState == models.OntapSnapmirrored && (snapmirror.RelationshipStatus == models.SnapmirrorRelationshipIdle || snapmirror.RelationshipStatus == models.SnapmirrorRelationshipSuccess) {
+	if snapmirror.MirrorState == datamodel.OntapSnapmirrored && (snapmirror.RelationshipStatus == datamodel.SnapmirrorRelationshipIdle || snapmirror.RelationshipStatus == datamodel.SnapmirrorRelationshipSuccess) {
 		logger.Infof("Status is snapmirrored. External_UUID: %s", replication.ExternalUUID)
 		return nil
 	} else {
@@ -89,7 +89,7 @@ func (j *MountJobActivity) UpdateReplicationInDB(ctx context.Context, replicatio
 	// Validate LUN details
 	if (replication.Volume.VolumeAttributes.Protocols != nil && replication.Volume.VolumeAttributes.Protocols[0] == "ISCSI") && (lunDetails == nil || len(lunDetails) != 1) {
 		originalErr := errors.New("zero or multiple LUNs found on source volume")
-		replication.State = models.LifeCycleStateError
+		replication.State = datamodel.LifeCycleStateError
 		replication.StateDetails = originalErr.Error()
 
 		// Update database with error state before returning

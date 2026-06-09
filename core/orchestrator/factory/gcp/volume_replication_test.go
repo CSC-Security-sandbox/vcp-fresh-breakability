@@ -179,7 +179,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(replicationDb, nil)
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
 		// Mock the DeleteVolumeReplication call that should happen in the defer block
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
 			return repl != nil
@@ -235,7 +235,7 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(replicationDb, nil)
 
 		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
-		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
 		// Mock the DeleteVolumeReplication call that should happen in the defer block
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
 			return repl != nil
@@ -512,7 +512,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
@@ -572,7 +572,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
 		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
-		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
@@ -651,8 +651,8 @@ func TestCreateVolumeReplication(t *testing.T) {
 			Description:  "test replication",
 			Uri:          "test-uri",
 			RemoteUri:    "test-remote-uri",
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType:               "test-endpoint",
 				ReplicationType:            "test-replication-type",
@@ -1276,9 +1276,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
-					EndpointType:          models.DstEndpoint,
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
+					EndpointType:          datamodel.DstEndpoint,
 					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
 					RemoteRegion:          "us-e4",
 					SourceHostName:        "source-host",
@@ -2511,9 +2511,9 @@ func TestGetBatchReplications(t *testing.T) {
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
-					EndpointType:          models.DstEndpoint,
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
+					EndpointType:          datamodel.DstEndpoint,
 					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
 					RemoteRegion:          "us-e4",
 					SourceHostName:        "source-host",
@@ -2839,9 +2839,9 @@ func TestGetReplicationObjects(t *testing.T) {
 			return []googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
-					EndpointType:          models.DstEndpoint,
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
+					EndpointType:          datamodel.DstEndpoint,
 					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
 					RemoteRegion:          "us-e4",
 					SourceHostName:        "source-host",
@@ -2933,9 +2933,9 @@ func TestGetReplicationObjects(t *testing.T) {
 			return []googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
-					EndpointType:          models.DstEndpoint,
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
+					EndpointType:          datamodel.DstEndpoint,
 					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
 					RemoteRegion:          "us-e4",
 					SourceHostName:        "source-host",
@@ -2976,7 +2976,7 @@ func TestGetReplicationObjects(t *testing.T) {
 				{
 					JobUuid:      googleproxyclient.NewOptString("job-uuid-1"),
 					ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6"),
-					JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+					JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeCreateVolumeReplication)),
 				},
 			}, nil
 		}
@@ -3134,20 +3134,20 @@ func TestGetReplicationObjects(t *testing.T) {
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
 					Name:                  googleproxyclient.NewOptString("replication-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
 				},
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-2"),
 					Name:                  googleproxyclient.NewOptString("replication-2"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
 				},
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-3"),
 					Name:                  googleproxyclient.NewOptString("replication-3"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateAvailableDetails),
 				},
 			}, nil
 		}
@@ -3327,7 +3327,7 @@ func TestGetReplicationObjects(t *testing.T) {
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
 					Name:                  googleproxyclient.NewOptString("replication-1"),
-					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(datamodel.LifeCycleStateREADY),
 				},
 			}, nil
 		}
@@ -3909,7 +3909,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeDeleteVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -3963,7 +3963,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeCreateVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -4018,7 +4018,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeStopVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -4072,7 +4072,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeResumeVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeResumeVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -4127,7 +4127,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeUpdateVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeUpdateVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -4181,7 +4181,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeHybridReplicationInternalEstablish)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeHybridReplicationInternalEstablish)),
 				ResourceName: googleproxyclient.NewOptString("replication-1"),
 			},
 		}
@@ -4290,7 +4290,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeDeleteVolumeReplication)),
 				ResourceName: googleproxyclient.NewOptString("different-replication"),
 			},
 		}
@@ -4558,7 +4558,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingClusterPeer,
+						Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 						StateDetailsCode: 100,
 					},
 					ClusterPeer: &datamodel.ClusterPeerings{
@@ -4622,7 +4622,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingClusterPeer,
+						Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 						StateDetailsCode: 200,
 					},
 					ClusterPeer: &datamodel.ClusterPeerings{
@@ -4682,7 +4682,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingSVMPeer,
+						Status:           datamodel.HybridReplicationStatusPendingSVMPeer,
 						StateDetailsCode: 300,
 						SvmPeerCommand:   &svmPeerCommand,
 					},
@@ -4737,7 +4737,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingSVMPeer,
+						Status:           datamodel.HybridReplicationStatusPendingSVMPeer,
 						StateDetailsCode: 400,
 						SvmPeerCommand:   nil, // No command
 					},
@@ -4792,7 +4792,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusSVMPeered,
+						Status:           datamodel.HybridReplicationStatusSVMPeered,
 						StateDetailsCode: 500,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -4852,7 +4852,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:                models.HybridReplicationStatusPendingClusterPeer,
+						Status:                datamodel.HybridReplicationStatusPendingClusterPeer,
 						StateDetailsCode:      600,
 						HybridReplicationType: &hybridReplicationType,
 						PeerVolumeName:        peerVolumeName,
@@ -4915,7 +4915,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:                models.HybridReplicationStatusPendingClusterPeer,
+						Status:                datamodel.HybridReplicationStatusPendingClusterPeer,
 						StateDetailsCode:      700,
 						HybridReplicationType: &hybridReplicationType,
 						PeerVolumeName:        peerVolumeName,
@@ -5091,7 +5091,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingClusterPeer,
+						Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 						StatusDetails:    hybridStatusDetails,
 						StateDetailsCode: 800,
 					},
@@ -5152,7 +5152,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingClusterPeer,
+						Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 						StatusDetails:    hybridStatusDetails,
 						StateDetailsCode: 900,
 					},
@@ -5213,7 +5213,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingSVMPeer,
+						Status:           datamodel.HybridReplicationStatusPendingSVMPeer,
 						StatusDetails:    hybridStatusDetails,
 						StateDetailsCode: 1000,
 					},
@@ -5270,7 +5270,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusSVMPeered,
+						Status:           datamodel.HybridReplicationStatusSVMPeered,
 						StatusDetails:    hybridStatusDetails,
 						StateDetailsCode: 1100,
 					},
@@ -5327,7 +5327,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPendingClusterPeer,
+						Status:           datamodel.HybridReplicationStatusPendingClusterPeer,
 						StatusDetails:    hybridStatusDetails,
 						StateDetailsCode: 1200,
 					},
@@ -5385,7 +5385,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:                        models.HybridReplicationStatusPendingRemoteResync,
+						Status:                        datamodel.HybridReplicationStatusPendingRemoteResync,
 						HybridReplicationUserCommands: userCommands,
 						StatusDetails:                 statusDetails,
 					},
@@ -5399,7 +5399,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeReverseHybridReplicationInternal)),
 			},
 		}
 
@@ -5446,7 +5446,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: models.HybridReplicationStatusPendingRemoteResync,
+						Status: datamodel.HybridReplicationStatusPendingRemoteResync,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						DestinationLocation: "us-e4",
@@ -5498,7 +5498,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:                        models.HybridReplicationStatusExternalManaged,
+						Status:                        datamodel.HybridReplicationStatusExternalManaged,
 						HybridReplicationUserCommands: userCommands,
 						StatusDetails:                 "Externally managed",
 					},
@@ -5512,7 +5512,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseResumeVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeReverseResumeVolumeReplication)),
 			},
 		}
 
@@ -5559,7 +5559,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:        models.HybridReplicationStatusExternalManaged,
+						Status:        datamodel.HybridReplicationStatusExternalManaged,
 						StatusDetails: statusDetails,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -5614,7 +5614,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:           models.HybridReplicationStatusPeered,
+						Status:           datamodel.HybridReplicationStatusPeered,
 						StatusDetails:    "Peered",
 						StateDetailsCode: expectedStateDetailsCode,
 					},
@@ -5719,7 +5719,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
-		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		// This URI will be used to override srcVolUri when IsSrcForHybridReplication returns true
 		dbReplicationUri := "projects/45110233509/locations/us-central1/volumes/override-source-volume/replications/replication-uuid-1"
 		expectedVolumeUri := "projects/45110233509/locations/us-central1/volumes/override-source-volume"
@@ -5736,7 +5736,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					Uri:  dbReplicationUri,
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 						HybridReplicationType: &reverseType,
-						Status:                models.HybridReplicationStatusPeered,
+						Status:                datamodel.HybridReplicationStatusPeered,
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						DestinationLocation: "customer",
@@ -5794,7 +5794,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 					},
 					Name: "replication-1",
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status:        models.HybridReplicationStatusPendingRemoteResync,
+						Status:        datamodel.HybridReplicationStatusPendingRemoteResync,
 						StatusDetails: statusDetails,
 						// No user commands
 					},
@@ -5808,7 +5808,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeReverseHybridReplicationInternal)),
 			},
 		}
 
@@ -5863,7 +5863,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeReverseHybridReplicationInternal)),
 			},
 		}
 
@@ -6584,7 +6584,7 @@ func TestResumeReplication(t *testing.T) {
 
 		existingJobUUID := "existing-job-uuid"
 		existingReplication := &models.VolumeReplication{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &models.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7053,7 +7053,7 @@ func TestResumeReplicationInternal(t *testing.T) {
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
 		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
-			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+			return repl.State == datamodel.LifeCycleStateError && repl.StateDetails == expectedError.Error()
 		})).Return(nil)
 
 		_, _, err := _resumeReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName, false)
@@ -7077,8 +7077,8 @@ func TestResumeReplicationInternal(t *testing.T) {
 		mirrorState := "broken_off"
 		relationShipStatus := "idle"
 		replicationDb := &datamodel.VolumeReplication{
-			State:              models.LifeCycleStateUpdating,
-			StateDetails:       models.LifeCycleStateUpdatingDetails,
+			State:              datamodel.LifeCycleStateUpdating,
+			StateDetails:       datamodel.LifeCycleStateUpdatingDetails,
 			MirrorState:        &mirrorState,
 			LastTransferError:  "error",
 			RelationshipStatus: &relationShipStatus,
@@ -7148,7 +7148,7 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7171,7 +7171,7 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7198,7 +7198,7 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7227,7 +7227,7 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7753,7 +7753,7 @@ func TestStopReplication(t *testing.T) {
 
 		existingJobUUID := "existing-job-uuid"
 		existingReplication := &models.VolumeReplication{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &models.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -7795,8 +7795,8 @@ func TestGetReplication(t *testing.T) {
 			Description:  "test replication",
 			Uri:          "test-uri",
 			RemoteUri:    "test-remote-uri",
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType:               "test-endpoint",
 				ReplicationType:            "test-replication-type",
@@ -7872,7 +7872,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 
@@ -7898,7 +7898,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Volume:    &datamodel.Volume{Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}}},
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
@@ -7926,7 +7926,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Volume:    &datamodel.Volume{Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}}},
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
@@ -7955,7 +7955,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Volume:    &datamodel.Volume{Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}}},
 		}
 
@@ -7974,7 +7974,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false, false).Return(nil, expectedError)
 		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
@@ -8102,7 +8102,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			Name:                  "test-replication",
 			AccountID:             1,
 			Account:               account,
-			State:                 models.LifeCycleStateCreating,
+			State:                 datamodel.LifeCycleStateCreating,
 			Volume:                volume,
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
@@ -8142,7 +8142,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 
@@ -8167,7 +8167,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 
@@ -8327,10 +8327,10 @@ func TestStopReplicationInternal(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
-			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+			return repl.State == datamodel.LifeCycleStateError && repl.StateDetails == expectedError.Error()
 		})).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
@@ -8359,8 +8359,8 @@ func TestStopReplicationInternal(t *testing.T) {
 		mirrorState := "broken_off"
 		relationShipStatus := "idle"
 		replicationDb := &datamodel.VolumeReplication{
-			State:              models.LifeCycleStateUpdating,
-			StateDetails:       models.LifeCycleStateUpdatingDetails,
+			State:              datamodel.LifeCycleStateUpdating,
+			StateDetails:       datamodel.LifeCycleStateUpdatingDetails,
 			MirrorState:        &mirrorState,
 			LastTransferError:  "error",
 			RelationshipStatus: &relationShipStatus,
@@ -8607,7 +8607,7 @@ func TestDeleteReplication(t *testing.T) {
 		expectedError := errors.New("failed to execute workflow")
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
@@ -8677,7 +8677,7 @@ func TestDeleteReplication(t *testing.T) {
 		expectedError := errors.New("failed to execute workflow")
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
@@ -8915,7 +8915,7 @@ func TestDeleteReplication(t *testing.T) {
 
 		existingJobUUID := "existing-job-uuid"
 		existingReplication := &models.VolumeReplication{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &models.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -8991,7 +8991,7 @@ func TestDeleteReplication(t *testing.T) {
 			},
 		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockStorage.On("UpdateJob", ctx, mock.Anything, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, string(datamodel.JobsStateERROR), 0, mock.Anything).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		params := &commonparams.DeleteReplicationParams{
@@ -9542,7 +9542,7 @@ func TestSyncReplication(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
@@ -9643,7 +9643,7 @@ func TestSyncReplication(t *testing.T) {
 
 		existingJobUUID := "existing-job-uuid"
 		existingReplication := &models.VolumeReplication{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &models.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -9752,7 +9752,7 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid-update", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid-update", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
@@ -9845,8 +9845,8 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 			VolumeID:              volumeReplication.VolumeID,
 		}
 
-		replicationDb.State = models.LifeCycleStateUpdating
-		replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+		replicationDb.State = datamodel.LifeCycleStateUpdating
+		replicationDb.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 		expectedResponse := convertDataStoreReplicationToModel(replicationDb)
 
 		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(replicationDb, nil)
@@ -10051,7 +10051,7 @@ func TestUpdateReplication(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
-		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 
@@ -10152,7 +10152,7 @@ func TestUpdateReplication(t *testing.T) {
 
 		existingJobUUID := "existing-job-uuid"
 		existingReplication := &models.VolumeReplication{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			ReplicationAttributes: &models.ReplicationDetails{
 				EndpointType: "src",
 			},
@@ -10490,18 +10490,18 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeCreateVolumeReplication)),
 			},
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeDeleteVolumeReplication)),
 			},
 		}
 
 		jobType, hasJob := replicationHasJob(replication, &jobsList)
 
 		assert.True(tt, hasJob)
-		assert.Equal(tt, string(models.JobTypeCreateVolumeReplication), jobType)
+		assert.Equal(tt, string(datamodel.JobTypeCreateVolumeReplication), jobType)
 	})
 
 	t.Run("WhenJobFoundByCcfeRemoteUri", func(tt *testing.T) {
@@ -10513,18 +10513,18 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeStopVolumeReplication)),
 			},
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeDeleteVolumeReplication)),
 			},
 		}
 
 		jobType, hasJob := replicationHasJob(replication, &jobsList)
 
 		assert.True(tt, hasJob)
-		assert.Equal(tt, string(models.JobTypeStopVolumeReplication), jobType)
+		assert.Equal(tt, string(datamodel.JobTypeStopVolumeReplication), jobType)
 	})
 
 	t.Run("WhenJobNotFound", func(tt *testing.T) {
@@ -10536,11 +10536,11 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeDeleteVolumeReplication)),
 			},
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/111/locations/europe-west1/volumes/vol4/replications/repl4"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeUpdateVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeUpdateVolumeReplication)),
 			},
 		}
 
@@ -10573,18 +10573,18 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeCreateVolumeReplication)),
 			},
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeStopVolumeReplication)),
 			},
 		}
 
 		jobType, hasJob := replicationHasJob(replication, &jobsList)
 
 		assert.True(tt, hasJob)
-		assert.Equal(tt, string(models.JobTypeCreateVolumeReplication), jobType)
+		assert.Equal(tt, string(datamodel.JobTypeCreateVolumeReplication), jobType)
 	})
 
 	t.Run("WhenJobTypeIsResumeVolumeReplication", func(tt *testing.T) {
@@ -10596,14 +10596,14 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeResumeVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeResumeVolumeReplication)),
 			},
 		}
 
 		jobType, hasJob := replicationHasJob(replication, &jobsList)
 
 		assert.True(tt, hasJob)
-		assert.Equal(tt, string(models.JobTypeResumeVolumeReplication), jobType)
+		assert.Equal(tt, string(datamodel.JobTypeResumeVolumeReplication), jobType)
 	})
 
 	t.Run("WhenJobTypeIsReverseResumeVolumeReplication", func(tt *testing.T) {
@@ -10615,14 +10615,14 @@ func TestReplicationHasJob(t *testing.T) {
 		jobsList := []googleproxyclient.InternalJobV1beta{
 			{
 				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
-				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseResumeVolumeReplication)),
+				JobType:      googleproxyclient.NewOptString(string(datamodel.JobTypeReverseResumeVolumeReplication)),
 			},
 		}
 
 		jobType, hasJob := replicationHasJob(replication, &jobsList)
 
 		assert.True(tt, hasJob)
-		assert.Equal(tt, string(models.JobTypeReverseResumeVolumeReplication), jobType)
+		assert.Equal(tt, string(datamodel.JobTypeReverseResumeVolumeReplication), jobType)
 	})
 
 	t.Run("WhenNilJobsList", func(tt *testing.T) {
@@ -11116,7 +11116,7 @@ func TestReverseReplicationInternal(t *testing.T) {
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
 		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
-			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+			return repl.State == datamodel.LifeCycleStateError && repl.StateDetails == expectedError.Error()
 		})).Return(nil)
 
 		_, _, err := reverseReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName)
@@ -11171,8 +11171,8 @@ func TestReverseReplicationInternal(t *testing.T) {
 		assert.NotNil(tt, job)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", job.UUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, replicationDb.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, replicationDb.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, replicationDb.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, replicationDb.StateDetails)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -11480,8 +11480,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		assert.NotNil(tt, jobUuid)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", *jobUuid)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		assert.Equal(tt, "dst", volumeReplication.ReplicationAttributes.EndpointType)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -11559,8 +11559,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		assert.NotNil(tt, jobUuid)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", *jobUuid)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		assert.Equal(tt, "dst", volumeReplication.ReplicationAttributes.EndpointType)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -11634,8 +11634,8 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		assert.NotNil(tt, jobUuid)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", *jobUuid)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		assert.Equal(tt, "dst", volumeReplication.ReplicationAttributes.EndpointType)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -11717,7 +11717,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 	t.Run("WhenHybridReplicationTypeIsONPREM", func(tt *testing.T) {
 		// Test the validation logic: if event.ReplicationModel has HybridReplicationAttributes
 		// with type ONPREM, it should return an error
-		hybridType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeONPREM)
 		testReplicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -11728,7 +11728,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		// Verify the validation condition (lines 2057-2059)
 		if testReplicationModel != nil && testReplicationModel.HybridReplicationAttributes != nil {
 			testHybridAttrs := testReplicationModel.HybridReplicationAttributes
-			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 			assert.True(tt, isHybridReplication, "ONPREM type should be detected as restricted hybrid replication")
 		}
 	})
@@ -11736,7 +11736,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 	t.Run("WhenHybridReplicationTypeIsREVERSE", func(tt *testing.T) {
 		// Test the validation logic: if event.ReplicationModel has HybridReplicationAttributes
 		// with type REVERSE, it should return an error
-		hybridType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		testReplicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -11747,14 +11747,14 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		// Verify the validation condition
 		if testReplicationModel != nil && testReplicationModel.HybridReplicationAttributes != nil {
 			testHybridAttrs := testReplicationModel.HybridReplicationAttributes
-			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 			assert.True(tt, isHybridReplication, "REVERSE type should be detected as hybrid replication")
 		}
 	})
 
 	t.Run("WhenHybridReplicationTypeIsCONTINUOUS", func(tt *testing.T) {
 		// Test the validation logic: CONTINUOUS type should NOT trigger the error
-		hybridType := string(models.HybridReplicationParametersReplicationTypeCONTINUOUS)
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeCONTINUOUS)
 		testReplicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -11765,14 +11765,14 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		// Verify the validation condition - CONTINUOUS should NOT be detected as restricted type
 		if testReplicationModel != nil && testReplicationModel.HybridReplicationAttributes != nil {
 			testHybridAttrs := testReplicationModel.HybridReplicationAttributes
-			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 			assert.False(tt, isHybridReplication, "CONTINUOUS type should NOT be detected as restricted hybrid replication")
 		}
 	})
 
 	t.Run("WhenHybridReplicationTypeIsMIGRATION", func(tt *testing.T) {
 		// Test the validation logic: MIGRATION type should NOT trigger the error
-		hybridType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		testReplicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -11783,7 +11783,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		// Verify the validation condition - MIGRATION should NOT be detected as restricted type
 		if testReplicationModel != nil && testReplicationModel.HybridReplicationAttributes != nil {
 			testHybridAttrs := testReplicationModel.HybridReplicationAttributes
-			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 			assert.False(tt, isHybridReplication, "MIGRATION type should NOT be detected as restricted hybrid replication")
 		}
 	})
@@ -11800,7 +11800,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		// Verify the validation condition - nil type should NOT be detected as restricted
 		if testReplicationModel != nil && testReplicationModel.HybridReplicationAttributes != nil {
 			testHybridAttrs := testReplicationModel.HybridReplicationAttributes
-			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+			isHybridReplication := nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(testHybridAttrs.HybridReplicationType, "") == string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 			assert.False(tt, isHybridReplication, "Nil HybridReplicationType should NOT be detected as restricted hybrid replication")
 		}
 	})
@@ -12136,7 +12136,7 @@ func TestReverseAndResumeReplication(t *testing.T) {
 			return account, nil
 		}
 
-		hybridType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		mockReplicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Uri:       "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
@@ -12414,8 +12414,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		existingReplication := &datamodel.VolumeReplication{
 			BaseModel:             datamodel.BaseModel{UUID: "replication-123"},
 			Name:                  "test-replication",
-			State:                 models.LifeCycleStateUpdating,
-			StateDetails:          models.LifeCycleStateUpdatingDetails,
+			State:                 datamodel.LifeCycleStateUpdating,
+			StateDetails:          datamodel.LifeCycleStateUpdatingDetails,
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
 
@@ -12440,8 +12440,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		assert.NotNil(tt, volumeReplication)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "existing-job-uuid", jobUUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -12527,7 +12527,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12594,7 +12594,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12663,7 +12663,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12733,7 +12733,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12751,7 +12751,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
-		mockStorage.On("UpdateJob", ctx, "job-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+		mockStorage.On("UpdateJob", ctx, "job-123", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
@@ -12812,7 +12812,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12830,7 +12830,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
-		mockStorage.On("UpdateJob", ctx, "job-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+		mockStorage.On("UpdateJob", ctx, "job-123", string(datamodel.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
@@ -12882,7 +12882,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 				Name:      "test-volume",
@@ -12892,7 +12892,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -12930,8 +12930,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		assert.NotNil(tt, volumeReplication)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", jobUUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -12964,7 +12964,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 				Name:      "test-volume",
@@ -12974,7 +12974,7 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				ReplicationType:     "hybrid",
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-				Status: models.HybridReplicationStatusPendingClusterPeer,
+				Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 			},
 		}
 
@@ -13012,8 +13012,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		assert.NotNil(tt, volumeReplication)
 		assert.Equal(tt, "replication-123", volumeReplication.UUID)
 		assert.Equal(tt, "job-123", jobUUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -13042,21 +13042,21 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:  "quota-rule-1",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-2",
 				},
 				Name:  "quota-rule-2",
-				State: models.LifeCycleStateCreating,
+				State: datamodel.LifeCycleStateCreating,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-3",
 				},
 				Name:  "quota-rule-3",
-				State: models.LifeCycleStateUpdating,
+				State: datamodel.LifeCycleStateUpdating,
 			},
 		}
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
@@ -13085,7 +13085,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:         "quota-rule-1",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details for quota rule 1",
 			},
 			{
@@ -13093,7 +13093,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-2",
 				},
 				Name:  "quota-rule-2",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 			},
 		}
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
@@ -13103,7 +13103,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Cannot create volume replication", "Expected error message to contain validation message")
 		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain errored quota rule UUID")
 		assert.Contains(tt, err.Error(), "quota-rule-1", "Expected error message to contain errored quota rule name")
-		assert.Contains(tt, err.Error(), models.LifeCycleStateError, "Expected error message to contain error state")
+		assert.Contains(tt, err.Error(), datamodel.LifeCycleStateError, "Expected error message to contain error state")
 		assert.Contains(tt, err.Error(), "Error details for quota rule 1", "Expected error message to contain state details")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -13116,7 +13116,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:         "quota-rule-1",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details for quota rule 1",
 			},
 			{
@@ -13124,7 +13124,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-2",
 				},
 				Name:         "quota-rule-2",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details for quota rule 2",
 			},
 			{
@@ -13132,7 +13132,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-3",
 				},
 				Name:  "quota-rule-3",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 			},
 		}
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
@@ -13156,7 +13156,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:         "quota-rule-1",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details 1",
 			},
 			{
@@ -13164,7 +13164,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-2",
 				},
 				Name:         "quota-rule-2",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details 2",
 			},
 		}
@@ -13186,7 +13186,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:         "",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "Error details",
 			},
 		}
@@ -13206,7 +13206,7 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:         "quota-rule-1",
-				State:        models.LifeCycleStateError,
+				State:        datamodel.LifeCycleStateError,
 				StateDetails: "",
 			},
 		}
@@ -13227,35 +13227,35 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 					UUID: "quota-rule-uuid-1",
 				},
 				Name:  "quota-rule-1",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-2",
 				},
 				Name:  "quota-rule-2",
-				State: models.LifeCycleStateCreating,
+				State: datamodel.LifeCycleStateCreating,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-3",
 				},
 				Name:  "quota-rule-3",
-				State: models.LifeCycleStateUpdating,
+				State: datamodel.LifeCycleStateUpdating,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-4",
 				},
 				Name:  "quota-rule-4",
-				State: models.LifeCycleStateDeleting,
+				State: datamodel.LifeCycleStateDeleting,
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					UUID: "quota-rule-uuid-5",
 				},
 				Name:  "quota-rule-5",
-				State: models.LifeCycleStateError,
+				State: datamodel.LifeCycleStateError,
 			},
 		}
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
@@ -13280,8 +13280,8 @@ func TestDeleteVolumeReplication_PreviousStateAndDetailsInJobAttributes(t *testi
 			Name:      "test-account",
 		}
 
-		previousState := models.LifeCycleStateAvailable
-		previousStateDetails := models.LifeCycleStateAvailableDetails
+		previousState := datamodel.LifeCycleStateAvailable
+		previousStateDetails := datamodel.LifeCycleStateAvailableDetails
 		replicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-replication-uuid",

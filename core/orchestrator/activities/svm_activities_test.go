@@ -1931,7 +1931,7 @@ func TestMarkSvmAsErroredForDeletion(t *testing.T) {
 		env.RegisterActivity(activity.MarkSvmAsErroredForDeletion)
 
 		svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{ID: 1}, Name: "svm1"}
-		mockStorage.On("ErroredSVM", mock.Anything, svm, coremodel.LifeCycleStateDeletionErrorDetails).Return(nil)
+		mockStorage.On("ErroredSVM", mock.Anything, svm, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil)
 
 		_, err := env.ExecuteActivity(activity.MarkSvmAsErroredForDeletion, svm, "")
 
@@ -2530,7 +2530,7 @@ func TestMarkSvmAsErroredForCreation_DefaultsToCreationErrorDetailsWhenEmpty(t *
 	testEnv.RegisterActivity(&act)
 
 	svm := &datamodel.Svm{Name: "svm-err"}
-	mockStorage.On("ErroredSVM", mock.Anything, svm, coremodel.LifeCycleStateCreationErrorDetails).Return(nil)
+	mockStorage.On("ErroredSVM", mock.Anything, svm, datamodel.LifeCycleStateCreationErrorDetails).Return(nil)
 
 	_, err := testEnv.ExecuteActivity(act.MarkSvmAsErroredForCreation, svm, "")
 	assert.NoError(t, err)

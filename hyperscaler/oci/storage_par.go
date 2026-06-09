@@ -126,4 +126,3 @@ func buildPARURL(host, accessUri string) string {
 	}
 	return host + accessUri
 }
-

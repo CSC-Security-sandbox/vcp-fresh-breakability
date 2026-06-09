@@ -48,8 +48,8 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestGetActivePrepopulateJobs_Suc
 	expectedJobs := []*datamodel.Job{
 		{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "volume-uuid-1",
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -57,8 +57,8 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestGetActivePrepopulateJobs_Suc
 		},
 		{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			ResourceName: "volume-uuid-2",
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-2",
@@ -541,7 +541,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 		},
 	}
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateDONE), 0, "").Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateDONE), 0, "").Return(nil)
 	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(volume, nil)
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		cacheParams, ok := updates["cache_parameters"].(*datamodel.CacheParameters)
@@ -574,7 +574,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 		},
 	}
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, errorMessage).Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, errorMessage).Return(nil)
 	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(volume, nil)
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		cacheParams, ok := updates["cache_parameters"].(*datamodel.CacheParameters)
@@ -639,7 +639,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Upd
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.Anything).Return(nil)
 
 	expectedError := errors.New("update job failed")
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateDONE), 0, "").Return(expectedError)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateDONE), 0, "").Return(expectedError)
 
 	err := s.activity.UpdateJobAndVolumeStatus(s.ctx, jobUUID, volumeUUID, jobStatus)
 
@@ -680,7 +680,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 		CacheParameters: nil,
 	}
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateDONE), 0, "").Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateDONE), 0, "").Return(nil)
 	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(volume, nil)
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		cacheParams, ok := updates["cache_parameters"].(*datamodel.CacheParameters)
@@ -711,7 +711,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 		},
 	}
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateDONE), 0, "").Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateDONE), 0, "").Return(nil)
 	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(volume, nil)
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		cacheParams, ok := updates["cache_parameters"].(*datamodel.CacheParameters)
@@ -770,7 +770,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 		},
 	}
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, "").Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, "").Return(nil)
 	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(volume, nil)
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.Anything).Return(nil)
 
@@ -784,7 +784,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_S
 	volumeUUID := "volume-uuid-456"
 	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
 
 	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 
@@ -797,7 +797,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_U
 	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
 
 	expectedError := errors.New("database connection error")
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
 
 	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 
@@ -809,14 +809,14 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_S
 	jobUUID := "job-uuid"
 	volumeUUID := "volume-uuid"
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, mock.MatchedBy(func(errorDetails string) bool {
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, mock.MatchedBy(func(errorDetails string) bool {
 		return errorDetails == "Volume volume-uuid was deleted, prepopulate job cannot complete"
 	})).Return(nil)
 
 	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 
 	assert.NoError(s.T(), err)
-	s.mockStorage.AssertCalled(s.T(), "UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, "Volume volume-uuid was deleted, prepopulate job cannot complete")
+	s.mockStorage.AssertCalled(s.T(), "UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, "Volume volume-uuid was deleted, prepopulate job cannot complete")
 }
 
 func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_EmptyJobUUID() {
@@ -825,7 +825,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_E
 	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
 
 	expectedError := errors.New("job not found")
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
 
 	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 
@@ -838,7 +838,7 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_E
 	volumeUUID := ""
 	expectedErrorDetails := "Volume  was deleted, prepopulate job cannot complete"
 
-	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(datamodel.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
 
 	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 

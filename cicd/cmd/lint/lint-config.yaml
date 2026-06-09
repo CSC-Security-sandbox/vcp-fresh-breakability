@@ -58,6 +58,32 @@ linters:
               desc: "Google Cloud genproto imports are not allowed in core folder"
             - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
               desc: "Google Cloud imports are not allowed in core folder"
+        database-leaf-restrictions:
+          files:
+            - "**/database/**/*.go"
+          deny:
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/core"
+              desc: "database/** must not import core/**. Persisted enums / shared state live in database/datamodel."
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+              desc: "database/** must not import hyperscaler/**."
+        hyperscaler-leaf-restrictions:
+          files:
+            - "**/hyperscaler/**/*.go"
+          deny:
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/core"
+              desc: "hyperscaler/** must not import core/**. Expose interfaces in hyperscaler and let core depend on them."
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+              desc: "hyperscaler/** must not import database/**."
+        lib-leaf-restrictions:
+          files:
+            - "**/lib/**/*.go"
+          deny:
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/core"
+              desc: "lib/** must not import core/**."
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+              desc: "lib/** must not import database/**."
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+              desc: "lib/** must not import hyperscaler/**."
     gci:
       sections:
         - standard # Standard library imports (e.g., "fmt", "net/http")

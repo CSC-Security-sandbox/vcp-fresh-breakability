@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -167,7 +168,7 @@ func TestV1betaBatchListActiveDirectories_Success(t *testing.T) {
 		restoreAuth := stubBatchAuth(true)
 		defer restoreAuth()
 
-		ad := makeVCPAD("ad-1", "my-ad", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-1", "my-ad", datamodel.LifeCycleStateREADY)
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		mockOrch.On("BatchListActiveDirectories", mock.Anything, mock.MatchedBy(func(p *commonparams.BatchListADsParams) bool {
 			return p != nil && p.LocationID == "us-east4" &&
@@ -205,7 +206,7 @@ func TestV1betaBatchListActiveDirectories_Success(t *testing.T) {
 		restoreAuth := stubBatchAuth(true)
 		defer restoreAuth()
 
-		ad := makeVCPAD("ad-1", "my-ad", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-1", "my-ad", datamodel.LifeCycleStateREADY)
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		mockOrch.On("BatchListActiveDirectories", mock.Anything, mock.Anything).
 			Return([]*models.ActiveDirectory{ad}, nil)
@@ -254,8 +255,8 @@ func TestV1betaBatchListActiveDirectories_SkipsDeletedADs(t *testing.T) {
 	defer restoreAuth()
 
 	deletedAt := time.Now()
-	activeAD := makeVCPAD("ad-active", "active-ad", models.LifeCycleStateREADY)
-	deletedAD := makeVCPAD("ad-deleted", "deleted-ad", models.LifeCycleStateDeleted)
+	activeAD := makeVCPAD("ad-active", "active-ad", datamodel.LifeCycleStateREADY)
+	deletedAD := makeVCPAD("ad-deleted", "deleted-ad", datamodel.LifeCycleStateDeleted)
 	deletedAD.DeletedAt = &deletedAt
 
 	mockOrch := factory.NewMockOrchestratorFactory(t)
@@ -299,7 +300,7 @@ func TestConvertADToBatchAD_EmptyStateWithFieldRequested_IsStateUnspecified(t *t
 
 func TestBoolFields_DefaultFalseAndTrueHonored(t *testing.T) {
 	t.Run("DefaultFalse", func(t *testing.T) {
-		ad := makeVCPAD("ad-x", "res", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-x", "res", datamodel.LifeCycleStateREADY)
 		fieldSet := map[string]bool{
 			"encryptDCConnections": true, "aesEncryption": true,
 			"ldapSigning": true, "allowLocalNFSUsersWithLdap": true,
@@ -316,7 +317,7 @@ func TestBoolFields_DefaultFalseAndTrueHonored(t *testing.T) {
 	})
 
 	t.Run("TrueBoolsReturnTrue", func(t *testing.T) {
-		ad := makeVCPAD("ad-x", "res", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-x", "res", datamodel.LifeCycleStateREADY)
 		ad.ActiveDirectoryAttributes.EncryptDCConnections = true
 		ad.ActiveDirectoryAttributes.AesEncryption = true
 		ad.ActiveDirectoryAttributes.LdapSigning = true
@@ -339,7 +340,7 @@ func TestBoolFields_DefaultFalseAndTrueHonored(t *testing.T) {
 
 func TestEmptyArrayFields_SerializeAsNull(t *testing.T) {
 	t.Run("EmptySlices", func(t *testing.T) {
-		ad := makeVCPAD("ad-x", "res", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-x", "res", datamodel.LifeCycleStateREADY)
 		ad.ActiveDirectoryAttributes.BackupOperators = []string{}
 		ad.ActiveDirectoryAttributes.SecurityOperators = []string{}
 		ad.ActiveDirectoryAttributes.Administrators = []string{}
@@ -356,7 +357,7 @@ func TestEmptyArrayFields_SerializeAsNull(t *testing.T) {
 	})
 
 	t.Run("NonEmptySlicesUnchanged", func(t *testing.T) {
-		ad := makeVCPAD("ad-x", "res", models.LifeCycleStateREADY)
+		ad := makeVCPAD("ad-x", "res", datamodel.LifeCycleStateREADY)
 		ad.ActiveDirectoryAttributes.BackupOperators = []string{"op1"}
 		fieldSet := map[string]bool{"backupOperators": true}
 		ba := convertADToBatchAD(ad, fieldSet)
@@ -371,7 +372,7 @@ func TestConvertADToBatchAD_AllAttributeFields(t *testing.T) {
 		BaseModel:    models.BaseModel{UUID: "ad-full", CreatedAt: time.Now()},
 		AdName:       "full-ad",
 		Username:     "admin",
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		StateDetails: "All good",
 		Domain:       "example.com",
 		DNS:          "10.0.0.1",

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -67,11 +66,11 @@ func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.R
 		restoreWf.Logger.Errorf("Failed to setup RestoreFilesFromBackupWorkflow: %v", err)
 		return nil, err
 	}
-	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := restoreWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	restoreWf.Status = WorkflowStatusRunning
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		restoreWf.Logger.Errorf("Failed to update job status to Processing for RestoreFilesFromBackupWorkflow: %v", err)
 		return nil, err
@@ -86,7 +85,7 @@ func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.R
 		}
 		restoreWf.Logger.Errorf("RestoreFilesFromBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
 		restoreWf.Status = WorkflowStatusFailed
-		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			restoreWf.Logger.Errorf("Failed to update job status to ERROR for RestoreFilesFromBackupWorkflow: %v", err2)
 			return nil, err2
@@ -95,7 +94,7 @@ func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.R
 	}
 
 	restoreWf.Status = WorkflowStatusCompleted
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		restoreWf.Logger.Errorf("Failed to update job status to DONE for RestoreFilesFromBackupWorkflow: %v", err)
 		return nil, ConvertToVSAError(err)
@@ -185,17 +184,17 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		// The orchestrator sets volume to RESTORING before starting workflow,
 		// so we restore it to READY regardless of success or failure
 		if workflowErr != nil {
-			log.Infof("SFR workflow failed, restoring volume %s from RESTORING state back to READY (original state was: %s)", volume.UUID, models.LifeCycleStateREADY)
+			log.Infof("SFR workflow failed, restoring volume %s from RESTORING state back to READY (original state was: %s)", volume.UUID, datamodel.LifeCycleStateREADY)
 		} else {
 			log.Infof("SFR workflow completed, restoring volume %s from RESTORING state back to READY", volume.UUID)
 		}
 		if params.IsExpertModeRestore {
 			expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
-			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore expert mode volume state to AVAILABLE: %v", err2)
 			}
 		} else {
-			if err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil); err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore volume state to READY: %v", err2)
 			}
 		}
@@ -336,7 +335,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 
 	// Validate backup is in available or ready state before proceeding with restore
 	// SDE backups use READY state, VCP backups use AVAILABLE state
-	if backup.State != models.LifeCycleStateAvailable && backup.State != models.LifeCycleStateREADY {
+	if backup.State != datamodel.LifeCycleStateAvailable && backup.State != datamodel.LifeCycleStateREADY {
 		err = fmt.Errorf("cannot restore from backup '%s' which is not in available or ready state (current state: %s)",
 			backup.Name, backup.State)
 		log.Errorf("Backup state validation failed: %v", err)

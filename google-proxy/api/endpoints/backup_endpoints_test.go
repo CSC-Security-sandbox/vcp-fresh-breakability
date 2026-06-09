@@ -848,7 +848,7 @@ func TestV1betaCreateBackup(t *testing.T) {
 
 		backup := &coremodels.Backup{
 			BackupID:       "backup-id",
-			LifeCycleState: coremodels.LifeCycleStateCreating,
+			LifeCycleState: datamodel.LifeCycleStateCreating,
 			Name:           "test-backup",
 		}
 		jobID := "job-123"
@@ -922,7 +922,7 @@ func TestV1betaCreateBackup(t *testing.T) {
 		// Mock successful backup creation with LifeCycleStateAvailable
 		backup := &coremodels.Backup{
 			BackupID:       "backup-id",
-			LifeCycleState: coremodels.LifeCycleStateAvailable,
+			LifeCycleState: datamodel.LifeCycleStateAvailable,
 			Name:           "test-backup",
 		}
 		jobID := "job-123"
@@ -4655,7 +4655,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -4691,7 +4691,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -4726,7 +4726,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -4789,7 +4789,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 					},
 					Name:        "test-backup",
 					VolumeUUID:  "test-volume-uuid",
-					State:       coremodels.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 					SizeInBytes: 1024,
 					BackupVault: &datamodel.BackupVault{
 						BaseModel: datamodel.BaseModel{
@@ -4826,7 +4826,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			Description: "Test backup description",
 			Type:        "MANUAL",
@@ -4876,7 +4876,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			Description: "Test backup description",
 			Type:        "MANUAL",
@@ -4921,7 +4921,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			Description: "Test backup description",
 			Type:        "MANUAL",
@@ -4966,7 +4966,7 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			},
 			Name:        "test-backup",
 			VolumeUUID:  "test-volume-uuid",
-			State:       coremodels.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			SizeInBytes: 1024,
 			Description: "Test backup description",
 			Type:        "MANUAL",

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -1605,11 +1604,11 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		// Verify that UpdateJob was called with DONE status and correct TrackingID/ErrorDetails
 		foundDoneWithQuotaRuleError := false
 		for _, call := range updateJobCalls {
-			if call.status == string(coreModels.JobsStateDONE) {
+			if call.status == string(datamodel.JobsStateDONE) {
 				// When vsaerrors.NewVCPError is used, trackingID should be the error code
 				assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, call.trackingID, "TrackingID should be ErrBreakReplicationQuotaRuleFailure when using vsaerrors.NewVCPError")
 				// errorDetails should contain the exact quota rule error message
-				assert.Contains(tt, call.errorDetails, models.VolumeReplicationBreakRelationshipQuotaRuleFailure, "Error details should contain VolumeReplicationBreakRelationshipQuotaRuleFailure")
+				assert.Contains(tt, call.errorDetails, datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure, "Error details should contain VolumeReplicationBreakRelationshipQuotaRuleFailure")
 				foundDoneWithQuotaRuleError = true
 				break
 			}
@@ -2934,10 +2933,10 @@ func TestInternalStopWorkflow_Step1to3_PartialFailureFlow(t *testing.T) {
 		// Step 3: Verify job DB update
 		foundDoneWithQuotaError := false
 		for _, call := range updateJobCalls {
-			if call.status == string(coreModels.JobsStateDONE) {
+			if call.status == string(datamodel.JobsStateDONE) {
 				assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, call.trackingID,
 					"Step 3 FAILED: TrackingID should be ErrBreakReplicationQuotaRuleFailure (12015)")
-				assert.Contains(tt, call.errorDetails, models.VolumeReplicationBreakRelationshipQuotaRuleFailure,
+				assert.Contains(tt, call.errorDetails, datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure,
 					"Step 3 FAILED: ErrorDetails should contain quota failure message")
 				foundDoneWithQuotaError = true
 				break
@@ -2948,7 +2947,7 @@ func TestInternalStopWorkflow_Step1to3_PartialFailureFlow(t *testing.T) {
 
 		// Verify NO ERROR state (partial success should NOT result in ERROR)
 		for _, call := range updateJobCalls {
-			if call.status == string(coreModels.JobsStateERROR) {
+			if call.status == string(datamodel.JobsStateERROR) {
 				tt.Errorf("CRITICAL: Internal job should NOT be in ERROR state for partial success")
 			}
 		}
@@ -3063,7 +3062,7 @@ func TestInternalStopWorkflow_Step1to3_PartialFailureFlow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Run(func(args mock.Arguments) {
 				status := args.Get(2).(string)
-				if status == string(coreModels.JobsStateDONE) {
+				if status == string(datamodel.JobsStateDONE) {
 					jobTableState.Status = status
 					jobTableState.TrackingID = args.Get(3).(int)
 					jobTableState.ErrorDetails = args.Get(4).(string)
@@ -3091,7 +3090,7 @@ func TestInternalStopWorkflow_Step1to3_PartialFailureFlow(t *testing.T) {
 		// Verify job table has exact values that internal describe expects
 		// Internal describe checks: strings.Contains(errorDetailsStr, stopQuotaRuleError)
 		// stopQuotaRuleError = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
-		assert.Equal(tt, string(coreModels.JobsStateDONE), jobTableState.Status,
+		assert.Equal(tt, string(datamodel.JobsStateDONE), jobTableState.Status,
 			"Step 3 FAILED: Job Status should be DONE")
 		assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, jobTableState.TrackingID,
 			"Step 3 FAILED: Job TrackingID should be 12015")

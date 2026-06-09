@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -80,8 +79,8 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 			DiskLimitInKib: 100 * 1024,
 			QuotaTarget:    "1001",
 			VolumeID:       volumeID,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			RQuota:         true,
 		}
 	}
@@ -131,7 +130,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// Mock GetVolumeByID to fail
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(nil, errors.New("volume not found"))
@@ -174,7 +173,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		// The workflow updates quota rule state to READY before calling CreateQuotaRuleForDataProtectionVolume
 		env.OnActivity("CreateQuotaRuleForDataProtectionVolume", mock.Anything, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.UUID == quotaRule.UUID && qr.State == models.LifeCycleStateREADY
+			return qr.UUID == quotaRule.UUID && qr.State == datamodel.LifeCycleStateREADY
 		})).Return(errors.New("failed to create DP quota rule"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -182,7 +181,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -225,7 +224,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -271,7 +270,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -321,7 +320,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -372,7 +371,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -430,7 +429,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -495,7 +494,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -560,7 +559,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -632,7 +631,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -721,7 +720,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -807,7 +806,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -903,7 +902,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -976,7 +975,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -1085,7 +1084,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
@@ -1125,7 +1124,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1167,7 +1166,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1211,7 +1210,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1257,7 +1256,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1310,7 +1309,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1362,7 +1361,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1414,7 +1413,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1473,7 +1472,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1539,7 +1538,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1606,7 +1605,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1679,7 +1678,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1771,7 +1770,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1863,7 +1862,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -1959,7 +1958,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -2061,7 +2060,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -2170,7 +2169,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -2279,7 +2278,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
@@ -2332,7 +2331,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2380,7 +2379,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Run(func(args mock.Arguments) {
 			// Send cancellation signal after GetVolumeByID completes, before the DP cancellation check
@@ -2423,7 +2422,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Run(func(args mock.Arguments) {
 			// Send cancellation signal after GetVolumeByID completes, before the cancellation check at line 180

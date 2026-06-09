@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -44,7 +43,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -79,7 +78,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -112,7 +111,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}
 
 		// Mock activity responses
@@ -214,7 +213,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -245,7 +244,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -299,7 +298,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -368,7 +367,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -400,7 +399,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -458,7 +457,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -490,7 +489,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -549,7 +548,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -581,7 +580,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -661,7 +660,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -693,7 +692,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -789,7 +788,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -820,7 +819,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid", // Matches volume.UUID
@@ -922,7 +921,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -953,7 +952,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -984,7 +983,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -1084,7 +1083,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1115,7 +1114,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -1146,7 +1145,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -1248,7 +1247,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1279,7 +1278,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -1310,7 +1309,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "different-volume-uuid", // Different from volume.UUID
@@ -1412,7 +1411,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1442,7 +1441,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -1474,7 +1473,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1588,7 +1587,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -1620,7 +1619,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1765,7 +1764,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1859,7 +1858,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1924,7 +1923,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock GetJob to return a job with wrong state (PROCESSING instead of NEW)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStatePROCESSING), // Wrong state
+			State:     string(datamodel.JobsStatePROCESSING), // Wrong state
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -1956,7 +1955,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -2022,7 +2021,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2054,7 +2053,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -2086,7 +2085,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}
 
 		// Mock activity responses - PopulateSfrMetadataActivity fails but workflow should continue
@@ -2185,7 +2184,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2205,7 +2204,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Name:      "test-backup-vault",
 		}
 		backup := &datamodel.Backup{
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 		}
 		volume := &datamodel.Volume{
@@ -2214,7 +2213,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		// Mock UpdateJobStatus to fail - signature is (context.Context, *datamodel.Job)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStatePROCESSING)
+			return job.State == string(datamodel.JobsStatePROCESSING)
 		})).Return(errors.New("failed to update job status"))
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -2244,7 +2243,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2274,7 +2273,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2294,7 +2293,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStatePROCESSING)
+			return job.State == string(datamodel.JobsStatePROCESSING)
 		})).Return(nil)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2302,7 +2301,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// UpdateJobStatus should fail when trying to set ERROR status
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStateERROR)
+			return job.State == string(datamodel.JobsStateERROR)
 		})).Return(errors.New("failed to update job status to ERROR"))
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -2332,7 +2331,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2362,7 +2361,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2392,7 +2391,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		// Setup all mocks for successful workflow execution
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStatePROCESSING)
+			return job.State == string(datamodel.JobsStatePROCESSING)
 		})).Return(nil)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2453,11 +2452,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// UpdateJobStatus should fail when trying to set DONE status
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStateDONE)
+			return job.State == string(datamodel.JobsStateDONE)
 		})).Return(errors.New("failed to update job status to DONE"))
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -2487,7 +2486,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2507,7 +2506,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Name:      "test-account",
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVaultID: 1,
 		}
@@ -2552,7 +2551,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2582,7 +2581,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2630,7 +2629,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2660,7 +2659,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2709,7 +2708,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2746,7 +2745,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		constituentCount := int32(4)
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -2825,7 +2824,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -2851,7 +2850,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2882,7 +2881,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2951,7 +2950,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -2982,7 +2981,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3050,7 +3049,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3083,7 +3082,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -3155,7 +3154,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -3181,7 +3180,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3211,7 +3210,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3263,7 +3262,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3293,7 +3292,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3345,7 +3344,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3375,7 +3374,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3453,7 +3452,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3483,7 +3482,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3541,7 +3540,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3571,7 +3570,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3627,7 +3626,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3657,7 +3656,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3715,7 +3714,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3745,7 +3744,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3803,7 +3802,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3833,7 +3832,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3895,7 +3894,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -3925,7 +3924,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3993,7 +3992,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4023,7 +4022,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4090,7 +4089,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4120,7 +4119,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4207,7 +4206,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -4238,7 +4237,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4268,7 +4267,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4351,7 +4350,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4381,7 +4380,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4472,7 +4471,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -4503,7 +4502,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4533,7 +4532,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4641,7 +4640,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4671,7 +4670,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4785,7 +4784,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -4816,7 +4815,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4942,7 +4941,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -4972,7 +4971,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5094,7 +5093,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5124,7 +5123,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5226,7 +5225,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5256,7 +5255,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5350,7 +5349,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5380,7 +5379,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5477,7 +5476,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5507,7 +5506,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5605,7 +5604,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5635,7 +5634,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5736,7 +5735,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5766,7 +5765,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5854,7 +5853,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -5884,7 +5883,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -5914,7 +5913,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -6002,7 +6001,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -6032,7 +6031,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -6062,7 +6061,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -6150,7 +6149,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
@@ -6180,7 +6179,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -6210,7 +6209,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -6262,7 +6261,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -6296,7 +6295,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6329,7 +6328,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}
 
 		// Mock activity responses - workflow succeeds but decrement fails
@@ -6431,7 +6430,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -6465,7 +6464,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6582,7 +6581,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -6616,7 +6615,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6735,7 +6734,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -6771,7 +6770,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6888,7 +6887,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -6924,7 +6923,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -7042,7 +7041,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -7079,7 +7078,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -7218,7 +7217,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -7256,7 +7255,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -7362,7 +7361,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -7400,7 +7399,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -7517,7 +7516,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -7555,7 +7554,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -7664,7 +7663,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -7718,7 +7717,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -7772,7 +7771,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -7826,7 +7825,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -7881,7 +7880,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -7942,7 +7941,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8003,7 +8002,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8028,7 +8027,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateDeleting,
+			State:         datamodel.LifeCycleStateDeleting,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -8076,7 +8075,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8101,7 +8100,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -8150,7 +8149,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8175,7 +8174,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 		}
 		backup := &datamodel.Backup{
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -8219,7 +8218,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8256,7 +8255,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8270,7 +8269,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
 		account := &datamodel.Account{Name: "a"}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
-		backup := &datamodel.Backup{Name: "b", State: models.LifeCycleStateAvailable, Attributes: nil}
+		backup := &datamodel.Backup{Name: "b", State: datamodel.LifeCycleStateAvailable, Attributes: nil}
 		volume := &datamodel.Volume{
 			Account: account,
 			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
@@ -8302,7 +8301,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8319,7 +8318,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
 			Name:       "",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8352,7 +8351,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8368,7 +8367,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
 		backup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8400,7 +8399,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8421,7 +8420,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8460,7 +8459,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8477,7 +8476,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateDeleting,
+			State:      datamodel.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8516,7 +8515,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8534,7 +8533,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		backup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateDeleting,
+			State:      datamodel.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8576,7 +8575,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8594,12 +8593,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		destBackup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateDeleting,
+			State:      datamodel.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		sourceBackup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8641,7 +8640,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8659,12 +8658,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		destBackup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateDeleting,
+			State:      datamodel.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
 		}
 		sourceBackup := &datamodel.Backup{
 			Name:       "my-backup",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "resolved-snapshot-uuid", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8705,7 +8704,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8722,7 +8721,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "b",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
@@ -8767,7 +8766,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
@@ -8783,7 +8782,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
 		backup := &datamodel.Backup{
 			Name:       "b",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "s", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
 		}
 		volume := &datamodel.Volume{

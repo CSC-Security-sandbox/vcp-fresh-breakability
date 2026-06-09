@@ -3,7 +3,7 @@ package common
 import (
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 )
 
 // ConvertKmsConfigStateV1beta converts internal KMS config state strings to API state strings.
@@ -11,21 +11,21 @@ import (
 // to the standardized API state format.
 func ConvertKmsConfigStateV1beta(status, stateDetails string) (state, details string) {
 	switch status {
-	case models.LifeCycleStateCreated, models.LifeCycleStateKeyCheckPending:
+	case datamodel.LifeCycleStateCreated, datamodel.LifeCycleStateKeyCheckPending:
 		return "KEY_CHECK_PENDING", "Credentials created and key check pending"
-	case models.LifeCycleStateInUse:
+	case datamodel.LifeCycleStateInUse:
 		return "IN_USE", "Kms config in use"
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return "DELETED", "Kms config deleted"
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return "UPDATING", "Updating Kms config"
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return "DELETING", "Deleting Kms config"
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return "CREATING", "Creating Kms config"
-	case models.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		return "READY", "Kms config is ready for use"
-	case models.LifeCycleStateMigrating:
+	case datamodel.LifeCycleStateMigrating:
 		return "MIGRATING", "Kms config is in migrating state"
 	default:
 		if strings.Contains(status, "error") {

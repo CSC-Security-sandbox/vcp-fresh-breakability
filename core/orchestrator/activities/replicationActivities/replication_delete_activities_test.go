@@ -3144,8 +3144,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3157,8 +3157,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			return mc
 		}
 		mockClient.EXPECT().V1betaInternalUpdateState(ctx, updateRequest, updateParams).Return(&googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}, nil)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		result, err := activity.UpdateReplicationOnDestinationToErrorState(context.Background(), inputResult)
@@ -3193,8 +3193,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3241,8 +3241,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3289,8 +3289,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3337,8 +3337,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3385,8 +3385,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3431,8 +3431,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3476,8 +3476,8 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -3528,8 +3528,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3541,8 +3541,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			return mc
 		}
 		mockClient.EXPECT().V1betaInternalUpdateState(ctx, updateRequest, updateParams).Return(&googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}, nil)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		result, err := activity.UpdateReplicationOnSourceToErrorState(context.Background(), inputResult)
@@ -3577,8 +3577,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3625,8 +3625,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3673,8 +3673,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3721,8 +3721,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3769,8 +3769,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3815,8 +3815,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3860,8 +3860,8 @@ func TestUpdateReplicationOnSourceToErrorState(t *testing.T) {
 			},
 		}
 		updateRequest := &googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3938,7 +3938,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationAttributesIsSet", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -3963,7 +3963,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationTypeIsReverse", func(tt *testing.T) {
-		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
@@ -4012,7 +4012,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationAttributesIsSetButClusterPeerIdIsNotValid", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		result := &replication.DeleteReplicationResult{
@@ -4042,7 +4042,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReplicationCountByClusterPeerIDFails", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		clusterPeerID := int64(123)
@@ -4075,7 +4075,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenGetFlexCacheVolumeCountByClusterPeerIDFails", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		clusterPeerID := int64(123)
@@ -4107,7 +4107,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenVolumeReplicationCountIsNotOne", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		clusterPeerID := int64(123)
@@ -4141,7 +4141,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenFlexCacheCountIsNotZero", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		clusterPeerID := int64(123)
@@ -4175,7 +4175,7 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 	})
 
 	t.Run("WhenLastReplicationAndNoFlexCacheSetsCleanupFlag", func(tt *testing.T) {
-		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		mockStorage := database.NewMockStorage(tt)
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 		clusterPeerID := int64(123)
@@ -4422,7 +4422,7 @@ func TestDeleteClusterPeeringDB(t *testing.T) {
 				ReplicationModel: &datamodel.VolumeReplication{
 					ClusterPeer: &datamodel.ClusterPeerings{
 						BaseModel: datamodel.BaseModel{UUID: clusterPeerUUID},
-						State:     models.CvpClusterPeeringStatusPEERED,
+						State:     datamodel.CvpClusterPeeringStatusPEERED,
 					},
 				},
 			},
@@ -4434,7 +4434,7 @@ func TestDeleteClusterPeeringDB(t *testing.T) {
 		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
 
 		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cpr *datamodel.ClusterPeerings) bool {
-			return cpr.State == models.CvpClusterPeeringStatusDELETED &&
+			return cpr.State == datamodel.CvpClusterPeeringStatusDELETED &&
 				cpr.DeletedAt != nil &&
 				cpr.DeletedAt.Valid == true &&
 				cpr.UpdatedAt.Equal(cpr.DeletedAt.Time)
@@ -4443,7 +4443,7 @@ func TestDeleteClusterPeeringDB(t *testing.T) {
 		err := activity.DeleteClusterPeeringDB(ctx, result)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.CvpClusterPeeringStatusDELETED, result.Event.ReplicationModel.ClusterPeer.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusDELETED, result.Event.ReplicationModel.ClusterPeer.State)
 		assert.NotNil(tt, result.Event.ReplicationModel.ClusterPeer.DeletedAt)
 		assert.True(tt, result.Event.ReplicationModel.ClusterPeer.DeletedAt.Valid)
 		mockStorage.AssertExpectations(tt)
@@ -5662,16 +5662,16 @@ func TestDeleteVolumeReplicationActivity_UpdateReplicationInDBToErrorState(t *te
 		}
 
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(volumeRep *datamodel.VolumeReplication) bool {
-			return volumeRep.State == models.LifeCycleStateError &&
-				volumeRep.StateDetails == models.LifeCycleStateDeletionErrorDetails &&
+			return volumeRep.State == datamodel.LifeCycleStateError &&
+				volumeRep.StateDetails == datamodel.LifeCycleStateDeletionErrorDetails &&
 				volumeRep.UUID == "test-uuid"
 		})).Return(nil)
 
 		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, result.Event.ReplicationModel.State)
-		assert.Equal(tt, models.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateError, result.Event.ReplicationModel.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -5698,8 +5698,8 @@ func TestDeleteVolumeReplicationActivity_UpdateReplicationInDBToErrorState(t *te
 		}
 
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(volumeRep *datamodel.VolumeReplication) bool {
-			return volumeRep.State == models.LifeCycleStateError &&
-				volumeRep.StateDetails == models.LifeCycleStateDeletionErrorDetails &&
+			return volumeRep.State == datamodel.LifeCycleStateError &&
+				volumeRep.StateDetails == datamodel.LifeCycleStateDeletionErrorDetails &&
 				volumeRep.UUID == "test-uuid-123" &&
 				volumeRep.ReplicationAttributes != nil &&
 				volumeRep.ReplicationAttributes.SourceLocation == "us-central1"
@@ -5708,8 +5708,8 @@ func TestDeleteVolumeReplicationActivity_UpdateReplicationInDBToErrorState(t *te
 		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, result.Event.ReplicationModel.State)
-		assert.Equal(tt, models.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateError, result.Event.ReplicationModel.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
 		// Verify that other fields are preserved
 		assert.Equal(tt, "us-central1", result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
 		mockStorage.AssertExpectations(tt)
@@ -5814,8 +5814,8 @@ func TestDeleteVolumeReplicationActivity_DeleteReplicationRecordOnSource(t *test
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-replication-uuid",
 			},
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				SourceLocation:        "us-central1",
 				SourceReplicationUUID: "src-repl-uuid",

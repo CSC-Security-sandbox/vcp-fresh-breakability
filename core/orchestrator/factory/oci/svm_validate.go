@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -80,7 +79,7 @@ func validateSvmNameNotInUseInPool(ctx context.Context, se database.Storage, nam
 		}
 		return err
 	}
-	if existing.State == models.LifeCycleStateDeleted {
+	if existing.State == datamodel.LifeCycleStateDeleted {
 		return nil
 	}
 	return customerrors.NewConflictErr(fmt.Sprintf("svm with name %q already exists in this pool", name))
@@ -88,7 +87,7 @@ func validateSvmNameNotInUseInPool(ctx context.Context, se database.Storage, nam
 
 // validateCreateSvmClusterStateAndCapacity ensures the cluster (pool) is in a valid state and has capacity for a new SVM.
 func validateCreateSvmClusterStateAndCapacity(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
-	if pool.State != string(models.LifeCycleStateREADY) {
+	if pool.State != string(datamodel.LifeCycleStateREADY) {
 		return customerrors.NewConflictErr("pool is not available for SVM creation")
 	}
 	if pool.VLMConfig == "" {
@@ -103,7 +102,7 @@ func validateCreateSvmClusterStateAndCapacity(ctx context.Context, se database.S
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("cluster must have at least %d nodes to create an SVM", minNodesForSVM))
 	}
 	for _, node := range nodes {
-		if node.State != models.LifeCycleStateREADY && node.State != models.LifeCycleStateAvailable {
+		if node.State != datamodel.LifeCycleStateREADY && node.State != datamodel.LifeCycleStateAvailable {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("node %s is not ready (state: %s)", node.Name, node.State))
 		}
 	}

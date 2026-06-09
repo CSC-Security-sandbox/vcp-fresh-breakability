@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestBackupUpdateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeUpdateBackup)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateBackup)
 }
 
 func TestNewBackupUpdateHandler(t *testing.T) {
@@ -106,7 +105,7 @@ func TestBackupUpdateHandler_Handle_SkipsNonUpdatingState(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateAvailable,
+		State:     datamodel.LifeCycleStateAvailable,
 	}
 	storage.EXPECT().GetBackup(mock.Anything, "vault-uuid", "backup-uuid", "").Return(backup, nil).Once()
 
@@ -119,8 +118,8 @@ func TestBackupUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewBackupUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -136,7 +135,7 @@ func TestBackupUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetBackup(mock.Anything, "vault-uuid", "backup-uuid", "account").Return(backup, nil).Once()
 	storage.EXPECT().UpdateBackupState(mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
@@ -162,11 +161,11 @@ func TestBackupUpdateHandler_Handle_SuccessWithFallbackToAvailable(t *testing.T)
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetBackup(mock.Anything, "vault-uuid", "backup-uuid", "").Return(backup, nil).Once()
 	storage.EXPECT().UpdateBackupState(mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
-		return b.State == models.LifeCycleStateAvailable && b.StateDetails == models.LifeCycleStateAvailableDetails
+		return b.State == datamodel.LifeCycleStateAvailable && b.StateDetails == datamodel.LifeCycleStateAvailableDetails
 	})).Return(backup, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -177,8 +176,8 @@ func TestBackupUpdateHandler_Handle_UpdateBackupStateError(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewBackupUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -193,7 +192,7 @@ func TestBackupUpdateHandler_Handle_UpdateBackupStateError(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetBackup(mock.Anything, "vault-uuid", "backup-uuid", "").Return(backup, nil).Once()
@@ -217,7 +216,7 @@ func TestBackupUpdateHandler_Handle_EmptyPayloadAttributes(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetBackup(mock.Anything, "", "backup-uuid", "").Return(backup, nil).Once()
 	storage.EXPECT().UpdateBackupState(mock.Anything, mock.Anything).Return(backup, nil).Once()
@@ -242,7 +241,7 @@ func TestBackupUpdateHandler_Handle_InvalidPayloadAttributeTypes(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	// Should use empty strings when type assertion fails
 	storage.EXPECT().GetBackup(mock.Anything, "", "backup-uuid", "").Return(backup, nil).Once()
@@ -268,7 +267,7 @@ func TestBackupUpdateHandler_Handle_PartialPayloadAttributes(t *testing.T) {
 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetBackup(mock.Anything, "vault-uuid", "backup-uuid", "").Return(backup, nil).Once()
 	storage.EXPECT().UpdateBackupState(mock.Anything, mock.Anything).Return(backup, nil).Once()

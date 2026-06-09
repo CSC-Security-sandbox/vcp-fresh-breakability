@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1082,7 +1081,7 @@ func TestSetHybridReplicationVariablesStop(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationAttributesIsSetButNotReverse", func(tt *testing.T) {
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		result := &replication.StopReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -1104,7 +1103,7 @@ func TestSetHybridReplicationVariablesStop(t *testing.T) {
 	})
 
 	t.Run("WhenIsSrcForHybridReplicationIsTrue", func(tt *testing.T) {
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		result := &replication.StopReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -1126,7 +1125,7 @@ func TestSetHybridReplicationVariablesStop(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationTypeIsReverseButDestinationLocationIsNotEmpty", func(tt *testing.T) {
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		result := &replication.StopReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{

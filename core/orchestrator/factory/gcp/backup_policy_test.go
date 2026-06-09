@@ -356,12 +356,12 @@ func TestGetBackupPoliciesByUUIDs(tt *testing.T) {
 		p1 := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: u1},
 			Name:           "p1",
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		p2 := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: u2},
 			Name:           "p2",
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).
 			Return(map[string]int64{u1: 1, u2: 3}, nil)
@@ -385,7 +385,7 @@ func TestGetBackupPoliciesByUUIDs(tt *testing.T) {
 		p1 := &datamodel.BackupPolicy{
 			BaseModel:      datamodel.BaseModel{UUID: u1},
 			Name:           "only-in-db",
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).
 			Return(map[string]int64{u1: 2, u2: 0}, nil)
@@ -441,7 +441,7 @@ func TestGetBackupPoliciesByUUIDs(tt *testing.T) {
 				DeletedAt: &da,
 			},
 			Name:                 "bp-resource",
-			LifeCycleState:       models.LifeCycleStateREADY,
+			LifeCycleState:       datamodel.LifeCycleStateREADY,
 			DailyBackupsToKeep:   1,
 			WeeklyBackupsToKeep:  2,
 			MonthlyBackupsToKeep: 3,
@@ -478,12 +478,12 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		updatedBackupPolicy := backupPolicy
-		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
-		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+		updatedBackupPolicy.LifeCycleState = datamodel.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = datamodel.LifeCycleStateDeletingDetails
 
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid"}}
 
@@ -504,7 +504,7 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, deletingBackupPolicy)
-		assert.Equal(tt, deletingBackupPolicy.State, models.LifeCycleStateDeleting)
+		assert.Equal(tt, deletingBackupPolicy.State, datamodel.LifeCycleStateDeleting)
 	})
 	tt.Run("DeleteBackupPolicyFailsWhenAccountDoesNotExist", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
@@ -564,8 +564,8 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateUpdating,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateUpdating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
@@ -601,8 +601,8 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
@@ -637,8 +637,8 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
@@ -673,8 +673,8 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
@@ -710,12 +710,12 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		updatedBackupPolicy := backupPolicy
-		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
-		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+		updatedBackupPolicy.LifeCycleState = datamodel.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = datamodel.LifeCycleStateDeletingDetails
 
 		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
@@ -751,12 +751,12 @@ func TestDeleteBackupPolicy(tt *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		updatedBackupPolicy := backupPolicy
-		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
-		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+		updatedBackupPolicy.LifeCycleState = datamodel.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = datamodel.LifeCycleStateDeletingDetails
 
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid"}}
 		temporalError := errors.New("failed to execute workflow")
@@ -878,8 +878,8 @@ func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		dbBackupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
 		assert.NoError(tt, err)
@@ -916,8 +916,8 @@ func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		dbBackupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
 		assert.NoError(tt, err)
@@ -953,8 +953,8 @@ func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
 		assert.NoError(tt, err)
@@ -1022,8 +1022,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 		assert.NoError(tt, err)
@@ -1045,7 +1045,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		}
 		volume, err = se.CreateVolume(ctx, volume)
 		assert.NoError(tt, err)
-		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.NoError(tt, err)
 
 		params := &commonparams.UpdateBackupPolicyParams{
@@ -1069,7 +1069,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		assert.Equal(tt, backupPolicy.DailyBackupsToKeep, updated.DailyBackupLimit)
 		assert.Equal(tt, backupPolicy.WeeklyBackupsToKeep, updated.WeeklyBackupLimit)
 		assert.Equal(tt, backupPolicy.MonthlyBackupsToKeep, updated.MonthlyBackupLimit)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updated.State)
 	})
 
 	t.Run("SucceedsWhenBackupPolicyIsNotInUseByAnyVolumes", func(tt *testing.T) {
@@ -1128,8 +1128,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 		assert.NoError(tt, err)
@@ -1150,7 +1150,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		}
 		volume, err = se.CreateVolume(ctx, volume)
 		assert.NoError(tt, err)
-		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.NoError(tt, err)
 
 		params := &commonparams.UpdateBackupPolicyParams{
@@ -1174,7 +1174,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		assert.Equal(tt, backupPolicy.DailyBackupsToKeep, updated.DailyBackupLimit)
 		assert.Equal(tt, backupPolicy.WeeklyBackupsToKeep, updated.WeeklyBackupLimit)
 		assert.Equal(tt, backupPolicy.MonthlyBackupsToKeep, updated.MonthlyBackupLimit)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updated.State)
 	})
 
 	t.Run("FailsWhenAccountDoesNotExist", func(tt *testing.T) {
@@ -1232,8 +1232,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateUpdating,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateUpdating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
 		assert.NoError(tt, err)
@@ -1282,8 +1282,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateUpdating,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateUpdating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
 		assert.NoError(tt, err)
@@ -1360,8 +1360,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   1,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 		assert.NoError(tt, err)
@@ -1383,7 +1383,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		}
 		volume, err = se.CreateVolume(ctx, volume)
 		assert.NoError(tt, err)
-		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.NoError(tt, err)
 
 		backup := &datamodel.Backup{
@@ -1396,8 +1396,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			BackupVault:   backupVault,
 			VolumeUUID:    volume.UUID,
 			Type:          "MANUAL",
-			State:         models.LifeCycleStateAvailable,
-			StateDetails:  models.LifeCycleStateAvailableDetails,
+			State:         datamodel.LifeCycleStateAvailable,
+			StateDetails:  datamodel.LifeCycleStateAvailableDetails,
 		}
 		_, err = se.CreateBackup(ctx, backup)
 		assert.NoError(tt, err)
@@ -1477,8 +1477,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 		assert.NoError(tt, err)
@@ -1500,7 +1500,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		}
 		volume, err = se.CreateVolume(ctx, volume)
 		assert.NoError(tt, err)
-		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.NoError(tt, err)
 
 		params := &commonparams.UpdateBackupPolicyParams{
@@ -1524,7 +1524,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		backupPolicy, err = se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicy.UUID, account.ID)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backupPolicy)
-		assert.Equal(tt, models.LifeCycleStateREADY, backupPolicy.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, backupPolicy.LifeCycleState)
 	})
 
 	t.Run("RollbackBackupPolicyFails", func(tt *testing.T) {
@@ -1557,8 +1557,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "job-uuid"}
 
@@ -1570,7 +1570,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil)
 		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]int64{}, nil)
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(nil, errors.New("rollback failed")).Once()
-		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(datamodel.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
 		mockTemporalClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockWorkflowRun, errors.New("could not execute workflow"))
 
 		_, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
@@ -1609,8 +1609,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
 
@@ -1621,7 +1621,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
 		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil)
 		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]int64{}, nil)
-		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(errors.New("job rollback failed")).Once()
+		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(datamodel.JobsStateERROR), mock.Anything, mock.Anything).Return(errors.New("job rollback failed")).Once()
 		mockTemporalClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockWorkflowRun, errors.New("could not execute workflow"))
 
 		_, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
@@ -1652,7 +1652,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:           "test-backup-policy",
 			Account:        account,
 			AccountID:      account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		// validateBackupLimits runs before CreateJob; error here returns early without touching the job.
@@ -1688,7 +1688,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:           "test-backup-policy",
 			Account:        account,
 			AccountID:      account.ID,
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
 		expertVols := []*datamodel.ExpertModeVolumes{
@@ -1740,8 +1740,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			DailyBackupsToKeep:    7,
 			WeeklyBackupsToKeep:   4,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "job-uuid"}
 		volume := &datamodel.Volume{
@@ -1765,7 +1765,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		// Simulate error updating backup policy (backupPolicyUpdateErr)
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(nil, errors.New("update policy failed")).Once()
 		// Simulate error updating job state after policy update error
-		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(errors.New("job update failed")).Once()
+		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(datamodel.JobsStateERROR), mock.Anything, mock.Anything).Return(errors.New("job update failed")).Once()
 
 		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
 		assert.Error(t, err)
@@ -1792,8 +1792,8 @@ func TestCreateBackupPolicy(tt *testing.T) {
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         true,
 			Description:           nillable.ToPointer("Test description"),
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		oldGetOrCreateAccount := getOrCreateAccount
@@ -1828,7 +1828,7 @@ func TestCreateBackupPolicy(tt *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, createdBackupPolicy.UUID, result.BackupPolicyUUID)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
 		mockStorage.AssertExpectations(tt)
 	})
 	tt.Run("CreateBackupPolicyFailsWhenAccountDoesNotExist", func(tt *testing.T) {
@@ -1954,8 +1954,8 @@ func TestCreateBackupPolicy(tt *testing.T) {
 			WeeklyBackupsToKeep:   3,
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         true,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		oldGetOrCreateAccount := getOrCreateAccount
@@ -1995,7 +1995,7 @@ func TestCreateBackupPolicy(tt *testing.T) {
 		assert.Equal(tt, createdBackupPolicy.WeeklyBackupsToKeep, result.WeeklyBackupLimit)
 		assert.Equal(tt, createdBackupPolicy.MonthlyBackupsToKeep, result.MonthlyBackupLimit)
 		assert.Equal(tt, createdBackupPolicy.PolicyEnabled, result.Enabled)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
 		mockStorage.AssertExpectations(tt)
 	})
 	tt.Run("CreateBackupPolicyFailsWhenScheduleCreationFailsAndRollsBack", func(tt *testing.T) {

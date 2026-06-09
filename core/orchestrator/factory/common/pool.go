@@ -20,7 +20,7 @@ func CreatePoolJob(ctx context.Context, params *commonparams.CreatePoolParams, a
 	jobType := string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, poolCategory))
 	return &datamodel.Job{
 		Type:          jobType,
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -34,7 +34,7 @@ func CreatePoolJob(ctx context.Context, params *commonparams.CreatePoolParams, a
 // HandleCreatePoolError handles errors during pool creation by updating job status
 func HandleCreatePoolError(ctx context.Context, se database.Storage, createdJob *datamodel.Job, err error) {
 	logger := util.GetLogger(ctx)
-	if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+	if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 		logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 	}
 }
@@ -94,7 +94,7 @@ func CreatePoolInDB(
 			LdapEnabled:     params.LdapEnabled,
 			AccountName:     account.Name,
 			IsZoneSwitched:  false,
-			ZoneSwitchState: models.ZonePrimary,
+			ZoneSwitchState: datamodel.ZonePrimary,
 		},
 		APIAccessMode: params.Mode,
 	}

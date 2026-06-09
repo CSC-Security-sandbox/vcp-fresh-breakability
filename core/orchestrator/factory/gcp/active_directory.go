@@ -112,8 +112,8 @@ func _createActiveDirectory(
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateActiveDirectory),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateActiveDirectory),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.ResourceId,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -148,7 +148,7 @@ func _createActiveDirectory(
 	)
 	if err != nil {
 		logger.Error("Failed to start create active directory workflow: ", "error", err)
-		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 		}
 		return nil, "", err
@@ -536,8 +536,8 @@ func createAdRecordForNonSDE(
 		Domain:       params.Domain,
 		DNS:          params.DNS,
 		NetBIOS:      params.NetBIOS,
-		State:        models.LifeCycleStateCreating,
-		StateDetails: models.LifeCycleStateCreatingDetails,
+		State:        datamodel.LifeCycleStateCreating,
+		StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		AccountId:    accountID,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: params.OrganizationalUnit,
@@ -568,8 +568,8 @@ func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryPar
 		Domain:       params.Domain,
 		DNS:          params.DNS,
 		NetBIOS:      params.NetBIOS,
-		State:        models.LifeCycleStateCreating,
-		StateDetails: models.LifeCycleStateCreatingDetails,
+		State:        datamodel.LifeCycleStateCreating,
+		StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
 			OrganizationalUnit:         params.OrganizationalUnit,
 			Site:                       params.Site,
@@ -656,8 +656,8 @@ func _updateActiveDirectory(
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateActiveDirectory),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateActiveDirectory),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  ad.AdName,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -692,7 +692,7 @@ func _updateActiveDirectory(
 	)
 	if err != nil {
 		logger.Error("Failed to start update active directory workflow: ", "error", err)
-		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 		}
 		return nil, "", err
@@ -703,13 +703,13 @@ func _updateActiveDirectory(
 		if adRecord == nil {
 			return nil, "", customerrors.NewNotFoundErr("ActiveDirectory", &params.ActiveDirectoryId)
 		}
-		adRecord.State = models.LifeCycleStateUpdating
-		adRecord.StateDetails = models.LifeCycleStateUpdatingDetails
+		adRecord.State = datamodel.LifeCycleStateUpdating
+		adRecord.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 		adRecord, _ = se.UpdateActiveDirectory(ctx, adRecord)
 	}
 
-	ad.State = models.LifeCycleStateUpdating
-	ad.StateDetails = models.LifeCycleStateUpdatingDetails
+	ad.State = datamodel.LifeCycleStateUpdating
+	ad.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	return ad, createdJob.UUID, nil
 }
 
@@ -754,16 +754,16 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 
 	if ad != nil {
 		// Check if the Active Directory is already in deleted state
-		if ad.State == models.LifeCycleStateDeleted {
+		if ad.State == datamodel.LifeCycleStateDeleted {
 			logger.Info("Active Directory is already deleted", "active_directory_uuid", params.ActiveDirectoryUUID, "state", ad.State)
 			return "", nil
 		}
 
 		// Check if the Active Directory is already being deleted
-		if ad.State == models.LifeCycleStateDeleting {
+		if ad.State == datamodel.LifeCycleStateDeleting {
 			logger.Info("Active Directory is already being deleted", "active_directory_uuid", params.ActiveDirectoryUUID, "state", ad.State)
 			// Check if there's an existing job
-			existingJob, err := se.GetJobByResourceUUID(ctx, params.ActiveDirectoryUUID, string(models.JobTypeDeleteActiveDirectory))
+			existingJob, err := se.GetJobByResourceUUID(ctx, params.ActiveDirectoryUUID, string(datamodel.JobTypeDeleteActiveDirectory))
 			if err == nil && existingJob != nil {
 				logger.Info("Returning existing job UUID", "job_uuid", existingJob.UUID)
 				return existingJob.UUID, nil
@@ -774,8 +774,8 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 
 	// Create a job for tracking the deletion
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteActiveDirectory),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteActiveDirectory),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.ActiveDirectoryUUID,
 		AccountID:     sql.NullInt64{Int64: params.AccountId, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -810,7 +810,7 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 	)
 	if err != nil {
 		logger.Error("Failed to start delete active directory workflow: ", "error", err)
-		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 		}
 		return "", err

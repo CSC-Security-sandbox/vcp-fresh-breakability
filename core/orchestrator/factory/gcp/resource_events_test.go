@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -33,7 +32,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOn,
+			State:          datamodel.ResourceEventStateOn,
 		}
 		_, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -55,7 +54,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOn,
+			State:          datamodel.ResourceEventStateOn,
 		}
 		_, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -71,10 +70,10 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOnState)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeStartProjectEventOnState)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{{
 			BaseModel:     datamodel.BaseModel{UUID: "jobUUID"},
@@ -85,7 +84,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOn,
+			State:          datamodel.ResourceEventStateOn,
 		}
 		res, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)
@@ -103,10 +102,10 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeStartProjectEventOffState)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("panic"))
@@ -115,7 +114,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		_, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -132,10 +131,10 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeStartProjectEventOffState)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
@@ -145,7 +144,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		_, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -162,10 +161,10 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeStartProjectEventOffState)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}, nil)
@@ -175,7 +174,7 @@ func TestCreateOrGetStartProjectEventJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		res, err := _createOrGetStartProjectEventJob(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)
@@ -198,7 +197,7 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOn,
+			State:          datamodel.ResourceEventStateOn,
 		}
 		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -215,10 +214,10 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeHandleResourceEvent)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("panic"))
@@ -227,7 +226,7 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -244,10 +243,10 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeHandleResourceEvent)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
@@ -257,7 +256,7 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
@@ -274,10 +273,10 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 
-		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 		filter := utils.CreateFilterWithConditions(
 			utils.NewFilterCondition("account_id", "=", int64(1)),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("type", "=", string(datamodel.JobTypeHandleResourceEvent)),
 			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}, nil)
@@ -287,7 +286,7 @@ func TestUpdateResourceStateJob(t *testing.T) {
 			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
-			State:          models.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 		}
 		res, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)

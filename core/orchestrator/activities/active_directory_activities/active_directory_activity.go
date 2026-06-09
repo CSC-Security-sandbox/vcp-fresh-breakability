@@ -57,12 +57,12 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryStateFromSVMUsage(ctx context
 	svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, activeDirectoryId)
 	if err != nil {
 		logger.Warnf("Failed to fetch SVMs for Active Directory id %d, defaulting state to READY: %v", activeDirectoryId, err)
-		return common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil
+		return common.ActiveDirectoryStateResult{State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateReadyDetails}, nil
 	}
 	if len(svms) > 0 {
-		return common.ActiveDirectoryStateResult{State: models.LifeCycleStateInUse, StateDetails: models.LifeCycleStateInUseDetails}, nil
+		return common.ActiveDirectoryStateResult{State: datamodel.LifeCycleStateInUse, StateDetails: datamodel.LifeCycleStateInUseDetails}, nil
 	}
-	return common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil
+	return common.ActiveDirectoryStateResult{State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateReadyDetails}, nil
 }
 
 func (a ActiveDirectoryActivity) GetSvmsForAd(ctx context.Context, activeDirectoryId int64) ([]*datamodel.Svm, error) {

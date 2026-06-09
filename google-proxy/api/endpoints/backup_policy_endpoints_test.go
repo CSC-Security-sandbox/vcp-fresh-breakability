@@ -17,6 +17,7 @@ import (
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -820,7 +821,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-uuid",
 			ResourceID:         backupPolicyName,
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateCreating,
+			State:              datamodel.LifeCycleStateCreating,
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
@@ -883,7 +884,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-uuid",
 			ResourceID:         backupPolicyName,
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateCreating,
+			State:              datamodel.LifeCycleStateCreating,
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
@@ -942,7 +943,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-uuid",
 			ResourceID:         backupPolicyName,
 			Enabled:            false,
-			State:              coremodels.LifeCycleStateCreating,
+			State:              datamodel.LifeCycleStateCreating,
 			DailyBackupLimit:   0,
 			WeeklyBackupLimit:  0,
 			MonthlyBackupLimit: 0,
@@ -1001,7 +1002,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 			BackupPolicyUUID: "backup-policy-uuid",
 			ResourceID:       backupPolicyName,
 			Enabled:          true,
-			State:            coremodels.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 		}
 
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
@@ -2131,7 +2132,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			CreatedAt:          time.Now(),
 		}
 
@@ -2219,7 +2220,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			CreatedAt:          time.Now(),
 		}
 
@@ -2664,7 +2665,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVault := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -2728,7 +2729,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVault := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -2801,7 +2802,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVaultUpdating := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateUpdating, // First call returns updating state
+			LifeCycleState: datamodel.LifeCycleStateUpdating, // First call returns updating state
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -2812,7 +2813,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 
 		mockBackupVaultReady := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY, // Second call returns ready state
+			LifeCycleState: datamodel.LifeCycleStateREADY, // Second call returns ready state
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -2884,7 +2885,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVaultUpdating := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateUpdating, // Always returns updating state
+			LifeCycleState: datamodel.LifeCycleStateUpdating, // Always returns updating state
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -3002,7 +3003,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		// Backup vault with no immutable settings
 		mockBackupVault := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: nil, // No retention period
 				IsDailyBackupImmutable:                 false,
@@ -3066,7 +3067,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVault := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 false,
@@ -3133,7 +3134,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 35 // 35-day immutable period
 		mockBackupVault := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 false,
@@ -3308,7 +3309,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 		var retentionDays int64 = 30
 		mockBackupVaultImmutable := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-123",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: &retentionDays,
 				IsDailyBackupImmutable:                 true,
@@ -3319,7 +3320,7 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 
 		mockBackupVaultNonImmutable := &coremodels.BackupVaultV1beta{
 			BackupVaultID:  "vault-456",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 				BackupMinimumEnforcedRetentionDuration: nil, // No immutable settings
 				IsDailyBackupImmutable:                 false,
@@ -4253,7 +4254,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-id-1",
 			ResourceID:         "test-resource-id-1",
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
@@ -4263,7 +4264,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-id-2",
 			ResourceID:         "test-resource-id-2",
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			DailyBackupLimit:   10,
 			WeeklyBackupLimit:  5,
 			MonthlyBackupLimit: 3,
@@ -5074,7 +5075,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-id-1",
 			ResourceID:         "test-resource-id-1",
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
@@ -5084,7 +5085,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-id-2",
 			ResourceID:         "test-resource-id-2",
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			DailyBackupLimit:   10,
 			WeeklyBackupLimit:  5,
 			MonthlyBackupLimit: 3,
@@ -5145,7 +5146,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			BackupPolicyUUID:   "backup-policy-id-1",
 			ResourceID:         "test-resource-id-1",
 			Enabled:            true,
-			State:              coremodels.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			DailyBackupLimit:   5,
 			WeeklyBackupLimit:  3,
 			MonthlyBackupLimit: 2,
@@ -5332,7 +5333,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		retentionDays := int64(30)
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5352,8 +5353,8 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		retentionDays := int64(30)
-		vault1 := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
-		vault2 := createBackupVault("vault-2", coremodels.LifeCycleStateREADY, &retentionDays, false, true, true)
+		vault1 := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
+		vault2 := createBackupVault("vault-2", datamodel.LifeCycleStateREADY, &retentionDays, false, true, true)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1", "vault-2"}, nil)
@@ -5374,7 +5375,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 		// Vault with zero retention duration (no immutable settings)
 		zeroRetentionDays := int64(0)
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &zeroRetentionDays, false, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &zeroRetentionDays, false, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5394,7 +5395,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		// Vault with nil retention duration
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, nil, false, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, nil, false, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5452,7 +5453,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		retentionDays := int64(30)
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateUpdating, &retentionDays, true, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateUpdating, &retentionDays, true, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5480,7 +5481,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		}
 
 		retentionDays := int64(30)
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5503,8 +5504,8 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		retentionDays := int64(30)
-		vault1 := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
-		vault2 := createBackupVault("vault-2", coremodels.LifeCycleStateUpdating, &retentionDays, false, true, true)
+		vault1 := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
+		vault2 := createBackupVault("vault-2", datamodel.LifeCycleStateUpdating, &retentionDays, false, true, true)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1", "vault-2"}, nil)
@@ -5532,9 +5533,9 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 		retentionDays := int64(30)
 		// First vault has no weekly immutable, so will pass validation
-		vault1 := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
+		vault1 := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
 		// Second vault has weekly immutable, so weekly limit will be validated and should fail
-		vault2 := createBackupVault("vault-2", coremodels.LifeCycleStateREADY, &retentionDays, false, true, false)
+		vault2 := createBackupVault("vault-2", datamodel.LifeCycleStateREADY, &retentionDays, false, true, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1", "vault-2"}, nil)
@@ -5643,7 +5644,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		retentionDays := int64(30)
-		backupVault := createBackupVault("", coremodels.LifeCycleStateUpdating, &retentionDays, true, false, false)
+		backupVault := createBackupVault("", datamodel.LifeCycleStateUpdating, &retentionDays, true, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5664,7 +5665,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		updateParams := createUpdateParams("account-1")
 
 		negativeRetentionDays := int64(-10)
-		backupVault := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &negativeRetentionDays, false, false, false)
+		backupVault := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &negativeRetentionDays, false, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1"}, nil)
@@ -5687,11 +5688,11 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		zeroRetentionDays := int64(0)
 
 		// Vault with immutable settings
-		vault1 := createBackupVault("vault-1", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
+		vault1 := createBackupVault("vault-1", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
 		// Vault without immutable settings (zero retention)
-		vault2 := createBackupVault("vault-2", coremodels.LifeCycleStateREADY, &zeroRetentionDays, false, false, false)
+		vault2 := createBackupVault("vault-2", datamodel.LifeCycleStateREADY, &zeroRetentionDays, false, false, false)
 		// Vault without immutable settings (nil retention)
-		vault3 := createBackupVault("vault-3", coremodels.LifeCycleStateREADY, nil, false, false, false)
+		vault3 := createBackupVault("vault-3", datamodel.LifeCycleStateREADY, nil, false, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "policy-1", "account-1").Return([]string{"vault-1", "vault-2", "vault-3"}, nil)
@@ -5725,7 +5726,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			vaultID := fmt.Sprintf("bu-%d-vault", i+1)
 			vaultUUIDs[i] = vaultID
-			vaults[i] = createBackupVault(vaultID, coremodels.LifeCycleStateREADY, &retentionDays, true, i%2 == 0, i%3 == 0)
+			vaults[i] = createBackupVault(vaultID, datamodel.LifeCycleStateREADY, &retentionDays, true, i%2 == 0, i%3 == 0)
 		}
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
@@ -5754,9 +5755,9 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		retentionDays := int64(90)
 
 		// Simulate different lifecycle states during migration
-		vault1 := createBackupVault("old-vault", coremodels.LifeCycleStateREADY, &retentionDays, true, false, false)
-		vault2 := createBackupVault("new-vault", coremodels.LifeCycleStateCreating, &retentionDays, false, true, true)
-		vault3 := createBackupVault("temp-vault", coremodels.LifeCycleStateUpdating, &retentionDays, true, true, false)
+		vault1 := createBackupVault("old-vault", datamodel.LifeCycleStateREADY, &retentionDays, true, false, false)
+		vault2 := createBackupVault("new-vault", datamodel.LifeCycleStateCreating, &retentionDays, false, true, true)
+		vault3 := createBackupVault("temp-vault", datamodel.LifeCycleStateUpdating, &retentionDays, true, true, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "migration-policy", "migration-account").Return([]string{"old-vault", "new-vault", "temp-vault"}, nil)
@@ -5793,9 +5794,9 @@ func Test_performBackupVaultValidation(t *testing.T) {
 		longRetentionDays := int64(365) // 1 year for compliance (more realistic)
 
 		// Critical production vault with strict immutability
-		vault1 := createBackupVault("prod-critical-vault", coremodels.LifeCycleStateREADY, &longRetentionDays, true, true, true)
+		vault1 := createBackupVault("prod-critical-vault", datamodel.LifeCycleStateREADY, &longRetentionDays, true, true, true)
 		// Secondary vault with different immutable settings
-		vault2 := createBackupVault("prod-secondary-vault", coremodels.LifeCycleStateREADY, &longRetentionDays, true, false, false)
+		vault2 := createBackupVault("prod-secondary-vault", datamodel.LifeCycleStateREADY, &longRetentionDays, true, false, false)
 
 		mockOrchestrator.On("GetBackupVaultUUIDsFromBackupPolicyUUID",
 			ctx, "dr-policy", "dr-account").Return([]string{"prod-critical-vault", "prod-secondary-vault"}, nil)

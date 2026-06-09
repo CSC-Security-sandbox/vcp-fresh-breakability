@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -453,7 +452,7 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_SkipsGcbdrVaults(t *testin
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		},
 	}
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
@@ -501,7 +500,7 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingEnabled_IncludesGcbdrVaults(t *test
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
 				Name:      "VaultOwnerProject",
@@ -573,7 +572,7 @@ func Test_GetVolumeMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
 				Name:      "VaultOwnerProject",
@@ -581,7 +580,7 @@ func Test_GetVolumeMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 		},
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-gcnv"},
-			ServiceType: models.ServiceTypeGCNV,
+			ServiceType: datamodel.ServiceTypeGCNV,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{UUID: "gcnv-account-uuid"},
 				Name:      "GcnvVaultProject",
@@ -681,19 +680,19 @@ func Test_GetVolumeMetrics_MultiVaultSameVolume_EmitsBMFPerVault(t *testing.T) {
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
 			Name:        "vault1",
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p1"}, Name: "Project1"},
 		},
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "vault2-uuid"},
 			Name:        "vault2",
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p1"}, Name: "Project1"},
 		},
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "vault3-uuid"},
 			Name:        "vault3",
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p2"}, Name: "Project2"},
 		},
 	}
@@ -833,7 +832,7 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_NonGcbdrVaultStillBilled(t
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeGCNV,
+			ServiceType: datamodel.ServiceTypeGCNV,
 		},
 	}
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
@@ -2667,7 +2666,7 @@ func Test_GetVolumeMetrics_SkipsDisabledAccounts(t *testing.T) {
 		{
 			ID:    1,
 			Name:  "DisabledAccount",
-			State: models.AccountStateHyperscalerDisabled,
+			State: datamodel.AccountStateHyperscalerDisabled,
 		},
 		{
 			ID:    2,
@@ -3065,7 +3064,7 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_HyperscalerDisabledSkipped(t *testi
 		{
 			ID:    1,
 			Name:  "DisabledAccount",
-			State: models.AccountStateHyperscalerDisabled,
+			State: datamodel.AccountStateHyperscalerDisabled,
 		},
 	}
 
@@ -3299,7 +3298,7 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledCrossProjectVaultSkipp
 
 	gcbdrVault := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{UUID: "vault-gcbdr-uuid"},
-		ServiceType: models.ServiceTypeCrossProject,
+		ServiceType: datamodel.ServiceTypeCrossProject,
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -3473,4 +3472,3 @@ func Test_GetVolumeMetrics_AccountNotInMap(t *testing.T) {
 
 	m.AssertExpectations(t)
 }
-

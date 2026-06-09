@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -1058,7 +1057,7 @@ func TestReverseResumeWorkflow_PartialSuccessHandling(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 
 	// Verify lines 56-58, 60: partial success handling
-	assert.Equal(t, string(models.JobsStateDONE), capturedStatus, "Should set status to DONE for partial success")
+	assert.Equal(t, string(datamodel.JobsStateDONE), capturedStatus, "Should set status to DONE for partial success")
 	assert.Equal(t, vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure, capturedTrackingID, "TrackingID should be ErrReverseResumeReplicationQuotaRuleFailure when using vsaerrors.NewVCPError")
 	assert.Contains(t, capturedErrorDetails, reverseResumeQuotaRuleError, "Should have reverseResumeQuotaRuleError message for partial success")
 }
@@ -1106,7 +1105,7 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 			AccountName: "test-account",
 		}
 
-		hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		hybridReplicationType := string(datamodel.HybridReplicationParametersReplicationTypeONPREM)
 		event := &replication.ReverseReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				SourceProjectNumber:      "123456789",
@@ -1260,7 +1259,7 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, string(models.JobsStateDONE), capturedStatus)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), capturedStatus)
 		assert.Contains(tt, capturedErrorDetails, reverseResumeQuotaRuleError)
 	})
 
@@ -1379,7 +1378,7 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, string(models.JobsStateDONE), capturedStatus)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), capturedStatus)
 		assert.Contains(tt, capturedErrorDetails, reverseResumeQuotaRuleError)
 	})
 
@@ -1753,7 +1752,7 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, string(models.JobsStateDONE), capturedStatus)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), capturedStatus)
 		assert.Contains(tt, capturedErrorDetails, reverseResumeQuotaRuleError)
 	})
 
@@ -1879,7 +1878,7 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, string(models.JobsStateDONE), capturedStatus)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), capturedStatus)
 		assert.Contains(tt, capturedErrorDetails, reverseResumeQuotaRuleError)
 	})
 }

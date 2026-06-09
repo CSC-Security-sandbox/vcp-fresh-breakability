@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewReplicationHandler() *ReplicationHandler {
 }
 
 // JobTypes enumerates the job types supported by the replication handler.
-func (h *ReplicationHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreateVolumeReplication,
-		models.JobTypeCreateVolumeReplicationInternal,
+func (h *ReplicationHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreateVolumeReplication,
+		datamodel.JobTypeCreateVolumeReplicationInternal,
 	}
 }
 

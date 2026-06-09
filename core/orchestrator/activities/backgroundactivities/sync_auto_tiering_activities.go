@@ -167,7 +167,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				// 6. When feature flag is disabled: No volumes in the pool have bypass mode enabled.
 				//    When feature flag is enabled: Uses adjusted hot tier consumption (excludes bypass-enabled volumes)
 				//    to avoid false positives from temporary spikes.
-				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 && pool.State == models.LifeCycleStateREADY {
+				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 && pool.State == datamodel.LifeCycleStateREADY {
 					// Use different hot tier consumption based on feature flag
 					hotTierForUsageCalc := poolConsumption[PoolConsumptionHotTier]
 					if AllowAutogrowForHTBypassVolumeContainingPool {

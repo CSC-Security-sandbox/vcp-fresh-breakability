@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ipscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -104,7 +104,7 @@ func (d *InternalReservedIPDetector) Detect(ctx context.Context, storage databas
 		if p == nil || p.PoolAttributes == nil || p.PoolAttributes.PrimaryZone == "" {
 			continue
 		}
-		if p.State != models.LifeCycleStateREADY {
+		if p.State != datamodel.LifeCycleStateREADY {
 			continue
 		}
 		region, _, err := utils.ParseRegionAndZone(p.PoolAttributes.PrimaryZone)

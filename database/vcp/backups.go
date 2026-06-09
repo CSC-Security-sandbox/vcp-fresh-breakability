@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -44,10 +43,10 @@ type backupChainHistoryParams struct {
 }
 
 type BackupMetricsData struct {
-	UUID          string                      `gorm:"column:uuid"`
-	VolumeUUID    string                      `gorm:"column:volume_uuid"`
+	UUID          string                    `gorm:"column:uuid"`
+	VolumeUUID    string                    `gorm:"column:volume_uuid"`
 	Attributes    *datamodel.BackupAttributes `gorm:"column:attributes;type:jsonb"`
-	BackupVaultID int64                       `gorm:"column:backup_vault_id"`
+	BackupVaultID int64                     `gorm:"column:backup_vault_id"`
 	// BackupVault fields (from JOIN)
 	VaultAccountID        int64   `gorm:"column:vault_account_id"`
 	VaultName             string  `gorm:"column:vault_name"`
@@ -264,7 +263,7 @@ func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup,
 	}
 	// Cross-region backups when cross-region billing is disabled
 	if !config.EnableCrossRegionBackupBillingMetrics {
-		if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == models.BackupVaultTypeCrossRegion {
+		if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == datamodel.BackupVaultTypeCrossRegion {
 			logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
 			return true
 		}
@@ -272,7 +271,7 @@ func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup,
 	// Cross-region backups where region is nil or matches current region (even when billing enabled)
 	if config.EnableCrossRegionBackupBillingMetrics &&
 		backup.BackupVault != nil &&
-		backup.BackupVault.BackupVaultType == models.BackupVaultTypeCrossRegion {
+		backup.BackupVault.BackupVaultType == datamodel.BackupVaultTypeCrossRegion {
 		if backup.BackupVault.BackupRegionName == nil {
 			logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName is nil", backup.UUID, backup.VolumeUUID)
 			return true
@@ -294,7 +293,7 @@ func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup,
 	}
 	// Cross-project (GCBDR) backups when GCBDR billing is disabled
 	if !config.EnableGcbdrBackupBilling {
-		if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+		if backup.BackupVault != nil && backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject {
 			logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
 			return true
 		}
@@ -596,7 +595,7 @@ func _deleteBackup(ctx context.Context, db *gorm.DB, backupUUID string) (*datamo
 			util.GetLogger(ctx).Warnf("Ledger: Failed to mark backup chain history as deleted for volume %s: %v", backup.VolumeUUID, err)
 			// Don't fail the entire backup deletion if history update fails
 		}
-	} else if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject && backup.Attributes != nil {
+	} else if backup.BackupVault != nil && backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject && backup.Attributes != nil {
 		endpointUUID := backup.Attributes.EndpointUUID
 		var endpointBackupCount int64
 		countErr := tx.Model(&datamodel.Backup{}).
@@ -657,7 +656,7 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 			deploymentName = dbBackup.BackupVault.Name
 		}
 		consumerID := ""
-		if dbBackup.BackupVault != nil && dbBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+		if dbBackup.BackupVault != nil && dbBackup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject {
 			consumerID = dbBackup.BackupVault.AccountVendorID
 		} else if dbBackup.Attributes != nil {
 			consumerID = dbBackup.Attributes.AccountIdentifier
@@ -1135,7 +1134,7 @@ func (d *DataStoreRepository) GetLatestBackupsPerEndpointByVolumeUUID(ctx contex
 
 	sub := db.Table("backups").
 		Select("MAX(id) AS id").
-		Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
+		Where("volume_uuid = ? AND state = ?", volumeUUID, datamodel.LifeCycleStateAvailable).
 		Where("COALESCE(attributes->>'endpoint_uuid', '') != ''").
 		Group("backup_vault_id, attributes->>'endpoint_uuid'")
 
@@ -1207,10 +1206,10 @@ func (d *DataStoreRepository) GetBackupChainMetrics(ctx context.Context, conditi
 	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, uuid, name, account_id, backup_vault_type, cmek_attributes, backup_region_name, service_type")
 	}).Preload("BackupVault.Account").
-		Where("state = ?", models.LifeCycleStateAvailable).
+		Where("state = ?", datamodel.LifeCycleStateAvailable).
 		Where("id IN (?)", db.Table("backups").
 			Select("MAX(id)").
-			Where("state = ?", models.LifeCycleStateAvailable).
+			Where("state = ?", datamodel.LifeCycleStateAvailable).
 			Group("volume_uuid, backup_vault_id, attributes->>'endpoint_uuid'")).
 		Scopes(dbutils.Paginate(pagination)).
 		Find(&results).Error
@@ -1236,7 +1235,7 @@ func (d *DataStoreRepository) GetDistinctVolumeGCBDRVaultPairs(ctx context.Conte
 		Table("backups").
 		Select("DISTINCT backups.volume_uuid, backup_vaults.uuid AS vault_uuid").
 		Joins("JOIN backup_vaults ON backup_vaults.id = backups.backup_vault_id").
-		Where("backups.state = ? AND backup_vaults.service_type = ?", models.LifeCycleStateAvailable, models.ServiceTypeCrossProject).
+		Where("backups.state = ? AND backup_vaults.service_type = ?", datamodel.LifeCycleStateAvailable, datamodel.ServiceTypeCrossProject).
 		Scan(&results).Error
 	if err != nil {
 		return nil, err
@@ -1509,7 +1508,7 @@ func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Co
 			  AND (v.uuid IS NULL OR v.data_protection->>'backup_vault_id' IS NULL OR bv.uuid = v.data_protection->>'backup_vault_id')
 		) ranked
 		WHERE rn = 1
-	`, datamodel.LifeCycleStateAvailable, models.LifeCycleStateREADY).Scan(&rows).Error
+	`, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateREADY).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

@@ -62,7 +62,7 @@ func testSplitVolume() *datamodel.Volume {
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID:   "parent-volume-uuid",
 				ParentSnapshotUUID: "parent-snapshot-uuid",
-				State:              models.CloneStateCloned,
+				State:              datamodel.CloneStateCloned,
 			},
 		},
 		Pool: &datamodel.Pool{
@@ -387,7 +387,7 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_SetupError()
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID:   "parent-volume-uuid",
 				ParentSnapshotUUID: "parent-snapshot-uuid",
-				State:              models.CloneStateCloned,
+				State:              datamodel.CloneStateCloned,
 			},
 		},
 		Pool: &datamodel.Pool{

@@ -58,8 +58,8 @@ func (a FlexCacheVolumeUpdateActivity) CreatePrepopulateJob(
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeFlexCachePrePopulate),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+		State:        string(datamodel.JobsStateNEW),
 		ResourceName: volume.UUID,
 		IsAdminJob:   false,
 		AccountID:    sql.NullInt64{Int64: volume.AccountID, Valid: true},

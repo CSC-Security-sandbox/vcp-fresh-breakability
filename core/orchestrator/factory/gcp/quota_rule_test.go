@@ -615,8 +615,8 @@ func TestCreateQuotaRule(t *testing.T) {
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 			WorkflowID: "workflow-id-123",
-			Type:       string(models.JobTypeCreateQuotaRule),
-			State:      string(models.JobsStateNEW),
+			Type:       string(datamodel.JobTypeCreateQuotaRule),
+			State:      string(datamodel.JobsStateNEW),
 		}
 
 		createdQuotaRule := &datamodel.QuotaRule{
@@ -627,8 +627,8 @@ func TestCreateQuotaRule(t *testing.T) {
 			QuotaType:      params.QuotaType,
 			QuotaTarget:    params.QuotaTarget,
 			DiskLimitInKib: params.DiskLimitInMib * mibToKibMultiplier,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			RQuota:         true,
 			Description:    params.Description,
 		}
@@ -685,7 +685,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		assert.Equal(tt, params.QuotaType, quotaRule.QuotaType)
 		assert.Equal(tt, params.QuotaTarget, quotaRule.QuotaTarget)
 		assert.Equal(tt, params.DiskLimitInMib, quotaRule.DiskLimitInMib)
-		assert.Equal(tt, models.LifeCycleStateCreating, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, quotaRule.LifeCycleState)
 		assert.Equal(tt, params.Description, quotaRule.Description)
 	})
 
@@ -725,7 +725,7 @@ func TestCreateQuotaRule(t *testing.T) {
 			{
 				BaseModel: datamodel.BaseModel{UUID: "other-in-creating"},
 				Name:      "other-rule",
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}
 
@@ -996,7 +996,7 @@ func TestValidateQuotaRuleState(t *testing.T) {
 		rules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "q1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 		err := validateQuotaRuleState(context.Background(), volUUID, rules)
@@ -1007,7 +1007,7 @@ func TestValidateQuotaRuleState(t *testing.T) {
 		rules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "in-flight"},
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}
 		err := validateQuotaRuleState(context.Background(), volUUID, rules)
@@ -1020,7 +1020,7 @@ func TestValidateQuotaRuleState(t *testing.T) {
 		rules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "preparing"},
-				State:     models.LifeCycleStatePreparing,
+				State:     datamodel.LifeCycleStatePreparing,
 			},
 		}
 		err := validateQuotaRuleState(context.Background(), volUUID, rules)
@@ -1644,7 +1644,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "quota-uuid-123"},
 			Name:           "test-quota",
 			Description:    "Test description",
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			StateDetails:   "Available",
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:alice",
@@ -1656,7 +1656,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 		assert.Equal(tt, "quota-uuid-123", result.UUID)
 		assert.Equal(tt, "test-quota", result.Name)
 		assert.Equal(tt, "Test description", result.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.LifeCycleState)
 		assert.Equal(tt, "Available", result.LifeCycleStateDetails)
 		assert.Equal(tt, IndividualUserQuota, result.QuotaType)
 		assert.Equal(tt, "user:alice", result.QuotaTarget)
@@ -1759,7 +1759,7 @@ func TestValidateReplicationState(t *testing.T) {
 
 		replications := []*datamodel.VolumeReplication{
 			{
-				State:              models.LifeCycleStateAvailable,
+				State:              datamodel.LifeCycleStateAvailable,
 				MirrorState:        nillable.ToPointer("Snapmirrored"),
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1796,7 +1796,7 @@ func TestValidateReplicationState(t *testing.T) {
 		mirrorState := "MIRRORED"
 		replications := []*datamodel.VolumeReplication{
 			{
-				State:              models.LifeCycleStateAvailable,
+				State:              datamodel.LifeCycleStateAvailable,
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1835,7 +1835,7 @@ func TestValidateReplicationState(t *testing.T) {
 		mirrorState := "UNINITIALIZED"
 		replications := []*datamodel.VolumeReplication{
 			{
-				State:              models.LifeCycleStateAvailable,
+				State:              datamodel.LifeCycleStateAvailable,
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1874,7 +1874,7 @@ func TestValidateReplicationState(t *testing.T) {
 		mirrorState := OntapSnapmirrored
 		replications := []*datamodel.VolumeReplication{
 			{
-				State:              models.LifeCycleStateAvailable,
+				State:              datamodel.LifeCycleStateAvailable,
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -1913,7 +1913,7 @@ func TestValidateReplicationState(t *testing.T) {
 		mirrorState := OntapUninitialized
 		replications := []*datamodel.VolumeReplication{
 			{
-				State:              models.LifeCycleStateAvailable,
+				State:              datamodel.LifeCycleStateAvailable,
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -2251,7 +2251,7 @@ func TestValidateReplicationState(t *testing.T) {
 
 		getDestinationReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
-				State: models.LifeCycleStateCreating,
+				State: datamodel.LifeCycleStateCreating,
 			}, nil
 		}
 
@@ -2314,7 +2314,7 @@ func TestValidateReplicationState(t *testing.T) {
 
 		getDestinationReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
-				State: models.LifeCycleStateUpdating,
+				State: datamodel.LifeCycleStateUpdating,
 			}, nil
 		}
 
@@ -2377,7 +2377,7 @@ func TestValidateReplicationState(t *testing.T) {
 
 		getDestinationReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
-				State: models.LifeCycleStateDeleting,
+				State: datamodel.LifeCycleStateDeleting,
 			}, nil
 		}
 
@@ -2473,7 +2473,7 @@ func TestValidateReplicationState(t *testing.T) {
 		replications := []*datamodel.VolumeReplication{
 			{
 				RemoteUri: "", // Empty RemoteUri - destination side
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:      "us-east1",
 					DestinationLocation: locationID,
@@ -2632,7 +2632,7 @@ func TestValidateReplicationState(t *testing.T) {
 
 		getDestinationReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 			}, nil
 		}
 
@@ -3141,7 +3141,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 		existingQuotaRules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}
 
@@ -3598,8 +3598,8 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			QuotaType:      params.QuotaType,
 			QuotaTarget:    params.QuotaTarget,
 			DiskLimitInKib: params.DiskLimitInMib * mibToKibMultiplier,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			RQuota:         true,
 			Description:    params.Description,
 		}
@@ -3666,8 +3666,8 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			QuotaType:      params.QuotaType,
 			QuotaTarget:    params.QuotaTarget,
 			DiskLimitInKib: params.DiskLimitInMib * mibToKibMultiplier,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			RQuota:         true,
 			Description:    params.Description,
 		}
@@ -3784,8 +3784,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -3825,8 +3825,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating, // Transitioning state
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating, // Transitioning state
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -3866,8 +3866,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -3907,8 +3907,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -3948,8 +3948,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -3993,8 +3993,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4046,8 +4046,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4062,7 +4062,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 		existingRules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}
 
@@ -4107,8 +4107,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4164,8 +4164,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4226,8 +4226,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4295,8 +4295,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4353,8 +4353,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock UpdateQuotaRule to mark quota rule as available after error (in defer function)
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, operationID, err := _updateQuotaRule(context.Background(), mockStore, mockTemporal, params)
@@ -4381,8 +4381,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4404,8 +4404,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4452,8 +4452,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock UpdateQuotaRule to mark quota rule as available after error (in defer function)
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, operationID, err := _updateQuotaRule(context.Background(), mockStore, mockTemporal, params)
@@ -4481,8 +4481,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4504,8 +4504,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4551,7 +4551,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 		assert.NotNil(tt, quotaRule)
 		assert.Equal(tt, "job-uuid-123", operationID)
 		assert.Equal(tt, "quota-rule-uuid-1", quotaRule.UUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, quotaRule.LifeCycleState)
 	})
 
 	t.Run("WhenUpdateQuotaRuleSucceedsWithOnlyDescription", func(tt *testing.T) {
@@ -4570,8 +4570,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4593,8 +4593,8 @@ func TestUpdateQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4723,8 +4723,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating, // Transitioning state
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating, // Transitioning state
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4764,8 +4764,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4806,8 +4806,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4847,8 +4847,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -4891,8 +4891,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -4945,8 +4945,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5005,8 +5005,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5054,8 +5054,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 		// Mock UpdateQuotaRule to mark quota rule as AVAILABLE in defer block
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, job, err := _updateQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
@@ -5082,8 +5082,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5105,8 +5105,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5144,8 +5144,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 		// Mock UpdateQuotaRule to mark quota rule as AVAILABLE in defer block
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, job, err := _updateQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
@@ -5173,8 +5173,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5196,8 +5196,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5234,7 +5234,7 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 		assert.NotNil(tt, quotaRule)
 		assert.NotNil(tt, job)
 		assert.Equal(tt, "quota-rule-uuid-1", quotaRule.UUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, quotaRule.LifeCycleState)
 		assert.Equal(tt, "job-uuid-123", job.UUID)
 	})
 
@@ -5254,8 +5254,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5277,8 +5277,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5333,8 +5333,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5357,8 +5357,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5413,8 +5413,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5439,8 +5439,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5496,8 +5496,8 @@ func TestUpdateQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5624,7 +5624,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateCreating, // Transitioning state
+			State:        datamodel.LifeCycleStateCreating, // Transitioning state
 			StateDetails: "",
 		}
 
@@ -5673,14 +5673,14 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateCreating, // Transitioning state
+			State:        datamodel.LifeCycleStateCreating, // Transitioning state
 			StateDetails: "",
 		}
 
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeCreateQuotaRule),
+			Type:          string(datamodel.JobTypeCreateQuotaRule),
 		}
 
 		volume := &datamodel.Volume{
@@ -5715,10 +5715,10 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(ctxWithCorrelationID, params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called first at line 980)
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 		// Mock GetJobByResourceUUID for CREATE_QUOTA_RULE (called at line 990)
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeCreateQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeCreateQuotaRule)).
 			Return(createJob, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed (function continues after line 966)
@@ -5772,8 +5772,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -5788,7 +5788,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to fail
@@ -5819,8 +5819,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5848,8 +5848,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 			RQuota:       false,
 		}
 
@@ -5865,7 +5865,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -5921,8 +5921,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -5946,7 +5946,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -5985,8 +5985,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6002,7 +6002,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		existingRules := []*datamodel.QuotaRule{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}
 
@@ -6015,7 +6015,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
@@ -6048,8 +6048,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6074,7 +6074,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6107,8 +6107,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6133,7 +6133,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6176,8 +6176,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6202,7 +6202,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6249,8 +6249,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6280,7 +6280,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6334,8 +6334,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6358,8 +6358,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 			RQuota:       false,
 		}
 
@@ -6375,7 +6375,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6414,8 +6414,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock UpdateQuotaRule to restore previous state in defer cleanup
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, operationID, err := _deleteQuotaRule(context.Background(), mockStore, mockTemporal, params)
@@ -6441,8 +6441,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -6465,8 +6465,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 			RQuota:       true,
 		}
 
@@ -6482,7 +6482,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for DELETING state)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6520,7 +6520,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		assert.NotNil(tt, quotaRule)
 		assert.Equal(tt, "job-uuid-123", operationID)
 		assert.Equal(tt, "quota-rule-uuid-1", quotaRule.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleting, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, quotaRule.LifeCycleState)
 	})
 
 	t.Run("WhenQuotaRuleIsInDeletingState", func(tt *testing.T) {
@@ -6538,8 +6538,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting, // DELETING is not allowed in _deleteQuotaRule (unlike _deleteQuotaRuleInternal)
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting, // DELETING is not allowed in _deleteQuotaRule (unlike _deleteQuotaRuleInternal)
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -6556,9 +6556,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE - return existing job when state is DELETING
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
-			State:     string(models.JobsStatePROCESSING),
+			State:     string(datamodel.JobsStatePROCESSING),
 		}
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(existingJob, nil)
 		// When existing job is found, function returns early - no need for other mocks
 
@@ -6589,8 +6589,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
@@ -6615,7 +6615,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, account.ID).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called for non-transitional states)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 
 		// Mock GetVolumeByIDAndAccountID to succeed
@@ -6672,8 +6672,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
@@ -6685,8 +6685,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 
 		existingDeleteJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
-			Type:          string(models.JobTypeDeleteQuotaRule),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeDeleteQuotaRule),
+			State:         string(datamodel.JobsStatePROCESSING),
 			CorrelationID: correlationID, // Set correlation ID to match request
 		}
 
@@ -6702,7 +6702,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE - return existing delete job
 		// When an existing delete job is found, ValidateCorrelationIDForCreatingResource returns early
 		// and doesn't call GetJobByResourceUUID for CREATE_QUOTA_RULE
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(existingDeleteJob, nil)
 
 		quotaRule, operationID, err := _deleteQuotaRule(ctxWithCorrelationID, mockStore, mockTemporal, params)
@@ -6733,8 +6733,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
@@ -6753,10 +6753,10 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(ctxWithCorrelationID, params.QuotaRuleUUID, account.ID).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called first in ValidateCorrelationIDForCreatingResource)
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 		// Mock GetJobByResourceUUID for CREATE_QUOTA_RULE to fail
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeCreateQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeCreateQuotaRule)).
 			Return(nil, errors.New("failed to get create job"))
 
 		quotaRule, operationID, err := _deleteQuotaRule(ctxWithCorrelationID, mockStore, mockTemporal, params)
@@ -6787,14 +6787,14 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
-			Type:          string(models.JobTypeCreateQuotaRule),
+			Type:          string(datamodel.JobTypeCreateQuotaRule),
 			CorrelationID: "different-correlation-id",
 		}
 
@@ -6813,10 +6813,10 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetQuotaRuleByUUID(ctxWithCorrelationID, params.QuotaRuleUUID, account.ID).
 			Return(quotaRuleDataModel, nil)
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (called first in ValidateCorrelationIDForCreatingResource)
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(nil, nil)
 		// Mock GetJobByResourceUUID for CREATE_QUOTA_RULE to return job with different correlation ID
-		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(models.JobTypeCreateQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(ctxWithCorrelationID, params.QuotaRuleUUID, string(datamodel.JobTypeCreateQuotaRule)).
 			Return(createJob, nil)
 
 		quotaRule, operationID, err := _deleteQuotaRule(ctxWithCorrelationID, mockStore, mockTemporal, params)
@@ -6847,15 +6847,15 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateDeleting,
-			StateDetails:   models.LifeCycleStateDeletingDetails,
+			State:          datamodel.LifeCycleStateDeleting,
+			StateDetails:   datamodel.LifeCycleStateDeletingDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
-			Type:      string(models.JobTypeDeleteQuotaRule),
-			State:     string(models.JobsStatePROCESSING),
+			Type:      string(datamodel.JobTypeDeleteQuotaRule),
+			State:     string(datamodel.JobsStatePROCESSING),
 		}
 
 		// Mock getAccountWithName to succeed
@@ -6868,7 +6868,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Return(quotaRuleDataModel, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_QUOTA_RULE (lines 1005-1011)
-		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(datamodel.JobTypeDeleteQuotaRule)).
 			Return(existingJob, nil)
 
 		quotaRule, operationID, err := _deleteQuotaRule(context.Background(), mockStore, mockTemporal, params)
@@ -6899,8 +6899,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateUpdating, // Transitional state (lines 1016-1017)
-			StateDetails:   models.LifeCycleStateUpdatingDetails,
+			State:          datamodel.LifeCycleStateUpdating, // Transitional state (lines 1016-1017)
+			StateDetails:   datamodel.LifeCycleStateUpdatingDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
@@ -7005,8 +7005,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:           "quota-rule-1",
 			VolumeID:       1,
 			AccountID:      1,
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			DiskLimitInKib: 100 * 1024,
 		}
 
@@ -7059,7 +7059,7 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateCreating, // Transitioning state (not DELETING)
+			State:        datamodel.LifeCycleStateCreating, // Transitioning state (not DELETING)
 			StateDetails: "",
 		}
 
@@ -7099,8 +7099,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleted, // Already deleted
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted, // Already deleted
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7144,8 +7144,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		mockStore.EXPECT().UpdatingQuotaRule(context.Background(), mock.Anything).
 			Return(updatedQuotaRule, nil)
@@ -7160,7 +7160,7 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 		assert.NotNil(tt, quotaRule)
 		assert.NotNil(tt, job) // Job will be created
 		assert.Equal(tt, "quota-rule-uuid-1", quotaRule.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleting, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, quotaRule.LifeCycleState)
 	})
 
 	t.Run("WhenGetVolumeByIDAndAccountIDFails", func(tt *testing.T) {
@@ -7178,8 +7178,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7221,8 +7221,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7249,8 +7249,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7306,8 +7306,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7362,8 +7362,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7411,8 +7411,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 		// Mock UpdateQuotaRule to restore previous state in defer cleanup
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, job, err := _deleteQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
@@ -7438,8 +7438,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7461,8 +7461,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7500,8 +7500,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 		// Mock UpdateQuotaRule to restore previous state in defer cleanup
 		mockStore.EXPECT().UpdateQuotaRule(context.Background(), mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRuleDataModel.UUID &&
-				qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateAvailable &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(quotaRuleDataModel, nil)
 
 		quotaRule, job, err := _deleteQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
@@ -7527,8 +7527,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7550,8 +7550,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7588,7 +7588,7 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 		assert.NotNil(tt, quotaRule)
 		assert.NotNil(tt, job)
 		assert.Equal(tt, "quota-rule-uuid-1", quotaRule.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleting, quotaRule.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, quotaRule.LifeCycleState)
 		assert.Equal(tt, "job-uuid-123", job.UUID)
 	})
 
@@ -7607,8 +7607,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting, // DELETING is allowed for idempotency
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting, // DELETING is allowed for idempotency
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7630,8 +7630,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7685,8 +7685,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7709,8 +7709,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -7764,8 +7764,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		volume := &datamodel.Volume{
@@ -7790,8 +7790,8 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 			Name:         "quota-rule-1",
 			VolumeID:     1,
 			AccountID:    1,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Mock getAccountWithName to succeed
@@ -8006,8 +8006,8 @@ func TestGetMultipleQuotaRules(t *testing.T) {
 				QuotaType:      IndividualUserQuota,
 				QuotaTarget:    "user:alice",
 				DiskLimitInKib: 102400, // 100 MiB in KiB
-				State:          models.LifeCycleStateAvailable,
-				StateDetails:   models.LifeCycleStateReadyDetails,
+				State:          datamodel.LifeCycleStateAvailable,
+				StateDetails:   datamodel.LifeCycleStateReadyDetails,
 				Description:    "First quota rule",
 				VolumeID:       volume.ID,
 				AccountID:      account.ID,
@@ -8018,8 +8018,8 @@ func TestGetMultipleQuotaRules(t *testing.T) {
 				QuotaType:      IndividualGroupQuota,
 				QuotaTarget:    "group:developers",
 				DiskLimitInKib: 204800, // 200 MiB in KiB
-				State:          models.LifeCycleStateAvailable,
-				StateDetails:   models.LifeCycleStateReadyDetails,
+				State:          datamodel.LifeCycleStateAvailable,
+				StateDetails:   datamodel.LifeCycleStateReadyDetails,
 				Description:    "Second quota rule",
 				VolumeID:       volume.ID,
 				AccountID:      account.ID,
@@ -8051,7 +8051,7 @@ func TestGetMultipleQuotaRules(t *testing.T) {
 		assert.Equal(tt, IndividualUserQuota, result[0].QuotaType)
 		assert.Equal(tt, "user:alice", result[0].QuotaTarget)
 		assert.Equal(tt, int64(100), result[0].DiskLimitInMib) // 102400 KiB / 1024 = 100 MiB
-		assert.Equal(tt, models.LifeCycleStateAvailable, result[0].LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result[0].LifeCycleState)
 		assert.Equal(tt, "First quota rule", result[0].Description)
 
 		// Verify second quota rule
@@ -8127,8 +8127,8 @@ func TestGetMultipleQuotaRules(t *testing.T) {
 			QuotaType:      DefaultUserQuota,
 			QuotaTarget:    "",
 			DiskLimitInKib: 51200, // 50 MiB in KiB
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			Description:    "Default user quota",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8157,7 +8157,7 @@ func TestGetMultipleQuotaRules(t *testing.T) {
 		assert.Equal(tt, DefaultUserQuota, result[0].QuotaType)
 		assert.Equal(tt, "", result[0].QuotaTarget)
 		assert.Equal(tt, int64(50), result[0].DiskLimitInMib) // 51200 KiB / 1024 = 50 MiB
-		assert.Equal(tt, models.LifeCycleStateCreating, result[0].LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, result[0].LifeCycleState)
 		assert.Equal(tt, "Default user quota", result[0].Description)
 	})
 
@@ -8375,8 +8375,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:alice",
 			DiskLimitInKib: 102400, // 100 MiB in KiB
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			Description:    "Individual user quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8404,8 +8404,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 		assert.Equal(tt, IndividualUserQuota, result.QuotaType)
 		assert.Equal(tt, "user:alice", result.QuotaTarget)
 		assert.Equal(tt, int64(100), result.DiskLimitInMib) // 102400 KiB / 1024 = 100 MiB
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.LifeCycleStateDetails)
 		assert.Equal(tt, "Individual user quota rule", result.Description)
 	})
 
@@ -8434,8 +8434,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualGroupQuota,
 			QuotaTarget:    "group:developers",
 			DiskLimitInKib: 204800, // 200 MiB in KiB
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			Description:    "Individual group quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8489,8 +8489,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      DefaultUserQuota,
 			QuotaTarget:    "",
 			DiskLimitInKib: 51200, // 50 MiB in KiB
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			Description:    "Default user quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8544,8 +8544,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      DefaultGroupQuota,
 			QuotaTarget:    "",
 			DiskLimitInKib: 409600, // 400 MiB in KiB
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 			Description:    "Default group quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8598,8 +8598,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:bob",
 			DiskLimitInKib: 102400,
-			State:          models.LifeCycleStateCreating,
-			StateDetails:   models.LifeCycleStateCreatingDetails,
+			State:          datamodel.LifeCycleStateCreating,
+			StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 			Description:    "Creating quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8622,8 +8622,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateCreating, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateCreatingDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatingDetails, result.LifeCycleStateDetails)
 	})
 
 	t.Run("WhenGetQuotaRuleByUUIDSucceeds_UpdatingState", func(tt *testing.T) {
@@ -8651,8 +8651,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:charlie",
 			DiskLimitInKib: 204800,
-			State:          models.LifeCycleStateUpdating,
-			StateDetails:   models.LifeCycleStateUpdatingDetails,
+			State:          datamodel.LifeCycleStateUpdating,
+			StateDetails:   datamodel.LifeCycleStateUpdatingDetails,
 			Description:    "Updating quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8675,8 +8675,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateUpdating, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, result.LifeCycleStateDetails)
 	})
 
 	t.Run("WhenGetQuotaRuleByUUIDSucceeds_DeletingState", func(tt *testing.T) {
@@ -8704,8 +8704,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:dave",
 			DiskLimitInKib: 102400,
-			State:          models.LifeCycleStateDeleting,
-			StateDetails:   models.LifeCycleStateDeletingDetails,
+			State:          datamodel.LifeCycleStateDeleting,
+			StateDetails:   datamodel.LifeCycleStateDeletingDetails,
 			Description:    "Deleting quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8728,8 +8728,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateDeleting, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateDeletingDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletingDetails, result.LifeCycleStateDetails)
 	})
 
 	t.Run("WhenGetQuotaRuleByUUIDSucceeds_ErrorState", func(tt *testing.T) {
@@ -8757,8 +8757,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 			QuotaType:      IndividualUserQuota,
 			QuotaTarget:    "user:eve",
 			DiskLimitInKib: 102400,
-			State:          models.LifeCycleStateError,
-			StateDetails:   models.LifeCycleStateCreationErrorDetails,
+			State:          datamodel.LifeCycleStateError,
+			StateDetails:   datamodel.LifeCycleStateCreationErrorDetails,
 			Description:    "Error quota rule",
 			VolumeID:       volume.ID,
 			AccountID:      account.ID,
@@ -8781,8 +8781,8 @@ func TestDescribeQuotaRule(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateError, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateCreationErrorDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateError, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateCreationErrorDetails, result.LifeCycleStateDetails)
 	})
 
 	t.Run("WhenGetQuotaRuleByUUIDFailsWithInternalError", func(tt *testing.T) {
@@ -8876,7 +8876,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 				QuotaType:      IndividualUserQuota,
 				QuotaTarget:    "user:alice",
 				DiskLimitInKib: 100 * 1024,
-				State:          models.LifeCycleStateCreating,
+				State:          datamodel.LifeCycleStateCreating,
 			},
 		}
 

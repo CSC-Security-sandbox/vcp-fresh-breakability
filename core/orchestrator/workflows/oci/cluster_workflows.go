@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	enums "go.temporal.io/api/enums/v1"
@@ -255,7 +255,7 @@ func (wf *ociClusterUpgradeWorkflow) preUpgradePhase(
 	vlmClient := workflows.GetNewVSAClientWorkflowManager()
 
 	clusterWasDisabled := false
-	if params.Pool.State == models.LifeCycleStateDisabled {
+	if params.Pool.State == datamodel.LifeCycleStateDisabled {
 		wf.Logger.Info("Cluster is DISABLED, powering on for upgrade")
 		clusterWasDisabled = true
 

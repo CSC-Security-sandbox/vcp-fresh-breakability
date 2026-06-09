@@ -715,12 +715,12 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 		log.Errorf("Failed to setup CreateVolumeWorkflow: %v", err)
 		return nil, err
 	}
-	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, err
 	}
 
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for CreateVolumeWorkflow: %v", err)
 		return nil, err
@@ -729,7 +729,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	if customErr != nil {
 		log.Errorf("CreateVolumeWorkflow completed with error: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for CreateVolumeWorkflow: %v", err2)
 			return nil, err2
@@ -737,7 +737,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 		return nil, customErr
 	}
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for CreateVolumeWorkflow: %v", err)
 	}
@@ -811,8 +811,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					log.Errorf("Failed to describe volume %s with error: %v", dbVolume.UUID, err)
 				}
 				// Update volume state in DB before rollback
-				if volume != nil && volume.State != models.LifeCycleStateDeleted {
-					err2 := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(disconnectedCtx, nil)
+				if volume != nil && volume.State != datamodel.LifeCycleStateDeleted {
+					err2 := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateCreationErrorDetails).Get(disconnectedCtx, nil)
 					if err2 != nil {
 						log.Errorf("Failed to update volume state in DB to error: %v", err2)
 						return err2
@@ -900,7 +900,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// Validate backup is in available or ready state before proceeding with restore
 		// SDE backups use READY state, VCP backups use AVAILABLE state
 		log.Infof("Validating backup state for restore: backup='%s', state='%s'", backup.Name, backup.State)
-		if backup.State != models.LifeCycleStateAvailable && backup.State != models.LifeCycleStateREADY {
+		if backup.State != datamodel.LifeCycleStateAvailable && backup.State != datamodel.LifeCycleStateREADY {
 			err = fmt.Errorf("cannot restore from backup '%s' which is not in available or ready state (current state: %s)",
 				backup.Name, backup.State)
 			log.Errorf("Backup state validation failed: %v", err)
@@ -1721,10 +1721,10 @@ func updateActiveDirectoryStateToInUse(
 	if activeDirectory == nil {
 		return ConvertToVSAError(fmt.Errorf("active Directory is nil"))
 	}
-	if activeDirectory.Status == models.LifeCycleStateREADY {
+	if activeDirectory.Status == datamodel.LifeCycleStateREADY {
 		log.Info("First SMB volume/LDAP enabled NFS volume created, updating Active Directory state to IN_USE")
 		err := workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.UpdateActiveDirectoryState,
-			activeDirectory.UUID, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails).Get(ctx, nil)
+			activeDirectory.UUID, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails).Get(ctx, nil)
 		if err != nil {
 			log.Error("Failed to update Active Directory state to IN_USE with error: ", err)
 			return ConvertToVSAError(err)

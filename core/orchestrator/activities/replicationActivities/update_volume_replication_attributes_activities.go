@@ -5,7 +5,6 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -182,8 +181,8 @@ func createReplicationObjectForUpdate(dbReplication *datamodel.VolumeReplication
 
 	dbReplication.ReplicationAttributes.ExternalUUID = result.ReplicationDetails.RelationshipID
 
-	dbReplication.State = models.LifeCycleStateAvailable
-	dbReplication.StateDetails = models.LifeCycleStateAvailableDetails
+	dbReplication.State = datamodel.LifeCycleStateAvailable
+	dbReplication.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 	return dbReplication
 }
@@ -264,8 +263,8 @@ func (a *UpdateVolumeReplicationAttributesActivity) UpdateSrcVolumeReplication(c
 	updates["progress_last_updated"] = time.Now()
 
 	updates["replication_attributes"] = volReplication.ReplicationAttributes
-	updates["state"] = models.LifeCycleStateREADY
-	updates["state_details"] = models.LifeCycleStateAvailableDetails
+	updates["state"] = datamodel.LifeCycleStateREADY
+	updates["state_details"] = datamodel.LifeCycleStateAvailableDetails
 
 	// Update the volume replication in the database
 	err = a.SE.UpdateVolumeReplicationFields(ctx, volReplication.UUID, updates)

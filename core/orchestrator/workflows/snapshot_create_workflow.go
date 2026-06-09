@@ -3,7 +3,6 @@ package workflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -42,12 +41,12 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 		logger.Infof("Snapshot workflow setup executed with error: %v", err)
 		return nil, err
 	}
-	if err = snapshotWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = snapshotWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, err
 	}
 
 	snapshotWf.Status = WorkflowStatusRunning
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
 		return nil, err
@@ -56,7 +55,7 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 	if customErr != nil {
 		logger.Infof("Snapshot workflow run executed with error: %v", customErr)
 		snapshotWf.Status = WorkflowStatusFailed
-		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Done with error for CreateSnapshotWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr
@@ -64,7 +63,7 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 		return nil, customErr
 	}
 	snapshotWf.Status = WorkflowStatusCompleted
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		logger.Errorf("Failed to update job status to Done for CreateSnapshotWorkflow: %v", err)
 	}

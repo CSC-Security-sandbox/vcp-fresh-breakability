@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -121,7 +122,7 @@ func (h Handler) V1CreateSnapshot(ctx context.Context, req *oasgenserver.VolumeS
 		operationUUID = uuid.UUID{}.String()
 	}
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + operationUUID
-	if snapshot.LifeCycleState == coremodels.LifeCycleStateCreating {
+	if snapshot.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &oasgenserver.OperationV1{
 			Name:     oasgenserver.NewOptString(operationID),
 			Response: resp,

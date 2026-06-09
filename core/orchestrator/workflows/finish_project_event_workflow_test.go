@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -145,7 +144,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -208,7 +207,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -315,7 +314,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -364,7 +363,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -418,7 +417,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -507,7 +506,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -538,7 +537,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -626,7 +625,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -700,7 +699,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -775,7 +774,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -858,7 +857,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -941,7 +940,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1013,7 +1012,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1125,7 +1124,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1182,7 +1181,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1242,7 +1241,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1309,7 +1308,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1380,7 +1379,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(errors.New("delete service accounts failed")).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1459,7 +1458,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1556,7 +1555,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1637,7 +1636,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.RollbackAccountStateActivity, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",
@@ -1687,7 +1686,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Execute workflow
 	params := &commonparams.FinishProjectEventParams{
-		State:          models.StateDelete,
+		State:          datamodel.ResourceEventStateDelete,
 		LocationId:     "test-location-id",
 		ProjectNumber:  "test-project-number",
 		XCorrelationID: "test-correlation-id",

@@ -2,7 +2,6 @@ package workflows
 
 import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -31,11 +30,11 @@ func UpdateBackupPolicyWorkflow(ctx workflow.Context, params *common.UpdateBacku
 	if err != nil {
 		return err
 	}
-	if err := updateBackupPolicyWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := updateBackupPolicyWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return ConvertToVSAError(err)
 	}
 	updateBackupPolicyWF.Status = WorkflowStatusRunning
-	err = updateBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return err
 	}
@@ -43,14 +42,14 @@ func UpdateBackupPolicyWorkflow(ctx workflow.Context, params *common.UpdateBacku
 
 	if customErr != nil {
 		updateBackupPolicyWF.Status = WorkflowStatusFailed
-		err2 := updateBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := updateBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			updateBackupPolicyWF.Logger.Errorf("Failed to update job status for workflow %s: %v", updateBackupPolicyWF.ID, err2)
 		}
 		return customErr
 	}
 	updateBackupPolicyWF.Status = WorkflowStatusCompleted
-	err2 := updateBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := updateBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		updateBackupPolicyWF.Logger.Errorf("Failed to update job status for workflow %s: %v", updateBackupPolicyWF.ID, err2)
 		return ConvertToVSAError(err2)
@@ -167,11 +166,11 @@ func DeleteBackupPolicyWorkflow(ctx workflow.Context, params *common.DeleteBacku
 	if err != nil {
 		return err
 	}
-	if err := deleteBackupPolicyWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := deleteBackupPolicyWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return ConvertToVSAError(err)
 	}
 	deleteBackupPolicyWF.Status = WorkflowStatusRunning
-	err = deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = deleteBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return err
 	}
@@ -180,7 +179,7 @@ func DeleteBackupPolicyWorkflow(ctx workflow.Context, params *common.DeleteBacku
 	if customErr != nil {
 		logger.Errorf("error in delete backup policy workflow: %v", customErr)
 		deleteBackupPolicyWF.Status = WorkflowStatusFailed
-		err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			logger.Errorf("error updating job status in delete backup policy workflow: %v", err2)
 		}
@@ -188,7 +187,7 @@ func DeleteBackupPolicyWorkflow(ctx workflow.Context, params *common.DeleteBacku
 	}
 
 	deleteBackupPolicyWF.Status = WorkflowStatusCompleted
-	err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		logger.Errorf("error updating job status in delete backup policy workflow: %v", err2)
 		return ConvertToVSAError(err2)
@@ -243,7 +242,7 @@ func (wf *deleteBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, dbBackupPolicy, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, dbBackupPolicy, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 

@@ -1022,7 +1022,7 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 					ID:   1,
 					UUID: "pool-1",
 				},
-				State: models.LifeCycleStateREADY,
+				State: datamodel.LifeCycleStateREADY,
 				PoolCredentials: &datamodel.PoolCredentials{
 					SecretID: "test-secret",
 					Password: "test-password",
@@ -1122,8 +1122,8 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-2").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
 		// Called once per pool (2 pools = 2 calls) - pools are already in READY state
-		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(models.LifeCycleStateREADY, nil)
-		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-2").Return(models.LifeCycleStateREADY, nil)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(datamodel.LifeCycleStateREADY, nil)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-2").Return(datamodel.LifeCycleStateREADY, nil)
 		// Mock GetPoolByUUID for _getVSAProviderUnit (called once per pool = 2 calls)
 		// Convert PoolView to Pool for GetPoolByUUID return value
 		pool := database.ConvertPoolViewToPool(poolView)
@@ -1401,7 +1401,7 @@ func TestUpdatePoolToReadyState(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded, // Changed to DEGRADED so update to READY actually happens
+				State:     datamodel.LifeCycleStateDegraded, // Changed to DEGRADED so update to READY actually happens
 			},
 		}
 
@@ -1429,7 +1429,7 @@ func TestUpdatePoolToReadyState(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded, // Changed to DEGRADED so update to READY actually happens
+				State:     datamodel.LifeCycleStateDegraded, // Changed to DEGRADED so update to READY actually happens
 			},
 		}
 
@@ -1455,7 +1455,7 @@ func TestUpdatePoolState(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1464,7 +1464,7 @@ func TestUpdatePoolState(t *testing.T) {
 		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
-		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+		err := UpdatePoolState(mockStorage, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1479,7 +1479,7 @@ func TestUpdatePoolState(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1487,7 +1487,7 @@ func TestUpdatePoolState(t *testing.T) {
 		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: No UpdatePoolFields call expected since state is already READY
 
-		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		err := UpdatePoolState(mockStorage, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1510,7 +1510,7 @@ func TestUpdatePoolState(t *testing.T) {
 		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: No UpdatePoolFields call expected
 
-		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+		err := UpdatePoolState(mockStorage, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1525,7 +1525,7 @@ func TestUpdatePoolState(t *testing.T) {
 		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
 		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return("", errors.New("pool not found"))
 
-		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+		err := UpdatePoolState(mockStorage, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get pool state for update")
 		mockStorage.AssertExpectations(t)
@@ -1541,7 +1541,7 @@ func TestUpdatePoolState(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1550,7 +1550,7 @@ func TestUpdatePoolState(t *testing.T) {
 		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(errors.New("update failed"))
 
-		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+		err := UpdatePoolState(mockStorage, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to conditionally update pool state")
 		mockStorage.AssertExpectations(t)
@@ -1572,7 +1572,7 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1590,7 +1590,7 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		defer func() { UpdatePoolToDegradedState = originalUpdatePoolToDegradedState }()
 		UpdatePoolToDegradedState = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
 			// Mock implementation that just calls updatePoolState
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails) // Ignore error in test mock
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails) // Ignore error in test mock
 		}
 
 		// Create IMTPContext mock and other required parameters for ExecuteJSwapAction
@@ -1618,7 +1618,7 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1635,7 +1635,7 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		defer func() { UpdatePoolToReadyStateFromHealth = originalUpdatePoolToReadyStateFromHealth }()
 		UpdatePoolToReadyStateFromHealth = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
 			// Mock implementation that just calls updatePoolState
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails) // Ignore error in test mock
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails) // Ignore error in test mock
 		}
 
 		// Create IMTPContext mock and other required parameters for ExecuteJSwapAction
@@ -1663,7 +1663,7 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1701,7 +1701,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1753,7 +1753,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -1780,7 +1780,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1829,7 +1829,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -1856,7 +1856,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1909,7 +1909,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -1935,7 +1935,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -1987,7 +1987,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -2016,7 +2016,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 
@@ -2068,7 +2068,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -2095,7 +2095,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 
@@ -2144,7 +2144,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -2171,7 +2171,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 
@@ -2224,7 +2224,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			}
 
 			// Update pool state
-			_ = updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+			_ = updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
@@ -2536,7 +2536,7 @@ func TestMemoryManagementAndResourceCleanup(t *testing.T) {
 		}
 
 		filter := utils2.CreateFilterWithConditions(
-			utils2.NewFilterCondition("state", "in", []string{models.LifeCycleStateREADY, models.LifeCycleStateDegraded}),
+			utils2.NewFilterCondition("state", "in", []string{datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateDegraded}),
 		)
 		mockStorage.On("ListPoolUUIDs", mock.Anything, filter).Return(largePools, nil)
 
@@ -2812,7 +2812,7 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2880,7 +2880,7 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2935,7 +2935,7 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 
@@ -2994,7 +2994,7 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 
@@ -3049,7 +3049,7 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 
@@ -3104,7 +3104,7 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     models.LifeCycleStateDegraded,
+				State:     datamodel.LifeCycleStateDegraded,
 			},
 		}
 

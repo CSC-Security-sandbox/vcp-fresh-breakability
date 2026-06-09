@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
@@ -234,7 +233,7 @@ func Test_createActiveDirectory_TrialMode(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 			AdName:    "test-ad",
 			AccountId: accountID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				OrganizationalUnit: "CN=Computers",
 			},
@@ -257,7 +256,7 @@ func Test_createActiveDirectory_TrialMode(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 			AdName:    "test-ad",
 			AccountId: accountID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				OrganizationalUnit: "CN=Computers",
 			},
@@ -645,7 +644,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"},
 			AdName:    "ad-1",
 			AccountId: adAccount.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				OrganizationalUnit: "CN=Computers",
 			},
@@ -672,7 +671,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-2"},
 			AdName:    "ad-2",
 			AccountId: adAccount.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				OrganizationalUnit: "CN=Computers",
 			},

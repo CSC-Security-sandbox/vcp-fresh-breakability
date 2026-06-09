@@ -615,8 +615,8 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 			DiskLimitInMib:        2048,
 			QuotaTarget:           "user:alice",
 			Description:           "updated description",
-			LifeCycleState:        models.LifeCycleStateUpdating,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateUpdating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		expJob := &datamodel.Job{
@@ -625,7 +625,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			WorkflowID: "workflow-id-1",
-			State:      string(models.JobsStateNEW),
+			State:      string(datamodel.JobsStateNEW),
 		}
 
 		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, expJob, nil)
@@ -643,7 +643,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 		assert.Equal(tt, int64(2048), quotaRuleVCP.DiskLimitInMib)
 		assert.Equal(tt, "user:alice", quotaRuleVCP.QuotaTarget.Value)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateUPDATING, quotaRuleVCP.State.Value)
-		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, quotaRuleVCP.StateDetails.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdatingDetails, quotaRuleVCP.StateDetails.Value)
 		assert.Equal(tt, "updated description", quotaRuleVCP.Description.Value)
 		assert.Len(tt, quotaRuleVCP.Jobs, 1, "Expected 1 job in response")
 		assert.Equal(tt, "job-uuid-1", quotaRuleVCP.Jobs[0].JobId.Value)
@@ -676,8 +676,8 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 			Name:                  "quota-name",
 			QuotaType:             "INDIVIDUAL_USER_QUOTA",
 			DiskLimitInMib:        2048,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, nil, nil)
@@ -1010,15 +1010,15 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			QuotaType:             "INDIVIDUAL_USER_QUOTA",
 			DiskLimitInMib:        1024,
 			QuotaTarget:           "user:alice",
-			LifeCycleState:        models.LifeCycleStateCreating,
-			LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateCreating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateCreatingDetails,
 			Description:           "desc",
 		}
 
 		expJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid-1"},
 			WorkflowID: "workflow-id-1",
-			State:      string(models.JobsStateNEW),
+			State:      string(datamodel.JobsStateNEW),
 		}
 
 		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, expJob, nil)
@@ -1036,7 +1036,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 		assert.Equal(tt, int64(1024), quotaRuleVCP.DiskLimitInMib)
 		assert.Equal(tt, "user:alice", quotaRuleVCP.QuotaTarget.Value)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateCREATING, quotaRuleVCP.State.Value)
-		assert.Equal(tt, models.LifeCycleStateCreatingDetails, quotaRuleVCP.StateDetails.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatingDetails, quotaRuleVCP.StateDetails.Value)
 		assert.Equal(tt, "desc", quotaRuleVCP.Description.Value)
 		assert.Len(tt, quotaRuleVCP.Jobs, 1, "Expected 1 job in response")
 		assert.Equal(tt, "job-uuid-1", quotaRuleVCP.Jobs[0].JobId.Value)
@@ -1074,8 +1074,8 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			QuotaType:             "DEFAULT_USER_QUOTA",
 			DiskLimitInMib:        2048,
 			QuotaTarget:           "",
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:           "default quota",
 		}
 
@@ -1249,8 +1249,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "INDIVIDUAL_USER_QUOTA",
 			DiskLimitInMib:        1024,
 			QuotaTarget:           "user:alice",
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:           "Test quota rule",
 		}
 
@@ -1263,7 +1263,7 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 		assert.Equal(tt, int64(1024), result.DiskLimitInMib)
 		assert.Equal(tt, "user:alice", result.QuotaTarget.Value)
 		assert.Equal(tt, gcpgenserver.QuotaRulesV1betaStateREADY, result.State.Value)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.StateDetails.Value)
 		assert.Equal(tt, "Test quota rule", result.Description.Value)
 	})
 
@@ -1274,8 +1274,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "INDIVIDUAL_GROUP_QUOTA",
 			DiskLimitInMib:        2048,
 			QuotaTarget:           "group:developers",
-			LifeCycleState:        models.LifeCycleStateCreating,
-			LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateCreating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateCreatingDetails,
 			Description:           "Group quota rule",
 		}
 
@@ -1294,8 +1294,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "DEFAULT_USER_QUOTA",
 			DiskLimitInMib:        512,
 			QuotaTarget:           "",
-			LifeCycleState:        models.LifeCycleStateUpdating,
-			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateUpdating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 			Description:           "Default user quota",
 		}
 
@@ -1314,8 +1314,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "DEFAULT_GROUP_QUOTA",
 			DiskLimitInMib:        4096,
 			QuotaTarget:           "",
-			LifeCycleState:        models.LifeCycleStateDeleting,
-			LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateDeleting,
+			LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 			Description:           "Default group quota",
 		}
 
@@ -1333,8 +1333,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "INDIVIDUAL_USER_QUOTA",
 			DiskLimitInMib:        1024,
 			QuotaTarget:           "user:bob",
-			LifeCycleState:        models.LifeCycleStateError,
-			LifeCycleStateDetails: models.LifeCycleStateCreationErrorDetails,
+			LifeCycleState:        datamodel.LifeCycleStateError,
+			LifeCycleStateDetails: datamodel.LifeCycleStateCreationErrorDetails,
 			Description:           "Failed quota rule",
 		}
 
@@ -1342,7 +1342,7 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpgenserver.QuotaRulesV1betaStateERROR, result.State.Value)
-		assert.Equal(tt, models.LifeCycleStateCreationErrorDetails, result.StateDetails.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateCreationErrorDetails, result.StateDetails.Value)
 	})
 
 	t.Run("WhenConvertingUnknownState", func(tt *testing.T) {
@@ -1370,8 +1370,8 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 			QuotaType:             "UNKNOWN_QUOTA_TYPE",
 			DiskLimitInMib:        1024,
 			QuotaTarget:           "user:dave",
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:           "Unknown quota type",
 		}
 
@@ -1391,8 +1391,8 @@ func TestConvertToVCPQuotaRulesV1Beta(t *testing.T) {
 				QuotaType:             "INDIVIDUAL_USER_QUOTA",
 				DiskLimitInMib:        1024,
 				QuotaTarget:           "user:alice",
-				LifeCycleState:        models.LifeCycleStateREADY,
-				LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+				LifeCycleState:        datamodel.LifeCycleStateREADY,
+				LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 			},
 			{
 				BaseModel:             models.BaseModel{UUID: "uuid-2"},
@@ -1400,8 +1400,8 @@ func TestConvertToVCPQuotaRulesV1Beta(t *testing.T) {
 				QuotaType:             "INDIVIDUAL_GROUP_QUOTA",
 				DiskLimitInMib:        2048,
 				QuotaTarget:           "group:developers",
-				LifeCycleState:        models.LifeCycleStateCreating,
-				LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+				LifeCycleState:        datamodel.LifeCycleStateCreating,
+				LifeCycleStateDetails: datamodel.LifeCycleStateCreatingDetails,
 			},
 		}
 
@@ -1454,27 +1454,27 @@ func TestQuotaRuleQuotaTypeVCPV1Beta(t *testing.T) {
 
 func TestQuotaRuleLifeCycleVCPV1Beta(t *testing.T) {
 	t.Run("WhenConvertingCreatingState", func(tt *testing.T) {
-		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateCreating)
+		result := QuotaRuleLifeCycleVCPV1Beta(datamodel.LifeCycleStateCreating)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateCREATING, result.Value)
 	})
 
 	t.Run("WhenConvertingReadyState", func(tt *testing.T) {
-		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateREADY)
+		result := QuotaRuleLifeCycleVCPV1Beta(datamodel.LifeCycleStateREADY)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateREADY, result.Value)
 	})
 
 	t.Run("WhenConvertingUpdatingState", func(tt *testing.T) {
-		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateUpdating)
+		result := QuotaRuleLifeCycleVCPV1Beta(datamodel.LifeCycleStateUpdating)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateUPDATING, result.Value)
 	})
 
 	t.Run("WhenConvertingDeletingState", func(tt *testing.T) {
-		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateDeleting)
+		result := QuotaRuleLifeCycleVCPV1Beta(datamodel.LifeCycleStateDeleting)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateDELETING, result.Value)
 	})
 
 	t.Run("WhenConvertingErrorState", func(tt *testing.T) {
-		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateError)
+		result := QuotaRuleLifeCycleVCPV1Beta(datamodel.LifeCycleStateError)
 		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateERROR, result.Value)
 	})
 
@@ -1486,27 +1486,27 @@ func TestQuotaRuleLifeCycleVCPV1Beta(t *testing.T) {
 
 func TestJobStateToVCPV1Beta(t *testing.T) {
 	t.Run("WhenConvertingNewJobState", func(tt *testing.T) {
-		result := JobStateToVCPV1Beta(models.JobsStateNEW)
+		result := JobStateToVCPV1Beta(datamodel.JobsStateNEW)
 		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
 	})
 
 	t.Run("WhenConvertingProcessingJobState", func(tt *testing.T) {
-		result := JobStateToVCPV1Beta(models.JobsStatePROCESSING)
+		result := JobStateToVCPV1Beta(datamodel.JobsStatePROCESSING)
 		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
 	})
 
 	t.Run("WhenConvertingDoneJobState", func(tt *testing.T) {
-		result := JobStateToVCPV1Beta(models.JobsStateDONE)
+		result := JobStateToVCPV1Beta(datamodel.JobsStateDONE)
 		assert.Equal(tt, gcpgenserver.JobV1betaStateDone, result.Value)
 	})
 
 	t.Run("WhenConvertingErrorJobState", func(tt *testing.T) {
-		result := JobStateToVCPV1Beta(models.JobsStateERROR)
+		result := JobStateToVCPV1Beta(datamodel.JobsStateERROR)
 		assert.Equal(tt, gcpgenserver.JobV1betaStateError, result.Value)
 	})
 
 	t.Run("WhenConvertingUnknownJobState", func(tt *testing.T) {
-		result := JobStateToVCPV1Beta(models.JobState("UNKNOWN_STATE"))
+		result := JobStateToVCPV1Beta(datamodel.JobState("UNKNOWN_STATE"))
 		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
 	})
 }
@@ -3073,7 +3073,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 			},
 			Name:           "quota-rule-1",
 			Description:    "Test description",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			StateDetails:   "Ready state",
 			QuotaType:      "INDIVIDUAL_USER_QUOTA",
 			QuotaTarget:    "user:alice",
@@ -3086,7 +3086,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 		assert.Equal(tt, "quota-uuid-1", result.UUID)
 		assert.Equal(tt, "quota-rule-1", result.Name)
 		assert.Equal(tt, "Test description", result.Description)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.LifeCycleState)
 		assert.Equal(tt, "Ready state", result.LifeCycleStateDetails)
 		assert.Equal(tt, "INDIVIDUAL_USER_QUOTA", result.QuotaType)
 		assert.Equal(tt, "user:alice", result.QuotaTarget)
@@ -3105,7 +3105,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 				DeletedAt: nil,
 			},
 			Name:           "quota-rule-2",
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			QuotaType:      "DEFAULT_USER_QUOTA",
 			DiskLimitInKib: 200 * 1024, // 200 MiB in KiB
 		}
@@ -3133,7 +3133,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 				DeletedAt: &deletedAt,
 			},
 			Name:           "quota-rule-3",
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			QuotaType:      "DEFAULT_GROUP_QUOTA",
 			DiskLimitInKib: 300 * 1024, // 300 MiB in KiB
 		}
@@ -3192,7 +3192,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 				},
 				Name:           "quota-rule-1",
 				Description:    "Test description",
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				StateDetails:   "Ready state",
 				QuotaType:      "INDIVIDUAL_USER_QUOTA",
 				QuotaTarget:    "user:alice",
@@ -3421,7 +3421,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				Name:           "quota-rule-1",
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				QuotaType:      "INDIVIDUAL_USER_QUOTA",
 				DiskLimitInKib: 100 * 1024,
 			},
@@ -3433,7 +3433,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 					UpdatedAt: time.Now(),
 				},
 				Name:           "quota-rule-2",
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				QuotaType:      "DEFAULT_USER_QUOTA",
 				DiskLimitInKib: 200 * 1024,
 			},

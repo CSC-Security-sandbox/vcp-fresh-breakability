@@ -4,7 +4,6 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -41,22 +40,22 @@ func HybridReplicationDeleteWorkflow(ctx workflow.Context, params *commonparams.
 	}
 
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 
 	_, customErr := repWf.Run(ctx, event)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -230,8 +229,8 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 	isHybridReplicationPendingPeering := replicationResult.Event != nil &&
 		replicationResult.Event.ReplicationModel != nil &&
 		replicationResult.Event.ReplicationModel.HybridReplicationAttributes != nil &&
-		(replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer ||
-			replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer)
+		(replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingClusterPeer ||
+			replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPendingSVMPeer)
 
 	if !isHybridReplicationPendingPeering {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
@@ -303,7 +302,7 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 
 	if shouldDeleteDestinationVolume {
 		var deleteVolumeJob datamodel.Job
-		err = workflow.ExecuteActivity(ctx, hybridActivity.CreateJobForHybridDeleteVolume, &replicationResult, string(models.JobTypeHybridReplicationDeleteVolume)).Get(ctx, &deleteVolumeJob)
+		err = workflow.ExecuteActivity(ctx, hybridActivity.CreateJobForHybridDeleteVolume, &replicationResult, string(datamodel.JobTypeHybridReplicationDeleteVolume)).Get(ctx, &deleteVolumeJob)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -343,17 +342,17 @@ func HybridDeleteDestinationVolumeWorkflow(ctx workflow.Context, replicationResu
 	}
 
 	deleteVolWf.Status = workflows.WorkflowStatusRunning
-	err = deleteVolWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = deleteVolWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		deleteVolWf.Status = workflows.WorkflowStatusFailed
-		err = deleteVolWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = deleteVolWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 
 	_, workflowErr := deleteVolWf.Run(ctx, replicationResult)
 	if workflowErr != nil {
 		deleteVolWf.Status = workflows.WorkflowStatusFailed
-		err2 := deleteVolWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := deleteVolWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			deleteVolWf.Logger.Errorf("Failed to update job status: %v", err2)
 		}
@@ -361,7 +360,7 @@ func HybridDeleteDestinationVolumeWorkflow(ctx workflow.Context, replicationResu
 	}
 
 	deleteVolWf.Status = workflows.WorkflowStatusCompleted
-	err2 := deleteVolWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := deleteVolWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		deleteVolWf.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2

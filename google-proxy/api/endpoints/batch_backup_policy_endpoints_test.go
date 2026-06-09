@@ -18,6 +18,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -67,7 +68,7 @@ func TestV1betaBatchListBackupPolicies_VCPOnly(t *testing.T) {
 			policyUUID: {
 				ResourceID:       "pol-name",
 				BackupPolicyUUID: policyUUID,
-				State:            coremodels.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				DailyBackupLimit: 1, WeeklyBackupLimit: 0, MonthlyBackupLimit: 0,
 				Enabled: true,
 			},
@@ -168,7 +169,7 @@ func TestV1betaBatchListBackupPolicies_Parallel_MergesDuplicateUUID(t *testing.T
 			policyUUID: {
 				ResourceID:       "merged-name",
 				BackupPolicyUUID: policyUUID,
-				State:            coremodels.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				DailyBackupLimit: 1, WeeklyBackupLimit: 0, MonthlyBackupLimit: 0,
 				Enabled: true,
 			},
@@ -229,7 +230,7 @@ func TestV1betaBatchListBackupPolicies_Parallel_FieldMaskOmitsBackupPolicyId_Sti
 			policyUUID: {
 				ResourceID:       "merged-name",
 				BackupPolicyUUID: policyUUID,
-				State:            coremodels.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 				DailyBackupLimit: 1, WeeklyBackupLimit: 0, MonthlyBackupLimit: 0,
 				Enabled: true,
 			},
@@ -475,7 +476,7 @@ func TestV1betaBatchListBackupPolicies_Parallel_ErrorPaths(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(t)
 		mockOrch.On("GetBackupPoliciesByUUIDs", mock.Anything, []string{policyUUID}).
 			Return(map[string]int64{policyUUID: 1}, map[string]*coremodels.BackupPolicy{
-				policyUUID: {BackupPolicyUUID: policyUUID, ResourceID: "vcp-only", State: coremodels.LifeCycleStateREADY},
+				policyUUID: {BackupPolicyUUID: policyUUID, ResourceID: "vcp-only", State: datamodel.LifeCycleStateREADY},
 			}, nil)
 		origFetch := fetchBatchBackupPoliciesFromCVPFn
 		fetchBatchBackupPoliciesFromCVPFn = func(context.Context, []string, gcpgenserver.V1betaBatchListBackupPoliciesParams, map[string]bool) ([]gcpgenserver.BatchBackupPolicyV1beta, error) {
@@ -521,7 +522,7 @@ func TestV1betaBatchListBackupPolicies_NoFields_MatchesCVPMinimal(t *testing.T) 
 			policyUUID: {
 				BackupPolicyUUID: policyUUID,
 				ResourceID:       "full",
-				State:            coremodels.LifeCycleStateREADY,
+				State:            datamodel.LifeCycleStateREADY,
 			},
 		}, nil)
 
@@ -738,7 +739,7 @@ func TestV1betaBatchListBackupPolicies_VCPOnly_SkipsMissingUUID(t *testing.T) {
 	mockOrch := factory.NewMockOrchestratorFactory(t)
 	mockOrch.On("GetBackupPoliciesByUUIDs", mock.Anything, []string{u1, u2}).
 		Return(map[string]int64{u1: 1}, map[string]*coremodels.BackupPolicy{
-			u1: {BackupPolicyUUID: u1, ResourceID: "only-u1", State: coremodels.LifeCycleStateREADY},
+			u1: {BackupPolicyUUID: u1, ResourceID: "only-u1", State: datamodel.LifeCycleStateREADY},
 		}, nil)
 
 	h := Handler{Orchestrator: mockOrch}
@@ -775,7 +776,7 @@ func TestV1betaBatchListBackupPolicies_Parallel_SkipsMissingUUIDInVCP(t *testing
 	mockOrch := factory.NewMockOrchestratorFactory(t)
 	mockOrch.On("GetBackupPoliciesByUUIDs", mock.Anything, []string{u1, u2}).
 		Return(map[string]int64{u1: 1}, map[string]*coremodels.BackupPolicy{
-			u1: {BackupPolicyUUID: u1, ResourceID: "vcp-a", State: coremodels.LifeCycleStateREADY},
+			u1: {BackupPolicyUUID: u1, ResourceID: "vcp-a", State: datamodel.LifeCycleStateREADY},
 		}, nil)
 
 	origFetch := fetchBatchBackupPoliciesFromCVPFn
@@ -893,7 +894,7 @@ func TestConvertBackupPolicyModelToBatchBackupPolicy_FieldSetNilAndOptionalField
 			BackupPolicyUUID: "ffffffff-ffff-4fff-8fff-ffffffffffff",
 			ResourceID:       "r2",
 			Description:      &desc,
-			State:            coremodels.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			DailyBackupLimit: 1, WeeklyBackupLimit: 0, MonthlyBackupLimit: 0,
 			Enabled: true,

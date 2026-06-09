@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewBackupPolicyDeleteHandler() *BackupPolicyDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the backup policy delete handler.
-func (h *BackupPolicyDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeleteBackupPolicy,
+func (h *BackupPolicyDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeleteBackupPolicy,
 	}
 }
 
@@ -56,7 +55,7 @@ func (h *BackupPolicyDeleteHandler) Handle(ctx context.Context, job *datamodel.J
 	}
 
 	// Only revert if backup policy is in DELETING state
-	if backupPolicy.LifeCycleState != models.LifeCycleStateDeleting {
+	if backupPolicy.LifeCycleState != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: backup policy %s not in DELETING state (%s); skipping delete cleanup", backupPolicy.UUID, backupPolicy.LifeCycleState)
 		return nil
 	}
@@ -67,8 +66,8 @@ func (h *BackupPolicyDeleteHandler) Handle(ctx context.Context, job *datamodel.J
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for backup policy %s, defaulting to READY", backupPolicy.UUID)
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	updates := map[string]interface{}{

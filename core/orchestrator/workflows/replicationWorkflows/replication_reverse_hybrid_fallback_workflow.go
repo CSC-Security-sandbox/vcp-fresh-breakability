@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -30,25 +31,25 @@ func ReverseHybridFallbackReplicationWorkflow(ctx workflow.Context, params *comm
 		return nil, err
 	}
 
-	if err = repWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = repWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, err
 	}
 
 	repWf.Status = workflows.WorkflowStatusRunning
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		_ = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		_ = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := repWf.Run(ctx, hybridReverseResult, params)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
-		_ = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		_ = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, customErr
 	}
 	repWf.Status = workflows.WorkflowStatusCompleted
-	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = repWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 

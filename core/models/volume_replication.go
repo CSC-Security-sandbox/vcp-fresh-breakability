@@ -9,29 +9,11 @@ import (
 
 type HybridReplicationHydrateType string
 type VolumeReplicationHydrateState string
-type HybridReplicationParametersReplicationType string
 
 type VolumeReplicationUpdateMaskRequest struct {
-	State                 VolumeReplicationHydrateState              `json:"state"`
-	HybridReplicationType HybridReplicationParametersReplicationType `json:"hybridReplicationType,omitempty"`
+	State                 VolumeReplicationHydrateState                        `json:"state"`
+	HybridReplicationType datamodel.HybridReplicationParametersReplicationType `json:"hybridReplicationType,omitempty"`
 }
-
-const (
-	OntapSnapmirrored                  = "snapmirrored"
-	OntapUninitialized                 = "uninitialized"
-	OntapBrokenOff                     = "broken_off"
-	SnapmirrorRelationshipSuccess      = "success"
-	SnapmirrorRelationshipFinalizing   = "finalizing"
-	SnapmirrorRelationshipIdle         = "idle"
-	SnapmirrorRelationshipTransferring = "transferring"
-	SnapmirrorRelationshipFailed       = "failed"
-	SnapmirrorRelationshipAborted      = "aborted"
-	SnapmirrorRelationshipQueued       = "queued"
-	SnapmirrorRelationshipHardAborted  = "hard_aborted"
-
-	DstEndpoint = "dst"
-	SrcEndpoint = "src"
-)
 
 var (
 	VolumeReplicationHydrateStateUnspecified           VolumeReplicationHydrateState = "UNSPECIFIED"
@@ -43,14 +25,6 @@ var (
 	VolumeReplicationHydrateStatePendingClusterPeering VolumeReplicationHydrateState = "PENDING_CLUSTER_PEERING"
 	VolumeReplicationHydrateStatePendingSvmPeering     VolumeReplicationHydrateState = "PENDING_SVM_PEERING"
 	VolumeReplicationHydrateStateExternalManaged       VolumeReplicationHydrateState = "EXTERNALLY_MANAGED_REPLICATION"
-)
-
-var (
-	HybridReplicationParametersReplicationTypeMIGRATION   HybridReplicationParametersReplicationType = "MIGRATION"
-	HybridReplicationParametersReplicationTypeUNSPECIFIED HybridReplicationParametersReplicationType = "REPLICATION_TYPE_UNSPECIFIED"
-	HybridReplicationParametersReplicationTypeCONTINUOUS  HybridReplicationParametersReplicationType = "CONTINUOUS_REPLICATION"
-	HybridReplicationParametersReplicationTypeONPREM      HybridReplicationParametersReplicationType = "ONPREM_REPLICATION"
-	HybridReplicationParametersReplicationTypeREVERSE     HybridReplicationParametersReplicationType = "REVERSE_ONPREM_REPLICATION"
 )
 
 type VolumeReplication struct {
@@ -174,7 +148,7 @@ type UpdateVolumeReplicationStateParams struct {
 
 type HybridReplicationParameters struct {
 	ResourceID                    string
-	ReplicationType               HybridReplicationParametersReplicationType
+	ReplicationType               datamodel.HybridReplicationParametersReplicationType
 	PeerVolumeName                string
 	PeerClusterName               string
 	PeerSvmName                   string
@@ -188,25 +162,6 @@ type HybridReplicationParameters struct {
 	HybridReplicationUserCommands []string
 }
 
-type HybridReplicationStatus = datamodel.HybridReplicationStatus
-
-type ClusterPeeringStatus = datamodel.ClusterPeeringStatus
-
-const (
-	CvpClusterPeeringStatusCREATING              = datamodel.CvpClusterPeeringStatusCREATING
-	CvpClusterPeeringStatusPENDINGCLUSTERPEERING = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
-	CvpClusterPeeringStatusPEERED                = datamodel.CvpClusterPeeringStatusPEERED
-	CvpClusterPeeringStatusDELETED               = datamodel.CvpClusterPeeringStatusDELETED
-	CvpClusterPeeringStatusERROR                 = datamodel.CvpClusterPeeringStatusERROR
-)
-const (
-	HybridReplicationStatusPendingClusterPeer  = datamodel.HybridReplicationStatusPendingClusterPeer
-	HybridReplicationStatusPendingSVMPeer      = datamodel.HybridReplicationStatusPendingSVMPeer
-	HybridReplicationStatusSVMPeered           = datamodel.HybridReplicationStatusSVMPeered
-	HybridReplicationStatusPeered              = datamodel.HybridReplicationStatusPeered
-	HybridReplicationStatusPendingRemoteResync = datamodel.HybridReplicationStatusPendingRemoteResync
-	HybridReplicationStatusExternalManaged     = datamodel.HybridReplicationStatusExternalManaged
-)
 const (
 	AuthenticationStateOk      string = "ok"
 	AuthenticationStateAbsent  string = "absent"

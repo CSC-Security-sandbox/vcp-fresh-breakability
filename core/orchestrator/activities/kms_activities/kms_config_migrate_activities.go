@@ -94,7 +94,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 	for i, volume := range volumes {
 		activity.RecordHeartbeat(ctx, "Processing volume %d of %d for migration", i+1, len(volumes))
 		// We do not wish to encrypt volumes which are not in Ready state, or upon re-entry not in Migrating state
-		if !(volume.State == models.LifeCycleStateREADY || (volume.State == models.LifeCycleStateUpdating && volume.StateDetails == models.LifeCycleStateVolMigratingDetails)) {
+		if !(volume.State == datamodel.LifeCycleStateREADY || (volume.State == datamodel.LifeCycleStateUpdating && volume.StateDetails == datamodel.LifeCycleStateVolMigratingDetails)) {
 			logger.Errorf("Volume %s is not in Ready state...skipping encryption for this volume; Current state is %s", volume.UUID, volume.State)
 			volumeMigrationFailed = true
 			continue
@@ -134,10 +134,10 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 			if errDb != nil {
 				logger.Errorf("Failed to get volume details from DB for encrypted volume %s in VSA: %s", volume.UUID, errDb.Error())
 			} else {
-				if volDetailsDb.State == models.LifeCycleStateUpdating && volDetailsDb.StateDetails == models.LifeCycleStateVolMigratingDetails {
+				if volDetailsDb.State == datamodel.LifeCycleStateUpdating && volDetailsDb.StateDetails == datamodel.LifeCycleStateVolMigratingDetails {
 					errUpdateVolume := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-						"state":         models.LifeCycleStateREADY,
-						"state_details": models.LifeCycleStateAvailableDetails,
+						"state":         datamodel.LifeCycleStateREADY,
+						"state_details": datamodel.LifeCycleStateAvailableDetails,
 					})
 					if errUpdateVolume != nil {
 						logger.Errorf("Unable to set state of volume %s back to its original state after encryption", volume.UUID)
@@ -164,8 +164,8 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 		}
 
 		errUpdateVolState := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateUpdating,
-			"state_details": models.LifeCycleStateVolMigratingDetails,
+			"state":         datamodel.LifeCycleStateUpdating,
+			"state_details": datamodel.LifeCycleStateVolMigratingDetails,
 		})
 		if errUpdateVolState != nil {
 			logger.Errorf("Unable to set state of volume %s to updating before encryption", volume.UUID)
@@ -211,8 +211,8 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 		}
 		activity.RecordHeartbeat(ctx, "Updating volume state to ready after encryption for volume %s", volume.UUID)
 		errUpdateVol := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateREADY,
-			"state_details": models.LifeCycleStateAvailableDetails,
+			"state":         datamodel.LifeCycleStateREADY,
+			"state_details": datamodel.LifeCycleStateAvailableDetails,
 		})
 		if errUpdateVol != nil {
 			logger.Errorf("Unable to reset state and state-details of volume %s to ready after encryption: %s", volume.UUID, errUpdateVol.Error())

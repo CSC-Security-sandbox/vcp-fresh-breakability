@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -29,7 +28,7 @@ var getSignedJwtToken = auth.GetSignedJwtToken
 func expectJobIsNew(env *testsuite.TestWorkflowEnvironment) {
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(coremodels.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 }
 
@@ -105,7 +104,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(coremodels.JobsStatePROCESSING),
+			State:     string(datamodel.JobsStatePROCESSING),
 		}, nil)
 
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -491,7 +490,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		sdeJobMarkedDone := false
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.BaseModel.UUID == "sde-job-id" && job.State == string(coremodels.JobsStateDONE)
+			return job.BaseModel.UUID == "sde-job-id" && job.State == string(datamodel.JobsStateDONE)
 		})).Run(func(args mock.Arguments) {
 			sdeJobMarkedDone = true
 		}).Return(nil).Once()

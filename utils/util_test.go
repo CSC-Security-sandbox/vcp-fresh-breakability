@@ -1279,11 +1279,11 @@ func TestIsTransitionalState(t *testing.T) {
 		want  bool
 	}{
 		{"CreatingState", "CREATING", true},
-		{"UpdatingState", models.LifeCycleStateCreating, true},
-		{"UpdatingState", models.LifeCycleStateUpdating, true},
-		{"DeletingState", models.LifeCycleStateDeleting, true},
-		{"ReadyState", models.LifeCycleStateREADY, false},
-		{"AvailableState", models.LifeCycleStateAvailable, false},
+		{"UpdatingState", datamodel.LifeCycleStateCreating, true},
+		{"UpdatingState", datamodel.LifeCycleStateUpdating, true},
+		{"DeletingState", datamodel.LifeCycleStateDeleting, true},
+		{"ReadyState", datamodel.LifeCycleStateREADY, false},
+		{"AvailableState", datamodel.LifeCycleStateAvailable, false},
 		{"EmptyString", "", false},
 		{"RandomString", "SOME_UNKNOWN_STATE", false},
 	}
@@ -3288,7 +3288,7 @@ func TestGetSourceVolumePathFromBackup(t *testing.T) {
 				},
 				BackupVault: &datamodel.BackupVault{
 					SourceRegionName: stringPtr("us-east1"),
-					ServiceType:      models.ServiceTypeCrossProject,
+					ServiceType:      datamodel.ServiceTypeCrossProject,
 				},
 			},
 			expectedPath: "projects/volume-owner-project-123/locations/us-east1-b/volumes/cross-project-vol",
@@ -3304,7 +3304,7 @@ func TestGetSourceVolumePathFromBackup(t *testing.T) {
 				},
 				BackupVault: &datamodel.BackupVault{
 					SourceRegionName: stringPtr("us-west1"),
-					ServiceType:      models.ServiceTypeCrossProject,
+					ServiceType:      datamodel.ServiceTypeCrossProject,
 				},
 			},
 			expectedPath: "projects/fallback-project-456/locations/us-west1-a/volumes/fallback-vol",
@@ -3388,7 +3388,7 @@ func TestGetSourceSnapshotPathFromBackup(t *testing.T) {
 				},
 				BackupVault: &datamodel.BackupVault{
 					SourceRegionName: stringPtr("us-east1"),
-					ServiceType:      models.ServiceTypeCrossProject,
+					ServiceType:      datamodel.ServiceTypeCrossProject,
 				},
 			},
 			expectedPath: "projects/volume-owner-project-123/locations/us-east1-b/volumes/cross-project-vol/snapshots/snap-1",
@@ -3405,7 +3405,7 @@ func TestGetSourceSnapshotPathFromBackup(t *testing.T) {
 				},
 				BackupVault: &datamodel.BackupVault{
 					SourceRegionName: stringPtr("us-west1"),
-					ServiceType:      models.ServiceTypeCrossProject,
+					ServiceType:      datamodel.ServiceTypeCrossProject,
 				},
 			},
 			expectedPath: "projects/fallback-project-456/locations/us-west1-a/volumes/fallback-vol/snapshots/snap-fallback",

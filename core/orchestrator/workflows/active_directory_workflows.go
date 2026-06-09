@@ -43,7 +43,7 @@ func CreateActiveDirectoryWorkflow(
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusRunning
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for ActiveDirectoryCreateWorkflow: %v", err)
 		return nil, err
@@ -53,7 +53,7 @@ func CreateActiveDirectoryWorkflow(
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryCreateWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
-		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for ActiveDirectoryCreateWorkflow: %v", err2)
 			return nil, err2
@@ -62,7 +62,7 @@ func CreateActiveDirectoryWorkflow(
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusCompleted
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for ActiveDirectoryCreateWorkflow: %v", err)
 	}
@@ -164,12 +164,12 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 		log.Errorf("Failed to setup ActiveDirectoryDeleteWorkflow: %v", err)
 		return nil, err
 	}
-	if err = activeDirectoryWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = activeDirectoryWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, err
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusRunning
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for ActiveDirectoryDeleteWorkflow: %v", err)
 		return nil, err
@@ -179,7 +179,7 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryDeleteWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
-		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for ActiveDirectoryDeleteWorkflow: %v", err2)
 			return nil, err2
@@ -188,7 +188,7 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusCompleted
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for ActiveDirectoryDeleteWorkflow: %v", err)
 	}
@@ -352,7 +352,7 @@ func UpdateActiveDirectoryWorkflow(
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusRunning
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for ActiveDirectoryUpdateWorkflow: %v", err)
 		return nil, err
@@ -362,7 +362,7 @@ func UpdateActiveDirectoryWorkflow(
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryUpdateWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
-		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for ActiveDirectoryUpdateWorkflow: %v", err2)
 			return nil, err2
@@ -371,7 +371,7 @@ func UpdateActiveDirectoryWorkflow(
 	}
 
 	activeDirectoryWf.Status = WorkflowStatusCompleted
-	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for ActiveDirectoryUpdateWorkflow: %v", err)
 	}

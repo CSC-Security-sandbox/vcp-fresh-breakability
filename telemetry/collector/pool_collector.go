@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -66,7 +66,7 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 			continue
 		}
 		// Skip metrics collection if account state is HYPERSCALERDISABLED
-		if accountState, exists := accountStateMap[accountName]; exists && accountState == models.AccountStateHyperscalerDisabled {
+		if accountState, exists := accountStateMap[accountName]; exists && accountState == datamodel.AccountStateHyperscalerDisabled {
 			logger.Warnf("Skipping pool %s (ID: %d) metrics collection as account %s is in HYPERSCALERDISABLED state", pool.Name, pool.ID, accountName)
 			continue
 		}

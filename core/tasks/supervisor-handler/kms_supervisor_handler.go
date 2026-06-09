@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -37,7 +36,7 @@ const (
 
 // Handler encapsulates compensating actions for supported job types when a supervisor event is detected.
 type Handler interface {
-	JobTypes() []models.JobType
+	JobTypes() []datamodel.JobType
 	Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error
 }
 
@@ -50,10 +49,10 @@ func NewCmekHandler() *CmekHandler {
 }
 
 // JobTypes enumerates the job types supported by the CMEK handler.
-func (h *CmekHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreateKmsConfig,
-		models.JobTypeSdeKmsCreate,
+func (h *CmekHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreateKmsConfig,
+		datamodel.JobTypeSdeKmsCreate,
 	}
 }
 
@@ -70,9 +69,9 @@ func (h *CmekHandler) Handle(ctx context.Context, job *datamodel.Job, event Even
 		string(middleware.RequestCorrelationID): correlationID,
 	})
 
-	jobType := models.JobType(job.Type)
+	jobType := datamodel.JobType(job.Type)
 	switch jobType {
-	case models.JobTypeSdeKmsCreate:
+	case datamodel.JobTypeSdeKmsCreate:
 		jobCorrelation := job.CorrelationID
 		if jobCorrelation == "" {
 			jobCorrelation = correlationID
@@ -125,7 +124,7 @@ func (h *CmekHandler) handleCreateKmsConfigTimeout(ctx context.Context, job *dat
 		logger.Debug("workflow-supervisor-task: skipping SDE cleanup (missing attributes)")
 	}
 
-	if _, err := storage.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateError, WorkflowTimeoutDetail); err != nil {
+	if _, err := storage.DeleteKmsConfig(ctx, kmsConfig.UUID, datamodel.LifeCycleStateError, WorkflowTimeoutDetail); err != nil {
 		return fmt.Errorf("delete kms config from VSA: %w", err)
 	}
 

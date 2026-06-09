@@ -18,7 +18,7 @@ import (
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/gcp"
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -441,12 +441,12 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 
 	var done bool
 	switch kmsConfig.State {
-	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:
+	case datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateMigrating:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
 			Message: "A KMS configuration already exists for this region and project and another operation is in progress.",
 			Code:    http.StatusConflict,
 		}, nil
-	case coremodel.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		if res, ok := checkResourceID(); !ok {
 			return res, nil
 		}
@@ -460,7 +460,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		done = true
 	}
 
-	job, err := h.Orchestrator.GetJobByResourceUUID(ctx, kmsConfig.UUID, string(coremodel.JobTypeCreateKmsConfig))
+	job, err := h.Orchestrator.GetJobByResourceUUID(ctx, kmsConfig.UUID, string(datamodel.JobTypeCreateKmsConfig))
 	if err != nil {
 		return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
 			Code:    http.StatusInternalServerError,
@@ -512,7 +512,7 @@ func (h Handler) createSDEKmsConfig(ctx context.Context, req *gcpgenserver.KmsCo
 
 	createJobParams := &common.CreateJobParams{
 		AccountName:  params.ProjectNumber,
-		Type:         coremodel.JobTypeSdeKmsCreate,
+		Type:         datamodel.JobTypeSdeKmsCreate,
 		ResourceName: req.ResourceId.Value,
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: jobPayloadAttributes,
@@ -540,7 +540,7 @@ func (h Handler) createSDEKmsConfig(ctx context.Context, req *gcpgenserver.KmsCo
 			return
 		}
 		if updateErr := h.Orchestrator.UpdateJobStatus(
-			ctx, sdeJob.UUID, string(coremodel.JobsStateERROR), sdeJob.TrackingID, failure.Error(),
+			ctx, sdeJob.UUID, string(datamodel.JobsStateERROR), sdeJob.TrackingID, failure.Error(),
 		); updateErr != nil {
 			logger.Warn("Failed to mark SDE job as error", "jobUUID", sdeJob.UUID, "error", updateErr)
 		}
@@ -767,10 +767,10 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 		}
 	}
 	switch res.Payload.KmsState {
-	case coremodel.LifeCycleStateError:
-		kmsConfig.State = coremodel.LifeCycleStateError
-	case coremodel.LifeCycleStateInUse:
-		kmsConfig.State = coremodel.LifeCycleStateInUse
+	case datamodel.LifeCycleStateError:
+		kmsConfig.State = datamodel.LifeCycleStateError
+	case datamodel.LifeCycleStateInUse:
+		kmsConfig.State = datamodel.LifeCycleStateInUse
 	}
 	return convertModelToKmsConfigV1Beta(kmsConfig), nil
 }
@@ -887,7 +887,7 @@ func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgens
 		if vcpKmsConfig != nil {
 			// Update VCP state with SDE state for ERROR and IN_USE cases
 			switch kmsConfig.KmsState {
-			case coremodel.LifeCycleStateError, coremodel.LifeCycleStateInUse:
+			case datamodel.LifeCycleStateError, datamodel.LifeCycleStateInUse:
 				vcpKmsConfig.State = kmsConfig.KmsState
 			}
 			operationResponse = append(operationResponse, *convertModelToKmsConfigV1Beta(vcpKmsConfig))
@@ -1028,7 +1028,7 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 			} else {
 				// For overlapping UUIDs between VSA and SDE, update the State and State details field
 				sdeKmsConfigState := sdeKmsConfig.KmsState
-				if sdeKmsConfigState == coremodel.LifeCycleStateInUse || sdeKmsConfigState == coremodel.LifeCycleStateError {
+				if sdeKmsConfigState == datamodel.LifeCycleStateInUse || sdeKmsConfigState == datamodel.LifeCycleStateError {
 					for i := range operationResponse.KmsConfigurations {
 						finalKmsConfig := &operationResponse.KmsConfigurations[i]
 						if sdeKmsConfig.UUID != finalKmsConfig.UUID.Value {
@@ -1041,11 +1041,11 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 						}
 						// VCP already IN_USE: only SDE ERROR may override
 						if vcpKmsStateOk && vcpKmsState == gcpgenserver.KmsConfigV1betaKmsStateINUSE {
-							if sdeKmsConfigState != coremodel.LifeCycleStateError {
+							if sdeKmsConfigState != datamodel.LifeCycleStateError {
 								break
 							}
 						}
-						if sdeKmsConfigState == coremodel.LifeCycleStateInUse {
+						if sdeKmsConfigState == datamodel.LifeCycleStateInUse {
 							finalKmsConfig.KmsState = gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsStateINUSE)
 						} else {
 							finalKmsConfig.KmsState = gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsStateERROR)
@@ -1136,7 +1136,7 @@ func (h Handler) V1betaEncryptVolumes(ctx context.Context, params gcpgenserver.V
 func convertEncryptVolumesToOperationV1Beta(params gcpgenserver.V1betaEncryptVolumesParams, operationID string) (*gcpgenserver.OperationV1beta, error) {
 	encryptStatus := models.EncryptVolumeStatusV1beta{
 		UUID:   params.KmsConfigId,
-		Status: coremodel.LifeCycleStateUpdating,
+		Status: datamodel.LifeCycleStateUpdating,
 	}
 	encryptVolume := models.EncryptVolumeV1beta{
 		EncryptionStatus: &encryptStatus,
@@ -1205,7 +1205,7 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 	}
 
 	operationID := utils.GenerateOperationURL(params.ProjectNumber, params.LocationId, jobUUID)
-	if kmsConfig != nil && kmsConfig.State == coremodel.LifeCycleStateDeleting {
+	if kmsConfig != nil && kmsConfig.State == datamodel.LifeCycleStateDeleting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,

@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -45,7 +44,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -69,13 +68,13 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -115,7 +114,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -139,7 +138,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -180,7 +179,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -204,7 +203,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -243,7 +242,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -264,7 +263,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -302,7 +301,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -326,13 +325,13 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -368,7 +367,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -389,7 +388,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// First UpdateJobStatus (PROCESSING) fails, then ERROR update may succeed or fail
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError).Once()
@@ -423,7 +422,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -445,7 +444,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		// Job state is not NEW, so EnsureJobState will fail
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStatePROCESSING), // Not NEW
+			State:     string(datamodel.JobsStatePROCESSING), // Not NEW
 		}, nil)
 
 		env.ExecuteWorkflow(VolumeCreateReconciliationWorkflow, volume)
@@ -473,7 +472,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account:     nil, // Nil account will cause panic in Setup
 			Pool: &datamodel.Pool{
 				BaseModel:      datamodel.BaseModel{ID: 1},
@@ -520,7 +519,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -544,13 +543,13 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -597,7 +596,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -618,7 +617,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -659,7 +658,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -684,7 +683,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -722,7 +721,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -743,7 +742,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -781,7 +780,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -802,7 +801,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -838,7 +837,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -859,7 +858,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// First UpdateJobStatus (PROCESSING) fails, then ERROR update may succeed or fail
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError).Once()
@@ -893,7 +892,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -915,7 +914,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		// Job state is not NEW, so EnsureJobState will fail
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStatePROCESSING), // Not NEW
+			State:     string(datamodel.JobsStatePROCESSING), // Not NEW
 		}, nil)
 
 		env.ExecuteWorkflow(VolumeDeleteReconciliationWorkflow, volume)
@@ -943,7 +942,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account:     nil, // Nil account will cause panic in Setup
 			Pool: &datamodel.Pool{
 				BaseModel:      datamodel.BaseModel{ID: 1},
@@ -990,7 +989,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1011,7 +1010,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1055,7 +1054,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateDeleting,
+			State:       datamodel.LifeCycleStateDeleting,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1080,7 +1079,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1121,7 +1120,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776, // 1TB
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1145,7 +1144,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552, // 2TB - updated size
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1169,13 +1168,13 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552, // 2TB - matches expected
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1215,7 +1214,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776, // 1TB
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1239,7 +1238,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552, // 2TB - expected size
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1263,7 +1262,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1307,7 +1306,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1331,7 +1330,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1363,7 +1362,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1408,7 +1407,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			ExternalUUID: "old-external-uuid",
 			SizeInBytes:  1099511627776,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateUpdating,
+			State:        datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1432,7 +1431,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1458,7 +1457,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1496,7 +1495,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1520,7 +1519,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1541,7 +1540,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -1579,7 +1578,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1603,7 +1602,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1627,13 +1626,13 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1669,7 +1668,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1693,7 +1692,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1714,7 +1713,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		// First UpdateJobStatus (PROCESSING) fails, then ERROR update may succeed or fail
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError).Once()
@@ -1748,7 +1747,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1772,7 +1771,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1794,7 +1793,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 		// Job state is not NEW, so EnsureJobState will fail
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStatePROCESSING), // Not NEW
+			State:     string(datamodel.JobsStatePROCESSING), // Not NEW
 		}, nil)
 
 		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
@@ -1822,7 +1821,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account:     nil, // Nil account will cause panic in Setup
 			Pool: &datamodel.Pool{
 				BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1843,7 +1842,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account:     nil, // Nil account will cause panic in Setup
 			Pool: &datamodel.Pool{
 				BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1890,7 +1889,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1914,7 +1913,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -1938,13 +1937,13 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  2199023255552,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1989,7 +1988,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -2013,7 +2012,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -2038,7 +2037,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -2081,7 +2080,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -2105,7 +2104,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 			Name:        "test-volume",
 			SizeInBytes: 2199023255552,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      "test-account",
@@ -2129,7 +2128,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)

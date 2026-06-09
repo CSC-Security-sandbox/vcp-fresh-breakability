@@ -3,11 +3,11 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -29,20 +29,20 @@ func UpdateVolumeReplicationAttributesWorkflow(ctx workflow.Context, params *com
 		return err
 	}
 	updateAttrWf.Status = workflows.WorkflowStatusRunning
-	err = updateAttrWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updateAttrWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		updateAttrWf.Status = workflows.WorkflowStatusFailed
-		err = updateAttrWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = updateAttrWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, customErr := updateAttrWf.Run(ctx, event)
 	if customErr != nil {
 		updateAttrWf.Status = workflows.WorkflowStatusFailed
-		err = updateAttrWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = updateAttrWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return err
 	}
 	updateAttrWf.Status = workflows.WorkflowStatusCompleted
-	err = updateAttrWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = updateAttrWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 

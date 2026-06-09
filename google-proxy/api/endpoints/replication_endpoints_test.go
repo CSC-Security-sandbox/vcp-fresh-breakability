@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -753,7 +754,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}
 
 		replicationParams := &common.CreateVolumeReplicationParams{
@@ -1072,7 +1073,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockOrchestrator.On("ResumeReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -1446,7 +1447,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateDeleting,
+			State: datamodel.LifeCycleStateDeleting,
 		}
 
 		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -1482,7 +1483,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateDeleting,
+			State: datamodel.LifeCycleStateDeleting,
 		}
 
 		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -1686,7 +1687,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockOrchestrator.On("SyncReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -1910,7 +1911,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -1981,7 +1982,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
@@ -2117,7 +2118,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 		}
 
 		jobuuid := "job-uuid"
@@ -2158,7 +2159,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		jobuuid := "job-uuid"
@@ -2350,7 +2351,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 		}
 
 		repResponse := &models2.VolumeReplication{
-			State: models2.LifeCycleStateUpdating,
+			State: datamodel.LifeCycleStateUpdating,
 		}
 
 		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)

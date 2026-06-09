@@ -108,12 +108,12 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 	if err != nil {
 		return err
 	}
-	if err = createPoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = createPoolWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 
 	createPoolWF.Status = WorkflowStatusRunning
-	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = createPoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("failed to update job status to PROCESSING: %v", err)
 		return err
@@ -122,7 +122,7 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 	if errRun != nil {
 		log.Errorf("error in createPoolWorkflow: %v", errRun)
 		createPoolWF.Status = WorkflowStatusFailed
-		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+		err2 := createPoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errRun)
 		if err2 != nil {
 			log.Errorf("failed to update job with err and status to ERROR: %v", err2)
 			return err2
@@ -130,7 +130,7 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 		return errRun
 	}
 	createPoolWF.Status = WorkflowStatusCompleted
-	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = createPoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("failed to update job status to DONE: %v", err)
 		return err
@@ -802,7 +802,7 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	if err = updatePoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = updatePoolWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
@@ -810,27 +810,27 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	defer func() {
 		if r := recover(); r != nil {
 			updatePoolWF.Status = WorkflowStatusFailed
-			_ = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), fmt.Errorf("workflow panic: %v", r))
+			_ = updatePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), fmt.Errorf("workflow panic: %v", r))
 			panic(r)
 		}
 	}()
 
 	updatePoolWF.Status = WorkflowStatusRunning
-	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = updatePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	_, err = updatePoolWF.Run(ctx, params, pool, autoscaleConfig)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		updatePoolWF.Status = WorkflowStatusFailed
-		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = updatePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 		return nil, ConvertToVSAError(err)
 	}
 	updatePoolWF.Status = WorkflowStatusCompleted
-	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = updatePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -949,7 +949,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			zoneSwitchAction = ZoneRevert
 		}
 
-		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateZoneSwitchPoolAttributes, dbPool, models.ZoneSwitching).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateZoneSwitchPoolAttributes, dbPool, datamodel.ZoneSwitching).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -985,10 +985,10 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		dbPool.PoolAttributes.SecondaryZone = currentPrimaryZone
 		dbPool.PoolAttributes.IsZoneSwitched = !dbPool.PoolAttributes.IsZoneSwitched
 		if zoneSwitchAction == ZoneSwitch {
-			dbPool.PoolAttributes.ZoneSwitchState = models.ZoneSwitched
+			dbPool.PoolAttributes.ZoneSwitchState = datamodel.ZoneSwitched
 		}
 		if zoneSwitchAction == ZoneRevert {
-			dbPool.PoolAttributes.ZoneSwitchState = models.ZonePrimary
+			dbPool.PoolAttributes.ZoneSwitchState = datamodel.ZonePrimary
 		}
 
 		// Persist swapped zones (and same deployment snapshot as pre-switch persist; matches prior behavior).
@@ -1254,26 +1254,26 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	if err = deletePoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = deletePoolWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	deletePoolWF.Status = WorkflowStatusRunning
-	err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = deletePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	_, errRun := deletePoolWF.Run(ctx, params, pool)
 	if errRun != nil {
 		deletePoolWF.Status = WorkflowStatusFailed
-		err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+		err = deletePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errRun)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 		return nil, errRun
 	}
 	deletePoolWF.Status = WorkflowStatusCompleted
-	err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = deletePoolWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1386,7 +1386,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		common.HandleCancellationForCreatingResourceParams{
 			ResourceUUID:               dbPool.UUID,
 			ResourceState:              dbPool.State,
-			CreateJobType:              models.JobTypeCreatePool,
+			CreateJobType:              datamodel.JobTypeCreatePool,
 			SignalName:                 CancelSignalName,
 			CancellationAckTimeout:     ackTimeout,
 			ForceTerminationAckTimeout: forceTimeout,
@@ -1455,7 +1455,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-		} else if dbPool.State != models.LifeCycleStateError {
+		} else if dbPool.State != datamodel.LifeCycleStateError {
 			deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
 			prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, vlm.VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
 			err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
@@ -1516,7 +1516,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	if !disableVsaCleanupOnVLMFailure || dbPool.State != models.LifeCycleStateError {
+	if !disableVsaCleanupOnVLMFailure || dbPool.State != datamodel.LifeCycleStateError {
 		if dbPool.APIAccessMode == common.ONTAPMode {
 			err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteExpertModeCredentials, dbPool).Get(ctx, nil)
 			if err != nil {
@@ -1699,25 +1699,25 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	if err = CreateOrGetSubnetworkWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = CreateOrGetSubnetworkWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	CreateOrGetSubnetworkWF.Status = WorkflowStatusRunning
-	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber, accountID, actionType)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
-		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		if upErr != nil {
 			return nil, upErr
 		}
 		return nil, ConvertToVSAError(err)
 	}
 	CreateOrGetSubnetworkWF.Status = WorkflowStatusCompleted
-	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1950,7 +1950,7 @@ func (sa *SubnetActivity) CreateDeleteDataSubnetJob(ctx context.Context, params 
 	activity.RecordHeartbeat(ctx, "Creating subnet job in database")
 	job := &datamodel.Job{
 		Type:          string(jobType),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  pool.Name + "-subnet",
 		AccountID:     sql.NullInt64{Int64: pool.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),

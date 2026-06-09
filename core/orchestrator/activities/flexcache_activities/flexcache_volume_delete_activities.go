@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -239,7 +239,7 @@ func (a FlexCacheVolumeDeleteActivity) UpdateClusterPeeringRowStateDeletedInDBAc
 	logger := utilGetLogger(ctx)
 	clusterPeeringRow := result.ClusterPeeringRow
 	se := a.SE
-	clusterPeeringRow.State = coremodels.CvpClusterPeeringStatusDELETED
+	clusterPeeringRow.State = datamodel.CvpClusterPeeringStatusDELETED
 	if err := se.UpdateClusterPeeringRow(ctx, clusterPeeringRow); err != nil {
 		logger.Errorf("Failed to update cluster peering row in DB: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -277,12 +277,12 @@ func (a FlexCacheVolumeDeleteActivity) CancelFlexCacheCreateWorkflowIfPreparingA
 		logger.Debugf("skip cancel create workflow for volume %s: not a FlexCache volume", dbVolume.Name)
 		return nil
 	}
-	if dbVolume.State != coremodels.LifeCycleStatePreparing {
+	if dbVolume.State != datamodel.LifeCycleStatePreparing {
 		logger.Debugf("cannot cancel create workflow for volume %s as it is not in PREPARING state", dbVolume.Name)
 		return nil
 	}
 
-	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
+	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(datamodel.JobTypeFlexCacheCreateVolume))
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			logger.Debugf("no create job found for volume %s", dbVolume.Name)
@@ -330,7 +330,7 @@ func (a FlexCacheVolumeDeleteActivity) WaitForFlexCacheCreateWorkflowTerminalAct
 	logger := utilGetLogger(ctx)
 	dbVolume := result.DBVolume
 
-	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
+	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(datamodel.JobTypeFlexCacheCreateVolume))
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			logger.Debugf("skip wait for create workflow for volume %s: no create job", dbVolume.Name)

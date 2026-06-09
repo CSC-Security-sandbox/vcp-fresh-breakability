@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -40,7 +39,7 @@ func (a *HybridDeleteVolumeReplicationActivity) CreateJobForHybridDeleteVolume(c
 	job := &datamodel.Job{
 		AccountID:     sql.NullInt64{Int64: result.Event.ReplicationModel.AccountID, Valid: true},
 		Type:          jobType,
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  resourceName,
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationModel.ReplicationAttributes.DestinationVolumeUUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),

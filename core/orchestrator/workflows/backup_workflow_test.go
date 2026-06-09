@@ -38,7 +38,7 @@ func setupMockCommonActivities(t *testing.T) (*activities.CommonActivities, *dat
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	return &activities.CommonActivities{SE: mockStorage}, mockStorage
 }
@@ -124,7 +124,7 @@ func TestBackupWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -339,7 +339,7 @@ func TestBackupWorkflowFail(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -405,7 +405,7 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -541,7 +541,7 @@ func TestBackupWorkflowGetSmSourcePathActivityFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 
@@ -609,7 +609,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -816,7 +816,7 @@ func TestBackupWorkflowSnapmirrorTransferFailed(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -952,7 +952,7 @@ func TestBackupWorkflowUnhealthySnapmirrorWithReason(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1116,7 +1116,7 @@ func TestBackupWorkflowSnapmirrorStateNotSnapmirrored(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1277,7 +1277,7 @@ func TestBackupWorkflowUnhealthySnapmirrorWithoutReason(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1434,7 +1434,7 @@ func TestBackupWorkflowGetSnapmirrorError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1595,7 +1595,7 @@ func TestUpdateBackupWorkflowSuccess(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -1640,7 +1640,7 @@ func TestUpdateBackupWorkflowFailure(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 		mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil)
 
@@ -1693,7 +1693,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -2861,7 +2861,7 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -2919,7 +2919,7 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -2978,7 +2978,7 @@ func TestUpdateBackupWorkflowAdditionalCases(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -3093,7 +3093,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -3307,7 +3307,7 @@ func TestCreateBackupWorkflowWithVaultSwitchingEnabled(t *testing.T) {
 	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(datamodel.JobsStateNEW)}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("GetBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
@@ -3400,7 +3400,7 @@ func TestCreateBackupWorkflowWithVaultSwitchingEnabled_ObjectStoreSizeUpdate_Wor
 	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(datamodel.JobsStateNEW)}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("GetBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
@@ -3492,7 +3492,7 @@ func TestCreateBackupWorkflowWithVaultSwitchingEnabled_FinishBackupAfterADCFails
 	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(datamodel.JobsStateNEW)}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("GetBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
@@ -3584,7 +3584,7 @@ func TestCreateBackupWorkflowWithVaultSwitchingEnabled_UpdateVolumeLatestLogical
 	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(datamodel.JobsStateNEW)}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("GetBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
@@ -3666,7 +3666,7 @@ func TestCreateBackupWorkflowWithVaultSwitchingEnabled_SetGlobalLatestBackupLogi
 	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, State: string(datamodel.JobsStateNEW)}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("GetBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
@@ -3875,7 +3875,7 @@ func TestBackupWorkflowGetObjectStoreEndpointActivityFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -4134,7 +4134,7 @@ func TestBackupWorkflowHydrationWithGetLocation(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -6041,7 +6041,7 @@ func TestBackupWorkflow_CreateBackupMetadataIfFirstBackupActivityFailure(t *test
 	mockStorage := database.NewMockStorage(t)
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -6621,7 +6621,7 @@ func TestCreateBackupWorkflow_EnsureJobStateError(t *testing.T) {
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 
 	// Set up test data
@@ -6678,7 +6678,7 @@ func TestDeleteBackupWorkflow_EnsureJobStateError(t *testing.T) {
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 
 	// Set up test data
@@ -6718,7 +6718,7 @@ func TestUpdateBackupWorkflow_EnsureJobStateError(t *testing.T) {
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 
 	// Set up test data
@@ -7268,7 +7268,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -7368,7 +7368,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -7466,7 +7466,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -7566,7 +7566,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
+			State:     string(datamodel.JobsStateNEW),
 		}, nil).Maybe()
 
 		commonActivity := &activities.CommonActivities{SE: mockStorage}

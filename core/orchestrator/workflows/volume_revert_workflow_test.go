@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -104,7 +103,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_Success() {
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -184,7 +183,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_GetNodeError() {
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -258,7 +257,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_RevertVolumeError(
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -337,7 +336,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusPro
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
 
@@ -405,7 +404,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusDon
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -488,7 +487,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusErr
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -625,7 +624,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_WithCertificateAut
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -705,7 +704,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_WithSecretManagerA
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -787,7 +786,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateVolumeStateI
 	// Mock GetJob for CheckJobStateBeforeProcessing
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -866,7 +865,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_FailsOnJobInErrorS
 	// Mock GetJob to return job in ERROR state
 	jobInErrorState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateERROR),
+		State:     string(datamodel.JobsStateERROR),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil).Maybe()
 	// Also mock the storage call as fallback
@@ -939,7 +938,7 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_SucceedsWhenJobNot
 	// Mock GetJob to return job in NEW state (not ERROR)
 	jobInNewState := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 	// Also mock the storage call as fallback

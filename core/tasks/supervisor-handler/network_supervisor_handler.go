@@ -3,7 +3,6 @@ package supervisorhandler
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -21,10 +20,10 @@ func NewNetworkHandler() *NetworkHandler {
 }
 
 // JobTypes enumerates the job types supported by the network handler.
-func (h *NetworkHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreateSubnet,
-		models.JobTypeCreateLargeSubnet,
+func (h *NetworkHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreateSubnet,
+		datamodel.JobTypeCreateLargeSubnet,
 	}
 }
 

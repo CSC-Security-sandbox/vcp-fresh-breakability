@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,8 +17,8 @@ func TestReplicationDeleteHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 2)
-	require.Contains(t, jobTypes, models.JobTypeDeleteVolumeReplicationInternal)
-	require.Contains(t, jobTypes, models.JobTypeDeleteVolumeReplication)
+	require.Contains(t, jobTypes, datamodel.JobTypeDeleteVolumeReplicationInternal)
+	require.Contains(t, jobTypes, datamodel.JobTypeDeleteVolumeReplication)
 }
 
 func TestNewReplicationDeleteHandler(t *testing.T) {
@@ -91,7 +90,7 @@ func TestReplicationDeleteHandler_Handle_SkipsNonDeletingState(t *testing.T) {
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateAvailable,
+		State:     datamodel.LifeCycleStateAvailable,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 
@@ -104,8 +103,8 @@ func TestReplicationDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 	storage := database.NewMockStorage(t)
 	handler := NewReplicationDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -117,7 +116,7 @@ func TestReplicationDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) 
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
@@ -141,11 +140,11 @@ func TestReplicationDeleteHandler_Handle_SuccessWithFallbackToAvailable(t *testi
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
-		return r.State == models.LifeCycleStateAvailable && r.StateDetails == models.LifeCycleStateAvailableDetails
+		return r.State == datamodel.LifeCycleStateAvailable && r.StateDetails == datamodel.LifeCycleStateAvailableDetails
 	})).Return(nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -156,8 +155,8 @@ func TestReplicationDeleteHandler_Handle_UpdateReplicationStatesError(t *testing
 	storage := database.NewMockStorage(t)
 	handler := NewReplicationDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -169,7 +168,7 @@ func TestReplicationDeleteHandler_Handle_UpdateReplicationStatesError(t *testing
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
@@ -185,7 +184,7 @@ func TestReplicationDeleteHandler_Handle_DeleteVolumeReplicationInternalJobType(
 	handler := NewReplicationDeleteHandler()
 
 	job := &datamodel.Job{
-		Type: string(models.JobTypeDeleteVolumeReplicationInternal),
+		Type: string(datamodel.JobTypeDeleteVolumeReplicationInternal),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "replication-uuid",
 		},
@@ -193,7 +192,7 @@ func TestReplicationDeleteHandler_Handle_DeleteVolumeReplicationInternalJobType(
 
 	replication := &datamodel.VolumeReplication{
 		BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetVolumeReplication(mock.Anything, "replication-uuid").Return(replication, nil).Once()
 	storage.EXPECT().UpdateVolumeReplicationStates(mock.Anything, mock.Anything).Return(nil).Once()

@@ -15,6 +15,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -724,7 +725,7 @@ func TestConvertBackupVault_CmekAttributes(t *testing.T) {
 func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 	t.Run("CrossProject_True", func(tt *testing.T) {
 		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
-		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.ServiceType = datamodel.ServiceTypeCrossProject
 		fieldSet := map[string]bool{"crossProjectVault": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 		assert.True(tt, bp.CrossProjectVault.Set)
@@ -734,7 +735,7 @@ func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 
 	t.Run("GCNV_Null", func(tt *testing.T) {
 		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
-		bv.ServiceType = models.ServiceTypeGCNV
+		bv.ServiceType = datamodel.ServiceTypeGCNV
 		fieldSet := map[string]bool{"crossProjectVault": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 		assert.True(tt, bp.CrossProjectVault.Set)
@@ -745,7 +746,7 @@ func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 func TestConvertBackupVault_TenantProject(t *testing.T) {
 	t.Run("CrossProject_WithTenantProject_PopulatesValue", func(tt *testing.T) {
 		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
-		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.ServiceType = datamodel.ServiceTypeCrossProject
 		bv.TenantProject = nillable.GetStringPtr("596181058421")
 		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
@@ -756,7 +757,7 @@ func TestConvertBackupVault_TenantProject(t *testing.T) {
 
 	t.Run("CrossProject_WithoutTenantProject_IsNull", func(tt *testing.T) {
 		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
-		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.ServiceType = datamodel.ServiceTypeCrossProject
 		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 		assert.True(tt, bp.TenantProject.Set)
@@ -765,7 +766,7 @@ func TestConvertBackupVault_TenantProject(t *testing.T) {
 
 	t.Run("GCNV_TenantProjectIsNull", func(tt *testing.T) {
 		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
-		bv.ServiceType = models.ServiceTypeGCNV
+		bv.ServiceType = datamodel.ServiceTypeGCNV
 		bv.TenantProject = nillable.GetStringPtr("596181058421")
 		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
@@ -1242,7 +1243,7 @@ func TestConvertBackupVault_AllFieldsPopulated(t *testing.T) {
 	bv.BackupsPrimaryKeyVersion = &keyVer
 	enc := "ENCRYPTION_STATE_COMPLETED"
 	bv.EncryptionState = &enc
-	bv.ServiceType = models.ServiceTypeCrossProject
+	bv.ServiceType = datamodel.ServiceTypeCrossProject
 	bv.BackupRetentionPolicy = models.BackupRetentionPolicyparams{
 		IsDailyBackupImmutable:                 true,
 		IsWeeklyBackupImmutable:                true,

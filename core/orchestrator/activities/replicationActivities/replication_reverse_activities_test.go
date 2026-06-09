@@ -2134,14 +2134,14 @@ func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 
 		replicationUUID := "test-replication-uuid"
-		hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridReplicationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		replicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
 				UUID: replicationUUID,
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType:         &hybridReplicationType,
-				Status:                        models.HybridReplicationStatusExternalManaged,
+				Status:                        datamodel.HybridReplicationStatusExternalManaged,
 				StatusDetails:                 "test-status-details",
 				HybridReplicationUserCommands: []string{"command1", "command2"},
 			},
@@ -2161,7 +2161,7 @@ func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType:         &hybridReplicationType,
-				Status:                        models.HybridReplicationStatusExternalManaged,
+				Status:                        datamodel.HybridReplicationStatusExternalManaged,
 				StatusDetails:                 "test-status-details",
 				HybridReplicationUserCommands: []string{"command1", "command2"},
 			},
@@ -2171,8 +2171,8 @@ func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
 			return r.UUID == replicationUUID &&
 				r.HybridReplicationAttributes != nil &&
-				*r.HybridReplicationAttributes.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
-				r.HybridReplicationAttributes.Status == models.HybridReplicationStatusPeered &&
+				*r.HybridReplicationAttributes.HybridReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) &&
+				r.HybridReplicationAttributes.Status == datamodel.HybridReplicationStatusPeered &&
 				r.HybridReplicationAttributes.StatusDetails == "" &&
 				r.HybridReplicationAttributes.HybridReplicationUserCommands == nil
 		})).Return(nil)
@@ -2222,14 +2222,14 @@ func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 
 		replicationUUID := "test-replication-uuid"
-		hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridReplicationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		replicationModel := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
 				UUID: replicationUUID,
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType: &hybridReplicationType,
-				Status:                models.HybridReplicationStatusExternalManaged,
+				Status:                datamodel.HybridReplicationStatusExternalManaged,
 			},
 		}
 
@@ -2247,7 +2247,7 @@ func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
 			},
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				HybridReplicationType: &hybridReplicationType,
-				Status:                models.HybridReplicationStatusExternalManaged,
+				Status:                datamodel.HybridReplicationStatusExternalManaged,
 			},
 		}
 
@@ -3422,9 +3422,9 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		// Note: This variable is defined in replication_reverse_hybrid_activities.go
 		// We need to access it through the package
 		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
-		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType datamodel.HybridReplicationParametersReplicationType, projectNumber string) error {
 			assert.Equal(tt, models.VolumeReplicationHydrateStateReady, hydrateState)
-			assert.Equal(tt, models.HybridReplicationParametersReplicationTypeONPREM, hydrateType)
+			assert.Equal(tt, datamodel.HybridReplicationParametersReplicationTypeONPREM, hydrateType)
 			return nil
 		}
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
@@ -3521,7 +3521,7 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 
 		// Mock hydrateReplicationStateAndTypeForHybrid to return error
 		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
-		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType datamodel.HybridReplicationParametersReplicationType, projectNumber string) error {
 			return fmt.Errorf("hydration error")
 		}
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()

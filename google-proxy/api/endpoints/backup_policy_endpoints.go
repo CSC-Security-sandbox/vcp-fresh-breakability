@@ -12,6 +12,7 @@ import (
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -1253,7 +1254,7 @@ func _performBackupVaultValidation(ctx context.Context, backupPolicy *coremodels
 	// Validate each backup vault
 	for _, backupVault := range backupVaults {
 		// Check if backup vault is in updating state
-		if backupVault.LifeCycleState == coremodels.LifeCycleStateUpdating {
+		if backupVault.LifeCycleState == datamodel.LifeCycleStateUpdating {
 			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, fmt.Errorf("Cannot validate immutable backup policy: backup vault '%s' is currently being updated. Please wait for the vault update to complete.", backupVault.BackupVaultID))
 		}
 

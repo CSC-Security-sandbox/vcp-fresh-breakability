@@ -1,9 +1,9 @@
 package workflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -21,21 +21,21 @@ func CreateSMCTokenRotationWorkflow(ctx workflow.Context, params *common.CreateS
 		return err
 	}
 	smcWf.Status = WorkflowStatusRunning
-	err = smcWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = smcWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return err
 	}
 	_, errRun := smcWf.Run(ctx, params)
 	if errRun != nil {
 		smcWf.Status = WorkflowStatusFailed
-		err2 := smcWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
+		err2 := smcWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), errRun)
 		if err2 != nil {
 			return err2
 		}
 		return errRun
 	}
 	smcWf.Status = WorkflowStatusCompleted
-	err = smcWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = smcWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 

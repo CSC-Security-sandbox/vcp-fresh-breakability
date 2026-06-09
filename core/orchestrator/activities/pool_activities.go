@@ -297,7 +297,7 @@ func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 
 func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMsg string) error {
 	se := j.SE
-	pool.State = models.LifeCycleStateError
+	pool.State = datamodel.LifeCycleStateError
 	_, err := se.ErroredResource(ctx, pool, errMsg)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -317,7 +317,7 @@ func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err
 
 func (j *PoolActivity) FailedPoolActivity(ctx context.Context, pool *datamodel.Pool, errMsg string) error {
 	se := j.SE
-	pool.State = models.LifeCycleStateError
+	pool.State = datamodel.LifeCycleStateError
 	_, err := se.ErroredResource(ctx, pool, errMsg)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -2334,8 +2334,8 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		Name:            node.Name,
 		EndpointAddress: node.EndpointAddress,
 		PoolID:          pool.ID,
-		State:           models.LifeCycleStateAvailable,
-		StateDetails:    models.LifeCycleStateAvailableDetails,
+		State:           datamodel.LifeCycleStateAvailable,
+		StateDetails:    datamodel.LifeCycleStateAvailableDetails,
 		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 		AccountID:       pool.AccountID,
 		ZoneName:        node.Zone,
@@ -2795,7 +2795,7 @@ func _deletingNodes(ctx context.Context, se database.Storage, pool *datamodel.Po
 	// Delete each node
 	for _, node := range nodes {
 		// Check if the node is already marked for deletion
-		if node.State == models.LifeCycleStateDeleting {
+		if node.State == datamodel.LifeCycleStateDeleting {
 			continue
 		}
 		// Delete the node record from the database
@@ -2882,10 +2882,10 @@ func _failedNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 	// Delete each node
 	for _, node := range nodes {
 		// Check if the node is already marked for deletion
-		if node.State == models.LifeCycleStateDeleting {
-			node.State = models.LifeCycleStateError
-			node.StateDetails = models.LifeCycleStateDeletionErrorDetails
-			err = se.ErroredNode(ctx, node, models.LifeCycleStateDeletionErrorDetails)
+		if node.State == datamodel.LifeCycleStateDeleting {
+			node.State = datamodel.LifeCycleStateError
+			node.StateDetails = datamodel.LifeCycleStateDeletionErrorDetails
+			err = se.ErroredNode(ctx, node, datamodel.LifeCycleStateDeletionErrorDetails)
 			if err != nil {
 				return err
 			}

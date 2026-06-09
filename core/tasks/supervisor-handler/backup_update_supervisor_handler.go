@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewBackupUpdateHandler() *BackupUpdateHandler {
 }
 
 // JobTypes enumerates the job types supported by the backup update handler.
-func (h *BackupUpdateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeUpdateBackup,
+func (h *BackupUpdateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeUpdateBackup,
 	}
 }
 
@@ -67,7 +66,7 @@ func (h *BackupUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	}
 
 	// Only revert if backup is in UPDATING state
-	if backup.State != models.LifeCycleStateUpdating {
+	if backup.State != datamodel.LifeCycleStateUpdating {
 		logger.Infof("workflow-supervisor-task: backup %s not in UPDATING state (%s); skipping update cleanup", backup.UUID, backup.State)
 		return nil
 	}
@@ -78,8 +77,8 @@ func (h *BackupUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for backup %s, defaulting to AVAILABLE", backup.UUID)
-		previousState = models.LifeCycleStateAvailable
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateAvailable
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	backup.State = previousState

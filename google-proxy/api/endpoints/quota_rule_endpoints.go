@@ -120,15 +120,15 @@ func QuotaRuleQuotaTypeV1Beta(quotaType string) gcpgenserver.QuotaRulesV1betaQuo
 // QuotaRuleLifeCycleV1Beta converts a lifecycle state to gcpgenserver.OptQuotaRulesV1betaState
 func QuotaRuleLifeCycleV1Beta(lifeCycleState string) gcpgenserver.OptQuotaRulesV1betaState {
 	switch lifeCycleState {
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateCREATING)
-	case models.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateREADY)
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateUPDATING)
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateDELETING)
-	case models.LifeCycleStateError:
+	case datamodel.LifeCycleStateError:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateERROR)
 	default:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateSTATEUNSPECIFIED)
@@ -154,15 +154,15 @@ func QuotaRuleQuotaTypeVCPV1Beta(quotaType string) gcpgenserver.QuotaRulesVCPV1b
 // QuotaRuleLifeCycleVCPV1Beta converts a lifecycle state to gcpgenserver.OptQuotaRulesVCPV1betaState
 func QuotaRuleLifeCycleVCPV1Beta(lifeCycleState string) gcpgenserver.OptQuotaRulesVCPV1betaState {
 	switch lifeCycleState {
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateCREATING)
-	case models.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateREADY)
-	case models.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateUPDATING)
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateDELETING)
-	case models.LifeCycleStateError:
+	case datamodel.LifeCycleStateError:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateERROR)
 	default:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateSTATEUNSPECIFIED)
@@ -178,7 +178,7 @@ func convertQuotaRuleToVCPResponse(quotaRule *models.QuotaRule, job *datamodel.J
 	// Build jobs array
 	jobsList := make([]gcpgenserver.JobV1beta, 0)
 	if job != nil {
-		jobState := JobStateToVCPV1Beta(models.JobState(job.State))
+		jobState := JobStateToVCPV1Beta(datamodel.JobState(job.State))
 		jobsList = append(jobsList, gcpgenserver.JobV1beta{
 			JobId:    gcpgenserver.NewOptString(job.UUID),
 			Created:  gcpgenserver.NewOptDateTime(job.CreatedAt),
@@ -205,13 +205,13 @@ func convertQuotaRuleToVCPResponse(quotaRule *models.QuotaRule, job *datamodel.J
 }
 
 // JobStateToVCPV1Beta converts a job state to gcpgenserver.OptJobV1betaState
-func JobStateToVCPV1Beta(jobState models.JobState) gcpgenserver.OptJobV1betaState {
+func JobStateToVCPV1Beta(jobState datamodel.JobState) gcpgenserver.OptJobV1betaState {
 	switch jobState {
-	case models.JobsStateNEW, models.JobsStatePROCESSING:
+	case datamodel.JobsStateNEW, datamodel.JobsStatePROCESSING:
 		return gcpgenserver.NewOptJobV1betaState(gcpgenserver.JobV1betaStateOngoing)
-	case models.JobsStateDONE:
+	case datamodel.JobsStateDONE:
 		return gcpgenserver.NewOptJobV1betaState(gcpgenserver.JobV1betaStateDone)
-	case models.JobsStateERROR:
+	case datamodel.JobsStateERROR:
 		return gcpgenserver.NewOptJobV1betaState(gcpgenserver.JobV1betaStateError)
 	default:
 		return gcpgenserver.NewOptJobV1betaState(gcpgenserver.JobV1betaStateOngoing)

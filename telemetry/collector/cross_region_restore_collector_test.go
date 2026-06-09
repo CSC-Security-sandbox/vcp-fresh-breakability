@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
@@ -252,7 +251,7 @@ func TestProcessRestoreBillingMetrics_FullRestore_CrossRegion_Success(t *testing
 	jobUpdatedAt := now.Add(-5 * time.Minute)
 
 	attrs := crossRegionAttrs("vol-1", "acct-1", "deploy-1", "NFSV3", "us-west2", 1024*1024)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "restored-vol", 100, jobUpdatedAt, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "restored-vol", 100, jobUpdatedAt, attrs)
 
 	metricsDB.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)
 	metricsDB.On("UpdateRestoreTimestamp", mock.Anything, now).Return(nil)
@@ -305,8 +304,8 @@ func TestProcessRestoreBillingMetrics_MultipleJobs_TimestampAdvancedToNow(t *tes
 
 	attrs1 := crossRegionAttrs("vol-uuid-1", "acct-1", "deploy-1", "NFSV3", "us-west2", 500)
 	attrs2 := crossRegionAttrs("vol-uuid-2", "acct-1", "deploy-1", "NFSV3", "us-west2", 1000)
-	job1 := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, job1Updated, attrs1)
-	job2 := newTestJobWithAttrs("job-2", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-2", 100, job2Updated, attrs2)
+	job1 := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, job1Updated, attrs1)
+	job2 := newTestJobWithAttrs("job-2", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-2", 100, job2Updated, attrs2)
 
 	metricsDB.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)
 	metricsDB.On("UpdateRestoreTimestamp", mock.Anything, now).Return(nil)
@@ -342,7 +341,7 @@ func TestProcessRestoreJob_FailedFullRestore_Skipped(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-fail", string(models.JobTypeRestoreBackup), string(models.JobsStateERROR), "vol-fail", 100, time.Now())
+	job := newTestJob("job-fail", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateERROR), "vol-fail", 100, time.Now())
 
 	result := processRestoreJob(ctx, vcpDB, config, job, time.Now())
 	assert.Nil(t, result)
@@ -354,7 +353,7 @@ func TestProcessRestoreJob_SFRJob_Dispatches(t *testing.T) {
 	config := defaultConfig()
 	now := time.Now()
 
-	job := newTestJob("job-sfr", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, now)
+	job := newTestJob("job-sfr", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, now)
 	job.BaseModel.ID = 42
 
 	sfrMeta := &datamodel.SfrMetadata{
@@ -384,7 +383,7 @@ func TestCreateCrossRegionRestoreMetrics_NilJobAttributes_Skipped(t *testing.T) 
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now())
+	job := newTestJob("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now())
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
 }
@@ -401,7 +400,7 @@ func TestCreateCrossRegionRestoreMetrics_MissingBackupSize_Skipped(t *testing.T)
 		"backup_vault_type":  activities.CrossRegionBackupType,
 		"backup_region_name": "us-west2",
 	}
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
@@ -420,7 +419,7 @@ func TestCreateCrossRegionRestoreMetrics_Int64BackupSize_Success(t *testing.T) {
 		"backup_vault_type":    activities.CrossRegionBackupType,
 		"backup_region_name":   "us-west2",
 	}
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.NotNil(t, result)
@@ -436,7 +435,7 @@ func TestCreateCrossRegionRestoreMetrics_NotCrossRegion(t *testing.T) {
 		"protocols": "NFSV3", "backup_size_in_bytes": float64(1024),
 		"backup_vault_type": "IN_REGION", "backup_region_name": "us-west2",
 	}
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
@@ -447,7 +446,7 @@ func TestCreateCrossRegionRestoreMetrics_BackupRegionEmpty(t *testing.T) {
 	config := defaultConfig()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", "", 1024)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
@@ -458,7 +457,7 @@ func TestCreateCrossRegionRestoreMetrics_BackupRegionMatchesCurrentRegion(t *tes
 	config := defaultConfig()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", config.RegionName, 1024)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
@@ -469,7 +468,7 @@ func TestCreateCrossRegionRestoreMetrics_ZeroBackupSize(t *testing.T) {
 	config := defaultConfig()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", "us-west2", 0)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, time.Now(), attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, time.Now())
 	assert.Nil(t, result)
@@ -481,7 +480,7 @@ func TestCreateCrossRegionRestoreMetrics_Success(t *testing.T) {
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.NotNil(t, result)
@@ -501,7 +500,7 @@ func TestCreateCrossRegionRestoreMetrics_MissingProtocols_Skipped(t *testing.T) 
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.Nil(t, result)
@@ -514,7 +513,7 @@ func TestCreateCrossRegionRestoreMetrics_SANProtocol_BillingDisabled_EmitsMetric
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "ISCSI", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.NotNil(t, result)
@@ -529,7 +528,7 @@ func TestCreateCrossRegionRestoreMetrics_NASProtocol_BillingEnabled_EmitsMetric(
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.NotNil(t, result)
@@ -544,7 +543,7 @@ func TestCreateCrossRegionRestoreMetrics_NASProtocol_BillingDisabled_Skipped(t *
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "deploy", "NFSV3", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.Nil(t, result)
@@ -559,7 +558,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_SfrMetadataNotFound(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-1", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-1", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 10
 
 	vcpDB.On("GetSfrMetadataByJobID", mock.Anything, int64(10)).Return(nil, errors.New("not found"))
@@ -573,7 +572,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_ZeroFileSize(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-2", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-2", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 11
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 0, BackupUUID: "b-1", VolumeUUID: "v-1"}
@@ -588,7 +587,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_BackupNotFound(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-3", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-3", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 12
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-missing", VolumeUUID: "v-1"}
@@ -611,7 +610,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_BackupNotFound_HardError(t *testing.
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-3b", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-3b", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 30
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-err", VolumeUUID: "v-1"}
@@ -631,7 +630,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_BackupVaultNil(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-4", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-4", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 13
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-1", VolumeUUID: "v-1"}
@@ -652,7 +651,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_NotCrossRegion(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-5", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-5", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 14
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-1", VolumeUUID: "v-1"}
@@ -676,7 +675,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_BackupRegionNil(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-nil-region", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-nil-region", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 20
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-1", VolumeUUID: "v-1"}
@@ -703,7 +702,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_BackupRegionMatchesCurrentRegion(t *
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-same-region", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-same-region", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 21
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-1", VolumeUUID: "v-1"}
@@ -724,7 +723,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_VolumeNotFound(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-6", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-6", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 15
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 100, BackupUUID: "b-1", VolumeUUID: "v-missing"}
@@ -745,7 +744,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_Success(t *testing.T) {
 	config := defaultConfig()
 	now := time.Now()
 
-	job := newTestJob("job-sfr-ok", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, now)
+	job := newTestJob("job-sfr-ok", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, now)
 	job.BaseModel.ID = 16
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 4096, FileCount: 10, BackupUUID: "sfr-b-1", VolumeUUID: "sfr-v-uuid"}
@@ -773,7 +772,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_NilProtocols_Skipped(t *testing.T) {
 	ctx := context.Background()
 	config := defaultConfig()
 
-	job := newTestJob("job-sfr-np", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, time.Now())
+	job := newTestJob("job-sfr-np", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, time.Now())
 	job.BaseModel.ID = 50
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 4096, BackupUUID: "sfr-b-1", VolumeUUID: "sfr-v-uuid"}
@@ -804,7 +803,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_SANProtocol_BillingDisabled_EmitsMet
 	config.EnableFilesBackupBilling = false
 	now := time.Now()
 
-	job := newTestJob("job-sfr-san", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, now)
+	job := newTestJob("job-sfr-san", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, now)
 	job.BaseModel.ID = 51
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 4096, FileCount: 5, BackupUUID: "sfr-b-1", VolumeUUID: "sfr-v-uuid"}
@@ -838,7 +837,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_NASProtocol_BillingEnabled_EmitsMetr
 	config.EnableFilesBackupBilling = true
 	now := time.Now()
 
-	job := newTestJob("job-sfr-nas-en", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, now)
+	job := newTestJob("job-sfr-nas-en", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, now)
 	job.BaseModel.ID = 52
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 4096, FileCount: 5, BackupUUID: "sfr-b-1", VolumeUUID: "sfr-v-uuid"}
@@ -872,7 +871,7 @@ func TestCreateSfrCrossRegionRestoreMetrics_NASProtocol_BillingDisabled_Skipped(
 	config.EnableFilesBackupBilling = false
 	now := time.Now()
 
-	job := newTestJob("job-sfr-nas-dis", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "vol-sfr", 100, now)
+	job := newTestJob("job-sfr-nas-dis", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "vol-sfr", 100, now)
 	job.BaseModel.ID = 53
 
 	sfrMeta := &datamodel.SfrMetadata{FilesSize: 4096, FileCount: 5, BackupUUID: "sfr-b-1", VolumeUUID: "sfr-v-uuid"}
@@ -908,7 +907,7 @@ func TestFetchRestoreJobs_WithoutSFR(t *testing.T) {
 	since := now.Add(-1 * time.Hour)
 
 	jobs := []*datamodel.Job{
-		newTestJob("j-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "v-1", 1, now),
+		newTestJob("j-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "v-1", 1, now),
 	}
 	vcpDB.On("GetJobsWithCondition", mock.Anything, mock.Anything).Return(jobs, nil)
 
@@ -924,8 +923,8 @@ func TestFetchRestoreJobs_WithSFR(t *testing.T) {
 	since := now.Add(-1 * time.Hour)
 
 	jobs := []*datamodel.Job{
-		newTestJob("j-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "v-1", 1, now),
-		newTestJob("j-2", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "v-2", 1, now),
+		newTestJob("j-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "v-1", 1, now),
+		newTestJob("j-2", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "v-2", 1, now),
 	}
 	vcpDB.On("GetJobsWithCondition", mock.Anything, mock.Anything).Return(jobs, nil)
 
@@ -1147,7 +1146,7 @@ func TestProcessRestoreBillingMetrics_SFREnabled_Success(t *testing.T) {
 	now := time.Now()
 	jobUpdatedAt := now.Add(-3 * time.Minute)
 
-	sfrJob := newTestJob("sfr-job-e2e", string(models.JobTypeRestoreFilesBackup), string(models.JobsStateDONE), "sfr-vol", 200, jobUpdatedAt)
+	sfrJob := newTestJob("sfr-job-e2e", string(datamodel.JobTypeRestoreFilesBackup), string(datamodel.JobsStateDONE), "sfr-vol", 200, jobUpdatedAt)
 	sfrJob.BaseModel.ID = 99
 
 	metricsDB.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)
@@ -1180,7 +1179,7 @@ func TestCreateCrossRegionRestoreMetrics_EmptyDeploymentName_UsesDefault(t *test
 	now := time.Now()
 
 	attrs := crossRegionAttrs("vol-uuid", "acct", "", "NFSV3", "us-west2", 5000)
-	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, now, attrs)
+	job := newTestJobWithAttrs("job-1", string(datamodel.JobTypeRestoreBackup), string(datamodel.JobsStateDONE), "vol-1", 100, now, attrs)
 
 	result := createCrossRegionRestoreMetrics(ctx, config, job, now)
 	assert.NotNil(t, result)

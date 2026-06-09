@@ -167,7 +167,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx con
 	clusterPeer, err := provider.CreateClusterPeer(params)
 	if err != nil {
 		volume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
-		volume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
+		volume.CacheParameters.CacheStateDetails = datamodel.ErrorDuringClusterPeer
 		return nil, vsaerrors.WrapAsTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerError, err),
 		)
@@ -180,7 +180,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx con
 	if _, err := a.persistVolumeFieldsAfterClusterPeerCreated(ctx, result); err != nil {
 		return nil, err
 	}
-	if _, err := a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING); err != nil {
+	if _, err := a.updateClusterPeeringRowStateInDBActivity(ctx, result, datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING); err != nil {
 		return nil, err
 	}
 
@@ -217,7 +217,7 @@ func (a *FlexCacheVolumeCreateActivity) persistVolumeFieldsAfterClusterPeerCreat
 	volume.CacheParameters.CommandExpiryTime = &convertedTime
 	volume.CacheParameters.Command = &peerCommand
 	volume.CacheParameters.CacheStateDetailsCode = coremodels.WaitingForClusterPeeringCode
-	volume.CacheParameters.CacheStateDetails = coremodels.WaitingForClusterPeering
+	volume.CacheParameters.CacheStateDetails = datamodel.WaitingForClusterPeering
 	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING)
 
 	updates := map[string]interface{}{
@@ -298,7 +298,7 @@ func (a *FlexCacheVolumeCreateActivity) persistVolumeFieldsAfterSVMPeerCreated(c
 	cacheParams.CommandExpiryTime = nil
 	cacheParams.Command = &peerCommand
 	cacheParams.CacheStateDetailsCode = coremodels.WaitingForSVMPeeringCode
-	cacheParams.CacheStateDetails = coremodels.WaitingForSVMPeering
+	cacheParams.CacheStateDetails = datamodel.WaitingForSVMPeering
 	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePENDINGSVMPEERING)
 
 	updates := map[string]interface{}{
@@ -353,18 +353,18 @@ func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeLifecycleStateActiv
 	volume := result.DBVolume
 
 	switch targetState {
-	case coremodels.LifeCycleStateCreating:
-		volume.State = coremodels.LifeCycleStateCreating
-		volume.StateDetails = coremodels.LifeCycleStateCreatingDetails
+	case datamodel.LifeCycleStateCreating:
+		volume.State = datamodel.LifeCycleStateCreating
+		volume.StateDetails = datamodel.LifeCycleStateCreatingDetails
 		// Reset cache-specific transitional fields
 		volume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
 		volume.CacheParameters.CacheStateDetails = ""
 		volume.CacheParameters.Command = nil
 		volume.CacheParameters.CommandExpiryTime = nil
 		volume.CacheParameters.Passphrase = nil
-	case coremodels.LifeCycleStateREADY:
-		volume.State = coremodels.LifeCycleStateREADY
-		volume.StateDetails = coremodels.LifeCycleStateAvailableDetails
+	case datamodel.LifeCycleStateREADY:
+		volume.State = datamodel.LifeCycleStateREADY
+		volume.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		// Move cache state to PEERED when volume is READY
 		a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePEERED)
 	default:
@@ -418,8 +418,8 @@ func (a *FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx c
 
 	if a.shouldSetErrorState(result) {
 		a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStateERROR)
-		updates["state"] = coremodels.LifeCycleStateError
-		updates["state_details"] = coremodels.LifeCycleStateCreationErrorDetails
+		updates["state"] = datamodel.LifeCycleStateError
+		updates["state_details"] = datamodel.LifeCycleStateCreationErrorDetails
 	}
 	updates["cache_parameters"] = volume.CacheParameters
 
@@ -458,7 +458,7 @@ func (a *FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.Cr
 // during volume delete). Queued workflows consult this when they start under the sequence workflow.
 func (a *FlexCacheVolumeCreateActivity) AbortIfEstablishPeeringCancelledActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	logger := utilGetLogger(ctx)
-	job, err := a.SE.GetJobByResourceUUID(ctx, result.DBVolume.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering))
+	job, err := a.SE.GetJobByResourceUUID(ctx, result.DBVolume.UUID, string(datamodel.JobTypeFlexCacheEstablishPeering))
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			return nil
@@ -469,7 +469,7 @@ func (a *FlexCacheVolumeCreateActivity) AbortIfEstablishPeeringCancelledActivity
 	if job == nil {
 		return nil
 	}
-	if job.State == string(coremodels.JobsStateCANCELLED) {
+	if job.State == string(datamodel.JobsStateCANCELLED) {
 		logger.Infof("FlexCache establish peering job %s is CANCELLED; aborting flexcache workflow for volume %s", job.UUID, result.DBVolume.UUID)
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 			fmt.Errorf("flexcache creation cancelled by delete request"))
@@ -484,7 +484,7 @@ func (a *FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.C
 	clusterPeerRow := result.ClusterPeeringRow
 
 	// Only complete the job if we are in PENDING_CLUSTER_PEERING (new cluster peer) or PEERED state (reuse cluster peer)
-	if clusterPeerRow.State != coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING && clusterPeerRow.State != coremodels.CvpClusterPeeringStatusPEERED {
+	if clusterPeerRow.State != datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING && clusterPeerRow.State != datamodel.CvpClusterPeeringStatusPEERED {
 		logger.Debugf("Peering job for %s remains in %s)",
 			resourceUUID, clusterPeerRow.State)
 		return nil
@@ -492,7 +492,7 @@ func (a *FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.C
 
 	_, err := a.completeJob(ctx, completeJobOpts{
 		ResourceUUID:  resourceUUID,
-		JobType:       string(coremodels.JobTypeFlexCacheEstablishPeering),
+		JobType:       string(datamodel.JobTypeFlexCacheEstablishPeering),
 		GetErrCode:    vsaerrors.ErrDescribingJobNotFound,
 		UpdateErrCode: vsaerrors.ErrEstablishPeeringJobFailed,
 	})
@@ -505,16 +505,16 @@ func (a *FlexCacheVolumeCreateActivity) StartInternalJobActivity(ctx context.Con
 	input := result.JobInput
 	logger.Debugf("Starting internal job for resource: %s (%s)", input.ResourceName, input.ResourceUUID)
 
-	if existing, err := a.SE.GetJobByResourceUUID(ctx, input.ResourceUUID, string(coremodels.JobTypeFlexCacheInternalPeering)); err == nil && existing != nil {
-		if existing.State == string(coremodels.JobsStatePROCESSING) {
+	if existing, err := a.SE.GetJobByResourceUUID(ctx, input.ResourceUUID, string(datamodel.JobTypeFlexCacheInternalPeering)); err == nil && existing != nil {
+		if existing.State == string(datamodel.JobsStatePROCESSING) {
 			logger.Debugf("Internal job already exists for %s (state=%s)", input.ResourceUUID, existing.State)
 			return result, nil
 		}
 	}
 
 	job := &datamodel.Job{
-		Type:          string(coremodels.JobTypeFlexCacheInternalPeering),
-		State:         string(coremodels.JobsStatePROCESSING),
+		Type:          string(datamodel.JobTypeFlexCacheInternalPeering),
+		State:         string(datamodel.JobsStatePROCESSING),
 		ResourceName:  input.ResourceName,
 		AccountID:     sql.NullInt64{Int64: input.AccountID, Valid: true},
 		CorrelationID: input.CorrelationID,
@@ -551,7 +551,7 @@ func (a *FlexCacheVolumeCreateActivity) CompleteInternalJobActivity(ctx context.
 
 	_, err := a.completeJob(ctx, completeJobOpts{
 		ResourceUUID:  resourceUUID,
-		JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+		JobType:       string(datamodel.JobTypeFlexCacheInternalPeering),
 		GetErrCode:    vsaerrors.ErrDescribingJobNotFound,
 		UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
 	})
@@ -593,7 +593,7 @@ func (a *FlexCacheVolumeCreateActivity) FailJobActivity(ctx context.Context, res
 		}
 	}
 
-	if err := a.SE.UpdateJob(ctx, job.UUID, string(coremodels.JobsStateERROR), trackingID, errorDetails); err != nil {
+	if err := a.SE.UpdateJob(ctx, job.UUID, string(datamodel.JobsStateERROR), trackingID, errorDetails); err != nil {
 		logger.Errorf("FailJobActivity: failed to update job %s to ERROR: %v", job.UUID, err)
 		return vsaerrors.NewVCPError(mapJobTypeToError(string(jobType)), err)
 	}
@@ -616,7 +616,7 @@ func (a *FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts co
 	switch {
 	case opts.ResourceUUID != "" && opts.JobType != "":
 		// Ideally it should return only one active job of this type for the resourceUUID
-		jobs, err = a.getActiveJobs(ctx, opts.ResourceUUID, coremodels.JobType(opts.JobType))
+		jobs, err = a.getActiveJobs(ctx, opts.ResourceUUID, datamodel.JobType(opts.JobType))
 		if jobs != nil && len(jobs) > 0 {
 			if len(jobs) > 1 {
 				logger.Warnf("multiple active jobs found (resourceUUID=%s jobType=%s count=%d); using first job uuid=%s",
@@ -640,20 +640,20 @@ func (a *FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts co
 
 	// Idempotent short-circuit
 	switch job.State {
-	case string(coremodels.JobsStateDONE):
+	case string(datamodel.JobsStateDONE):
 		logger.Debugf("job already completed: %s", job.UUID)
 		return job, nil
-	case string(coremodels.JobsStateERROR):
+	case string(datamodel.JobsStateERROR):
 		logger.Debugf("job is in error state: %s", job.UUID)
 		return job, nil
 	}
 
 	// Mark as DONE
-	if err := a.SE.UpdateJob(ctx, job.UUID, string(coremodels.JobsStateDONE), job.TrackingID, job.ErrorDetails); err != nil {
+	if err := a.SE.UpdateJob(ctx, job.UUID, string(datamodel.JobsStateDONE), job.TrackingID, job.ErrorDetails); err != nil {
 		logger.Errorf("failed to mark job %s as completed: %v", job.UUID, err)
 		return nil, vsaerrors.NewVCPError(opts.UpdateErrCode, err)
 	}
-	job.State = string(coremodels.JobsStateDONE)
+	job.State = string(datamodel.JobsStateDONE)
 	logger.Debugf("marked job as completed: %s", job.UUID)
 
 	return job, nil
@@ -662,11 +662,11 @@ func (a *FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts co
 // mapJobTypeToError maps job types to the closest VCP error code for reporting.
 func mapJobTypeToError(jobType string) int {
 	switch jobType {
-	case string(coremodels.JobTypeFlexCacheEstablishPeering):
+	case string(datamodel.JobTypeFlexCacheEstablishPeering):
 		return vsaerrors.ErrEstablishPeeringJobFailed
-	case string(coremodels.JobTypeFlexCacheInternalPeering):
+	case string(datamodel.JobTypeFlexCacheInternalPeering):
 		return vsaerrors.ErrInternalPeeringJobFailed
-	case string(coremodels.JobTypeFlexCacheCreateVolume):
+	case string(datamodel.JobTypeFlexCacheCreateVolume):
 		return vsaerrors.ErrCreatingFlexCacheVolume
 	default:
 		// Fallback to a generic error code
@@ -814,7 +814,7 @@ func (a *FlexCacheVolumeCreateActivity) GetClusterPeeringRowFromDBActivity(ctx c
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	if existingPeer.State == coremodels.CvpClusterPeeringStatusERROR {
+	if existingPeer.State == datamodel.CvpClusterPeeringStatusERROR {
 		logger.Infof("Cluster peering row in error state (uuid=%s account=%d cluster=%s pool=%d); skipping",
 			existingPeer.UUID, volume.Account.ID, cacheParams.PeerClusterName, volume.Pool.ID)
 		result.ClusterPeeringRow = nil
@@ -838,7 +838,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeeringRowInDBActivity(ctx 
 	cp := vol.CacheParameters
 
 	newRow := &datamodel.ClusterPeerings{
-		State:          coremodels.CvpClusterPeeringStatusCREATING,
+		State:          datamodel.CvpClusterPeeringStatusCREATING,
 		AccountID:      vol.Account.ID,
 		PoolID:         vol.Pool.ID,
 		OnprempCluster: cp.PeerClusterName,
@@ -857,13 +857,13 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeeringRowInDBActivity(ctx 
 }
 
 func (a *FlexCacheVolumeCreateActivity) updateClusterPeeringRowStateInDBActivity(ctx context.Context,
-	result *flexcache.CreateFlexCacheResult, targetState coremodels.ClusterPeeringStatus) (*flexcache.CreateFlexCacheResult, error) {
+	result *flexcache.CreateFlexCacheResult, targetState datamodel.ClusterPeeringStatus) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	row := result.ClusterPeeringRow
 	vol := result.DBVolume
 
 	switch targetState {
-	case coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING:
+	case datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING:
 		if result.ClusterPeer != nil {
 			row.OntapPeerUUID = result.ClusterPeer.ExternalUUID
 			row.OnprempCluster = result.ClusterPeer.PeerClusterName
@@ -873,13 +873,13 @@ func (a *FlexCacheVolumeCreateActivity) updateClusterPeeringRowStateInDBActivity
 			Command:    vol.CacheParameters.Command,
 			ExpiryTime: vol.CacheParameters.CommandExpiryTime,
 		}
-		row.State = coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		row.State = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
 
-	case coremodels.CvpClusterPeeringStatusPEERED:
-		row.State = coremodels.CvpClusterPeeringStatusPEERED
+	case datamodel.CvpClusterPeeringStatusPEERED:
+		row.State = datamodel.CvpClusterPeeringStatusPEERED
 
-	case coremodels.CvpClusterPeeringStatusERROR:
-		row.State = coremodels.CvpClusterPeeringStatusERROR
+	case datamodel.CvpClusterPeeringStatusERROR:
+		row.State = datamodel.CvpClusterPeeringStatusERROR
 
 	default:
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("unsupported target state: %s", targetState))
@@ -896,17 +896,17 @@ func (a *FlexCacheVolumeCreateActivity) updateClusterPeeringRowStateInDBActivity
 
 func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStatePendingInDBActivity(ctx context.Context,
 	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING)
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING)
 }
 
 func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStatePeeredInDBActivity(ctx context.Context,
 	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusPEERED)
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, datamodel.CvpClusterPeeringStatusPEERED)
 }
 
 func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStateErrorInDBActivity(ctx context.Context,
 	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
-	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusERROR)
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, datamodel.CvpClusterPeeringStatusERROR)
 }
 
 func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringInVolume(ctx context.Context,
@@ -934,7 +934,7 @@ func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringInVolume(ctx context
 // getActiveJobs builds the active (non-terminal) job filter and executes the query.
 // Returns all jobs that are not DONE or ERROR for the given resource/jobType.
 func (a *FlexCacheVolumeCreateActivity) getActiveJobs(ctx context.Context, resourceUUID string,
-	jobType coremodels.JobType) ([]*datamodel.Job, error) {
+	jobType datamodel.JobType) ([]*datamodel.Job, error) {
 	resourceUUIDCol := "job_attributes ->> 'resource_uuid'"
 	if utils.EnableJobResourceUUIDIndex {
 		resourceUUIDCol = "resource_uuid"
@@ -942,8 +942,8 @@ func (a *FlexCacheVolumeCreateActivity) getActiveJobs(ctx context.Context, resou
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition(resourceUUIDCol, "=", resourceUUID),
 		dbutils.NewFilterCondition("type", "=", jobType),
-		dbutils.NewFilterCondition("state", "!=", string(coremodels.JobsStateDONE)),
-		dbutils.NewFilterCondition("state", "!=", string(coremodels.JobsStateERROR)),
+		dbutils.NewFilterCondition("state", "!=", string(datamodel.JobsStateDONE)),
+		dbutils.NewFilterCondition("state", "!=", string(datamodel.JobsStateERROR)),
 	)
 	return a.SE.GetJobsWithCondition(ctx, *filter)
 }

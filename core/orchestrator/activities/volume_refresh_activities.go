@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -429,8 +428,8 @@ func (a *VolumeRefreshActivity) processIndividualVolume(
 			}
 
 			if *splitCompletePercent != 0 && currentSplitPercent != nil && *currentSplitPercent < *splitCompletePercent {
-				if cloneState == models.CloneStateErrorInSplitting {
-					cloneState = models.CloneStateSplitting
+				if cloneState == datamodel.CloneStateErrorInSplitting {
+					cloneState = datamodel.CloneStateSplitting
 					cloneStateDetails = ""
 					needsCloneUpdate = true
 					hasChanges = true
@@ -451,12 +450,12 @@ func (a *VolumeRefreshActivity) processIndividualVolume(
 		dbVolume.VolumeAttributes.CloneParentInfo != nil &&
 		dbVolume.VolumeAttributes.CloneParentInfo.SplitCompletePercent != nil &&
 		*dbVolume.VolumeAttributes.CloneParentInfo.SplitCompletePercent != 0 &&
-		cloneState != models.CloneStateErrorInSplitting {
+		cloneState != datamodel.CloneStateErrorInSplitting {
 		needsCloneUpdate = true
 		hasChanges = true
-		cloneState = models.CloneStateErrorInSplitting
+		cloneState = datamodel.CloneStateErrorInSplitting
 		// Attempt to fetch the split job error details from the DB.
-		splitJob, jobErr := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(models.JobTypeSplitVolume))
+		splitJob, jobErr := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(datamodel.JobTypeSplitVolume))
 		if jobErr != nil {
 			logger.Warnf("Volume %s: could not fetch split job for error details: %v", dbVolume.UUID, jobErr)
 			cloneStateDetails = "Split operation encountered an error in ONTAP"

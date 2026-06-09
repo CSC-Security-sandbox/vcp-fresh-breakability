@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewKmsDeleteHandler() *KmsDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the KMS delete handler.
-func (h *KmsDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeleteKmsConfig,
+func (h *KmsDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeleteKmsConfig,
 	}
 }
 
@@ -56,7 +55,7 @@ func (h *KmsDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, event
 	}
 
 	// Only revert if KMS config is in DELETING state
-	if kmsConfig.State != models.LifeCycleStateDeleting {
+	if kmsConfig.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: KMS config %s not in DELETING state (%s); skipping delete cleanup", kmsConfig.UUID, kmsConfig.State)
 		return nil
 	}
@@ -67,8 +66,8 @@ func (h *KmsDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, event
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for KMS config %s, defaulting to CREATED", kmsConfig.UUID)
-		previousState = models.LifeCycleStateCreated
-		previousStateDetails = models.LifeCycleStateCreatedDetails
+		previousState = datamodel.LifeCycleStateCreated
+		previousStateDetails = datamodel.LifeCycleStateCreatedDetails
 	}
 
 	if _, err := storage.UpdateKmsConfigState(ctx, kmsConfig.UUID, previousState, previousStateDetails); err != nil {

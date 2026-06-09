@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -63,7 +62,7 @@ func (a *UpdateVolumeInReplicationActivity) GetReplicationFromDBVolume(ctx conte
 		return nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
 	}
 
-	if repldb.ReplicationAttributes.EndpointType == coreModels.SrcEndpoint {
+	if repldb.ReplicationAttributes.EndpointType == datamodel.SrcEndpoint {
 		event.Local.ProjectNumber = params.AccountName
 		event.Remote.ProjectNumber = remoteProject
 		event.Local.Region = localRegion
@@ -130,8 +129,8 @@ func (a *UpdateVolumeInReplicationActivity) CreateJobForChildWorkflow(ctx contex
 	se := a.SE
 
 	job := &datamodel.Job{
-		Type:          string(coreModels.JobTypeUpdateVolume),
-		State:         string(coreModels.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateVolume),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID},

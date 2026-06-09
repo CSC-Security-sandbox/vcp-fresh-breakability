@@ -219,11 +219,11 @@ func TestMigrateKmsConfig(t *testing.T) {
 	}
 
 	kmsConfigs := []*datamodel.KmsConfig{
-		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID, State: models.LifeCycleStateCreated,
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID, State: datamodel.LifeCycleStateCreated,
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com", SdeKmsConfigUUID: "sdeUuid1"}},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID,
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com", SdeKmsConfigUUID: ""}},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: &serviceAccounts[1].ID, State: models.LifeCycleStateREADY,
+		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: &serviceAccounts[1].ID, State: datamodel.LifeCycleStateREADY,
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com", SdeKmsConfigUUID: "sdeUuid1"}},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid4", DeletedAt: nil}, Name: "kmsConfig4", ServiceAccountID: &serviceAccounts[1].ID},
 	}
@@ -286,7 +286,7 @@ func TestMigrateKmsConfig(t *testing.T) {
 			UUID:           "uuid99",
 			AccountName:    "account1",
 			XCorrelationID: "",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 		}
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, nil)
 
@@ -313,7 +313,7 @@ func TestMigrateKmsConfig(t *testing.T) {
 			ProjectNumber: "my-project",
 			UUID:          "uuid3",
 			AccountName:   "account1",
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 		}
 		mockTemporalNew.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, errors.New("This is a Temporal error"))
 
@@ -338,7 +338,7 @@ func TestMigrateKmsConfig(t *testing.T) {
 			UUID:           "uuid3",
 			AccountName:    "account1",
 			XCorrelationID: "",
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Migrator().DropTable(&datamodel.Job{})
 		assert.NoError(tt, err)
@@ -454,7 +454,7 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{
 			Name:              "err-kms",
 			Description:       "",
-			State:             models.LifeCycleStateError,
+			State:             datamodel.LifeCycleStateError,
 			StateDetails:      "VCP Reverted to previous state due to error",
 			KeyRing:           "kr",
 			KeyRingLocation:   "us-east4",
@@ -506,7 +506,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -517,7 +517,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock SDE call to succeed
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -557,7 +557,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			KmsAttributes: &datamodel.KmsAttributes{
 				CreationMode: datamodel.KmsCreationModeVCP,
 			},
@@ -607,7 +607,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			KmsAttributes: &datamodel.KmsAttributes{
 				CreationMode:     datamodel.KmsCreationModeSDE,
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -737,7 +737,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		assert.Equal(tt, "updated-keyring", kmsConfig.KeyRing)
 		assert.Equal(tt, "us-west1", kmsConfig.KeyRingLocation)
 		assert.Equal(tt, "updated-project", kmsConfig.KeyProjectID)
-		assert.Equal(tt, models.LifeCycleStateREADY, kmsConfig.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, kmsConfig.State)
 	})
 
 	t.Run("ValidationError", func(tt *testing.T) {
@@ -758,7 +758,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -797,7 +797,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -835,7 +835,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -976,7 +976,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -988,10 +988,10 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock error state update to fail
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateError, mock.AnythingOfType("string")).Return(nil, errors.New("error state update failed"))
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateError, mock.AnythingOfType("string")).Return(nil, errors.New("error state update failed"))
 
 		// Mock SDE call to fail
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -1028,7 +1028,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -1040,7 +1040,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock SDE call to succeed
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -1064,7 +1064,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 				updateFields["key_ring_location"] == "us-central1" &&
 				updateFields["key_ring"] == "test-ring" &&
 				updateFields["key_project_id"] == "test-project" &&
-				updateFields["state"] == models.LifeCycleStateCreated
+				updateFields["state"] == datamodel.LifeCycleStateCreated
 		})).Return(nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 
@@ -1099,7 +1099,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -1111,7 +1111,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock SDE call to succeed
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -1150,7 +1150,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: "test-sde-kms-config-id",
@@ -1162,7 +1162,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil).Once()
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock SDE call to succeed
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -1202,7 +1202,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: ""}, // Empty UUID
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			KmsAttributes:  &datamodel.KmsAttributes{},
 			ServiceAccount: &datamodel.ServiceAccount{},
 		}
@@ -1211,7 +1211,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
 
 		// Mock SDE call to succeed
 		originalUpdateSDE := updateSDEKmsConfiguration
@@ -1287,8 +1287,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountID: 1,
 		}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
-		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
-		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "job error").Return(nil, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", datamodel.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", datamodel.LifeCycleStateError, "job error").Return(nil, nil)
 
 		defer func() {
 			getOrCreateAccount = _getOrCreateAccount
@@ -1327,7 +1327,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			},
 		}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return((*datamodel.Job)(nil), errors.New("job error"))
-		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "job error").Return((*datamodel.KmsConfig)(nil), errors.New("delete cleanup error"))
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", datamodel.LifeCycleStateError, "job error").Return((*datamodel.KmsConfig)(nil), errors.New("delete cleanup error"))
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		if err == nil || err.Error() != "job error" {
@@ -1352,7 +1352,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
 		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(nil, errors.New("db error"))
-		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", datamodel.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		if err == nil || err.Error() != "db error" {
@@ -1383,7 +1383,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "workflow error").Return(nil, nil)
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", datamodel.LifeCycleStateError, "workflow error").Return(nil, nil)
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.NoError(tt, err)
@@ -1444,7 +1444,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("job-uuid"))
-		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "workflow error").Return(nil, nil)
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", datamodel.LifeCycleStateError, "workflow error").Return(nil, nil)
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.NoError(tt, err)
@@ -1472,8 +1472,8 @@ func TestCreateKmsConfig(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
-		mockStorage.On("UpdateJob", ctx, mock.Anything, models.LifeCycleStateError, mock.Anything, mock.Anything).Return(nil).Once()
-		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(nil, nil).Once()
+		mockStorage.On("UpdateJob", ctx, mock.Anything, datamodel.LifeCycleStateError, mock.Anything, mock.Anything).Return(nil).Once()
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", datamodel.LifeCycleStateError, mock.Anything).Return(nil, nil).Once()
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
@@ -1525,7 +1525,7 @@ func TestCheckAndUpdateKmsConfigHealth(t *testing.T) {
 		ctx := context.Background()
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
-			State:         models.LifeCycleStateError,
+			State:         datamodel.LifeCycleStateError,
 			KeyName:       "key1",
 			KeyRing:       "ring1",
 			KmsAttributes: &datamodel.KmsAttributes{},
@@ -1767,7 +1767,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -1775,10 +1775,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -1811,7 +1811,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateError,
+			State:          datamodel.LifeCycleStateError,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -1819,10 +1819,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -1855,7 +1855,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -1897,7 +1897,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -1907,7 +1907,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(true, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return([]*datamodel.Svm{&datamodel.Svm{Name: "svm"}}, nil)
 
 		// Mock Temporal client behavior
@@ -1936,7 +1936,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -1945,7 +1945,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, errors.New("error"))
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.New("error"))
 
@@ -1976,7 +1976,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		account := &datamodel.Account{Name: "test-account"}
@@ -1986,9 +1986,9 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID for delete job check (returns nil, no existing delete job)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		// Mock GetJobByResourceUUID for create job check (returns nil, not a cancellation request)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeCreateKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeCreateKmsConfig)).Return(nil, nil)
 
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
@@ -2025,14 +2025,14 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: 1},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			AccountID:      1,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		createJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeCreateKmsConfig),
+			Type:          string(datamodel.JobTypeCreateKmsConfig),
 		}
 
 		// Patch getAccountWithName to return account
@@ -2046,9 +2046,9 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Note: For cancellation requests, validation is skipped, so IsKmsConfigInUse is NOT called
 		mockStorage.On("GetKmsConfig", ctxWithCorrelationID, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID for delete job check (returns nil, no existing delete job)
-		mockStorage.On("GetJobByResourceUUID", ctxWithCorrelationID, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctxWithCorrelationID, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		// Mock GetJobByResourceUUID to return create job with matching correlation ID (lines 332-335)
-		mockStorage.On("GetJobByResourceUUID", ctxWithCorrelationID, "test-kms-config-id", string(models.JobTypeCreateKmsConfig)).Return(createJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctxWithCorrelationID, "test-kms-config-id", string(datamodel.JobTypeCreateKmsConfig)).Return(createJob, nil)
 		// For cancellation requests, UpdateKmsConfigState should NOT be called (line 349)
 		mockStorage.On("CreateJob", ctxWithCorrelationID, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -2085,7 +2085,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: 1},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			AccountID:      1,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
@@ -2101,10 +2101,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
 		// Mock UpdateKmsConfigState to return error (line 359)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(nil, errors.New("update state error"))
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(nil, errors.New("update state error"))
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
@@ -2132,7 +2132,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -2140,10 +2140,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -2176,18 +2176,18 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateDeleting, // Already in deleting state
+			State:     datamodel.LifeCycleStateDeleting, // Already in deleting state
 		}
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
-			Type:      string(models.JobTypeDeleteKmsConfig),
-			State:     string(models.JobsStateNEW), // Not done yet
+			Type:      string(datamodel.JobTypeDeleteKmsConfig),
+			State:     string(datamodel.JobsStateNEW), // Not done yet
 		}
 
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
@@ -2218,13 +2218,13 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id", ID: 1},
-			State:     models.LifeCycleStateDeleting, // Already in deleting state
+			State:     datamodel.LifeCycleStateDeleting, // Already in deleting state
 			AccountID: 1,
 		}
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
-			Type:      string(models.JobTypeDeleteKmsConfig),
-			State:     string(models.JobsStateDONE), // Already done
+			Type:      string(datamodel.JobTypeDeleteKmsConfig),
+			State:     string(datamodel.JobsStateDONE), // Already done
 		}
 
 		// Patch getAccountWithName to return account
@@ -2236,10 +2236,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		// Mock storage behavior
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(existingJob, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
 		}, nil)
@@ -2272,16 +2272,16 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateDeleting, // Already in deleting state
+			State:     datamodel.LifeCycleStateDeleting, // Already in deleting state
 		}
 
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(nil, errors.New("job not found"))
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, errors.New("job not found"))
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
 		}, nil)
@@ -2314,7 +2314,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -2322,10 +2322,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -2363,7 +2363,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
 		// Mock storage behavior
@@ -2371,10 +2371,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, dbKmsConfig.UUID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -2382,7 +2382,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, "test-kms-config-id", models.LifeCycleStateAvailable, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-kms-config-id", datamodel.LifeCycleStateAvailable, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
@@ -2408,7 +2408,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{ID: int64(123), UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 			AccountID:      int64(1),
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
 		}
@@ -2429,10 +2429,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 		// Mock storage behavior
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// Mock GetJobByResourceUUID for DELETE_ACTIVE_DIRECTORY (check for existing delete job when in non-transitional state)
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
-		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
 		// Verify job has both CorrelationID and RequestID
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.CorrelationID == "test-correlation-id-existing" && job.RequestID == "test-request-id-delete"
@@ -2476,14 +2476,14 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			AccountID: 42,
 		}
 		existingDeleteJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeDeleteKmsConfig),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeDeleteKmsConfig),
+			State:         string(datamodel.JobsStatePROCESSING),
 		}
 
 		// Patch getAccountWithName
@@ -2495,7 +2495,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
-		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(models.JobTypeDeleteKmsConfig)).Return(existingDeleteJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id", string(datamodel.JobTypeDeleteKmsConfig)).Return(existingDeleteJob, nil)
 
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
@@ -2525,7 +2525,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
 		dbKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+			State:     datamodel.LifeCycleStateUpdating, // Transitional state (not DELETING)
 			AccountID: 42,
 		}
 
@@ -2544,7 +2544,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "KMS config is in transition state and cannot be deleted")
-		assert.Contains(tt, err.Error(), models.LifeCycleStateUpdating)
+		assert.Contains(tt, err.Error(), datamodel.LifeCycleStateUpdating)
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
 		mockStorage.AssertExpectations(tt)
@@ -2572,31 +2572,31 @@ func TestValidateKmsConfigState(t *testing.T) {
 		t.Fatalf("Failed to create Jobs table: %v", err)
 	}
 	t.Run("WhenKmsConfigStateIsNotReadyOrInUse", func(tt *testing.T) {
-		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateCreated, int64(1), true)
+		jobId, errValidate := validateKmsConfigState(ctx, store, datamodel.LifeCycleStateCreated, int64(1), true)
 		assert.Equal(tt, jobId, "")
 		assert.Error(tt, errValidate)
 		assert.EqualError(tt, errValidate, "CMEK Configuration needs to be in either Ready or In_Use state for migration")
 	})
 	t.Run("WhenKmsConfigStateIsInReadyState", func(tt *testing.T) {
-		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateREADY, int64(1), true)
+		jobId, errValidate := validateKmsConfigState(ctx, store, datamodel.LifeCycleStateREADY, int64(1), true)
 
 		assert.NoError(tt, errValidate)
 		assert.Equal(tt, jobId, "")
 	})
 	t.Run("WhenKmsConfigStateIsMigratingAndDBEntryIsNotInVCP", func(tt *testing.T) {
-		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateMigrating, int64(1), false)
+		jobId, errValidate := validateKmsConfigState(ctx, store, datamodel.LifeCycleStateMigrating, int64(1), false)
 
 		assert.NoError(tt, errValidate)
 		assert.Equal(tt, "uuid1", jobId)
 	})
 	t.Run("WhenKmsConfigStateIsUpdatingAndDBEntryIsInVCP", func(tt *testing.T) {
-		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateUpdating, int64(1), true)
+		jobId, errValidate := validateKmsConfigState(ctx, store, datamodel.LifeCycleStateUpdating, int64(1), true)
 
 		assert.NoError(tt, errValidate)
 		assert.Equal(tt, "uuid1", jobId)
 	})
 	t.Run("WhenKmsConfigStateIsMigratingAndDBEntryIsInVCP", func(tt *testing.T) {
-		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateMigrating, int64(1), true)
+		jobId, errValidate := validateKmsConfigState(ctx, store, datamodel.LifeCycleStateMigrating, int64(1), true)
 
 		assert.NoError(tt, errValidate)
 		assert.Equal(tt, "uuid1", jobId)
@@ -2605,25 +2605,25 @@ func TestValidateKmsConfigState(t *testing.T) {
 
 func TestConvertKmsConfigStateV1beta(t *testing.T) {
 	t.Run("ReturnsKeyCheckPendingForCreatedState", func(t *testing.T) {
-		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateCreated, "ignored")
+		state, details := convertKmsConfigStateV1beta(datamodel.LifeCycleStateCreated, "ignored")
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, state)
 		assert.Equal(t, "Credentials created and key check pending", details)
 	})
 
 	t.Run("ReturnsInUseForInUseState", func(t *testing.T) {
-		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateInUse, "ignored")
+		state, details := convertKmsConfigStateV1beta(datamodel.LifeCycleStateInUse, "ignored")
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateINUSE, state)
 		assert.Equal(t, "Kms config in use", details)
 	})
 
 	t.Run("ReturnsReadyForREADYState", func(t *testing.T) {
-		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateREADY, "ignored")
+		state, details := convertKmsConfigStateV1beta(datamodel.LifeCycleStateREADY, "ignored")
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateREADY, state)
 		assert.Equal(t, "Kms config is ready for use", details)
 	})
 
 	t.Run("ReturnsMigratingForMigratingState", func(t *testing.T) {
-		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateMigrating, "ignored")
+		state, details := convertKmsConfigStateV1beta(datamodel.LifeCycleStateMigrating, "ignored")
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateMIGRATING, state)
 		assert.Equal(t, "Kms config is in migrating state", details)
 	})
@@ -2635,7 +2635,7 @@ func TestConvertKmsConfigStateV1beta(t *testing.T) {
 	})
 
 	t.Run("ReturnsErrorStateWithPreservedDetailsForERROR", func(t *testing.T) {
-		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateError, "VCP-only error detail")
+		state, details := convertKmsConfigStateV1beta(datamodel.LifeCycleStateError, "VCP-only error detail")
 		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateERROR, state)
 		assert.Equal(t, "VCP-only error detail", details)
 	})
@@ -2687,8 +2687,8 @@ func TestRotateKmsConfig_Success(t *testing.T) {
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 		WorkflowID: "test-workflow-id",
-		Type:       string(models.JobTypeRotateKmsConfig),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeRotateKmsConfig),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Mock the getAccountFromUUID function
@@ -2720,8 +2720,8 @@ func TestRotateKmsConfig_Success(t *testing.T) {
 	assert.Equal(t, "test-job-uuid", job.UUID)
 
 	// Verify returned Job model
-	assert.Equal(t, models.JobTypeRotateKmsConfig, job.Type)
-	assert.Equal(t, models.JobsStateNEW, job.State)
+	assert.Equal(t, datamodel.JobTypeRotateKmsConfig, job.Type)
+	assert.Equal(t, datamodel.JobsStateNEW, job.State)
 	assert.Equal(t, "test-workflow-id", job.WorkflowID)
 
 	// Verify returned KMS config model
@@ -2846,8 +2846,8 @@ func TestRotateKmsConfig_PoolInCreatingStateWithoutKmsConfigID(t *testing.T) {
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 		WorkflowID: "test-workflow-id",
-		Type:       string(models.JobTypeRotateKmsConfig),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeRotateKmsConfig),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Mock the getAccountFromUUID function
@@ -2877,8 +2877,8 @@ func TestRotateKmsConfig_PoolInCreatingStateWithoutKmsConfigID(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.NotNil(t, job)
 	assert.Equal(t, "test-job-uuid", job.UUID)
-	assert.Equal(t, models.JobTypeRotateKmsConfig, job.Type)
-	assert.Equal(t, models.JobsStateNEW, job.State)
+	assert.Equal(t, datamodel.JobTypeRotateKmsConfig, job.Type)
+	assert.Equal(t, datamodel.JobsStateNEW, job.State)
 	assert.Equal(t, "test-workflow-id", job.WorkflowID)
 
 	// Verify expectations
@@ -2907,7 +2907,7 @@ func TestRotateKmsConfig_KmsConfigInMigratingState(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-kms-config-uuid",
 		},
-		State: models.LifeCycleStateMigrating,
+		State: datamodel.LifeCycleStateMigrating,
 	}
 
 	// Mock the getAccountFromUUID function
@@ -3159,7 +3159,7 @@ func TestDeleteKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		temporal := workflow_engine.NewMockTemporalTestClient(tt)
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 
-		previousState := models.LifeCycleStateREADY
+		previousState := datamodel.LifeCycleStateREADY
 		previousStateDetails := "Kms config is ready for use"
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
@@ -3185,10 +3185,10 @@ func TestDeleteKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		mockStorage.EXPECT().GetKmsConfig(ctx, params.KmsConfigID).Return(kmsConfig, nil)
 		// Mock GetJobByResourceUUID for DELETE_KMS_CONFIG (check for existing delete job when in non-transitional state)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, params.KmsConfigID, string(models.JobTypeDeleteKmsConfig)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, params.KmsConfigID, string(datamodel.JobTypeDeleteKmsConfig)).Return(nil, nil)
 		mockStorage.EXPECT().IsKmsConfigInUse(ctx, kmsConfig.UUID).Return(false, nil)
 		mockStorage.EXPECT().ListOngoingPoolJobsWithKmsConfigId(ctx, kmsConfig.ID, kmsConfig.AccountID).Return([]*datamodel.Job{}, nil)
-		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(kmsConfig, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails).Return(kmsConfig, nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&
@@ -3215,8 +3215,8 @@ func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		temporal := workflow_engine.NewMockTemporalTestClient(tt)
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 
-		previousState := models.LifeCycleStateREADY
-		previousStateDetails := models.LifeCycleStateReadyDetails
+		previousState := datamodel.LifeCycleStateREADY
+		previousStateDetails := datamodel.LifeCycleStateReadyDetails
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
 			Name:         "test-kms-config",
@@ -3251,7 +3251,7 @@ func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
 				job.JobAttributes.ResourceUUID == kmsConfig.UUID
 		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
-		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, datamodel.LifeCycleStateMigrating, datamodel.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		jobUUID, err := migrateKmsConfig(ctx, mockStorage, temporal, params)
@@ -3266,8 +3266,8 @@ func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		temporal := workflow_engine.NewMockTemporalTestClient(tt)
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 
-		previousState := models.LifeCycleStateInUse
-		previousStateDetails := models.LifeCycleStateInUseDetails
+		previousState := datamodel.LifeCycleStateInUse
+		previousStateDetails := datamodel.LifeCycleStateInUseDetails
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
 			Name:         "test-kms-config",
@@ -3302,7 +3302,7 @@ func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
 				job.JobAttributes.ResourceUUID == kmsConfig.UUID
 		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
-		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, datamodel.LifeCycleStateMigrating, datamodel.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		jobUUID, err := migrateKmsConfig(ctx, mockStorage, temporal, params)
@@ -3322,7 +3322,7 @@ func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			AccountName:   account.Name,
 			LocationID:    "us-central1",
 			ProjectNumber: account.Name,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 		}
 
 		originalGetAccountWithName := getAccountWithName

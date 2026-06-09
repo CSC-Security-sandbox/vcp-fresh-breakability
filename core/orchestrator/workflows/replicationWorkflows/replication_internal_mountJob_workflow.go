@@ -3,7 +3,6 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -30,20 +29,20 @@ func PerformMountCheckWorkflow(ctx workflow.Context, replicationUUID string, acc
 		return err
 	}
 	mountCheckWF.Status = workflows.WorkflowStatusRunning
-	err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = mountCheckWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		mountCheckWF.Status = workflows.WorkflowStatusFailed
-		err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = mountCheckWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, customErr := mountCheckWF.Run(ctx, replicationUUID, accountName)
 	if customErr != nil {
 		mountCheckWF.Status = workflows.WorkflowStatusFailed
-		err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = mountCheckWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return err
 	}
 	mountCheckWF.Status = workflows.WorkflowStatusCompleted
-	err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = mountCheckWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 

@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -7392,13 +7391,13 @@ func TestPersistenceStore_GetAccountsWithFilter(t *testing.T) {
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 		Name:      "list_accounts_delegate",
-		State:     models.AccountStateEnabled,
+		State:     datamodel.AccountStateEnabled,
 	}
 	err = store.DB().Create(account).Error
 	require.NoError(t, err)
 
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "=", models.AccountStateEnabled),
+		dbutils.NewFilterCondition("state", "=", datamodel.AccountStateEnabled),
 	)
 	results, err := store.GetAccountsWithFilter(ctx, filter, nil)
 	assert.NoError(t, err)

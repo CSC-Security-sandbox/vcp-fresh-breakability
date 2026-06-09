@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewSnapshotDeleteHandler() *SnapshotDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the snapshot delete handler.
-func (h *SnapshotDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeleteSnapshot,
+func (h *SnapshotDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeleteSnapshot,
 	}
 }
 
@@ -67,7 +66,7 @@ func (h *SnapshotDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, 
 	}
 
 	// Only revert if snapshot is in DELETING state
-	if snapshot.State != models.LifeCycleStateDeleting {
+	if snapshot.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: snapshot %s not in DELETING state (%s); skipping delete cleanup", snapshot.UUID, snapshot.State)
 		return nil
 	}
@@ -78,8 +77,8 @@ func (h *SnapshotDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, 
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for snapshot %s, defaulting to READY", snapshot.UUID)
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateReadyDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateReadyDetails
 	}
 
 	snapshot.State = previousState

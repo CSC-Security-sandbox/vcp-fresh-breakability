@@ -3,7 +3,6 @@ package workflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -37,11 +36,11 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 		log.Errorf("Volume update workflow setup executed with error: %v", err)
 		return err
 	}
-	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for RevertVolumeWorkflow: %v", err)
 		return err
@@ -51,7 +50,7 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 	if errRun != nil {
 		log.Errorf("RevertVolumeWorkflow completed with error: %v", errRun)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errRun)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for RevertVolumeWorkflow: %v", err)
 			return err2
@@ -60,7 +59,7 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for RevertVolumeWorkflow: %v", err)
 	}
@@ -111,7 +110,7 @@ func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to READY: %v", err2)
 			}

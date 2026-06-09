@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -21,7 +20,7 @@ func TestBackupPolicyUpdateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeUpdateBackupPolicy)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateBackupPolicy)
 }
 
 func TestNewBackupPolicyUpdateHandler(t *testing.T) {
@@ -99,8 +98,8 @@ func TestBackupPolicyUpdateHandler_Handle_SkipsNonUpdatingState(t *testing.T) {
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel:             datamodel.BaseModel{UUID: "policy-uuid"},
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	storage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", testAccountID).Return(backupPolicy, nil).Once()
 
@@ -113,8 +112,8 @@ func TestBackupPolicyUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T)
 	storage := database.NewMockStorage(t)
 	handler := NewBackupPolicyUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -127,8 +126,8 @@ func TestBackupPolicyUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T)
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel:             datamodel.BaseModel{UUID: "policy-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	storage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", testAccountID).Return(backupPolicy, nil).Once()
 	storage.EXPECT().UpdateBackupPolicy(mock.Anything, "policy-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -152,14 +151,14 @@ func TestBackupPolicyUpdateHandler_Handle_SuccessWithFallbackToReady(t *testing.
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel:             datamodel.BaseModel{UUID: "policy-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	storage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", testAccountID).Return(backupPolicy, nil).Once()
 	storage.EXPECT().UpdateBackupPolicy(mock.Anything, "policy-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
 		s, _ := updates["life_cycle_state"].(string)
 		d, _ := updates["life_cycle_state_details"].(string)
-		return s == models.LifeCycleStateREADY && d == models.LifeCycleStateAvailableDetails
+		return s == datamodel.LifeCycleStateREADY && d == datamodel.LifeCycleStateAvailableDetails
 	})).Return(backupPolicy, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -170,8 +169,8 @@ func TestBackupPolicyUpdateHandler_Handle_UpdateBackupPolicyError(t *testing.T) 
 	storage := database.NewMockStorage(t)
 	handler := NewBackupPolicyUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -184,8 +183,8 @@ func TestBackupPolicyUpdateHandler_Handle_UpdateBackupPolicyError(t *testing.T) 
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel:             datamodel.BaseModel{UUID: "policy-uuid"},
-		LifeCycleState:        models.LifeCycleStateUpdating,
-		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		LifeCycleState:        datamodel.LifeCycleStateUpdating,
+		LifeCycleStateDetails: datamodel.LifeCycleStateUpdatingDetails,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", testAccountID).Return(backupPolicy, nil).Once()

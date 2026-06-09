@@ -3,7 +3,6 @@ package replicationActivities
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
@@ -22,8 +21,8 @@ func (a *InternalVolumeReplicationRowDeleteActivity) DeleteVolumeReplicationRow(
 
 func (a *InternalVolumeReplicationRowDeleteActivity) UpdateReplicationStateInDBForRelease(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	se := a.SE
-	volumeRep.State = models.LifeCycleStateError
-	volumeRep.StateDetails = models.LifeCycleStateDeletionErrorDetails
+	volumeRep.State = datamodel.LifeCycleStateError
+	volumeRep.StateDetails = datamodel.LifeCycleStateDeletionErrorDetails
 	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
 		return err
 	}

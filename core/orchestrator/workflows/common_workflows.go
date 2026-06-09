@@ -135,7 +135,7 @@ type WorkflowInterface interface {
 	Setup(ctx workflow.Context, input interface{}) error
 	Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError)
 	UpdateJobStatus(ctx workflow.Context, status string, err error) error
-	EnsureJobState(ctx workflow.Context, expected models.JobState) error
+	EnsureJobState(ctx workflow.Context, expected datamodel.JobState) error
 }
 
 // BaseWorkflow provides common functionalities for all workflows.
@@ -332,7 +332,7 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
-func (bw *BaseWorkflow) EnsureJobState(ctx workflow.Context, expected models.JobState) error {
+func (bw *BaseWorkflow) EnsureJobState(ctx workflow.Context, expected datamodel.JobState) error {
 	if bw.ID == "" {
 		return vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError,
 			errors.New("job uuid cannot be empty"))
@@ -450,14 +450,14 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 		}
 
 		// Check the job state.
-		if job.State == string(models.JobsStateDONE) {
+		if job.State == string(datamodel.JobsStateDONE) {
 			if job.ErrorDetails != "" {
 				return errors.New("job completed with error: " + job.ErrorDetails)
 			}
 			return nil
 		}
 
-		if job.State == string(models.JobsStateERROR) {
+		if job.State == string(datamodel.JobsStateERROR) {
 			return vsaerrors.NewVCPError(job.TrackingID, errors.New(job.ErrorDetails))
 		}
 

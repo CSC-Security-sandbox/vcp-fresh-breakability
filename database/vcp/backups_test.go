@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -2681,9 +2680,9 @@ func TestGetLatestBackupsPerEndpointByVolumeUUID(t *testing.T) {
 	const epA = "endpoint-a"
 	const epB = "endpoint-b"
 
-	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
-	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
-	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}}
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}}
 	require.NoError(t, store.db.Create(b1).Error())
 	require.NoError(t, store.db.Create(b2).Error())
 	require.NoError(t, store.db.Create(b3).Error())
@@ -2711,10 +2710,10 @@ func TestGetLatestBackupsPerEndpointByVolumeUUID_ExcludesNonAvailableAndBlankEnd
 
 	const epA = "endpoint-a"
 
-	bAvail := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-avail", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
-	bCreating := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-creating", ID: 10}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateCreating, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
-	bEmptyEp := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-empty-ep", ID: 20}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: ""}}
-	bNilAttr := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-nil-attr", ID: 30}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	bAvail := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-avail", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	bCreating := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-creating", ID: 10}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateCreating, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	bEmptyEp := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-empty-ep", ID: 20}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: ""}}
+	bNilAttr := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-nil-attr", ID: 30}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable}
 	require.NoError(t, store.db.Create(bAvail).Error())
 	require.NoError(t, store.db.Create(bCreating).Error())
 	require.NoError(t, store.db.Create(bEmptyEp).Error())
@@ -2741,9 +2740,9 @@ func TestGetLatestBackupsPerEndpointByVolumeUUID_GroupsByVaultAndEndpoint(t *tes
 	const sharedEp = "endpoint-shared"
 
 	// Same endpoint on two vaults: two slots (ids 1 and 3 are latest per vault).
-	bV1Old := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-old", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 100}
-	bV1New := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-new", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 200}
-	bV2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v2", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 300}
+	bV1Old := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-old", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 100}
+	bV1New := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-new", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 200}
+	bV2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v2", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 300}
 	require.NoError(t, store.db.Create(bV1Old).Error())
 	require.NoError(t, store.db.Create(bV1New).Error())
 	require.NoError(t, store.db.Create(bV2).Error())
@@ -4398,7 +4397,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					Name:      "volume-bv-switch",
 					PoolID:    pool.ID,
 					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 					DataProtection: &datamodel.DataProtection{
 						BackupVaultID: bv2.UUID,
 					},
@@ -4412,7 +4411,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 						Name:          fmt.Sprintf("backup-bv1-%d", i),
 						VolumeUUID:    volume.UUID,
 						BackupVaultID: bv1.ID,
-						State:         models.LifeCycleStateAvailable,
+						State:         datamodel.LifeCycleStateAvailable,
 					}
 					if err := store.db.Create(b).Error(); err != nil {
 						panic(err)
@@ -4460,7 +4459,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					Name:      "volume-bv-prefer",
 					PoolID:    pool.ID,
 					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 					DataProtection: &datamodel.DataProtection{
 						BackupVaultID: bv1.UUID,
 					},
@@ -4473,7 +4472,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					Name:          "backup-active-vault",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: bv1.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				if err := store.db.Create(backupBV1).Error(); err != nil {
 					panic(err)
@@ -4483,7 +4482,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					Name:          "backup-other-vault-newer",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: bv2.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				if err := store.db.Create(backupBV2).Error(); err != nil {
 					panic(err)
@@ -8415,7 +8414,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-uuid"},
 			Name:        "cp-vault",
 			AccountID:   account.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -8423,7 +8422,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "backup-gcbdr-uuid"},
 			Name:          "backup-gcbdr",
 			VolumeUUID:    "vol-gcbdr-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: vault.ID,
 		}
 		require.NoError(tt, store.db.Create(backup).Error())
@@ -8443,7 +8442,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-uuid-2"},
 			Name:        "cp-vault-2",
 			AccountID:   account.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -8451,7 +8450,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
 			Name:          "backup-creating",
 			VolumeUUID:    "vol-creating",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 			BackupVaultID: vault.ID,
 		}
 		require.NoError(tt, store.db.Create(backup).Error())
@@ -8469,7 +8468,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-uuid"},
 			Name:        "gcnv-vault",
 			AccountID:   account.ID,
-			ServiceType: models.ServiceTypeGCNV,
+			ServiceType: datamodel.ServiceTypeGCNV,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -8477,7 +8476,7 @@ func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "backup-gcnv-uuid"},
 			Name:          "backup-gcnv",
 			VolumeUUID:    "vol-gcnv",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: vault.ID,
 		}
 		require.NoError(tt, store.db.Create(backup).Error())
@@ -8655,7 +8654,7 @@ func TestCreateBackup_BackupChainHistory(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-create-1"},
 			Name:        "cp-vault",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -8687,7 +8686,7 @@ func TestCreateBackup_BackupChainHistory(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-create-1"},
 			Name:        "gcnv-vault",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeGCNV,
+			ServiceType: datamodel.ServiceTypeGCNV,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -8761,7 +8760,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-finish-1"},
 			Name:        "cp-vault-finish-1",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(cpVault).Error())
 
@@ -8795,7 +8794,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		newSize := int64(999)
 		finishInput := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: "bkp-finish-gcbdr-1"},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: newSize,
 			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-finish-A", Protocols: []string{"ISCSI"}},
 		}
@@ -8828,7 +8827,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		gcnvVault := &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-finish-1"},
 			Name:        "gcnv-vault-finish-1",
-			ServiceType: models.ServiceTypeGCNV,
+			ServiceType: datamodel.ServiceTypeGCNV,
 		}
 		require.NoError(tt, store.db.Create(gcnvVault).Error())
 
@@ -8849,7 +8848,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		newSize := int64(750)
 		finishInput := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: "bkp-finish-gcnv-1"},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: newSize,
 			Attributes:              &datamodel.BackupAttributes{Protocols: []string{"ISCSI"}},
 		}
@@ -8879,7 +8878,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-first"},
 			Name:        "cp-vault-first",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(cpVault).Error())
 
@@ -8899,7 +8898,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		newSize := int64(512)
 		finishInput := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: "bkp-first"},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: newSize,
 			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-real", Protocols: []string{"ISCSI"}},
 		}
@@ -8927,7 +8926,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-switch"},
 			Name:        "cp-vault-switch",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(cpVault).Error())
 
@@ -8951,7 +8950,7 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		newSize := int64(888)
 		finishInput := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: "bkp-vault-switch"},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: newSize,
 			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-Y", Protocols: []string{"ISCSI"}},
 		}
@@ -9001,7 +9000,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-del-1"},
 			Name:        "cp-vault-del-1",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -9010,7 +9009,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		bkpEP1 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "bkp-del-ep1"},
 			Name:      "bkp-del-ep1", BackupVaultID: vault.ID,
-			VolumeUUID: volumeUUID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: volumeUUID, State: datamodel.LifeCycleStateAvailable,
 			Attributes: ep1Attrs,
 		}
 		// Backup for ep-2 (must survive and keep its history row).
@@ -9018,7 +9017,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		bkpEP2 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "bkp-del-ep2"},
 			Name:      "bkp-del-ep2", BackupVaultID: vault.ID,
-			VolumeUUID: volumeUUID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: volumeUUID, State: datamodel.LifeCycleStateAvailable,
 			Attributes: ep2Attrs,
 		}
 		require.NoError(tt, store.db.Create(bkpEP1).Error())
@@ -9062,7 +9061,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-del-2"},
 			Name:        "cp-vault-del-2",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -9073,7 +9072,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			Name:          "bkp-shared-old",
 			BackupVaultID: vault.ID,
 			VolumeUUID:    volumeUUID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes:    epAttrs,
 		}
 		bkpNew := &datamodel.Backup{
@@ -9081,7 +9080,7 @@ func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
 			Name:          "bkp-shared-new",
 			BackupVaultID: vault.ID,
 			VolumeUUID:    volumeUUID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes:    epAttrs,
 		}
 		require.NoError(tt, store.db.Create(bkpOld).Error())
@@ -9128,7 +9127,7 @@ func TestGetBackupChainMetrics(t *testing.T) {
 		vault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "vault-chain-1"},
 			Name:      "vault-chain-1", AccountID: acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
@@ -9136,14 +9135,14 @@ func TestGetBackupChainMetrics(t *testing.T) {
 		older := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-older", CreatedAt: time.Now().Add(-2 * time.Hour)},
 			Name:      "chain-older", BackupVaultID: vault.ID,
-			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
+			VolumeUUID: "vol-chain-1", State: datamodel.LifeCycleStateAvailable,
 			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
 			LatestLogicalBackupSize: int64(100),
 		}
 		newer := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-newer", CreatedAt: time.Now().Add(-1 * time.Hour)},
 			Name:      "chain-newer", BackupVaultID: vault.ID,
-			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
+			VolumeUUID: "vol-chain-1", State: datamodel.LifeCycleStateAvailable,
 			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
 			LatestLogicalBackupSize: int64(200),
 		}
@@ -9164,20 +9163,20 @@ func TestGetBackupChainMetrics(t *testing.T) {
 		vault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "vault-chain-2"},
 			Name:      "vault-chain-2", AccountID: acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(vault).Error())
 
 		bkpA := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-ep-A"},
 			Name:      "chain-ep-A", BackupVaultID: vault.ID,
-			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
+			VolumeUUID: "vol-chain-2", State: datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-A"},
 		}
 		bkpB := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-ep-B"},
 			Name:      "chain-ep-B", BackupVaultID: vault.ID,
-			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
+			VolumeUUID: "vol-chain-2", State: datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-B"},
 		}
 		require.NoError(tt, store.db.Create(bkpA).Error())
@@ -9201,7 +9200,7 @@ func TestGetBackupChainMetrics(t *testing.T) {
 		creating := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-creating"},
 			Name:      "chain-creating", BackupVaultID: vault.ID,
-			VolumeUUID: "vol-chain-3", State: models.LifeCycleStateCreating,
+			VolumeUUID: "vol-chain-3", State: datamodel.LifeCycleStateCreating,
 		}
 		require.NoError(tt, store.db.Create(creating).Error())
 
@@ -9231,7 +9230,7 @@ func TestGetBackupChainMetrics(t *testing.T) {
 				Name:          pair.uuid,
 				BackupVaultID: vault.ID,
 				VolumeUUID:    pair.vol,
-				State:         models.LifeCycleStateAvailable,
+				State:         datamodel.LifeCycleStateAvailable,
 			}
 			require.NoError(tt, store.db.Create(bkp).Error())
 		}
@@ -9295,14 +9294,14 @@ func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "bkp-old-vault", CreatedAt: time.Now().Add(-2 * time.Hour)},
 			Name:          "bkp-old-vault",
 			BackupVaultID: oldVault.ID, VolumeUUID: volume.UUID,
-			State: models.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 		}
 		// The current backup in the NEW vault.
 		current := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "bkp-new-vault", CreatedAt: time.Now().Add(-1 * time.Hour)},
 			Name:          "bkp-new-vault",
 			BackupVaultID: newVault.ID, VolumeUUID: volume.UUID,
-			State: models.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 		}
 		require.NoError(tt, store.db.Create(detached).Error())
 		require.NoError(tt, store.db.Create(current).Error())
@@ -9321,7 +9320,7 @@ func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-grouped"},
 			Name:        "cp-vault-grouped",
 			AccountID:   acct.ID,
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		}
 		require.NoError(tt, store.db.Create(cpVault).Error())
 
@@ -9337,7 +9336,7 @@ func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "bkp-cp-grouped"},
 			Name:          "bkp-cp-grouped",
 			BackupVaultID: cpVault.ID, VolumeUUID: volume.UUID,
-			State: models.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 		}
 		require.NoError(tt, store.db.Create(bkp).Error())
 
@@ -9345,7 +9344,7 @@ func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
 		require.NoError(tt, err)
 		require.Len(tt, results, 1)
 		require.NotNil(tt, results[0].BackupVault, "BackupVault must be populated")
-		assert.Equal(tt, models.ServiceTypeCrossProject, results[0].BackupVault.ServiceType)
+		assert.Equal(tt, datamodel.ServiceTypeCrossProject, results[0].BackupVault.ServiceType)
 	})
 }
 func Test_shouldSkipBackupChainHistory_NilBackup(t *testing.T) {
@@ -9368,7 +9367,7 @@ func Test_shouldSkipBackupChainHistory_CrossRegionBillingDisabled(t *testing.T) 
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "b-1"},
 		BackupVault: &datamodel.BackupVault{
-			BackupVaultType: models.BackupVaultTypeCrossRegion,
+			BackupVaultType: datamodel.BackupVaultTypeCrossRegion,
 		},
 	}
 	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
@@ -9478,7 +9477,7 @@ func Test_shouldSkipBackupChainHistory_GcbdrBillingDisabled(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "b-1"},
 		BackupVault: &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		},
 	}
 	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
@@ -9494,7 +9493,7 @@ func Test_shouldSkipBackupChainHistory_GcbdrBillingEnabled(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "b-1"},
 		BackupVault: &datamodel.BackupVault{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeCrossProject,
+			ServiceType: datamodel.ServiceTypeCrossProject,
 		},
 	}
 	result := shouldSkipBackupChainHistory(context.Background(), backup, config)

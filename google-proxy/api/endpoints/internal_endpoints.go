@@ -638,7 +638,7 @@ func (h Handler) V1betaInternalUpdateVolume(ctx context.Context, req *gcpgenserv
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateUpdating {
+	if volume.LifeCycleState == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -968,7 +968,7 @@ func _convertInternalBackupVaultToDataModel(req *gcpgenserver.BackupVaultInterna
 		result.CmekAttributes = cmekAttrs
 	}
 	// TODO: Add a parameter to API
-	result.ServiceType = models.ServiceTypeGCNV
+	result.ServiceType = datamodel.ServiceTypeGCNV
 
 	return result
 }

@@ -3,7 +3,6 @@ package workflows
 import (
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -39,11 +38,11 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	if err := bvWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := bvWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	bvWF.Status = WorkflowStatusRunning
-	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -51,14 +50,14 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 
 	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
 		return nil, customErr
 	}
 	bvWF.Status = WorkflowStatusCompleted
-	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 	}
@@ -113,12 +112,12 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 
 	var sdeBackupVault *datamodel.BackupVault
-	if useVCPRegion || backupVault.ServiceType == models.ServiceTypeCrossProject {
+	if useVCPRegion || backupVault.ServiceType == datamodel.ServiceTypeCrossProject {
 		err = workflow.ExecuteActivity(ctx, backupVaultActivity.ApplyBackupVaultUpdateParams, backupVault, bvCommonParams).Get(ctx, &sdeBackupVault)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -172,11 +171,11 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	if err := bvWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := bvWF.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	bvWF.Status = WorkflowStatusRunning
-	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -184,14 +183,14 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 
 	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
 		return nil, customErr
 	}
 	bvWF.Status = WorkflowStatusCompleted
-	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := bvWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 	}
@@ -246,7 +245,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateDeletedBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateDeletedBackupVaultStateInCaseOfError, backupVault, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 
@@ -262,7 +261,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	}
 
 	// Step 2: Delete backup vault in SDE (if not cross-project, or if USE_VCP_REGION is enabled)
-	if !useVCPRegion && backupVault.ServiceType != models.ServiceTypeCrossProject {
+	if !useVCPRegion && backupVault.ServiceType != datamodel.ServiceTypeCrossProject {
 		var jwtToken string
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
 		if err != nil {

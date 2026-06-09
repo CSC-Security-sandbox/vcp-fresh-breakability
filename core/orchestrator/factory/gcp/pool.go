@@ -133,7 +133,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 
 	if params.KmsConfig != nil {
 		// move the kms config to in-use state
-		if _, err = se.UpdateKmsConfigState(ctx, params.KmsConfig.UUID, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails); err != nil {
+		if _, err = se.UpdateKmsConfigState(ctx, params.KmsConfig.UUID, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails); err != nil {
 			logger.Error("Failed to update KMS config state to InUse", "KMSConfigID", params.KmsConfig.ID, "error", err)
 			return nil, "", errors.New("unable to process request, please try again later")
 		}
@@ -318,7 +318,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	previousStateDetails := dbPool.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.PoolId,
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -340,7 +340,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 			// Mark pool in error state only if it was successfully marked as updating
@@ -492,13 +492,13 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams, logger log
 
 	if params.KmsConfig != nil {
 		switch params.KmsConfig.State {
-		case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
+		case datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateInUse:
 			break
 		default:
 			// For ccfe there is no state called created, instead there is key check pending
 			state := params.KmsConfig.State
-			if state == models.LifeCycleStateCreated {
-				state = models.LifeCycleStateKeyCheckPending
+			if state == datamodel.LifeCycleStateCreated {
+				state = datamodel.LifeCycleStateKeyCheckPending
 			}
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid KMS configuration state for pool creation: %s", state))
 		}
@@ -580,7 +580,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)
 	createJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, poolCategory)
 	var existingDeleteJobUUID string
-	if pool.State == models.LifeCycleStateCreating {
+	if pool.State == datamodel.LifeCycleStateCreating {
 		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
 			ctx, se, pool.UUID, "pool", createJobType, deleteJobType, logger)
 		if err != nil {
@@ -591,7 +591,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 			return common.ConvertDatastorePoolToModel(pool, params.AccountName), existingDeleteJobUUID, nil
 		}
 		logger.Infof("Create job found for pool %s with matching correlation ID, skipping state update to DELETING", pool.UUID)
-	} else if utils.IsTransitionalState(pool.State) && pool.State != models.LifeCycleStateDeleting {
+	} else if utils.IsTransitionalState(pool.State) && pool.State != datamodel.LifeCycleStateDeleting {
 		logger.Errorf("Pool %s cannot be deleted, while in transitioning state: %s", pool.Name, pool.State)
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", pool.State))
 	}
@@ -606,7 +606,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	previousStateDetails := dbpool.StateDetails
 	job := &datamodel.Job{
 		Type:          string(deleteJobType),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  pool.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -627,13 +627,13 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
 		}
 	}()
 
-	if dbpool.State != models.LifeCycleStateCreating {
+	if dbpool.State != datamodel.LifeCycleStateCreating {
 		if err = se.DeletingPool(ctx, dbpool); err != nil {
 			return nil, "", err
 		}
@@ -856,10 +856,10 @@ func (o *GCPOrchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID s
 		return nil, err
 	}
 
-	if pool.State == models.LifeCycleStateCreating {
+	if pool.State == datamodel.LifeCycleStateCreating {
 		return nil, coreerrors.NewVCPError(coreerrors.ErrPoolInCreatingState, fmt.Errorf("pool %s is in creating state", pool.UUID))
 	}
-	if pool.State == models.LifeCycleStateDeleting {
+	if pool.State == datamodel.LifeCycleStateDeleting {
 		return nil, coreerrors.NewVCPError(coreerrors.ErrPoolInDeletingState, fmt.Errorf("pool %s is in deleting state", pool.UUID))
 	}
 

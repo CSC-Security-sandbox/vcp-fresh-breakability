@@ -1,7 +1,6 @@
 package workflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -30,7 +29,7 @@ func UpdateHostGroupWorkflow(ctx workflow.Context, hostGroup *datamodel.HostGrou
 		return nil, ConvertToVSAError(err)
 	}
 	hgWf.Status = WorkflowStatusRunning
-	err = hgWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = hgWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -38,10 +37,10 @@ func UpdateHostGroupWorkflow(ctx workflow.Context, hostGroup *datamodel.HostGrou
 	defer func() {
 		if err != nil {
 			hgWf.Status = WorkflowStatusFailed
-			err = hgWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+			err = hgWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		} else {
 			hgWf.Status = WorkflowStatusCompleted
-			err = hgWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = hgWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 

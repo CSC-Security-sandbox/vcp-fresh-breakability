@@ -63,7 +63,7 @@ func (a *SyncSnapshotActivity) ListPoolsUUIDPaginated(ctx context.Context, offse
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Listing pools paginated")
 
-	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", datamodel.LifeCycleStateREADY))
 	pools, err := se.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)
@@ -81,7 +81,7 @@ func (a *SyncSnapshotActivity) GetTotalPoolCount(ctx context.Context) (int, erro
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Getting total pool count")
 
-	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", datamodel.LifeCycleStateREADY))
 	count, err := se.GetPoolsCount(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to count pools: %v", err)
@@ -257,8 +257,8 @@ func _syncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, new
 				LogicalSizeUsedInBytes: snapshot.LogicalSizeUsedInBytes,
 				ExternalUUID:           snapshot.ExternalUUID,
 			},
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			Type:         snapshot.Type,
 		})
 	}

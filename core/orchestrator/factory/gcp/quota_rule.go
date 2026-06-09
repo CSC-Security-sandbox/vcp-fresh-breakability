@@ -65,9 +65,9 @@ var (
 // (CREATING, UPDATING, or DELETING). These states indicate the resource is currently
 // undergoing an operation and should not be modified.
 func isTransitionState(state string) bool {
-	return state == models.LifeCycleStateCreating ||
-		state == models.LifeCycleStateUpdating ||
-		state == models.LifeCycleStateDeleting
+	return state == datamodel.LifeCycleStateCreating ||
+		state == datamodel.LifeCycleStateUpdating ||
+		state == datamodel.LifeCycleStateDeleting
 }
 
 // validateQuotaRuleCreateParams validates quota rule creation parameters
@@ -552,8 +552,8 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		QuotaType:      params.QuotaType,
 		QuotaTarget:    params.QuotaTarget,
 		DiskLimitInKib: diskLimitInKib,
-		State:          models.LifeCycleStateCreating,
-		StateDetails:   models.LifeCycleStateCreatingDetails,
+		State:          datamodel.LifeCycleStateCreating,
+		StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 		RQuota:         rquotaRequired,
 		Description:    params.Description,
 	}
@@ -587,8 +587,8 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 
 	// Create job entry in database with resource_uuid in job_attributes
 	job = &datamodel.Job{
-		Type:          string(models.JobTypeCreateQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -707,8 +707,8 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 		QuotaType:      params.QuotaType,
 		QuotaTarget:    params.QuotaTarget,
 		DiskLimitInKib: diskLimitInKib,
-		State:          models.LifeCycleStateCreating,
-		StateDetails:   models.LifeCycleStateCreatingDetails,
+		State:          datamodel.LifeCycleStateCreating,
+		StateDetails:   datamodel.LifeCycleStateCreatingDetails,
 		RQuota:         rquotaRequired,
 		Description:    params.Description,
 	}
@@ -742,8 +742,8 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	// Create job entry in database with resource_uuid in job_attributes
 	job = &datamodel.Job{
-		Type:          string(models.JobTypeCreateQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -857,8 +857,8 @@ func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.
 
 	// Create job entry in database
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  quotaRuleDataModel.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -875,8 +875,8 @@ func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.
 				}
 				// Mark quota rule as available after cleanup
 				if quotaRuleDataModel != nil {
-					quotaRuleDataModel.State = models.LifeCycleStateAvailable
-					quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+					quotaRuleDataModel.State = datamodel.LifeCycleStateAvailable
+					quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateReadyDetails
 					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
 						logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
 					}
@@ -891,8 +891,8 @@ func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	quotaRuleDataModel.State = models.LifeCycleStateUpdating
-	quotaRuleDataModel.StateDetails = models.LifeCycleStateUpdatingDetails
+	quotaRuleDataModel.State = datamodel.LifeCycleStateUpdating
+	quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	// Mark quota rule as UPDATING state in database
 	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
@@ -987,8 +987,8 @@ func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	// Create job entry in database
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  quotaRuleDataModel.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1005,8 +1005,8 @@ func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 				}
 				// Mark quota rule as available after cleanup
 				if quotaRuleDataModel != nil {
-					quotaRuleDataModel.State = models.LifeCycleStateAvailable
-					quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+					quotaRuleDataModel.State = datamodel.LifeCycleStateAvailable
+					quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateReadyDetails
 					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
 						logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
 					}
@@ -1022,8 +1022,8 @@ func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	}
 
 	// Update state to UPDATING
-	quotaRuleDataModel.State = models.LifeCycleStateUpdating
-	quotaRuleDataModel.StateDetails = models.LifeCycleStateUpdatingDetails
+	quotaRuleDataModel.State = datamodel.LifeCycleStateUpdating
+	quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	// Mark quota rule as UPDATING state in database
 	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
@@ -1074,9 +1074,9 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 	var isCleanupDelete bool
 	var existingDeleteJobUUID string
 
-	if quotaRuleDataModel.State == models.LifeCycleStateCreating {
+	if quotaRuleDataModel.State == datamodel.LifeCycleStateCreating {
 		existingDeleteJobUUID, isCleanupDelete, err = database.ValidateCorrelationIDForCreatingResource(
-			ctx, se, quotaRuleDataModel.UUID, "quota rule", models.JobTypeCreateQuotaRule, models.JobTypeDeleteQuotaRule, logger)
+			ctx, se, quotaRuleDataModel.UUID, "quota rule", datamodel.JobTypeCreateQuotaRule, datamodel.JobTypeDeleteQuotaRule, logger)
 		if err != nil {
 			logger.Warnf("Quota rule %s cannot be deleted: existing create job not present and state is in CREATING", quotaRuleDataModel.UUID)
 			return nil, "", err
@@ -1085,12 +1085,12 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 			dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(quotaRuleDataModel)
 			return dataStoreQuotaRule, existingDeleteJobUUID, nil
 		}
-	} else if utils.IsTransitionalState(quotaRuleDataModel.State) && quotaRuleDataModel.State != models.LifeCycleStateDeleting {
+	} else if utils.IsTransitionalState(quotaRuleDataModel.State) && quotaRuleDataModel.State != datamodel.LifeCycleStateDeleting {
 		logger.Errorf("Quota rule %s cannot be deleted, while in transitioning state: %s", quotaRuleDataModel.Name, quotaRuleDataModel.State)
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("quota rule is in transition state and cannot be deleted, state: %s", quotaRuleDataModel.State))
 	}
 
-	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, quotaRuleDataModel.UUID, models.JobTypeDeleteQuotaRule, logger)
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, quotaRuleDataModel.UUID, datamodel.JobTypeDeleteQuotaRule, logger)
 	if existingJobUUID != "" {
 		dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(quotaRuleDataModel)
 		return dataStoreQuotaRule, existingJobUUID, nil
@@ -1135,8 +1135,8 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 
 	// Create job entry in database
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  quotaRuleDataModel.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1176,8 +1176,8 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 	// Only update state to DELETING if not cleanup-delete (quota rule is not in CREATING state)
 	if !isCleanupDelete {
 		// Update state to DELETING
-		quotaRuleDataModel.State = models.LifeCycleStateDeleting
-		quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
+		quotaRuleDataModel.State = datamodel.LifeCycleStateDeleting
+		quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateDeletingDetails
 		quotaRuleDataModel.RQuota = rquotaRequired
 		// Mark quota rule as DELETING state in database
 		updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
@@ -1227,7 +1227,7 @@ func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 		return nil, nil, err
 	}
 
-	if isTransitionState(quotaRuleDataModel.State) && quotaRuleDataModel.State != models.LifeCycleStateDeleting {
+	if isTransitionState(quotaRuleDataModel.State) && quotaRuleDataModel.State != datamodel.LifeCycleStateDeleting {
 		logger.Errorf("Quota rule %s cannot be deleted while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
 		return nil, nil, customerrors.NewConflictErr("Quota rule is in transition state and cannot be deleted, state: " + quotaRuleDataModel.State)
 	}
@@ -1245,8 +1245,8 @@ func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	// Create job entry in database
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteQuotaRule),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteQuotaRule),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  quotaRuleDataModel.Name,
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -1283,8 +1283,8 @@ func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	}
 
 	// Update state to DELETING
-	quotaRuleDataModel.State = models.LifeCycleStateDeleting
-	quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
+	quotaRuleDataModel.State = datamodel.LifeCycleStateDeleting
+	quotaRuleDataModel.StateDetails = datamodel.LifeCycleStateDeletingDetails
 
 	// Mark quota rule as DELETING state in database
 	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
@@ -1410,7 +1410,7 @@ func validateVolumeType(ctx context.Context, volumeDataModel *datamodel.Volume, 
 func validateQuotaRuleState(ctx context.Context, volumeUUID string, existingRules []*datamodel.QuotaRule) error {
 	logger := util.GetLogger(ctx)
 	for _, r := range existingRules {
-		if r.State == models.LifeCycleStateCreating {
+		if r.State == datamodel.LifeCycleStateCreating {
 			logger.Errorf("Quota rule operation blocked: volume %s already has a quota rule in state %s (uuid=%s)",
 				volumeUUID, r.State, r.UUID)
 			return customerrors.NewUserInputValidationErr(

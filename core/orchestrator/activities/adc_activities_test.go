@@ -1707,8 +1707,6 @@ func TestFetchLogicalSizeAndUpdateActivity_EmptyEndpointUUID_ReturnsError(t *tes
 	mockStorage.AssertNotCalled(t, "UpdateBackupFields")
 }
 
-
-
 func TestGetFileInodeNumbers(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})

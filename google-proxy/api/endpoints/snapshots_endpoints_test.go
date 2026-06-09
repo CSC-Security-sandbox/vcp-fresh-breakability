@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -829,7 +830,7 @@ func Test_convertModelToVCPSnapshot(t *testing.T) {
 			Name:                  "snap-1",
 			VolumeUUID:            "vol-uuid-1",
 			VolumeName:            "vol-name-1",
-			LifeCycleState:        coremodels.LifeCycleStateREADY,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
 			LifeCycleStateDetails: "details",
 			Description:           "desc",
 			StorageClass:          "SOFTWARE",
@@ -911,8 +912,8 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 			Description:           "snapshot-description",
 			VolumeUUID:            "volume-id",
 			VolumeName:            "volume-name",
-			LifeCycleState:        coremodels.LifeCycleStateREADY,
-			LifeCycleStateDetails: coremodels.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockOrchestrator.EXPECT().GetSnapshot(mock.Anything, mock.Anything).Return(snapshot, nil)
@@ -933,7 +934,7 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 		assert.Equal(tt, "volume-name", snapshotResult.VolumeResourceId.Value)
 		assert.Equal(tt, createdAt, snapshotResult.Created.Value)
 		assert.Equal(tt, gcpserver.SnapshotV1betaSnapshotStateREADY, snapshotResult.SnapshotState.Value)
-		assert.Equal(tt, coremodels.LifeCycleStateAvailableDetails, snapshotResult.SnapshotStateDetails.Value)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, snapshotResult.SnapshotStateDetails.Value)
 	})
 }
 
@@ -950,7 +951,7 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 				Name:                  "snap1",
 				VolumeUUID:            "vol-uuid-1",
 				VolumeName:            "vol-name-1",
-				LifeCycleState:        coremodels.LifeCycleStateREADY,
+				LifeCycleState:        datamodel.LifeCycleStateREADY,
 				LifeCycleStateDetails: "details1",
 				Description:           "desc1",
 			},
@@ -959,7 +960,7 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 				Name:                  "snap2",
 				VolumeUUID:            "vol-uuid-2",
 				VolumeName:            "vol-name-2",
-				LifeCycleState:        coremodels.LifeCycleStateREADY,
+				LifeCycleState:        datamodel.LifeCycleStateREADY,
 				LifeCycleStateDetails: "details2",
 				Description:           "desc2",
 			},
@@ -1032,8 +1033,8 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 			Description:           "snapshot-description",
 			VolumeUUID:            "volume-id",
 			VolumeName:            "volume-name",
-			LifeCycleState:        coremodels.LifeCycleStateREADY,
-			LifeCycleStateDetails: coremodels.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		mockOrchestrator.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshot, "", nil)
 
@@ -1828,7 +1829,7 @@ func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 			},
 			Name:           "test-snapshot-id",
 			VolumeUUID:     "test-volume-id",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(mockSnapshot, "job-uuid", nil)

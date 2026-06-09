@@ -7,7 +7,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -130,7 +129,7 @@ func getBackupMetricsPerVolume(ctx context.Context, vcpDB database.Storage, conf
 		}
 
 		if !skipBilling && !config.EnableGcbdrBackupBilling {
-			if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+			if backup.BackupVault != nil && backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject {
 				logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
 				skipBilling = true
 			}
@@ -260,7 +259,7 @@ func getBackupMetricsPerVault(ctx context.Context, vcpDB database.Storage, confi
 
 		backupMetadata := assembleBackupMetadata(canonicalBackup, config)
 
-		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject &&
 			canonicalBackup.BackupVault.Account != nil && canonicalBackup.BackupVault.Account.Name != "" {
 			backupMetadata.SetAccountName(canonicalBackup.BackupVault.Account.Name)
 		}
@@ -300,7 +299,7 @@ func getBackupMetricsPerVault(ctx context.Context, vcpDB database.Storage, confi
 		}
 
 		if !skipBilling && !config.EnableGcbdrBackupBilling {
-			if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+			if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject {
 				logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", canonicalBackup.UUID, "backupVaultID", canonicalBackup.BackupVault.UUID)
 				skipBilling = true
 			}
@@ -314,7 +313,7 @@ func getBackupMetricsPerVault(ctx context.Context, vcpDB database.Storage, confi
 
 		// Get account identifier from the canonical backup's attributes.
 		accountName := canonicalBackup.Attributes.AccountIdentifier
-		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject &&
 			canonicalBackup.BackupVault.Account != nil && canonicalBackup.BackupVault.Account.Name != "" {
 			accountName = canonicalBackup.BackupVault.Account.Name
 		}

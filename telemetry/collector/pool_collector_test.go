@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1048,7 +1047,7 @@ func Test_GetPoolMetrics_SkipsDisabledAccounts(t *testing.T) {
 		{
 			ID:    1,
 			Name:  "DisabledAccount",
-			State: models.AccountStateHyperscalerDisabled,
+			State: datamodel.AccountStateHyperscalerDisabled,
 		},
 		{
 			ID:    2,

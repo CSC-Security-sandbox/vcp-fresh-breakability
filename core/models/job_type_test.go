@@ -4,40 +4,41 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 )
 
 func TestJobTypeRotateKmsConfig(t *testing.T) {
 	// Test that the new job type constant is defined correctly
-	assert.Equal(t, JobType("ROTATE_KMS_CONFIG"), JobTypeRotateKmsConfig)
-	assert.NotEmpty(t, string(JobTypeRotateKmsConfig))
+	assert.Equal(t, datamodel.JobType("ROTATE_KMS_CONFIG"), datamodel.JobTypeRotateKmsConfig)
+	assert.NotEmpty(t, string(datamodel.JobTypeRotateKmsConfig))
 }
 
 func TestJobTypeConstants(t *testing.T) {
 	// Test that all job types are unique strings
-	jobTypes := []JobType{
-		JobTypeCreatePool,
-		JobTypeCreateLargePool,
-		JobTypeUpdatePool,
-		JobTypeUpdateLargePool,
-		JobTypeDeletePool,
-		JobTypeDeleteLargePool,
-		JobTypeCreateSubnet,
-		JobTypeCreateLargeSubnet,
-		JobTypeCreateVolume,
-		JobTypeUpdateVolume,
-		JobTypeDeleteVolume,
-		JobTypeCreateSnapshot,
-		JobTypeDeleteSnapshot,
-		JobTypeCreateBackup,
-		JobTypeDeleteBackup,
-		JobTypeCreateBackupVault,
-		JobTypeDeleteBackupVault,
-		JobTypeCreateBackupPolicy,
-		JobTypeCreateKmsConfig,
-		JobTypeUpdateKmsConfig,
-		JobTypeDeleteKmsConfig,
-		JobTypeMigrateKmsConfig,
-		JobTypeRotateKmsConfig, // New job type
+	jobTypes := []datamodel.JobType{
+		datamodel.JobTypeCreatePool,
+		datamodel.JobTypeCreateLargePool,
+		datamodel.JobTypeUpdatePool,
+		datamodel.JobTypeUpdateLargePool,
+		datamodel.JobTypeDeletePool,
+		datamodel.JobTypeDeleteLargePool,
+		datamodel.JobTypeCreateSubnet,
+		datamodel.JobTypeCreateLargeSubnet,
+		datamodel.JobTypeCreateVolume,
+		datamodel.JobTypeUpdateVolume,
+		datamodel.JobTypeDeleteVolume,
+		datamodel.JobTypeCreateSnapshot,
+		datamodel.JobTypeDeleteSnapshot,
+		datamodel.JobTypeCreateBackup,
+		datamodel.JobTypeDeleteBackup,
+		datamodel.JobTypeCreateBackupVault,
+		datamodel.JobTypeDeleteBackupVault,
+		datamodel.JobTypeCreateBackupPolicy,
+		datamodel.JobTypeCreateKmsConfig,
+		datamodel.JobTypeUpdateKmsConfig,
+		datamodel.JobTypeDeleteKmsConfig,
+		datamodel.JobTypeMigrateKmsConfig,
+		datamodel.JobTypeRotateKmsConfig, // New job type
 	}
 
 	// Check uniqueness
@@ -51,7 +52,7 @@ func TestJobTypeConstants(t *testing.T) {
 	// Verify the new job type is in the list
 	found := false
 	for _, jobType := range jobTypes {
-		if jobType == JobTypeRotateKmsConfig {
+		if jobType == datamodel.JobTypeRotateKmsConfig {
 			found = true
 			break
 		}
@@ -66,15 +67,15 @@ func TestGetResourceJobType(t *testing.T) {
 			name            string
 			operation       ResourceOperation
 			poolCategory    PoolCategory
-			expectedJobType JobType
+			expectedJobType datamodel.JobType
 		}{
-			{"CreatePool_Standard", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreatePool},
-			{"CreatePool_LargeCapacity", ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargePool},
-			{"CreatePool_Default", ResourceOperationCreate, PoolCategoryDefault, JobTypeCreatePool}, // Default maps to standard
-			{"UpdatePool_Standard", ResourceOperationUpdate, PoolCategoryStandard, JobTypeUpdatePool},
-			{"UpdatePool_LargeCapacity", ResourceOperationUpdate, PoolCategoryLargeCapacity, JobTypeUpdateLargePool},
-			{"DeletePool_Standard", ResourceOperationDelete, PoolCategoryStandard, JobTypeDeletePool},
-			{"DeletePool_LargeCapacity", ResourceOperationDelete, PoolCategoryLargeCapacity, JobTypeDeleteLargePool},
+			{"CreatePool_Standard", ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreatePool},
+			{"CreatePool_LargeCapacity", ResourceOperationCreate, PoolCategoryLargeCapacity, datamodel.JobTypeCreateLargePool},
+			{"CreatePool_Default", ResourceOperationCreate, PoolCategoryDefault, datamodel.JobTypeCreatePool}, // Default maps to standard
+			{"UpdatePool_Standard", ResourceOperationUpdate, PoolCategoryStandard, datamodel.JobTypeUpdatePool},
+			{"UpdatePool_LargeCapacity", ResourceOperationUpdate, PoolCategoryLargeCapacity, datamodel.JobTypeUpdateLargePool},
+			{"DeletePool_Standard", ResourceOperationDelete, PoolCategoryStandard, datamodel.JobTypeDeletePool},
+			{"DeletePool_LargeCapacity", ResourceOperationDelete, PoolCategoryLargeCapacity, datamodel.JobTypeDeleteLargePool},
 		}
 
 		for _, tc := range testCases {
@@ -93,14 +94,14 @@ func TestGetResourceJobType(t *testing.T) {
 			name            string
 			operation       ResourceOperation
 			poolCategory    PoolCategory
-			expectedJobType JobType
+			expectedJobType datamodel.JobType
 		}{
-			{"CreateSubnet_Standard", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreateSubnet},
-			{"CreateSubnet_LargeCapacity", ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargeSubnet},
-			{"CreateSubnet_Default", ResourceOperationCreate, PoolCategoryDefault, JobTypeCreateSubnet}, // Default maps to standard
-			{"DeleteSubnet_Standard", ResourceOperationDelete, PoolCategoryStandard, JobTypeDeleteSubnet},
-			{"DeleteSubnet_LargeCapacity", ResourceOperationDelete, PoolCategoryLargeCapacity, JobTypeCreatePool}, // Large capacity subnet delete not yet supported, falls back
-			{"DeleteSubnet_Default", ResourceOperationDelete, PoolCategoryDefault, JobTypeDeleteSubnet},           // Default maps to standard
+			{"CreateSubnet_Standard", ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreateSubnet},
+			{"CreateSubnet_LargeCapacity", ResourceOperationCreate, PoolCategoryLargeCapacity, datamodel.JobTypeCreateLargeSubnet},
+			{"CreateSubnet_Default", ResourceOperationCreate, PoolCategoryDefault, datamodel.JobTypeCreateSubnet}, // Default maps to standard
+			{"DeleteSubnet_Standard", ResourceOperationDelete, PoolCategoryStandard, datamodel.JobTypeDeleteSubnet},
+			{"DeleteSubnet_LargeCapacity", ResourceOperationDelete, PoolCategoryLargeCapacity, datamodel.JobTypeCreatePool}, // Large capacity subnet delete not yet supported, falls back
+			{"DeleteSubnet_Default", ResourceOperationDelete, PoolCategoryDefault, datamodel.JobTypeDeleteSubnet},           // Default maps to standard
 		}
 
 		for _, tc := range testCases {
@@ -117,42 +118,42 @@ func TestGetResourceJobType(t *testing.T) {
 		// Test invalid resource types
 		t.Run("InvalidResourceType", func(t *testing.T) {
 			result := GetResourceJobType("INVALID_RESOURCE", ResourceOperationCreate, PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid resource type")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid resource type")
 		})
 
 		// Test invalid operations
 		t.Run("InvalidOperation", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypePool, "INVALID_OPERATION", PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid operation")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid operation")
 		})
 
 		// Test invalid pool categories
 		t.Run("InvalidPoolCategory", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypePool, ResourceOperationCreate, "INVALID_CATEGORY")
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid pool category")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for invalid pool category")
 		})
 
 		// Test unsupported subnet operations
 		t.Run("UnsupportedSubnetUpdate", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypeSubnet, ResourceOperationUpdate, PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for unsupported subnet update")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for unsupported subnet update")
 		})
 
 		t.Run("SubnetDelete", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard)
-			assert.Equal(t, JobTypeDeleteSubnet, result, "Should return JobTypeDeleteSubnet for subnet delete")
+			assert.Equal(t, datamodel.JobTypeDeleteSubnet, result, "Should return JobTypeDeleteSubnet for subnet delete")
 		})
 
 		// Test empty resource type
 		t.Run("EmptyResourceType", func(t *testing.T) {
 			result := GetResourceJobType("", ResourceOperationCreate, PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for empty resource type")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for empty resource type")
 		})
 
 		// Test empty operation
 		t.Run("EmptyOperation", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypePool, "", PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for empty operation")
+			assert.Equal(t, datamodel.JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for empty operation")
 		})
 	})
 
@@ -306,34 +307,34 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		resourceType    ResourceType
 		operation       ResourceOperation
 		poolCategory    PoolCategory
-		expectedJobType JobType
+		expectedJobType datamodel.JobType
 		shouldSucceed   bool
 		description     string
 	}
 
 	testCases := []testCase{
 		// Pool operations - all should succeed
-		{ResourceTypePool, ResourceOperationCreate, PoolCategoryStandard, JobTypeCreatePool, true, "Pool create standard"},
-		{ResourceTypePool, ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargePool, true, "Pool create large capacity"},
-		{ResourceTypePool, ResourceOperationCreate, PoolCategoryDefault, JobTypeCreatePool, true, "Pool create default (maps to standard)"},
-		{ResourceTypePool, ResourceOperationUpdate, PoolCategoryStandard, JobTypeUpdatePool, true, "Pool update standard"},
-		{ResourceTypePool, ResourceOperationUpdate, PoolCategoryLargeCapacity, JobTypeUpdateLargePool, true, "Pool update large capacity"},
-		{ResourceTypePool, ResourceOperationDelete, PoolCategoryStandard, JobTypeDeletePool, true, "Pool delete standard"},
-		{ResourceTypePool, ResourceOperationDelete, PoolCategoryLargeCapacity, JobTypeDeleteLargePool, true, "Pool delete large capacity"},
+		{ResourceTypePool, ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreatePool, true, "Pool create standard"},
+		{ResourceTypePool, ResourceOperationCreate, PoolCategoryLargeCapacity, datamodel.JobTypeCreateLargePool, true, "Pool create large capacity"},
+		{ResourceTypePool, ResourceOperationCreate, PoolCategoryDefault, datamodel.JobTypeCreatePool, true, "Pool create default (maps to standard)"},
+		{ResourceTypePool, ResourceOperationUpdate, PoolCategoryStandard, datamodel.JobTypeUpdatePool, true, "Pool update standard"},
+		{ResourceTypePool, ResourceOperationUpdate, PoolCategoryLargeCapacity, datamodel.JobTypeUpdateLargePool, true, "Pool update large capacity"},
+		{ResourceTypePool, ResourceOperationDelete, PoolCategoryStandard, datamodel.JobTypeDeletePool, true, "Pool delete standard"},
+		{ResourceTypePool, ResourceOperationDelete, PoolCategoryLargeCapacity, datamodel.JobTypeDeleteLargePool, true, "Pool delete large capacity"},
 
 		// Subnet operations - only CREATE or DELETE should succeed
-		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryStandard, JobTypeCreateSubnet, true, "Subnet create standard"},
-		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargeSubnet, true, "Subnet create large capacity"},
-		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryDefault, JobTypeCreateSubnet, true, "Subnet create default (maps to standard)"},
-		{ResourceTypeSubnet, ResourceOperationUpdate, PoolCategoryStandard, JobTypeCreatePool, false, "Subnet update not supported"},
-		{ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard, JobTypeDeleteSubnet, true, "Subnet delete standard"},
+		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreateSubnet, true, "Subnet create standard"},
+		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryLargeCapacity, datamodel.JobTypeCreateLargeSubnet, true, "Subnet create large capacity"},
+		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryDefault, datamodel.JobTypeCreateSubnet, true, "Subnet create default (maps to standard)"},
+		{ResourceTypeSubnet, ResourceOperationUpdate, PoolCategoryStandard, datamodel.JobTypeCreatePool, false, "Subnet update not supported"},
+		{ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard, datamodel.JobTypeDeleteSubnet, true, "Subnet delete standard"},
 
 		// Invalid cases - should fallback to JobTypeCreatePool
-		{"INVALID", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreatePool, false, "Invalid resource type"},
-		{ResourceTypePool, "INVALID", PoolCategoryStandard, JobTypeCreatePool, false, "Invalid operation"},
-		{ResourceTypePool, ResourceOperationCreate, "INVALID_CATEGORY", JobTypeCreatePool, false, "Invalid pool category"},
-		{"", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreatePool, false, "Empty resource type"},
-		{ResourceTypePool, "", PoolCategoryStandard, JobTypeCreatePool, false, "Empty operation"},
+		{"INVALID", ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreatePool, false, "Invalid resource type"},
+		{ResourceTypePool, "INVALID", PoolCategoryStandard, datamodel.JobTypeCreatePool, false, "Invalid operation"},
+		{ResourceTypePool, ResourceOperationCreate, "INVALID_CATEGORY", datamodel.JobTypeCreatePool, false, "Invalid pool category"},
+		{"", ResourceOperationCreate, PoolCategoryStandard, datamodel.JobTypeCreatePool, false, "Empty resource type"},
+		{ResourceTypePool, "", PoolCategoryStandard, datamodel.JobTypeCreatePool, false, "Empty operation"},
 	}
 
 	for i, tc := range testCases {
@@ -346,7 +347,7 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			// Additional validation for fallback behavior
 			if !tc.shouldSucceed {
 				// Invalid cases should always fallback to JobTypeCreatePool
-				assert.Equal(t, JobTypeCreatePool, result,
+				assert.Equal(t, datamodel.JobTypeCreatePool, result,
 					"Invalid case should fallback to JobTypeCreatePool")
 			}
 			// Valid cases are already validated by the assert.Equal above

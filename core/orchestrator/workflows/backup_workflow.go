@@ -57,11 +57,11 @@ func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBacku
 	if err != nil {
 		return nil, err
 	}
-	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := backupWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	backupWf.Status = WorkflowStatusRunning
-	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +76,14 @@ func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBacku
 			backupWf.Logger.Errorf("Failed to execute rollback for workflow %s: %v", backupWf.ID, err2)
 		}
 		backupWf.Status = WorkflowStatusFailed
-		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		}
 		return nil, customErr
 	}
 	backupWf.Status = WorkflowStatusCompleted
-	err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		return nil, ConvertToVSAError(err2)
@@ -101,7 +101,7 @@ func CreateBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesConte
 	}
 
 	backupWf.Status = WorkflowStatusRunning
-	err := backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,14 +119,14 @@ func CreateBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesConte
 			backupWf.Logger.Errorf("Failed to execute rollback for workflow %s: %v", backupWf.ID, err2)
 		}
 		backupWf.Status = WorkflowStatusFailed
-		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		}
 		return nil, customErr
 	}
 	backupWf.Status = WorkflowStatusCompleted
-	err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		return nil, ConvertToVSAError(err2)
@@ -324,12 +324,12 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		return nil, ConvertToVSAError(err)
 	}
 
-	if smRelationship.State != nil && *smRelationship.State != models.OntapSnapmirrored {
+	if smRelationship.State != nil && *smRelationship.State != datamodel.OntapSnapmirrored {
 		unhealthyMsg := ""
 		if smRelationship.Healthy != nil && !*smRelationship.Healthy && smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			unhealthyMsg = fmt.Sprintf(" Unhealthy reasons: %v", *smRelationship.UnhealthyReason)
 		}
-		workflow.GetLogger(ctx).Info(fmt.Sprintf("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg))
+		workflow.GetLogger(ctx).Info(fmt.Sprintf("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, datamodel.OntapSnapmirrored, unhealthyMsg))
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship state is not snapmirrored"))
 	}
 
@@ -506,11 +506,11 @@ func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBacku
 	if err != nil {
 		return nil, err
 	}
-	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := backupWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	backupWf.Status = WorkflowStatusRunning
-	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -524,14 +524,14 @@ func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBacku
 			backupWf.Logger.Errorf("Failed to revert backup delete workflow: %v", err2)
 		}
 		backupWf.Status = WorkflowStatusFailed
-		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		}
 		return nil, customErr
 	}
 	backupWf.Status = WorkflowStatusCompleted
-	err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		return nil, ConvertToVSAError(err2)
@@ -748,8 +748,8 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 						CreatedAt: dbBackup.CreatedAt,
 					},
 					Name:         dbBackup.Name,
-					State:        models.LifeCycleStateDeleted,
-					StateDetails: models.LifeCycleStateDeletedDetails,
+					State:        datamodel.LifeCycleStateDeleted,
+					StateDetails: datamodel.LifeCycleStateDeletedDetails,
 					Description:  dbBackup.Description,
 					Volume:       volume,
 					Account:      account,
@@ -909,11 +909,11 @@ func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpge
 		logger.Infof("Backup update workflow setup executed with error: %v", err)
 		return nil, err
 	}
-	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := backupWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	backupWf.Status = WorkflowStatusRunning
-	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for backup executed with error: %v", err)
 		return nil, err
@@ -922,14 +922,14 @@ func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpge
 
 	if customErr != nil {
 		backupWf.Status = WorkflowStatusFailed
-		err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return nil, customErr
 	}
 	backupWf.Status = WorkflowStatusCompleted
-	err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := backupWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		backupWf.Logger.Errorf("Failed to update job status: %v", err2)
 		return nil, ConvertToVSAError(err2)

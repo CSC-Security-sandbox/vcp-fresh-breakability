@@ -84,7 +84,7 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 		NetBIOS:        params.NetBIOS,
 		CredentialPath: "secret-path",
 		AccountId:      accountID,
-		State:          models.LifeCycleStateCreating,
+		State:          datamodel.LifeCycleStateCreating,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: params.OrganizationalUnit,
 			Site:               params.Site,
@@ -102,8 +102,8 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-123",
-		Type:       string(models.JobTypeCreateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeCreateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Mock external dependencies
@@ -165,7 +165,7 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 			ad.ActiveDirectoryAttributes.OrganizationalUnit == params.OrganizationalUnit
 	})).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
-		return j.Type == string(models.JobTypeCreateActiveDirectory) &&
+		return j.Type == string(datamodel.JobTypeCreateActiveDirectory) &&
 			j.ResourceName == params.ResourceId &&
 			j.AccountID.Int64 == accountID
 	})).Return(job, nil)
@@ -183,7 +183,7 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	assert.Equal(t, params.Domain, ad.Domain, "Domain should match")
 	assert.Equal(t, params.DNS, ad.DNS, "DNS should match")
 	assert.Equal(t, params.NetBIOS, ad.NetBIOS, "NetBIOS should match")
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State, "State should be Creating")
+	assert.Equal(t, datamodel.LifeCycleStateCreating, ad.State, "State should be Creating")
 	assert.NotNil(t, ad.ActiveDirectoryAttributes, "ActiveDirectoryAttributes should not be nil")
 	assert.Equal(t, params.OrganizationalUnit, ad.ActiveDirectoryAttributes.OrganizationalUnit, "OrganizationalUnit should match")
 	assert.Equal(t, params.Site, ad.ActiveDirectoryAttributes.Site, "Site should match")
@@ -224,8 +224,8 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-cvp-123"},
 		WorkflowID: "workflow-cvp-123",
-		Type:       string(models.JobTypeCreateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeCreateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Save original function
@@ -264,7 +264,7 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
 
 	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
-		return j.Type == string(models.JobTypeCreateActiveDirectory)
+		return j.Type == string(datamodel.JobTypeCreateActiveDirectory)
 	})).Return(job, nil)
 
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
@@ -309,7 +309,7 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	assert.Equal(t, params.ResourceId, ad.AdName)
 	assert.Equal(t, "", ad.UUID)
 	assert.Equal(t, params.Username, ad.Username)
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, ad.State)
 }
 
 func TestCreateActiveDirectory_ValidationError(t *testing.T) {
@@ -367,8 +367,8 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-123",
-		Type:       string(models.JobTypeCreateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeCreateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	adRecord := &datamodel.ActiveDirectory{
@@ -380,7 +380,7 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 		NetBIOS:        params.NetBIOS,
 		CredentialPath: "secret-path",
 		AccountId:      accountID,
-		State:          models.LifeCycleStateCreating,
+		State:          datamodel.LifeCycleStateCreating,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: params.OrganizationalUnit,
 			Site:               params.Site,
@@ -436,7 +436,7 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 		return ad.AdName == params.ResourceId
 	})).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
-		return j.Type == string(models.JobTypeCreateActiveDirectory)
+		return j.Type == string(datamodel.JobTypeCreateActiveDirectory)
 	})).Return(job, nil)
 
 	originalCVPHost := cvp.CVP_HOST
@@ -463,7 +463,7 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 	assert.Equal(t, adRecord.UUID, ad.UUID)
 	assert.Equal(t, params.ResourceId, ad.AdName)
 	assert.Equal(t, params.Username, ad.Username)
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, ad.State)
 }
 
 func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
@@ -710,7 +710,7 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	mockStorage.On("ListActiveDirectories", mock.Anything, int64(123)).Return([]*datamodel.ActiveDirectory{}, nil)
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
-	mockStorage.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).
+	mockStorage.On("UpdateJob", mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, mock.Anything).
 		Return(nil)
 
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
@@ -747,7 +747,7 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, ad)
 	assert.Empty(t, jobUUID)
-	mockStorage.AssertCalled(t, "UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything)
+	mockStorage.AssertCalled(t, "UpdateJob", mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, mock.Anything)
 }
 
 func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
@@ -856,7 +856,7 @@ func TestConvertActiveDirectoryParamsToModel(t *testing.T) {
 	assert.Equal(t, "test.local", ad.Domain)
 	assert.Equal(t, "10.0.0.1", ad.DNS)
 	assert.Equal(t, "TEST", ad.NetBIOS)
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, ad.State)
 	assert.Equal(t, "CN=Computers", ad.ActiveDirectoryAttributes.OrganizationalUnit)
 	assert.Equal(t, []string{"security-user"}, ad.ActiveDirectoryAttributes.SecurityOperators)
 	assert.True(t, ad.ActiveDirectoryAttributes.AesEncryption)
@@ -888,7 +888,7 @@ func TestCreateAdRecordForNonSDE(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 		AdName:    params.ResourceId,
 		Username:  params.Username,
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 	}
 
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
@@ -1376,7 +1376,7 @@ func TestOrchestrator_CreateActiveDirectory_Success(t *testing.T) {
 	mockAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 	}
 
 	origCreateActiveDirectory := createActiveDirectory
@@ -2031,14 +2031,14 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 		Domain:    "test.local",
 		DNS:       "10.0.0.1",
 		NetBIOS:   "TEST",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID:    "workflow-id-123",
-		Type:          string(models.JobTypeUpdateActiveDirectory),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateActiveDirectory),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  "test-ad",
 		AccountID:     sql.NullInt64{Int64: 123, Valid: true},
 		CorrelationID: "correlation-id",
@@ -2089,7 +2089,7 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	adRecord := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(adRecord, nil)
@@ -2106,8 +2106,8 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ad)
 	assert.Equal(t, "job-uuid-123", jobUUID)
-	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
-	assert.Equal(t, models.LifeCycleStateUpdatingDetails, ad.StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateUpdating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateUpdatingDetails, ad.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -2132,7 +2132,7 @@ func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
 		Domain:    "test.local",
 		DNS:       "10.0.0.1",
 		NetBIOS:   "TEST",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	// Save original function
@@ -2322,7 +2322,7 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 	existingAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	// Save original function
@@ -2385,14 +2385,14 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	existingAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-id-123",
-		Type:       string(models.JobTypeUpdateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Save original function
@@ -2427,7 +2427,7 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
 
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
-	mockStorage.On("UpdateJob", mock.Anything, createdJob.UUID, string(models.JobsStateERROR), 0, "workflow start error").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, createdJob.UUID, string(datamodel.JobsStateERROR), 0, "workflow start error").Return(nil)
 
 	// Mock workflow execution to fail
 	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
@@ -2463,14 +2463,14 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	existingAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-id-123",
-		Type:       string(models.JobTypeUpdateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Mock getOrCreateAccount
@@ -2528,8 +2528,8 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ad)
 	assert.Equal(t, "job-uuid-123", jobUUID)
-	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
-	assert.Equal(t, models.LifeCycleStateUpdatingDetails, ad.StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateUpdating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateUpdatingDetails, ad.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -2551,14 +2551,14 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 	existingAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-id-123",
-		Type:       string(models.JobTypeUpdateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Mock getOrCreateAccount
@@ -2637,7 +2637,7 @@ func TestOrchestratorUpdateActiveDirectory(t *testing.T) {
 	expectedAD := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 
 	originalUpdate := updateActiveDirectory
@@ -2652,7 +2652,7 @@ func TestOrchestratorUpdateActiveDirectory(t *testing.T) {
 	assert.NotNil(t, ad)
 	assert.Equal(t, "job-uuid", jobUUID)
 	assert.Equal(t, "test-ad", ad.AdName)
-	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateUpdating, ad.State)
 }
 
 func TestOrchestratorUpdateActiveDirectory_Error(t *testing.T) {
@@ -2748,7 +2748,7 @@ func TestUpdateActiveDirectory_DomainSkippedWhenDomainSame(t *testing.T) {
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
 		Domain:    "same-domain.local",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	createdJob := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
@@ -2827,7 +2827,7 @@ func TestUpdateActiveDirectory_DomainCheckReceivesAdWithId(t *testing.T) {
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
 		AdName:    "test-ad",
 		Domain:    "old-domain.local",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -2904,7 +2904,7 @@ func TestUpdateActiveDirectory_AdPassedToWorkflow(t *testing.T) {
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
 		AdName:    "test-ad",
 		Domain:    "test.local",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
@@ -2982,7 +2982,7 @@ func TestUpdateActiveDirectory_DomainUpdateComparesAgainstVcpAdDomain(t *testing
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
 		AdName:    "test-ad",
 		Domain:    "different-vcp.local",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -3039,7 +3039,7 @@ func TestUpdateActiveDirectory_NoDomainParam_SkipsDomainCheck(t *testing.T) {
 		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
 		AdName:    "test-ad",
 		Domain:    "test.local",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 
 	createdJob := &datamodel.Job{
@@ -3164,7 +3164,7 @@ func Test_deleteActiveDirectory_AlreadyDeleted(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateDeleted,
+		State:     datamodel.LifeCycleStateDeleted,
 		AccountId: 42,
 	}
 
@@ -3198,7 +3198,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingWithExistingJob(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 		AccountId: 42,
 	}
 	existingJob := &datamodel.Job{
@@ -3217,7 +3217,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingWithExistingJob(t *testing.T) {
 
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
 	// GetJobByResourceUUID returns existing job (lines 556-557)
-	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(models.JobTypeDeleteActiveDirectory)).Return(existingJob, nil)
+	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(datamodel.JobTypeDeleteActiveDirectory)).Return(existingJob, nil)
 
 	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
 
@@ -3240,7 +3240,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingNoJob(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 		AccountId: 42,
 	}
 	job := &datamodel.Job{
@@ -3266,7 +3266,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingNoJob(t *testing.T) {
 
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
 	// GetJobByResourceUUID returns error (no job found)
-	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(models.JobTypeDeleteActiveDirectory)).Return(nil, errors.New("job not found"))
+	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(datamodel.JobTypeDeleteActiveDirectory)).Return(nil, errors.New("job not found"))
 	mockSe.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
 		return j.ResourceName == params.ActiveDirectoryUUID
 	})).Return(job, nil)
@@ -3292,7 +3292,7 @@ func Test_deleteActiveDirectory_CreateJobError(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		AccountId: 42,
 	}
 
@@ -3327,7 +3327,7 @@ func Test_deleteActiveDirectory_WorkflowErrorWithUpdateJobError(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		AccountId: 42,
 	}
 	job := &datamodel.Job{
@@ -3354,7 +3354,7 @@ func Test_deleteActiveDirectory_WorkflowErrorWithUpdateJobError(t *testing.T) {
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
 	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 	// Mock UpdateJob to also fail (lines 255-256)
-	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
+	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
 
 	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
 
@@ -3377,7 +3377,7 @@ func Test_deleteActiveDirectory_WorkflowError(t *testing.T) {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		AccountId: 42,
 	}
 	job := &datamodel.Job{
@@ -3404,7 +3404,7 @@ func Test_deleteActiveDirectory_WorkflowError(t *testing.T) {
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
 	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 	// Mock UpdateJob to succeed
-	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
 
@@ -4176,7 +4176,7 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 		NetBIOS:        params.NetBIOS,
 		CredentialPath: "secret-path",
 		AccountId:      accountID,
-		State:          models.LifeCycleStateCreating,
+		State:          datamodel.LifeCycleStateCreating,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: params.OrganizationalUnit,
 			Site:               params.Site,
@@ -4189,8 +4189,8 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
 		WorkflowID: "workflow-123",
-		Type:       string(models.JobTypeCreateActiveDirectory),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeCreateActiveDirectory),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Save original function
@@ -4250,7 +4250,7 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 		return ad.AdName == params.ResourceId
 	})).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
-		return j.Type == string(models.JobTypeCreateActiveDirectory)
+		return j.Type == string(datamodel.JobTypeCreateActiveDirectory)
 	})).Return(job, nil)
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
@@ -4260,7 +4260,7 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 	assert.Equal(t, "job-uuid-123", jobUUID)
 	assert.Equal(t, adRecord.UUID, ad.UUID)
 	assert.Equal(t, params.ResourceId, ad.AdName)
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, ad.State)
 }
 
 func TestOrchestrator_BatchListActiveDirectories(t *testing.T) {

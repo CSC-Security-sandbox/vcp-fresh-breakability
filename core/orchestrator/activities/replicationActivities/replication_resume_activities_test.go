@@ -2156,7 +2156,7 @@ func TestSetHybridReplicationVariablesResume(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationAttributesIsSetButNotReverse", func(tt *testing.T) {
-		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		migrationType := string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		result := &replication.ResumeReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -2178,7 +2178,7 @@ func TestSetHybridReplicationVariablesResume(t *testing.T) {
 	})
 
 	t.Run("WhenIsSrcForHybridReplicationIsTrue", func(tt *testing.T) {
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		result := &replication.ResumeReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -2200,7 +2200,7 @@ func TestSetHybridReplicationVariablesResume(t *testing.T) {
 	})
 
 	t.Run("WhenHybridReplicationTypeIsReverseButDestinationLocationIsNotEmpty", func(tt *testing.T) {
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		result := &replication.ResumeReplicationResult{
 			DbVolReplication: &datamodel.VolumeReplication{
 				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{

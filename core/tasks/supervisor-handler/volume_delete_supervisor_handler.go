@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,11 +22,11 @@ func NewVolumeDeleteHandler() *VolumeDeleteHandler {
 }
 
 // JobTypes enumerates the job types supported by the volume delete handler.
-func (h *VolumeDeleteHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeDeleteVolume,
-		models.JobTypeDeleteLargeVolume,
-		models.JobTypeFlexCacheDeleteVolume,
+func (h *VolumeDeleteHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeDeleteVolume,
+		datamodel.JobTypeDeleteLargeVolume,
+		datamodel.JobTypeFlexCacheDeleteVolume,
 	}
 }
 
@@ -50,7 +49,7 @@ func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 		return nil
 	}
 
-	if job.State == string(models.JobsStatePROCESSING) {
+	if job.State == string(datamodel.JobsStatePROCESSING) {
 		return h.handleProcessingTimeout(ctx, job, storage, logger)
 	}
 
@@ -69,14 +68,14 @@ func (h *VolumeDeleteHandler) handleProcessingTimeout(ctx context.Context, job *
 		return fmt.Errorf("load volume for PROCESSING timeout: %w", err)
 	}
 
-	if volume.State != models.LifeCycleStateDeleting {
+	if volume.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: volume not in DELETING state (%s); skipping state transition", volume.State)
 		return nil
 	}
 
 	err = storage.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-		"state":         models.LifeCycleStateError,
-		"state_details": models.LifeCycleStateDeletionErrorDetails,
+		"state":         datamodel.LifeCycleStateError,
+		"state_details": datamodel.LifeCycleStateDeletionErrorDetails,
 	})
 	if err != nil {
 		return fmt.Errorf("update volume state to ERROR: %w", err)
@@ -98,7 +97,7 @@ func (h *VolumeDeleteHandler) handleNewStateTimeout(ctx context.Context, job *da
 		return fmt.Errorf("load volume: %w", err)
 	}
 
-	if volume.State != models.LifeCycleStateDeleting {
+	if volume.State != datamodel.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: volume not in DELETING state (%s); skipping revert", volume.State)
 		return nil
 	}
@@ -108,8 +107,8 @@ func (h *VolumeDeleteHandler) handleNewStateTimeout(ctx context.Context, job *da
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not stored in job attributes, using default READY")
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	err = storage.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{

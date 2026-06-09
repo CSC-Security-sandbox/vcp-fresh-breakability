@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -71,7 +70,7 @@ func TestPoolHandler_Handle_NewStateTimeout_DeletesPool(t *testing.T) {
 
 	// Job in NEW state (or empty state) should trigger delete behavior
 	job := &datamodel.Job{
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
 	}
 

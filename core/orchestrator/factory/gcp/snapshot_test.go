@@ -189,15 +189,15 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:    volume.ID,
 			Account:     account,
 			Volume:      volume,
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(existingSnapshot).Error
 		assert.NoError(tt, err)
 
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:         string(models.JobTypeCreateSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeCreateSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -278,7 +278,7 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:        volume.ID,
 			Account:         account,
 			Volume:          volume,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 			IsAppConsistent: true,
 		}
 		err = store.DB().Create(existingSnapshot).Error
@@ -352,7 +352,7 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:        volume.ID,
 			Account:         account,
 			Volume:          volume,
-			State:           models.LifeCycleStateREADY,
+			State:           datamodel.LifeCycleStateREADY,
 			IsAppConsistent: true,
 		}
 		err = store.DB().Create(existingSnapshot).Error
@@ -653,7 +653,7 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:    volume1.ID,
 			Account:     account,
 			Volume:      volume1,
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(existingSnapshot1).Error
 		assert.NoError(tt, err)
@@ -661,8 +661,8 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 		// Create job for volume1 snapshot
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-job-1-uuid"},
-			Type:         string(models.JobTypeCreateSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeCreateSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -682,7 +682,7 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:    volume2.ID,
 			Account:     account,
 			Volume:      volume2,
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(existingSnapshot2).Error
 		assert.NoError(tt, err)
@@ -690,8 +690,8 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 		// Create job for volume2 snapshot
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-job-2-uuid"},
-			Type:         string(models.JobTypeCreateSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeCreateSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -1112,7 +1112,7 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: 1,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		params := &common.CreateSnapshotParams{
 			Name: "test_snapshot",
@@ -1129,7 +1129,7 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: 1,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 		}
 		params := &common.CreateSnapshotParams{
 			Name: "test_snapshot",
@@ -1146,11 +1146,11 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}
@@ -1169,11 +1169,11 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 		}
@@ -1277,7 +1277,7 @@ func TestGetSnapshot(t *testing.T) {
 			VolumeID:     volume.ID,
 			Account:      account,
 			Volume:       volume,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Available",
 		}
 		err = store.DB().Create(snapshot).Error
@@ -1529,7 +1529,7 @@ func TestGCPOrchestrator_GetSnapshotsByUUIDs(t *testing.T) {
 			BaseModel:          datamodel.BaseModel{UUID: "snap-1"},
 			Name:               "snap-name",
 			Description:        "d",
-			State:              models.LifeCycleStateREADY,
+			State:              datamodel.LifeCycleStateREADY,
 			StateDetails:       "sd",
 			Volume:             vol,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{SizeInBytes: 10},
@@ -1661,7 +1661,7 @@ func TestGCPOrchestrator_GetMultipleSnapshots(t *testing.T) {
 			VolumeID:    volume.ID,
 			Account:     account,
 			Volume:      volume,
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.DB().Create(snapshot).Error)
 
@@ -1945,7 +1945,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}
@@ -2175,7 +2175,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Account:   account,
 			Volume:    volume,
 		}
@@ -2210,8 +2210,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		// Verify snapshot state was reverted to READY after workflow failure (lines 451-456)
 		updatedSnapshot, _ := store.GetSnapshotByUUID(ctx, snapshot.UUID, account.ID, volume.ID)
 		if updatedSnapshot != nil {
-			assert.Equal(tt, models.LifeCycleStateREADY, updatedSnapshot.State)
-			assert.Equal(tt, models.LifeCycleStateAvailableDetails, updatedSnapshot.StateDetails)
+			assert.Equal(tt, datamodel.LifeCycleStateREADY, updatedSnapshot.State)
+			assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, updatedSnapshot.StateDetails)
 		}
 	})
 
@@ -2272,7 +2272,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateDeleting, // Volume is in deleting state
+			State:     datamodel.LifeCycleStateDeleting, // Volume is in deleting state
 		}
 		err = store.DB().Create(volume).Error
 		if err != nil {
@@ -2403,7 +2403,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
 			Volume:    volume,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -2413,8 +2413,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		// Create an ongoing delete job for the snapshot
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:         string(models.JobTypeDeleteSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeDeleteSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -2488,7 +2488,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
 			Volume:    volume,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -2564,7 +2564,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
 			Volume:    volume,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -2589,7 +2589,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: account.ID},
 			},
-			State: models.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 		}
 
 		// Create a snapshot with Account field populated
@@ -2601,15 +2601,15 @@ func TestDeleteSnapshot(t *testing.T) {
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: account.ID},
 			},
-			State: models.LifeCycleStateREADY, // Not CREATING or UPDATING
-			Type:  "",                         // Not Backup type, so it doesn't return early
+			State: datamodel.LifeCycleStateREADY, // Not CREATING or UPDATING
+			Type:  "",                            // Not Backup type, so it doesn't return early
 		}
 
 		// Use mock.Anything for context since it may have logger fields
 		mockStorage.EXPECT().VerifyVolumeOwnership(mock.Anything, volume.UUID, account.Name).Return(volumeWithAccount, nil)
 		mockStorage.EXPECT().GetSnapshotByUUID(mock.Anything, params.SnapshotID, account.ID, volume.ID).Return(snapshotWithAccount, nil)
 		// Mock GetJobByResourceUUID to return nil (no existing job) since code checks for existing jobs
-		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, params.SnapshotID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("Job not found"))
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, params.SnapshotID, string(datamodel.JobTypeDeleteSnapshot)).Return(nil, errors.New("Job not found"))
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		}, nil)
@@ -2705,7 +2705,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume1.ID,
 			Volume:    volume1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot1).Error
 		assert.NoError(tt, err)
@@ -2716,7 +2716,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume2.ID,
 			Volume:    volume2,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot2).Error
 		assert.NoError(tt, err)
@@ -2724,8 +2724,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		// Create delete jobs for both snapshots
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-delete-job-1-uuid"},
-			Type:         string(models.JobTypeDeleteSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeDeleteSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -2738,8 +2738,8 @@ func TestDeleteSnapshot(t *testing.T) {
 
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "test-delete-job-2-uuid"},
-			Type:         string(models.JobTypeDeleteSnapshot),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeDeleteSnapshot),
+			State:        string(datamodel.JobsStatePROCESSING),
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
@@ -2854,7 +2854,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
 			Volume:    volume,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -2904,7 +2904,7 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithEmptyCorrelationID(t *tes
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		VolumeID:  volume.ID,
 		Volume:    volume,
 		AccountID: account.ID,
@@ -2966,7 +2966,7 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMismatchedCorrelationID(t
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		VolumeID:  volume.ID,
 		Volume:    volume,
 		AccountID: account.ID,
@@ -2992,15 +2992,15 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMismatchedCorrelationID(t
 	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
 
 	// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called first in ValidateCorrelationIDForCreatingResource)
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
 
 	// Mock GetJobByResourceUUID to return a job with different correlation ID
 	createJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 		CorrelationID: "different-correlation-id", // Mismatch
-		Type:          string(models.JobTypeCreateSnapshot),
+		Type:          string(datamodel.JobTypeCreateSnapshot),
 	}
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(createJob, nil)
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeCreateSnapshot)).Return(createJob, nil)
 
 	// Act
 	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
@@ -3039,7 +3039,7 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMatchingCorrelationID(t *
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		VolumeID:  volume.ID,
 		Volume:    volume,
 		AccountID: account.ID,
@@ -3071,11 +3071,11 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMatchingCorrelationID(t *
 	createJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
 		CorrelationID: correlationID, // Match
-		Type:          string(models.JobTypeCreateSnapshot),
+		Type:          string(datamodel.JobTypeCreateSnapshot),
 	}
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(createJob, nil)
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeCreateSnapshot)).Return(createJob, nil)
 	// Mock GetJobByResourceUUID for delete job type - return nil to indicate no existing delete job
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, customerrors.NewNotFoundErr("Job", nil))
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeDeleteSnapshot)).Return(nil, customerrors.NewNotFoundErr("Job", nil))
 
 	// Mock CreateJob
 	store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
@@ -3128,7 +3128,7 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateAndGetJobByResourceUUIDFails(
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		VolumeID:  volume.ID,
 		Volume:    volume,
 		AccountID: account.ID,
@@ -3154,10 +3154,10 @@ func TestDeleteSnapshot_WhenSnapshotInCreatingStateAndGetJobByResourceUUIDFails(
 	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
 
 	// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called first in ValidateCorrelationIDForCreatingResource)
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
 
 	// Mock GetJobByResourceUUID to return an error
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(nil, errors.New("job not found"))
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeCreateSnapshot)).Return(nil, errors.New("job not found"))
 
 	// Act
 	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
@@ -3191,7 +3191,7 @@ func TestDeleteSnapshot_CreatingStateWithExistingDeleteJob_ReturnsExistingJobUUI
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateCreating,
+		State:     datamodel.LifeCycleStateCreating,
 		VolumeID:  volume.ID,
 		AccountID: 42,
 		Volume:    volume,
@@ -3203,8 +3203,8 @@ func TestDeleteSnapshot_CreatingStateWithExistingDeleteJob_ReturnsExistingJobUUI
 	existingDeleteJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
 		CorrelationID: correlationID,
-		Type:          string(models.JobTypeDeleteSnapshot),
-		State:         string(models.JobsStatePROCESSING),
+		Type:          string(datamodel.JobTypeDeleteSnapshot),
+		State:         string(datamodel.JobsStatePROCESSING),
 	}
 
 	params := &common.DeleteSnapshotParams{
@@ -3226,7 +3226,7 @@ func TestDeleteSnapshot_CreatingStateWithExistingDeleteJob_ReturnsExistingJobUUI
 
 	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
 	// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
-	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(existingDeleteJob, nil)
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(datamodel.JobTypeDeleteSnapshot)).Return(existingDeleteJob, nil)
 
 	result, jobUUID, err := deleteSnapshot(ctx, store, temporal, params)
 
@@ -3251,7 +3251,7 @@ func TestDeleteSnapshot_TransitionalState_ReturnsError(t *testing.T) {
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
 		Name:      "test-snapshot",
-		State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+		State:     datamodel.LifeCycleStateUpdating, // Transitional state (not DELETING)
 		VolumeID:  volume.ID,
 		AccountID: 42,
 		Volume:    volume,
@@ -3283,7 +3283,7 @@ func TestDeleteSnapshot_TransitionalState_ReturnsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Snapshot is in transition state and cannot be deleted")
-	assert.Contains(t, err.Error(), models.LifeCycleStateUpdating)
+	assert.Contains(t, err.Error(), datamodel.LifeCycleStateUpdating)
 	assert.Nil(t, result)
 	assert.Empty(t, jobUUID)
 	store.AssertExpectations(t)
@@ -3528,7 +3528,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
 		}
 		err = store.DB().Create(volume).Error
@@ -3541,7 +3541,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -3584,7 +3584,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateRetained,
+			State:     datamodel.LifeCycleStateRetained,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
 		}
 		err = store.DB().Create(volume).Error
@@ -3597,7 +3597,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -3640,7 +3640,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			State:     models.VolumeStateOffline,
+			State:     datamodel.VolumeStateOffline,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
 		}
 		err = store.DB().Create(volume).Error
@@ -3653,7 +3653,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -3696,7 +3696,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateRetained,
+			State:     datamodel.LifeCycleStateRetained,
 			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
 		}
 		err = store.DB().Create(volume).Error
@@ -3709,7 +3709,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
@@ -3784,8 +3784,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -3884,8 +3884,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -3983,8 +3983,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -4082,8 +4082,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -4212,8 +4212,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -4318,8 +4318,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -4983,8 +4983,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -5070,7 +5070,7 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		// Verify description was restored (line 354)
 		assert.Equal(tt, originalDescription, dbSnapshot.Description)
 		// Verify snapshot state was set (lines 363-367)
-		assert.Equal(tt, models.LifeCycleStateREADY, dbSnapshot.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, dbSnapshot.State)
 		assert.Equal(tt, int64(0), dbSnapshot.SnapshotAttributes.SizeInBytes)
 		assert.Equal(tt, "snapshot-uuid", dbSnapshot.SnapshotAttributes.ExternalUUID)
 		mockStorage.AssertExpectations(tt)
@@ -5131,8 +5131,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -5265,8 +5265,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -5410,8 +5410,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			Type:      string(models.JobTypeCreateSnapshot),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreateSnapshot),
+			State:     string(datamodel.JobsStateNEW),
 		}
 		err = store.DB().Create(job).Error
 		if err != nil {
@@ -5526,8 +5526,8 @@ func TestDeleteSnapshot_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		previousState := models.LifeCycleStateREADY
-		previousStateDetails := models.LifeCycleStateAvailableDetails
+		previousState := datamodel.LifeCycleStateREADY
+		previousStateDetails := datamodel.LifeCycleStateAvailableDetails
 		snapshot := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:         "test_snapshot",
@@ -5560,7 +5560,7 @@ func TestDeleteSnapshot_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.EXPECT().VerifyVolumeOwnership(ctx, params.VolumeID, params.AccountName).Return(volume, nil)
 		mockStorage.EXPECT().GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
 		// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called in GetExistingDeleteJobForDeletingState for READY state)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, snapshot.UUID, string(datamodel.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&

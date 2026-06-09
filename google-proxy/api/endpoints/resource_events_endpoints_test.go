@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -37,7 +38,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		res, err := handler.V1betaStartProjectEvent(ctx, req, params)
 
 		errorCode := float64(405)
-		errorMessage := "Start Project Event for " + models.StateDelete + " is not Implemented"
+		errorMessage := "Start Project Event for " + datamodel.ResourceEventStateDelete + " is not Implemented"
 
 		assert.NoError(tt, err, "Expected no error when state is DELETE")
 		assert.NotNil(tt, res)
@@ -303,7 +304,7 @@ func TestHandleResourceEventsEndpoints(t *testing.T) {
 		res, err := handler.V1betaResourceStateUpdate(ctx, req, params)
 
 		errorCode := float64(405)
-		errorMessage := "Handle Resource Event for " + models.StateDelete + " is not Implemented"
+		errorMessage := "Handle Resource Event for " + datamodel.ResourceEventStateDelete + " is not Implemented"
 
 		assert.NoError(tt, err, "Expected no error when state is DELETE")
 		assert.NotNil(tt, res)

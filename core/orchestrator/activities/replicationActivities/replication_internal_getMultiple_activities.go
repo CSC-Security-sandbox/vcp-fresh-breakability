@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	vsamodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -201,7 +200,7 @@ func shouldRefreshReplication(repl *datamodel.VolumeReplication) bool {
 	scheduleDuration := getDurationFromSchedule(repl.ReplicationAttributes.ReplicationSchedule)
 	lastUpdated := repl.LastUpdatedFromOntap
 	// Check if the replication should be refreshed based on last updated time and relationship status
-	if time.Since(lastUpdated) > scheduleDuration || (repl.RelationshipStatus != nil && (*repl.RelationshipStatus == models.SnapmirrorRelationshipTransferring || *repl.RelationshipStatus == models.SnapmirrorRelationshipFinalizing)) {
+	if time.Since(lastUpdated) > scheduleDuration || (repl.RelationshipStatus != nil && (*repl.RelationshipStatus == datamodel.SnapmirrorRelationshipTransferring || *repl.RelationshipStatus == datamodel.SnapmirrorRelationshipFinalizing)) {
 		return true
 	}
 	return false

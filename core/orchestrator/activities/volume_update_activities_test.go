@@ -448,7 +448,7 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	}
 	updatedFields := map[string]interface{}{
 		"size":          int64(4096),
-		"state_details": models.LifeCycleStateAvailableDetails,
+		"state_details": datamodel.LifeCycleStateAvailableDetails,
 	}
 
 	prepareFieldsForUpdate = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) (map[string]interface{}, error) {
@@ -551,7 +551,7 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
-	updatedFields := map[string]interface{}{"size": int64(4096), "state_details": models.LifeCycleStateAvailableDetails}
+	updatedFields := map[string]interface{}{"size": int64(4096), "state_details": datamodel.LifeCycleStateAvailableDetails}
 	expectedErr := errors.New("update failed")
 
 	// Patch prepareFieldsForUpdate to return our expected map
@@ -894,8 +894,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, "desc", fields["description"])
 				assert.Equal(t, int64(12345), fields["size_in_bytes"])
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
 				assert.True(t, ok)
 				assert.NotNil(t, va.Labels)
@@ -919,8 +919,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, "desc", fields["description"])
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasSize := fields["size_in_bytes"]
 				assert.False(t, hasSize)
 				_, hasVA := fields["volume_attributes"]
@@ -942,8 +942,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, int64(999), fields["size_in_bytes"])
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasDesc := fields["description"]
 				assert.False(t, hasDesc)
 				_, hasVA := fields["volume_attributes"]
@@ -968,8 +968,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.True(t, ok)
 				assert.NotNil(t, va.Labels)
 				assert.Equal(t, "bar", (*va.Labels)["foo"])
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasDesc := fields["description"]
 				assert.False(t, hasDesc)
 				_, hasSize := fields["size_in_bytes"]
@@ -987,8 +987,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				DataProtection: &models.UpdateDataProtection{},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasDesc := fields["description"]
 				assert.False(t, hasDesc)
 				_, hasSize := fields["size_in_bytes"]
@@ -1015,8 +1015,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.True(t, ok)
 				assert.NotNil(t, va.Labels)
 				assert.Equal(t, "bar", (*va.Labels)["foo"])
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				// Ensure VolumeAttributes was initialized
 				assert.NotNil(t, volume.VolumeAttributes)
 			},
@@ -1038,8 +1038,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.True(t, ok)
 				assert.Equal(t, va.BlockProperties.HostGroupDetails[0].HostGroupUUID, "abcd")
 				assert.Equal(t, va.BlockProperties.HostGroupDetails[1].HostGroupUUID, "xyz")
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 				assert.NotNil(t, volume.VolumeAttributes)
 			},
 			dbCallRequired: true,
@@ -1064,8 +1064,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.Equal(t, "auto", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, int32(7), autoTieringPolicy.CoolingThresholdDays)
 				assert.Equal(t, "default", autoTieringPolicy.RetrievalPolicy)
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 			},
 			dbCallRequired: false,
 		},
@@ -1093,8 +1093,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.Equal(t, "auto", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, int32(7), autoTieringPolicy.CoolingThresholdDays)
 				assert.Equal(t, "default", autoTieringPolicy.RetrievalPolicy)
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 			},
 			dbCallRequired: false,
 		},
@@ -1122,8 +1122,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.NotContains(t, fields, "auto_tiering_enabled")
 				assert.NotContains(t, fields, "cool_access_tiering_policy")
 				assert.NotContains(t, fields, "cool_access_retrieval_policy")
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 			},
 			dbCallRequired: false,
 		},
@@ -1151,8 +1151,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.Equal(t, "none", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, autoTieringPolicy.CoolingThresholdDays, int32(0))
 				assert.Empty(t, autoTieringPolicy.RetrievalPolicy)
-				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
-				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.Equal(t, datamodel.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, fields["state_details"])
 			},
 			dbCallRequired: false,
 		},
@@ -2311,13 +2311,13 @@ func TestFetchAndCreateBackupPolicyFromSDESucceeds(t *testing.T) {
 		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
 			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
 				BackupPolicyID: backupPolicyUUID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 			},
 		}
 		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
 			Payload: mockBackupPolicy,
 		}, nil)
-		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: models.LifeCycleStateREADY, LifeCycleStateDetails: models.LifeCycleStateAvailableDetails}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: datamodel.LifeCycleStateREADY, LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails}, nil)
 
 		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
 		assert.NoError(t, err)
@@ -2378,7 +2378,7 @@ func TestFetchAndCreateBackupPolicyFromSDESucceeds(t *testing.T) {
 		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
 			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
 				BackupPolicyID: backupPolicyUUID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 			},
 		}
 		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
@@ -5425,7 +5425,7 @@ func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
 				return false
 			}
 		}
-		return fields["state"] == models.LifeCycleStateREADY
+		return fields["state"] == datamodel.LifeCycleStateREADY
 	})).Return(nil)
 
 	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)

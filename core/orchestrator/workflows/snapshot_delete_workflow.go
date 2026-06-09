@@ -3,7 +3,6 @@ package workflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -32,12 +31,12 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 		return nil, err
 	}
 
-	if err = snapshotWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = snapshotWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, err
 	}
 
 	snapshotWf.Status = WorkflowStatusRunning
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
 		return nil, err
@@ -46,7 +45,7 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 	if customErr != nil {
 		logger.Infof("Snapshot delete workflow run executed with error: %v", customErr)
 		snapshotWf.Status = WorkflowStatusFailed
-		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Done with error for DeleteSnapshotWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr
@@ -54,7 +53,7 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 		return nil, customErr
 	}
 	snapshotWf.Status = WorkflowStatusCompleted
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		logger.Errorf("Failed to update job status to Done for DeleteSnapshotWorkflow: %v", err)
 	}
@@ -113,7 +112,7 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 		common.HandleCancellationForCreatingResourceParams{
 			ResourceUUID:               dbSnapshot.UUID,
 			ResourceState:              dbSnapshot.State,
-			CreateJobType:              models.JobTypeCreateSnapshot,
+			CreateJobType:              datamodel.JobTypeCreateSnapshot,
 			SignalName:                 CancelSnapshotSignalName,
 			CancellationAckTimeout:     ackTimeout,
 			ForceTerminationAckTimeout: forceTimeout,
@@ -129,8 +128,8 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	var dbNodes []*datamodel.Node
 	defer func() {
 		if err != nil {
-			dbSnapshot.State = models.LifeCycleStateREADY
-			dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			dbSnapshot.State = datamodel.LifeCycleStateREADY
+			dbSnapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 			workflow.ExecuteActivity(ctx, deleteActivity.UpdateDeleteSnapshotDetails, &dbSnapshot)
 		}
 	}()

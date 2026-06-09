@@ -3,7 +3,6 @@ package jobmanagerworkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -40,11 +39,11 @@ func JobManagerWorkflow(ctx workflow.Context) error {
 	_, customErr := jobManagerWF.Run(ctx)
 	if customErr != nil {
 		jobManagerWF.Status = workflows.WorkflowStatusFailed
-		_ = jobManagerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		_ = jobManagerWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return customErr
 	}
 	jobManagerWF.Status = workflows.WorkflowStatusCompleted
-	_ = jobManagerWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	_ = jobManagerWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil
 }
 
@@ -72,8 +71,8 @@ func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) (*datamodel.Job, e
 
 	// The job state is set to PROCESSING here because the workflow itself is creating the job
 	job := &datamodel.Job{
-		Type:       string(models.JobTypeRefreshAdminJobSpecs),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeRefreshAdminJobSpecs),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 	}
 

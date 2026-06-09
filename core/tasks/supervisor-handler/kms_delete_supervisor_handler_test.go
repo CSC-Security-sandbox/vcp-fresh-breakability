@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestKmsDeleteHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeDeleteKmsConfig)
+	require.Contains(t, jobTypes, datamodel.JobTypeDeleteKmsConfig)
 }
 
 func TestKmsDeleteHandler_Handle_SkipsNonTimeout(t *testing.T) {
@@ -84,7 +83,7 @@ func TestKmsDeleteHandler_Handle_SkipsNonDeletingState(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateCreated,
+		State:     datamodel.LifeCycleStateCreated,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 
@@ -97,8 +96,8 @@ func TestKmsDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsDeleteHandler()
 
-	previousState := models.LifeCycleStateCreated
-	previousStateDetails := models.LifeCycleStateCreatedDetails
+	previousState := datamodel.LifeCycleStateCreated
+	previousStateDetails := datamodel.LifeCycleStateCreatedDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -110,7 +109,7 @@ func TestKmsDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", previousState, previousStateDetails).Return(kmsConfig, nil).Once()
@@ -132,10 +131,10 @@ func TestKmsDeleteHandler_Handle_SuccessWithFallbackToCreated(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
-	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", models.LifeCycleStateCreated, models.LifeCycleStateCreatedDetails).Return(kmsConfig, nil).Once()
+	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", datamodel.LifeCycleStateCreated, datamodel.LifeCycleStateCreatedDetails).Return(kmsConfig, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -145,8 +144,8 @@ func TestKmsDeleteHandler_Handle_UpdateKmsConfigStateError(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsDeleteHandler()
 
-	previousState := models.LifeCycleStateCreated
-	previousStateDetails := models.LifeCycleStateCreatedDetails
+	previousState := datamodel.LifeCycleStateCreated
+	previousStateDetails := datamodel.LifeCycleStateCreatedDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -158,7 +157,7 @@ func TestKmsDeleteHandler_Handle_UpdateKmsConfigStateError(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()

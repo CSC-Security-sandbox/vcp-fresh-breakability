@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -25,7 +26,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 	}
 
 	if req.State == gcpgenserver.ProjectStateUpdateV1betaStateDELETE {
-		msg := "Start Project Event for " + models.StateDelete + " is not Implemented"
+		msg := "Start Project Event for " + datamodel.ResourceEventStateDelete + " is not Implemented"
 		return &gcpgenserver.V1betaStartProjectEventNotImplemented{
 			Code:    models.NotImplementedErrorCode,
 			Message: msg,
@@ -118,7 +119,7 @@ func (h Handler) V1betaResourceStateUpdate(ctx context.Context, req *gcpgenserve
 	if req.State == gcpgenserver.ResourceStateUpdateV1betaStateDELETE &&
 		req.ResourceType != gcpgenserver.ResourceStateUpdateV1betaResourceTypeVolume &&
 		req.ResourceType != gcpgenserver.ResourceStateUpdateV1betaResourceTypeStoragePool {
-		msg := "Handle Resource Event for " + models.StateDelete + " is not Implemented"
+		msg := "Handle Resource Event for " + datamodel.ResourceEventStateDelete + " is not Implemented"
 		return &gcpgenserver.V1betaResourceStateUpdateNotImplemented{
 			Code:    models.NotImplementedErrorCode,
 			Message: msg,

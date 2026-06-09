@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -25,7 +24,7 @@ var (
 func _getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err == nil {
-		if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+		if account.DeletedAt != nil || account.State == datamodel.AccountStateDisabled {
 			// Resurrect account
 			return nil, errors.New("account is disabled")
 		}
@@ -51,7 +50,7 @@ func _createAccount(ctx context.Context, se database.Storage, accountName string
 			UpdatedAt: createdDate,
 		},
 		Name:  accountName,
-		State: models.AccountStateEnabled,
+		State: datamodel.AccountStateEnabled,
 		Tags:  tags,
 	}
 
@@ -77,7 +76,7 @@ func (o *GCPOrchestrator) GetAccount(ctx context.Context, accountName string) (*
 	if err != nil {
 		return nil, err
 	}
-	if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+	if account.DeletedAt != nil || account.State == datamodel.AccountStateDisabled {
 		return nil, customerrors.NewNotFoundErr("account not found or disabled", nil)
 	}
 	return account, nil

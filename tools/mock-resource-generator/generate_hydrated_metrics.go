@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
@@ -1046,7 +1045,7 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 						UUID: precomputed.getUUID(),
 					},
 					Name:  resource.ConsumerID,
-					State: models.AccountStateEnabled,
+					State: datamodel.AccountStateEnabled,
 				})
 			}
 		}
@@ -1143,8 +1142,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 				VendorID:          fmt.Sprintf("vendor-%s", generateRandomString(8)),
 				AllowAutoTiering:  allowAutoTiering,
 				AutoTieringConfig: autoTieringConfig,
-				State:             models.LifeCycleStateAvailable,
-				StateDetails:      models.LifeCycleStateAvailableDetails,
+				State:             datamodel.LifeCycleStateAvailable,
+				StateDetails:      datamodel.LifeCycleStateAvailableDetails,
 				PoolAttributes: &datamodel.PoolAttributes{
 					IsRegionalHA: resource.IsRegionalHA,
 					PrimaryZone:  resource.Location + "-a",
@@ -1213,8 +1212,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 					Name:         fmt.Sprintf("svm-%s", pool.Name),
 					AccountID:    account.ID,
 					PoolID:       createdPool.ID,
-					State:        models.LifeCycleStateAvailable,
-					StateDetails: models.LifeCycleStateAvailableDetails,
+					State:        datamodel.LifeCycleStateAvailable,
+					StateDetails: datamodel.LifeCycleStateAvailableDetails,
 				}
 				svmsToCreate = append(svmsToCreate, svm)
 			}
@@ -1279,8 +1278,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 			Account:        firstAccount,
 			DeploymentName: "default-deployment",
 			VendorID:       fmt.Sprintf("vendor-%s", generateRandomString(8)),
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateAvailableDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateAvailableDetails,
 			PoolAttributes: &datamodel.PoolAttributes{
 				IsRegionalHA: false,
 				PrimaryZone:  "us-central1-a",
@@ -1300,8 +1299,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 			Name:         "svm-default-pool",
 			AccountID:    firstAccount.ID,
 			PoolID:       createdPool.ID,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		createdSvm, err := vcpDB.CreateSVM(ctx, defaultSvm)
 		if err != nil {
@@ -1408,8 +1407,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 				Pool:         pool,
 				SvmID:        svm.ID,
 				Svm:          svm,
-				State:        models.LifeCycleStateAvailable,
-				StateDetails: models.LifeCycleStateAvailableDetails,
+				State:        datamodel.LifeCycleStateAvailable,
+				StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			}
 			volumesToCreate = append(volumesToCreate, volume)
 			volumeResourceMap[resource.Name] = resource
@@ -1550,8 +1549,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 				Name:                  vaultName,
 				AccountID:             account.ID,
 				Account:               account,
-				LifeCycleState:        models.LifeCycleStateAvailable,
-				LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+				LifeCycleState:        datamodel.LifeCycleStateAvailable,
+				LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 				BackupVaultType:       "STANDARD",
 				AccountVendorID:       fmt.Sprintf("vendor-%s", generateRandomString(8)),
 			}
@@ -1681,8 +1680,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 				VolumeUUID:    volume.UUID,
 				BackupVaultID: backupVault.ID,
 				BackupVault:   backupVault,
-				State:         models.LifeCycleStateAvailable,
-				StateDetails:  models.LifeCycleStateAvailableDetails,
+				State:         datamodel.LifeCycleStateAvailable,
+				StateDetails:  datamodel.LifeCycleStateAvailableDetails,
 				Type:          "MANUAL",
 				SizeInBytes:   rand.Int63n(100*1024*1024*1024) + 1024*1024*1024, // Random size between 1GB and 100GB
 				Attributes:    backupAttributes,
@@ -1896,8 +1895,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 				Account:               account,
 				VolumeID:              volume.ID,
 				Volume:                volume,
-				State:                 models.LifeCycleStateAvailable,
-				StateDetails:          models.LifeCycleStateAvailableDetails,
+				State:                 datamodel.LifeCycleStateAvailable,
+				StateDetails:          datamodel.LifeCycleStateAvailableDetails,
 				Uri:                   fmt.Sprintf("replication://%s", resource.Name),
 				RemoteUri:             fmt.Sprintf("replication://remote-%s", resource.Name),
 				ReplicationAttributes: replicationAttributes,

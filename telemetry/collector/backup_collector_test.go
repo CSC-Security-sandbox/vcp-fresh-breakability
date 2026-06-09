@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -1773,7 +1772,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 					BackupVault: &datamodel.BackupVault{
 						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-1"},
 						Name:        "BackupVaultGcbdr1",
-						ServiceType: models.ServiceTypeCrossProject,
+						ServiceType: datamodel.ServiceTypeCrossProject,
 					},
 				},
 			},
@@ -1797,7 +1796,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 					BackupVault: &datamodel.BackupVault{
 						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-2"},
 						Name:        "BackupVaultGcbdr2",
-						ServiceType: models.ServiceTypeCrossProject,
+						ServiceType: datamodel.ServiceTypeCrossProject,
 					},
 				},
 			},
@@ -1821,7 +1820,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 					BackupVault: &datamodel.BackupVault{
 						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-non-gcbdr-1"},
 						Name:        "BackupVaultNonGcbdr1",
-						ServiceType: models.ServiceTypeGCNV,
+						ServiceType: datamodel.ServiceTypeGCNV,
 					},
 				},
 			},
@@ -2040,7 +2039,7 @@ func TestGetBackupMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 				BackupVault: &datamodel.BackupVault{
 					BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
 					Name:        "vault",
-					ServiceType: models.ServiceTypeCrossProject,
+					ServiceType: datamodel.ServiceTypeCrossProject,
 					Account: &datamodel.Account{
 						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
 						Name:      "VaultOwnerProject",
@@ -2062,7 +2061,7 @@ func TestGetBackupMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 				BackupVault: &datamodel.BackupVault{
 					BaseModel:   datamodel.BaseModel{UUID: "bv-gcnv"},
 					Name:        "vault",
-					ServiceType: models.ServiceTypeGCNV,
+					ServiceType: datamodel.ServiceTypeGCNV,
 					Account: &datamodel.Account{
 						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
 						Name:      "VaultOwnerProject",
@@ -2084,7 +2083,7 @@ func TestGetBackupMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 				BackupVault: &datamodel.BackupVault{
 					BaseModel:   datamodel.BaseModel{UUID: "bv-cp-nil"},
 					Name:        "vault",
-					ServiceType: models.ServiceTypeCrossProject,
+					ServiceType: datamodel.ServiceTypeCrossProject,
 					Account:     nil,
 				},
 			},
@@ -2103,7 +2102,7 @@ func TestGetBackupMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
 				BackupVault: &datamodel.BackupVault{
 					BaseModel:   datamodel.BaseModel{UUID: "bv-cp-empty"},
 					Name:        "vault",
-					ServiceType: models.ServiceTypeCrossProject,
+					ServiceType: datamodel.ServiceTypeCrossProject,
 					Account: &datamodel.Account{
 						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
 						Name:      "",
@@ -2168,7 +2167,7 @@ func TestGetBackupMetrics_MultiVaultSameVolume_EmitsPerVaultBillingRows(t *testi
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
 				Name:        "vault1",
-				ServiceType: models.ServiceTypeCrossProject,
+				ServiceType: datamodel.ServiceTypeCrossProject,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
 					Name:      "Project1",
@@ -2185,7 +2184,7 @@ func TestGetBackupMetrics_MultiVaultSameVolume_EmitsPerVaultBillingRows(t *testi
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
 				Name:        "vault1",
-				ServiceType: models.ServiceTypeCrossProject,
+				ServiceType: datamodel.ServiceTypeCrossProject,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
 					Name:      "Project1",
@@ -2202,7 +2201,7 @@ func TestGetBackupMetrics_MultiVaultSameVolume_EmitsPerVaultBillingRows(t *testi
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:   datamodel.BaseModel{UUID: "vault2-uuid"},
 				Name:        "vault2",
-				ServiceType: models.ServiceTypeCrossProject,
+				ServiceType: datamodel.ServiceTypeCrossProject,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
 					Name:      "Project1",
@@ -2219,7 +2218,7 @@ func TestGetBackupMetrics_MultiVaultSameVolume_EmitsPerVaultBillingRows(t *testi
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:   datamodel.BaseModel{UUID: "vault3-uuid"},
 				Name:        "vault3",
-				ServiceType: models.ServiceTypeCrossProject,
+				ServiceType: datamodel.ServiceTypeCrossProject,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "acct-p2"},
 					Name:      "Project2",
@@ -2578,7 +2577,7 @@ func TestGetBackupMetricsPerVault_GcbdrFlagDisabled_SkipsCrossProject(t *testing
 			},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
-				ServiceType: models.ServiceTypeCrossProject,
+				ServiceType: datamodel.ServiceTypeCrossProject,
 				Account: &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "acct-cp"},
 					Name:      "VaultProject",

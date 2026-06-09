@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -395,7 +394,7 @@ func TestHandleCancellationInDeleteWorkflow_WithDefaultSignalName(t *testing.T) 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "", // Empty SignalName - should use default
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -444,7 +443,7 @@ func TestHandleCancellationInDeleteWorkflow_WithDefaultTimeout(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 0, // Zero timeout - should use default
 	}
@@ -493,7 +492,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenGetCreateJobFails(t *testing.T) 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -536,7 +535,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultIsNil(t *testing.
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -579,7 +578,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultHasEmptyWorkflowI
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -627,7 +626,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobFound(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -676,7 +675,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCheckWorkflowStatusFails(t *test
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -725,7 +724,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning(t *testing.T)
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -772,7 +771,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunningAndUpdateJobFa
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -822,7 +821,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalFails(t *testing
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -873,7 +872,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWaitForCancellationAckFails(t *t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -924,7 +923,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelSucceeds(t 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -953,7 +952,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelSucceeds(t 
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, 30*time.Second).Return(true, nil) // Force cancel wait succeeds
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.UUID == createJobResult.JobUUID &&
-			job.State == string(models.JobsStateERROR) &&
+			job.State == string(datamodel.JobsStateERROR) &&
 			job.TrackingID == vsaerrors.ErrInternalServerError &&
 			job.ErrorDetails == "Resource creation forcefully terminated due to delete request (timeout exceeded)"
 	})).Return(nil)
@@ -980,7 +979,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelFails(t *te
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1030,7 +1029,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelWaitFails(t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1081,7 +1080,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelWaitTimeout
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1132,7 +1131,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCancellationSucceeds(t *testing.
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1159,7 +1158,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCancellationSucceeds(t *testing.
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil) // Success
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.UUID == createJobResult.JobUUID &&
-			job.State == string(models.JobsStateERROR) &&
+			job.State == string(datamodel.JobsStateERROR) &&
 			job.TrackingID == vsaerrors.ErrInternalServerError &&
 			job.ErrorDetails == "Resource creation cancelled due to delete request"
 	})).Return(nil)
@@ -1186,7 +1185,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobFails(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1238,7 +1237,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobSucceeds(t *testing.T) 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1287,7 +1286,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobFound_LogsMatchingJob(t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1334,7 +1333,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning_LogsCompletio
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1359,7 +1358,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning_LogsCompletio
 	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.UUID == createJobResult.JobUUID &&
-			job.State == string(models.JobsStateERROR) &&
+			job.State == string(datamodel.JobsStateERROR) &&
 			job.TrackingID == vsaerrors.ErrInternalServerError &&
 			job.ErrorDetails == "Resource creation cancelled due to delete request"
 	})).Return(nil)
@@ -1386,7 +1385,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenSendingCancelSignal_LogsSignalAn
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1439,7 +1438,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWaitingForAck_LogsWaitAndHandles
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1490,7 +1489,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutOccurs_LogsTimeoutAndForc
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1541,7 +1540,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelFails_LogsErrorAndPro
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1591,7 +1590,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceeds_WaitsForComp
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1642,7 +1641,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelWaitFails_LogsErrorAn
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1693,7 +1692,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelWaitSucceeds_LogsComp
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1744,7 +1743,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelWaitTimesOut_LogsTime
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1795,7 +1794,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCancellationAcknowledged_LogsSuc
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1844,7 +1843,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdatingJobAfterCancellation_Cre
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1871,7 +1870,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdatingJobAfterCancellation_Cre
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.UUID == createJobResult.JobUUID &&
-			job.State == string(models.JobsStateERROR) &&
+			job.State == string(datamodel.JobsStateERROR) &&
 			job.TrackingID == vsaerrors.ErrInternalServerError &&
 			job.ErrorDetails == "Resource creation cancelled due to delete request"
 	})).Return(nil)
@@ -1898,7 +1897,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenJobUpdateSucceeds_LogsSuccessAnd
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1947,7 +1946,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultIsNil_LogsWarning
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -1987,7 +1986,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultHasEmptyWorkflowI
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2032,7 +2031,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCreateJobFound_LogsMatchingJobIn
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2081,7 +2080,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCheckingWorkflowStatus_ExecutesI
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2130,7 +2129,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCheckWorkflowStatusFails_LogsWar
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2176,7 +2175,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning_ChecksIsRunni
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2223,7 +2222,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning_LogsCompletio
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2270,7 +2269,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunningAndUpdateJobFa
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2317,7 +2316,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenSendingCancelSignal_LogsSignalAn
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2368,7 +2367,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalFails_LogsWarnin
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2419,7 +2418,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWaitingForAck_LogsWaitAndExecute
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2468,7 +2467,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenWaitForAckFails_LogsWarningAndCo
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2519,7 +2518,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenAcknowledgmentNotReceived_Checks
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2570,7 +2569,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutOccurs_LogsTimeoutWarning
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2621,7 +2620,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenTimeoutOccurs_ExecutesForceCance
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2672,7 +2671,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelFails_LogsWarningAndP
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2722,7 +2721,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceeds_WaitsForComp
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2773,7 +2772,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenForceCancelWaitFails_LogsWarning
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2824,7 +2823,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenCancellationAcknowledged_LogsSuc
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2873,7 +2872,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdatingJobAfterCancellation_Cre
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2900,7 +2899,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdatingJobAfterCancellation_Cre
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.UUID == createJobResult.JobUUID &&
-			job.State == string(models.JobsStateERROR) &&
+			job.State == string(datamodel.JobsStateERROR) &&
 			job.TrackingID == vsaerrors.ErrInternalServerError &&
 			job.ErrorDetails == "Resource creation cancelled due to delete request"
 	})).Return(nil)
@@ -2927,7 +2926,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobFails_LogsWarningAndRet
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -2976,7 +2975,7 @@ func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobSucceeds_LogsSuccessAnd
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3025,7 +3024,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine189(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3074,7 +3073,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines192_193(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3123,7 +3122,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines195_197(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3169,7 +3168,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines200_203_208_209_211(t *te
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3216,7 +3215,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines215_217_219_220(t *testin
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3267,7 +3266,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines224_226_229_230(t *testin
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3318,7 +3317,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines234_236_238_240_241(t *te
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3368,7 +3367,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines244_247_249_252(t *testin
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3419,7 +3418,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine254(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3470,7 +3469,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine258(t *testing.T) {
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3519,7 +3518,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines262_267_269_271_274(t *te
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3568,7 +3567,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines184_186_NilResult(t *test
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid-184-nil",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3609,7 +3608,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines184_186_EmptyWorkflowID(t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3655,7 +3654,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine189_LogsMatchingJob(t *tes
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3705,7 +3704,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines192_193_ExecutesIsRunning
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3754,7 +3753,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines195_197_CheckStatusFails(
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3800,7 +3799,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine200_WorkflowNotRunning(t *
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3847,7 +3846,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines202_203_LogsCompletion(t 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3894,7 +3893,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines208_209_211_UpdateJobFail
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3941,7 +3940,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines215_217_SendsCancelSignal
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -3990,7 +3989,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines219_220_SendSignalFails(t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4041,7 +4040,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines224_226_WaitsForAck(t *te
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4090,7 +4089,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines229_230_WaitForAckFails(t
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4141,7 +4140,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine234_NotAcknowledged(t *tes
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4192,7 +4191,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine236_LogsTimeoutWarning(t *
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4243,7 +4242,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine238_ExecutesForceCancel(t 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4294,7 +4293,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines240_241_ForceCancelFails(
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4344,7 +4343,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines244_247_WaitsForForceCanc
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4395,7 +4394,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines249_252_ForceCancelWaitEr
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4446,7 +4445,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine251_252_ForceCancelWaitSuc
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4497,7 +4496,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine254_ForceCancelWaitTimeout
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4548,7 +4547,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine258_CancellationAcknowledg
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4597,7 +4596,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLine262_CreatesJobForUpdate(t 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4646,7 +4645,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines267_269_UpdateJobFails(t 
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4695,7 +4694,7 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines271_274_UpdateJobSucceeds
 	params := WorkflowCancellationParams{
 		ResourceUUID:           "test-resource-uuid",
 		CorrelationID:          "test-correlation-id",
-		CreateJobType:          models.JobTypeCreatePool,
+		CreateJobType:          datamodel.JobTypeCreatePool,
 		SignalName:             "cancel-signal",
 		CancellationAckTimeout: 5 * time.Minute,
 	}
@@ -4794,8 +4793,8 @@ func TestHandleCancellationForCreatingResource_NonCreatingState_ReturnsNilEarly(
 	mockLogger := &log.MockLogger{}
 	params := HandleCancellationForCreatingResourceParams{
 		ResourceUUID:  "resource-uuid",
-		ResourceState: models.LifeCycleStateREADY, // Not CREATING
-		CreateJobType: models.JobTypeCreateVolume,
+		ResourceState: datamodel.LifeCycleStateREADY, // Not CREATING
+		CreateJobType: datamodel.JobTypeCreateVolume,
 	}
 
 	getCreateJobActivity := func(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*CreateJobResult, error) {
@@ -4827,8 +4826,8 @@ func TestHandleCancellationForCreatingResource_Success_ReturnsNil(t *testing.T) 
 	mockLogger := &log.MockLogger{}
 	params := HandleCancellationForCreatingResourceParams{
 		ResourceUUID:  "resource-uuid",
-		ResourceState: models.LifeCycleStateCreating,
-		CreateJobType: models.JobTypeCreateVolume,
+		ResourceState: datamodel.LifeCycleStateCreating,
+		CreateJobType: datamodel.JobTypeCreateVolume,
 	}
 
 	createJobResult := &CreateJobResult{
@@ -4872,8 +4871,8 @@ func TestHandleCancellationForCreatingResource_CorrelationIDError_ContinuesWithE
 	mockLogger.On("Warnf", "Could not get correlation ID from workflow context: %v", mock.Anything).Return()
 	params := HandleCancellationForCreatingResourceParams{
 		ResourceUUID:  "resource-uuid",
-		ResourceState: models.LifeCycleStateCreating,
-		CreateJobType: models.JobTypeCreateVolume,
+		ResourceState: datamodel.LifeCycleStateCreating,
+		CreateJobType: datamodel.JobTypeCreateVolume,
 	}
 
 	createJobResult := &CreateJobResult{
@@ -4922,8 +4921,8 @@ func TestHandleCancellationForCreatingResource_CancellationError_ReturnsError(t 
 	mockLogger := &log.MockLogger{}
 	params := HandleCancellationForCreatingResourceParams{
 		ResourceUUID:  "resource-uuid",
-		ResourceState: models.LifeCycleStateCreating,
-		CreateJobType: models.JobTypeCreateVolume,
+		ResourceState: datamodel.LifeCycleStateCreating,
+		CreateJobType: datamodel.JobTypeCreateVolume,
 	}
 
 	createJobResult := &CreateJobResult{

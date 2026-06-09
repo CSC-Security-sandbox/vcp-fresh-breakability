@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -224,7 +223,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 					UUID: "repl-creating",
 				},
 				Name:  "test-repl-creating",
-				State: models.LifeCycleStateCreating,
+				State: datamodel.LifeCycleStateCreating,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					EndpointType: "dst",
 					ExternalUUID: "creating-external-uuid", // Add ExternalUUID
@@ -235,7 +234,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 					UUID: "repl-available",
 				},
 				Name:  "test-repl-available",
-				State: models.LifeCycleStateAvailable,
+				State: datamodel.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					EndpointType: "dst",
 					ExternalUUID: "available-external-uuid", // Add ExternalUUID
@@ -246,7 +245,7 @@ func TestGetMultipleReplicationsByExternalUUID(t *testing.T) {
 					UUID: "repl-error",
 				},
 				Name:  "test-repl-error",
-				State: models.LifeCycleStateError,
+				State: datamodel.LifeCycleStateError,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					EndpointType: "dst",
 					ExternalUUID: "error-external-uuid", // Add ExternalUUID

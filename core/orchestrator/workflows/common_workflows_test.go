@@ -478,14 +478,14 @@ func TestEnsureJobStateSuccess(t *testing.T) {
 		f.On("Get", ctx, mock.Anything).
 			Run(func(args mock.Arguments) {
 				jobPtr := args[1].(**datamodel.Job)
-				*jobPtr = &datamodel.Job{State: string(coreModels.JobsStateNEW)}
+				*jobPtr = &datamodel.Job{State: string(datamodel.JobsStateNEW)}
 			}).
 			Return(nil)
 		return f
 	}
 
 	bw := &BaseWorkflow{ID: "job-id"}
-	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+	err := bw.EnsureJobState(wfCtx, datamodel.JobsStateNEW)
 
 	assert.NoError(t, err)
 }
@@ -501,14 +501,14 @@ func TestEnsureJobStateMismatch(t *testing.T) {
 		f.On("Get", ctx, mock.Anything).
 			Run(func(args mock.Arguments) {
 				jobPtr := args[1].(**datamodel.Job)
-				*jobPtr = &datamodel.Job{State: string(coreModels.JobsStatePROCESSING)}
+				*jobPtr = &datamodel.Job{State: string(datamodel.JobsStatePROCESSING)}
 			}).
 			Return(nil)
 		return f
 	}
 
 	bw := &BaseWorkflow{ID: "job-id"}
-	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+	err := bw.EnsureJobState(wfCtx, datamodel.JobsStateNEW)
 
 	assert.Error(t, err)
 	customErr, ok := err.(*vsaerrors.CustomError)
@@ -523,7 +523,7 @@ func TestEnsureJobStateEmptyID(t *testing.T) {
 	wfCtx := &mockWorkflowContext{base: ctx}
 
 	bw := &BaseWorkflow{ID: ""}
-	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+	err := bw.EnsureJobState(wfCtx, datamodel.JobsStateNEW)
 
 	assert.Error(t, err)
 	customErr, ok := err.(*vsaerrors.CustomError)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -33,8 +32,8 @@ func TestUpdateRbacForPools_Success(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		CorrelationID: "test-correlation-id",
@@ -43,8 +42,8 @@ func TestUpdateRbacForPools_Success(t *testing.T) {
 
 	// Mock CreateJob
 	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.Type == string(models.JobTypeExpertModeRbacRefresh) &&
-			job.State == string(models.JobsStateNEW) &&
+		return job.Type == string(datamodel.JobTypeExpertModeRbacRefresh) &&
+			job.State == string(datamodel.JobsStateNEW) &&
 			!job.AccountID.Valid
 	})).Return(expectedJob, nil).Once()
 
@@ -111,8 +110,8 @@ func TestUpdateRbacForPools_ExecuteWorkflowFails(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		TrackingID:    123,
@@ -137,7 +136,7 @@ func TestUpdateRbacForPools_ExecuteWorkflowFails(t *testing.T) {
 	).Return(nil, workflowError).Once()
 
 	// Mock UpdateJob to update job status to ERROR
-	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(datamodel.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
 
 	// Execute
 	jobID, err := orchestrator.UpdateRbacForPools(ctx)
@@ -165,8 +164,8 @@ func TestUpdateRbacForPools_ExecuteWorkflowFails_UpdateJobFails(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		TrackingID:    123,
@@ -192,7 +191,7 @@ func TestUpdateRbacForPools_ExecuteWorkflowFails_UpdateJobFails(t *testing.T) {
 	).Return(nil, workflowError).Once()
 
 	// Mock UpdateJob to fail
-	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(datamodel.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
 
 	// Execute
 	jobID, err := orchestrator.UpdateRbacForPools(ctx)
@@ -216,8 +215,8 @@ func TestUpdateRbacForPoolById_Success(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		CorrelationID: "test-correlation-id",
@@ -225,8 +224,8 @@ func TestUpdateRbacForPoolById_Success(t *testing.T) {
 	}
 	poolId := "pool-uuid-123"
 	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.Type == string(models.JobTypeExpertModeRbacRefresh) &&
-			job.State == string(models.JobsStateNEW) &&
+		return job.Type == string(datamodel.JobTypeExpertModeRbacRefresh) &&
+			job.State == string(datamodel.JobsStateNEW) &&
 			!job.AccountID.Valid &&
 			job.ResourceUUID == poolId
 	})).Return(expectedJob, nil).Once()
@@ -276,8 +275,8 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		TrackingID:    123,
@@ -297,7 +296,7 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails(t *testing.T) {
 		mock.Anything,
 		poolId,
 	).Return(nil, workflowError).Once()
-	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(datamodel.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
 	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
@@ -317,8 +316,8 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails_UpdateJobFails(t *testing.T)
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		TrackingID:    123,
@@ -339,7 +338,7 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails_UpdateJobFails(t *testing.T)
 		mock.Anything,
 		poolId,
 	).Return(nil, workflowError).Once()
-	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(datamodel.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
 	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
@@ -362,8 +361,8 @@ func TestUpdateRbacForPools_JobFields(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type:          string(models.JobTypeExpertModeRbacRefresh),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeExpertModeRbacRefresh),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Valid: false},
 		WorkflowID:    "test-workflow-id",
 		CorrelationID: "test-correlation-id",
@@ -372,8 +371,8 @@ func TestUpdateRbacForPools_JobFields(t *testing.T) {
 
 	// Mock CreateJob with specific field validation
 	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.Type == string(models.JobTypeExpertModeRbacRefresh) &&
-			job.State == string(models.JobsStateNEW) &&
+		return job.Type == string(datamodel.JobTypeExpertModeRbacRefresh) &&
+			job.State == string(datamodel.JobsStateNEW) &&
 			!job.AccountID.Valid
 	})).Return(expectedJob, nil).Once()
 

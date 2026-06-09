@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen"
@@ -185,7 +186,7 @@ func (h Handler) V1SplitStartVolume(ctx context.Context, params oasgenserver.V1S
 
 	operationUUID := uuid.UUID{}.String()
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + operationUUID
-	if volume.LifeCycleState == coremodels.LifeCycleStateCreating {
+	if volume.LifeCycleState == datamodel.LifeCycleStateCreating {
 		return &oasgenserver.OperationV1{
 			Name:     oasgenserver.NewOptString(operationID),
 			Response: resp,

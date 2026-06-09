@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -14,9 +13,9 @@ import (
 
 func TestReplicationHandlerJobTypes(t *testing.T) {
 	handler := NewReplicationHandler()
-	require.ElementsMatch(t, []models.JobType{
-		models.JobTypeCreateVolumeReplication,
-		models.JobTypeCreateVolumeReplicationInternal,
+	require.ElementsMatch(t, []datamodel.JobType{
+		datamodel.JobTypeCreateVolumeReplication,
+		datamodel.JobTypeCreateVolumeReplicationInternal,
 	}, handler.JobTypes())
 }
 

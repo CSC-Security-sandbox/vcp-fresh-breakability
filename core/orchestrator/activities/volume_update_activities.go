@@ -545,8 +545,8 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		updates[VolumeAttributesProperty] = volume.VolumeAttributes
 	}
 
-	updates["state"] = models.LifeCycleStateREADY
-	updates["state_details"] = models.LifeCycleStateAvailableDetails
+	updates["state"] = datamodel.LifeCycleStateREADY
+	updates["state_details"] = datamodel.LifeCycleStateAvailableDetails
 
 	if applyFlexCacheParameters(volume, params) {
 		updates["cache_parameters"] = volume.CacheParameters

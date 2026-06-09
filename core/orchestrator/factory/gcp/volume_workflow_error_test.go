@@ -45,7 +45,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 				Account:     account,
 				SizeInBytes: 1000000000000,
 				Network:     "test-network",
-				State:       models.LifeCycleStateREADY,
+				State:       datamodel.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
@@ -57,7 +57,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 
 		svm := &datamodel.Svm{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -111,7 +111,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil).Once()
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil).Once()
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
@@ -148,13 +148,13 @@ func TestRevertVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 			AccountID:    1,
 			Account:      account,
 			Pool:         pool,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -199,8 +199,8 @@ func TestRevertVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 
 		// Mock UpdateVolumeFields call to revert volume back to READY state
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateREADY,
-			"state_details": models.LifeCycleStateAvailableDetails,
+			"state":         datamodel.LifeCycleStateREADY,
+			"state_details": datamodel.LifeCycleStateAvailableDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -238,7 +238,7 @@ func TestDeleteVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -255,11 +255,11 @@ func TestDeleteVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 
 		mockStorage.On("GetVolume", ctx, "volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID to return nil (no existing job) since code checks for existing jobs
-		mockStorage.On("GetJobByResourceUUID", ctx, "volume-uuid", string(models.JobTypeDeleteVolume)).Return(nil, errors.New("Job not found"))
+		mockStorage.On("GetJobByResourceUUID", ctx, "volume-uuid", string(datamodel.JobTypeDeleteVolume)).Return(nil, errors.New("Job not found"))
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateDeleting,
-			"state_details": models.LifeCycleStateDeletingDetails,
+			"state":         datamodel.LifeCycleStateDeleting,
+			"state_details": datamodel.LifeCycleStateDeletingDetails,
 		}).Return(nil)
 
 		// Mock workflow failure
@@ -272,12 +272,12 @@ func TestDeleteVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
 		// Mock UpdateVolumeFields call to mark volume as error
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateDeletionErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateDeletionErrorDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -321,7 +321,7 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 			Name:             "test-volume",
 			AccountID:        1,
 			Account:          account,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
 			Pool:             database.ConvertPoolViewToPool(pool),
@@ -356,12 +356,12 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowErr)
 
 		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
 		// Mock UpdateVolumeFields call to mark volume as error
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateUpdateErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateUpdateErrorDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -395,7 +395,7 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 				Account:     account,
 				SizeInBytes: 1000000000000,
 				Network:     "test-network",
-				State:       models.LifeCycleStateREADY,
+				State:       datamodel.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
@@ -407,7 +407,7 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 
 		svm := &datamodel.Svm{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -461,7 +461,7 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 		}()
 
 		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
@@ -493,7 +493,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 				Account:     account,
 				SizeInBytes: 1000000000000,
 				Network:     "test-network",
-				State:       models.LifeCycleStateREADY,
+				State:       datamodel.LifeCycleStateREADY,
 				VendorID:    "/projects/test-project/locations/us-west1/pools/test-pool",
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
@@ -505,7 +505,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 
 		svm := &datamodel.Svm{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -560,7 +560,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 
 		// Mock UpdateJob call to fail - this is what triggers line 480
 		jobUpdateErr := errors.New("failed to update job")
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
@@ -598,13 +598,13 @@ func TestRevertVolume_FailedJobUpdateOnError_Line376(t *testing.T) {
 			AccountID:    1,
 			Account:      account,
 			Pool:         pool,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -650,8 +650,8 @@ func TestRevertVolume_FailedJobUpdateOnError_Line376(t *testing.T) {
 
 		// Mock UpdateVolumeFields call to succeed
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateREADY,
-			"state_details": models.LifeCycleStateAvailableDetails,
+			"state":         datamodel.LifeCycleStateREADY,
+			"state_details": datamodel.LifeCycleStateAvailableDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -690,13 +690,13 @@ func TestRevertVolume_FailedVolumeUpdateBackToReady(t *testing.T) {
 			AccountID:    1,
 			Account:      account,
 			Pool:         pool,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -742,8 +742,8 @@ func TestRevertVolume_FailedVolumeUpdateBackToReady(t *testing.T) {
 		// Mock UpdateVolumeFields call to fail - this tests error handling when volume update fails
 		volumeUpdateErr := errors.New("failed to update volume fields")
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateREADY,
-			"state_details": models.LifeCycleStateAvailableDetails,
+			"state":         datamodel.LifeCycleStateREADY,
+			"state_details": datamodel.LifeCycleStateAvailableDetails,
 		}).Return(volumeUpdateErr)
 
 		// Execute test
@@ -779,7 +779,7 @@ func TestDeleteVolume_FailedJobUpdateOnError_Line985(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -798,8 +798,8 @@ func TestDeleteVolume_FailedJobUpdateOnError_Line985(t *testing.T) {
 		mockStorage.On("GetJobByResourceUUID", ctx, "volume-uuid", mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateDeleting,
-			"state_details": models.LifeCycleStateDeletingDetails,
+			"state":         datamodel.LifeCycleStateDeleting,
+			"state_details": datamodel.LifeCycleStateDeletingDetails,
 		}).Return(nil)
 
 		// Mock workflow failure
@@ -813,12 +813,12 @@ func TestDeleteVolume_FailedJobUpdateOnError_Line985(t *testing.T) {
 
 		// Mock UpdateJob call to fail - this is what triggers line 985
 		jobUpdateErr := errors.New("failed to update job")
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
 
 		// Mock UpdateVolumeFields call to succeed for error state
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateDeletionErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateDeletionErrorDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -857,7 +857,7 @@ func TestDeleteVolume_FailedVolumeUpdateOnError_Line1014(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool:      pool,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		job := &datamodel.Job{
@@ -874,11 +874,11 @@ func TestDeleteVolume_FailedVolumeUpdateOnError_Line1014(t *testing.T) {
 
 		mockStorage.On("GetVolume", ctx, "volume-uuid").Return(volume, nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (called for non-transitional states)
-		mockStorage.On("GetJobByResourceUUID", ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, volume.UUID, string(datamodel.JobTypeDeleteVolume)).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateDeleting,
-			"state_details": models.LifeCycleStateDeletingDetails,
+			"state":         datamodel.LifeCycleStateDeleting,
+			"state_details": datamodel.LifeCycleStateDeletingDetails,
 		}).Return(nil)
 
 		// Mock workflow failure
@@ -891,13 +891,13 @@ func TestDeleteVolume_FailedVolumeUpdateOnError_Line1014(t *testing.T) {
 		}()
 
 		// Mock UpdateJob call to succeed
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
 		// Mock UpdateVolumeFields call to fail - this is what triggers line 1014
 		volumeUpdateErr := errors.New("failed to update volume fields")
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateDeletionErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateDeletionErrorDetails,
 		}).Return(volumeUpdateErr)
 
 		// Execute test
@@ -939,7 +939,7 @@ func TestUpdateVolume_FailedJobUpdateOnError_Line1163(t *testing.T) {
 			Name:             "test-volume",
 			AccountID:        1,
 			Account:          account,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
 			Pool:             database.ConvertPoolViewToPool(pool),
@@ -975,12 +975,12 @@ func TestUpdateVolume_FailedJobUpdateOnError_Line1163(t *testing.T) {
 
 		// Mock UpdateJob call to fail - this is what triggers line 1163
 		jobUpdateErr := errors.New("failed to update job")
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
 
 		// Mock UpdateVolumeFields call to succeed
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateUpdateErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateUpdateErrorDetails,
 		}).Return(nil)
 
 		// Execute test
@@ -1078,7 +1078,7 @@ func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 			Name:             "test-volume",
 			AccountID:        1,
 			Account:          account,
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
 			Pool:             database.ConvertPoolViewToPool(pool),
@@ -1113,13 +1113,13 @@ func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowErr)
 
 		// Mock UpdateJob call to succeed
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
 		// Mock UpdateVolumeFields call to fail - this is what triggers line 1185
 		volumeUpdateErr := errors.New("failed to update volume fields")
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateUpdateErrorDetails,
+			"state":         datamodel.LifeCycleStateError,
+			"state_details": datamodel.LifeCycleStateUpdateErrorDetails,
 		}).Return(volumeUpdateErr)
 
 		// Execute test
@@ -1163,12 +1163,12 @@ func setupSplitStartVolumeBase(t *testing.T, ctx context.Context) (mockStorage *
 		AccountID:         1,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1278,13 +1278,13 @@ func TestSplitStartVolume_WorkflowExecutionFails_MockBased(t *testing.T) {
 		AccountID:         1,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1364,7 +1364,7 @@ func TestSplitStartVolume_DeferCloneStateUpdateFails(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1427,13 +1427,13 @@ func TestSplitStartVolume_Success(t *testing.T) {
 		Account:           account,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1532,7 +1532,7 @@ func TestSplitStartVolume_DeferRevertClonesSharedBytesFails(t *testing.T) {
 		AccountID:         1,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
@@ -1631,13 +1631,13 @@ func setupSplitAfterInitiatedBase(t *testing.T, ctx context.Context) (mockStorag
 		AccountID:         1,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1739,7 +1739,7 @@ func TestSplitStartVolume_OntapErrorAfterSplit_StateUpdated(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateSplitting,
+				State:            datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -1778,7 +1778,7 @@ func TestSplitStartVolume_OntapErrorAfterSplit_StateUpdateFails(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateSplitting,
+				State:            datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -1846,13 +1846,13 @@ func TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails(t *
 		Account:           account,
 		Pool:              pool,
 		PoolID:            pool.ID,
-		State:             models.LifeCycleStateREADY,
+		State:             datamodel.LifeCycleStateREADY,
 		ClonesSharedBytes: 500,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned,
+				State:            datamodel.CloneStateCloned,
 			},
 		},
 	}
@@ -1909,7 +1909,7 @@ func TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails(t *
 	})).Return(nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
 	// UpdateJob always fails — drives all waitForTemporalUpdateMaxRetries attempts (line 3926-3934).
-	mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateWaitForTemporal), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
+	mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(datamodel.JobsStateWaitForTemporal), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
 		Return(errors2.New("db write error"))
 	// DeleteJob also fails — exercises the error log on line 3941.
 	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).
@@ -1999,7 +1999,7 @@ func TestValidateSplitStopVolumeParams_StateNotSplitting(t *testing.T) {
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateCloned, // anything other than SPLITTING is a 409
+				State:            datamodel.CloneStateCloned, // anything other than SPLITTING is a 409
 			},
 		},
 	}
@@ -2009,7 +2009,7 @@ func TestValidateSplitStopVolumeParams_StateNotSplitting(t *testing.T) {
 	assert.True(t, errors.IsConflictErr(err), "expected ConflictErr, got %T: %v", err, err)
 	assert.Contains(t, err.Error(), "volume split is not in progress")
 	// The current state must be surfaced in the message so the caller knows why.
-	assert.Contains(t, err.Error(), models.CloneStateCloned)
+	assert.Contains(t, err.Error(), datamodel.CloneStateCloned)
 }
 
 func TestValidateSplitStopVolumeParams_StateSplitting_OK(t *testing.T) {
@@ -2021,7 +2021,7 @@ func TestValidateSplitStopVolumeParams_StateSplitting_OK(t *testing.T) {
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateSplitting,
+				State:            datamodel.CloneStateSplitting,
 			},
 		},
 	}
@@ -2088,12 +2088,12 @@ func setupSplitStopVolumeBase(t *testing.T) (
 		Account:   account,
 		Pool:      pool,
 		PoolID:    pool.ID,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "ext-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
 				ParentVolumeUUID: "parent-uuid",
-				State:            models.CloneStateSplitting,
+				State:            datamodel.CloneStateSplitting,
 				StateDetails:     "in progress",
 			},
 		},
@@ -2292,7 +2292,7 @@ func TestSplitStopVolume_GetVolumeCloneInfoFails_BestEffort(t *testing.T) {
 		if !ok || attrs.CloneParentInfo == nil {
 			return false
 		}
-		return attrs.CloneParentInfo.State == models.CloneStateCloned && attrs.CloneParentInfo.StateDetails == ""
+		return attrs.CloneParentInfo.State == datamodel.CloneStateCloned && attrs.CloneParentInfo.StateDetails == ""
 	})).Return(nil)
 
 	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
@@ -2424,7 +2424,7 @@ func TestSplitStopVolume_Success_WithSplitPercent(t *testing.T) {
 		if !ok || attrs.CloneParentInfo == nil {
 			return false
 		}
-		return attrs.CloneParentInfo.State == models.CloneStateCloned &&
+		return attrs.CloneParentInfo.State == datamodel.CloneStateCloned &&
 			attrs.CloneParentInfo.StateDetails == "" &&
 			attrs.CloneParentInfo.ParentVolumeUUID == "parent-uuid"
 	})).Return(nil)
@@ -2441,7 +2441,7 @@ func TestSplitStopVolume_Success_WithSplitPercent(t *testing.T) {
 	// The orchestrator must also update the in-memory CloneParentInfo it
 	// returns to its caller so that subsequent reads in the same request
 	// observe the new CLONED state without a re-fetch.
-	assert.Equal(t, models.CloneStateCloned, vol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, datamodel.CloneStateCloned, vol.VolumeAttributes.CloneParentInfo.State)
 	assert.Equal(t, "", vol.VolumeAttributes.CloneParentInfo.StateDetails)
 
 	mockProvider.AssertExpectations(t)

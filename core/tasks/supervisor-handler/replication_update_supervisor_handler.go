@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,11 +22,11 @@ func NewReplicationUpdateHandler() *ReplicationUpdateHandler {
 }
 
 // JobTypes enumerates the job types supported by the replication update handler.
-func (h *ReplicationUpdateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeUpdateVolumeReplicationInternal,
-		models.JobTypeUpdateVolumeReplication,
-		models.JobTypeUpdateVolumeReplicationAttributes,
+func (h *ReplicationUpdateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeUpdateVolumeReplicationInternal,
+		datamodel.JobTypeUpdateVolumeReplication,
+		datamodel.JobTypeUpdateVolumeReplicationAttributes,
 	}
 }
 
@@ -58,7 +57,7 @@ func (h *ReplicationUpdateHandler) Handle(ctx context.Context, job *datamodel.Jo
 	}
 
 	// Only revert if replication is in UPDATING state
-	if replication.State != models.LifeCycleStateUpdating {
+	if replication.State != datamodel.LifeCycleStateUpdating {
 		logger.Infof("workflow-supervisor-task: replication %s not in UPDATING state (%s); skipping update cleanup", replication.UUID, replication.State)
 		return nil
 	}
@@ -69,8 +68,8 @@ func (h *ReplicationUpdateHandler) Handle(ctx context.Context, job *datamodel.Jo
 
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not found in job attributes for replication %s, defaulting to AVAILABLE", replication.UUID)
-		previousState = models.LifeCycleStateAvailable
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateAvailable
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	replication.State = previousState

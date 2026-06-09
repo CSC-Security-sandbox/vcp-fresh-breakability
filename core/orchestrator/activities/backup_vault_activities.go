@@ -11,7 +11,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -105,7 +104,7 @@ func (j *BackupVaultActivity) UpdateBackupVaultCmekInVCPActivity(ctx context.Con
 	}
 
 	updateBv.CmekAttributes.BackupsPrimaryKeyVersion = &primaryKeyVersion
-	stateCompleted := coremodels.EncryptionStateCompleted
+	stateCompleted := datamodel.EncryptionStateCompleted
 	updateBv.CmekAttributes.EncryptionState = &stateCompleted
 
 	_, err = se.UpdateBackupVaultInVCP(ctx, &updateBv, dbBv)
@@ -280,9 +279,9 @@ func (j *BackupVaultActivity) WaitForSDECmekRotationCompletion(ctx context.Conte
 
 				state := *bv.EncryptionState
 				switch state {
-				case coremodels.EncryptionStateCompleted:
+				case datamodel.EncryptionStateCompleted:
 					return true, nil
-				case coremodels.EncryptionStateFailed:
+				case datamodel.EncryptionStateFailed:
 					return false, nil
 				default:
 					// PENDING / IN_PROGRESS – keep polling.
@@ -614,8 +613,8 @@ func (j *BackupVaultActivity) ApplyBackupVaultUpdateParams(ctx context.Context, 
 		}
 	}
 
-	updated.LifeCycleState = coremodels.LifeCycleStateREADY
-	updated.LifeCycleStateDetails = coremodels.LifeCycleStateAvailableDetails
+	updated.LifeCycleState = datamodel.LifeCycleStateREADY
+	updated.LifeCycleStateDetails = datamodel.LifeCycleStateAvailableDetails
 	return updated, nil
 }
 
@@ -1005,7 +1004,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		ImmutableAttributes:        immutableFields,
 		CmekAttributes:             cmekFields,
 		CrossRegionBackupVaultName: bv.DestinationBackupVault,
-		ServiceType:                coremodels.ServiceTypeGCNV,
+		ServiceType:                datamodel.ServiceTypeGCNV,
 	}, nil
 }
 
@@ -1116,7 +1115,7 @@ func (a *BackupVaultActivity) cleanupBackupVault(ctx context.Context, vault *dat
 	logger := util.GetLogger(ctx)
 
 	// For cross-project vaults, detach volumes in other projects before cleanup
-	if vault.ServiceType == coremodels.ServiceTypeCrossProject {
+	if vault.ServiceType == datamodel.ServiceTypeCrossProject {
 		if err := a.detachCrossProjectVolumesFromVault(ctx, vault); err != nil {
 			logger.Errorf("Failed to detach cross-project volumes from vault %s: %v", vault.UUID, err)
 			return errors.WrapAsTemporalApplicationError(err)

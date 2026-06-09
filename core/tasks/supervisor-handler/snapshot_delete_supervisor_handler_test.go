@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestSnapshotDeleteHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeDeleteSnapshot)
+	require.Contains(t, jobTypes, datamodel.JobTypeDeleteSnapshot)
 }
 
 func TestNewSnapshotDeleteHandler(t *testing.T) {
@@ -107,7 +106,7 @@ func TestSnapshotDeleteHandler_Handle_SkipsNonDeletingState(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(123), int64(456)).Return(snapshot, nil).Once()
 
@@ -120,8 +119,8 @@ func TestSnapshotDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewSnapshotDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -137,7 +136,7 @@ func TestSnapshotDeleteHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(123), int64(456)).Return(snapshot, nil).Once()
 	storage.EXPECT().UpdateSnapshot(mock.Anything, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
@@ -163,11 +162,11 @@ func TestSnapshotDeleteHandler_Handle_SuccessWithFallbackToReady(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(123), int64(0)).Return(snapshot, nil).Once()
 	storage.EXPECT().UpdateSnapshot(mock.Anything, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
-		return s.State == models.LifeCycleStateREADY && s.StateDetails == models.LifeCycleStateReadyDetails
+		return s.State == datamodel.LifeCycleStateREADY && s.StateDetails == datamodel.LifeCycleStateReadyDetails
 	})).Return(snapshot, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -178,8 +177,8 @@ func TestSnapshotDeleteHandler_Handle_UpdateSnapshotError(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewSnapshotDeleteHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -194,7 +193,7 @@ func TestSnapshotDeleteHandler_Handle_UpdateSnapshotError(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(123), int64(0)).Return(snapshot, nil).Once()
@@ -218,7 +217,7 @@ func TestSnapshotDeleteHandler_Handle_EmptyPayloadAttributes(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(0), int64(0)).Return(snapshot, nil).Once()
 	storage.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshot, nil).Once()
@@ -243,7 +242,7 @@ func TestSnapshotDeleteHandler_Handle_InvalidPayloadAttributeTypes(t *testing.T)
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	// Should use 0 when type assertion fails
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(0), int64(0)).Return(snapshot, nil).Once()
@@ -269,7 +268,7 @@ func TestSnapshotDeleteHandler_Handle_PartialPayloadAttributes(t *testing.T) {
 
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetSnapshotByUUID(mock.Anything, "snapshot-uuid", int64(123), int64(0)).Return(snapshot, nil).Once()
 	storage.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshot, nil).Once()

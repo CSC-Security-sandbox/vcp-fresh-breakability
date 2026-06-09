@@ -12,6 +12,7 @@ import (
 	cvpBatch "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/batch"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -274,7 +275,7 @@ func convertBackupVaultToBatchBackupVault(bv *models.BackupVaultV1beta, fieldSet
 			gcpgenserver.BatchBackupVaultV1betaEncryptionState(*bv.EncryptionState))
 	}
 
-	if bv.ServiceType == models.ServiceTypeCrossProject {
+	if bv.ServiceType == datamodel.ServiceTypeCrossProject {
 		bp.CrossProjectVault = gcpgenserver.NewOptNilBool(true)
 		if bv.TenantProject != nil && *bv.TenantProject != "" {
 			bp.TenantProject = gcpgenserver.NewOptNilString(*bv.TenantProject)

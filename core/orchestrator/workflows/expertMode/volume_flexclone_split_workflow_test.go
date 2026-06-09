@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -64,7 +63,7 @@ func newFlexCloneSplitTestEnv(t *testing.T) (*testsuite.TestWorkflowEnvironment,
 
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 
@@ -90,7 +89,7 @@ func TestExpertModeFlexCloneSplitWorkflow(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, []string{string(models.JobsStatePROCESSING), string(models.JobsStateDONE)}, statuses)
+		assert.Equal(tt, []string{string(datamodel.JobsStatePROCESSING), string(datamodel.JobsStateDONE)}, statuses)
 		env.AssertNotCalled(tt, "RecoverExpertModeVolumeAfterFlexCloneSplitFailure", mock.Anything, mock.Anything, mock.Anything)
 		env.AssertExpectations(tt)
 		mockStorage.AssertExpectations(tt)
@@ -115,7 +114,7 @@ func TestExpertModeFlexCloneSplitWorkflow(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.Error(tt, env.GetWorkflowError())
-		assert.Equal(tt, []string{string(models.JobsStatePROCESSING), string(models.JobsStateERROR)}, statuses)
+		assert.Equal(tt, []string{string(datamodel.JobsStatePROCESSING), string(datamodel.JobsStateERROR)}, statuses)
 		env.AssertNotCalled(tt, "CompleteExpertModeFlexCloneSplitInDB", mock.Anything, mock.Anything, mock.Anything)
 		env.AssertExpectations(tt)
 		mockStorage.AssertExpectations(tt)
@@ -141,7 +140,7 @@ func TestExpertModeFlexCloneSplitWorkflow(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		assert.Equal(tt, []string{string(models.JobsStatePROCESSING), string(models.JobsStateDONE)}, statuses)
+		assert.Equal(tt, []string{string(datamodel.JobsStatePROCESSING), string(datamodel.JobsStateDONE)}, statuses)
 		env.AssertNumberOfCalls(tt, "WaitForExpertModeFlexCloneSplitComplete", 3)
 		env.AssertNotCalled(tt, "RecoverExpertModeVolumeAfterFlexCloneSplitFailure", mock.Anything, mock.Anything, mock.Anything)
 		env.AssertExpectations(tt)
@@ -166,7 +165,7 @@ func TestExpertModeFlexCloneSplitWorkflow(t *testing.T) {
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.Error(tt, env.GetWorkflowError())
-		assert.Equal(tt, []string{string(models.JobsStatePROCESSING), string(models.JobsStateERROR)}, statuses)
+		assert.Equal(tt, []string{string(datamodel.JobsStatePROCESSING), string(datamodel.JobsStateERROR)}, statuses)
 		env.AssertExpectations(tt)
 		mockStorage.AssertExpectations(tt)
 	})

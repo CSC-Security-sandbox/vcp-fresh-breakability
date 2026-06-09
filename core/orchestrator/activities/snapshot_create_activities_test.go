@@ -150,7 +150,7 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 
 		// Mock UpdateSnapshot to accept any snapshot with matching state after modification
 		mockStorage.On("UpdateSnapshot", mock.Anything, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
-			return s.State == models.LifeCycleStateREADY && s.StateDetails == models.LifeCycleStateAvailableDetails
+			return s.State == datamodel.LifeCycleStateREADY && s.StateDetails == datamodel.LifeCycleStateAvailableDetails
 		})).Return(nil, nil)
 
 		// Create Temporal test environment for activity context
@@ -218,7 +218,7 @@ func TestUpdateSnapshotDetails(t *testing.T) {
 
 		// Mock UpdateSnapshot to accept any snapshot with ERROR state after modification
 		mockStorage.On("UpdateSnapshot", mock.Anything, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
-			return s.State == models.LifeCycleStateError && s.StateDetails == models.LifeCycleStateCreationErrorDetails
+			return s.State == datamodel.LifeCycleStateError && s.StateDetails == datamodel.LifeCycleStateCreationErrorDetails
 		})).Return(nil, nil)
 
 		// Create Temporal test environment for activity context

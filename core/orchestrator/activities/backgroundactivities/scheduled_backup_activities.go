@@ -45,7 +45,7 @@ func (j *ScheduledBackupActivity) CheckExpertModeVolumeReady(ctx context.Context
 		}
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	if vol.State == models.LifeCycleStateDeleting || vol.State == models.LifeCycleStateDeleted {
+	if vol.State == datamodel.LifeCycleStateDeleting || vol.State == datamodel.LifeCycleStateDeleted {
 		logger.Warnf("Expert mode volume %s is in state %s, cannot proceed with backup operation", volumeExternalUUID, vol.State)
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("expert mode volume %s is in state %s, cannot proceed with backup operation", volumeExternalUUID, vol.State)),
@@ -98,8 +98,8 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 			UUID: utils.RandomUUID(),
 		},
 		Name:          name,
-		State:         models.LifeCycleStateCreating,
-		StateDetails:  models.LifeCycleStateCreatingDetails,
+		State:         datamodel.LifeCycleStateCreating,
+		StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 		Type:          backupTypeSCHEDULED,
 		ScheduleTag:   &scheduleTag,
 		VolumeUUID:    volumeUUIDForScheduledBackup,
@@ -224,7 +224,7 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 
 	conditions := [][]interface{}{
 		{"account_id = ?", accountID},
-		{"state = ?", models.LifeCycleStateREADY},
+		{"state = ?", datamodel.LifeCycleStateREADY},
 		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
@@ -239,7 +239,7 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 
 	expertModeConditions := [][]interface{}{
 		{"account_id = ?", accountID},
-		{"state = ?", models.LifeCycleStateAvailable},
+		{"state = ?", datamodel.LifeCycleStateAvailable},
 		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
@@ -317,8 +317,8 @@ func (j *ScheduledBackupActivity) UpdateBackupSnapshotInDB(ctx context.Context, 
 	logger := util.GetLogger(ctx)
 
 	// Update the snapshot in the database
-	dbSnapshot.State = models.LifeCycleStateREADY
-	dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+	dbSnapshot.State = datamodel.LifeCycleStateREADY
+	dbSnapshot.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	dbSnapshot.SnapshotAttributes = &datamodel.SnapshotAttributes{
 		SizeInBytes:            ontapSnapshot.SizeInBytes,
 		ExternalUUID:           ontapSnapshot.ExternalUUID,

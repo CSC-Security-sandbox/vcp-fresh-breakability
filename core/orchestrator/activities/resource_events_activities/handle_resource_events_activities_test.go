@@ -13,7 +13,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -98,7 +97,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -143,7 +142,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -180,7 +179,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -214,7 +213,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -239,7 +238,7 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:              coremodels.StateOff,
+			State:              datamodel.ResourceEventStateOff,
 			LocationId:         "test-location-id",
 			ProjectNumber:      "test-project-number",
 			XCorrelationID:     "test-correlation-id",
@@ -286,7 +285,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -322,7 +321,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -367,7 +366,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -403,7 +402,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -439,7 +438,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -472,7 +471,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -496,10 +495,10 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		params := &common.HandleResourceEventParams{
 			ResourceType: common.ResourceStateV1ResourceTypeKmsConfig,
 			ResourceId:   "test-resource-id",
-			State:        coremodels.StateOff,
+			State:        datamodel.ResourceEventStateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, coremodels.StateOff).Return(nil, nil)
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, datamodel.LifeCycleStateDisabledDetails, datamodel.ResourceEventStateOff).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -534,8 +533,8 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
@@ -557,7 +556,7 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(&account, nil)
 
 		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, account.ID,
-			coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(nil)
+			datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -605,7 +604,7 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
 		// OFF event: no SVM check, state set directly to DISABLED
 		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateDisabled && ad.StateDetails == coremodels.LifeCycleStateDisabledDetails
+			return ad.UUID == "test-ad-id" && ad.State == datamodel.LifeCycleStateDisabled && ad.StateDetails == datamodel.LifeCycleStateDisabledDetails
 		})).Return(mockAD, nil)
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
@@ -698,8 +697,8 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}).Return(errors.New("update failed"))
 
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
@@ -899,8 +898,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        coremodels.LifeCycleStateREADY,
-			StateDetails: coremodels.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}).Return(nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -936,8 +935,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        coremodels.LifeCycleStateREADY,
-			StateDetails: coremodels.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}).Return(nil, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -959,7 +958,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(&account, nil)
 
 		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, account.ID,
-			coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil)
+			datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.True(tt, result)
@@ -1007,7 +1006,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
 		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return([]*datamodel.Svm{}, nil)
 		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateREADY && ad.StateDetails == coremodels.LifeCycleStateReadyDetails
+			return ad.UUID == "test-ad-id" && ad.State == datamodel.LifeCycleStateREADY && ad.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(mockAD, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -1034,7 +1033,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
 		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return([]*datamodel.Svm{mockSVM}, nil)
 		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateInUse && ad.StateDetails == coremodels.LifeCycleStateInUseDetails
+			return ad.UUID == "test-ad-id" && ad.State == datamodel.LifeCycleStateInUse && ad.StateDetails == datamodel.LifeCycleStateInUseDetails
 		})).Return(mockAD, nil)
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -1150,8 +1149,8 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 
 		mockSE.On("UpdateVolume", ctx, &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: params.ResourceId},
-			State:        coremodels.LifeCycleStateREADY,
-			StateDetails: coremodels.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}).Return(errors.New("update failed"))
 
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
@@ -1329,9 +1328,9 @@ func TestHandleHostGroups(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails).Return(nil)
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 
-		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleHostGroup(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 	})
@@ -1348,7 +1347,7 @@ func TestHandleHostGroups(t *testing.T) {
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(nil, errors.New("account not found"))
 
-		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleHostGroup(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "account not found")
@@ -1369,9 +1368,9 @@ func TestHandleHostGroups(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(errors.New("update failed"))
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(errors.New("update failed"))
 
-		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleHostGroup(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "update failed")
@@ -1392,9 +1391,9 @@ func TestHandleHostGroups(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(utilErrors.NewNotFoundErr("HostGroup", nil))
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails).Return(utilErrors.NewNotFoundErr("HostGroup", nil))
 
-		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleHostGroup(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 
@@ -1412,13 +1411,13 @@ func TestHandleHostGroups(t *testing.T) {
 		}{
 			{
 				name:         "EnabledState",
-				state:        coremodels.LifeCycleStateREADY,
-				stateDetails: coremodels.LifeCycleStateAvailableDetails,
+				state:        datamodel.LifeCycleStateREADY,
+				stateDetails: datamodel.LifeCycleStateAvailableDetails,
 			},
 			{
 				name:         "DisabledState",
-				state:        coremodels.LifeCycleStateDisabled,
-				stateDetails: coremodels.LifeCycleStateDisabledDetails,
+				state:        datamodel.LifeCycleStateDisabled,
+				stateDetails: datamodel.LifeCycleStateDisabledDetails,
 			},
 		}
 
@@ -2058,7 +2057,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 		// Mock the scheduler pause call
 		mockScheduler.On("Pause", ctx, mock.AnythingOfType("scheduler.PauseScheduleParams")).Return(&scheduler.ScheduleResponse{}, nil)
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt)
@@ -2090,7 +2089,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 		// Mock the scheduler unpause call
 		mockScheduler.On("Unpause", ctx, mock.AnythingOfType("scheduler.UnpauseScheduleParams")).Return(&scheduler.ScheduleResponse{}, nil)
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt)
@@ -2119,7 +2118,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 
 		// Scheduler unpause should NOT be called - no mock setup for Unpause
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt) // Should pass because Unpause was not called
@@ -2148,7 +2147,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 
 		// Scheduler pause should NOT be called - no mock setup for Pause
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt) // Should pass because Pause was not called
@@ -2179,7 +2178,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
 		// Scheduler pause should NOT be called because it's already paused
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt)
@@ -2210,7 +2209,7 @@ func Test_HandleBackupPolicyResourceEvent(t *testing.T) {
 		mockScheduler.On("Describe", ctx, mock.AnythingOfType("scheduler.DescribeScheduleParams")).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
 		// Scheduler unpause should NOT be called because it's already active
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 		mockScheduler.AssertExpectations(tt)
@@ -2261,7 +2260,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(nil, errors.New("account error"))
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "account error")
@@ -2285,7 +2284,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
 		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.New("backup policy error"))
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "backup policy error")
@@ -2309,7 +2308,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
 		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, utilErrors.NewNotFoundErr("BackupPolicy", nil))
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.True(tt, utilErrors.IsNotFoundErr(err))
@@ -2341,7 +2340,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockScheduler.On("Describe", ctx, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: false}, nil)
 		mockScheduler.On("Pause", ctx, mock.Anything).Return(nil, errors.New("pause failed"))
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "pause failed")
@@ -2373,7 +2372,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockScheduler.On("Describe", ctx, mock.Anything).Return(&scheduler.ScheduleDescription{Paused: true}, nil)
 		mockScheduler.On("Unpause", ctx, mock.Anything).Return(nil, errors.New("unpause failed"))
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "unpause failed")
@@ -2429,7 +2428,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
 		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 	})
@@ -2456,7 +2455,7 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
 		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(mockBackupPolicy, nil)
 
-		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
+		result, err := activity.handleBackupPolicy(ctx, params, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.True(tt, result)
 		assert.Nil(tt, err)
 	})
@@ -2505,7 +2504,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2544,7 +2543,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2583,7 +2582,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2622,7 +2621,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2661,7 +2660,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2700,7 +2699,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2739,7 +2738,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2779,7 +2778,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2811,7 +2810,7 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		}
 
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2847,7 +2846,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2895,7 +2894,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2943,7 +2942,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -2991,7 +2990,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -3039,7 +3038,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -3088,7 +3087,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -3136,7 +3135,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "test-jwt-token", nil
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -3179,7 +3178,7 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 			return "", errors.New("token generation failed")
 		}
 		params := &common.HandleResourceEventParams{
-			State:          coremodels.StateOff,
+			State:          datamodel.ResourceEventStateOff,
 			LocationId:     "test-location-id",
 			ProjectNumber:  "test-project-number",
 			XCorrelationID: "test-correlation-id",
@@ -3211,12 +3210,12 @@ func Test_HandleKmsConfig_ErrorCoverage(t *testing.T) {
 
 		params := &common.HandleResourceEventParams{
 			ResourceId: "test-kms-config-id",
-			State:      coremodels.StateOff,
+			State:      datamodel.ResourceEventStateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewNotFoundErr("KmsConfig", nil))
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, datamodel.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewNotFoundErr("KmsConfig", nil))
 
-		result, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleKmsConfig(ctx, params, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "KmsConfig not found")
@@ -3234,12 +3233,12 @@ func Test_HandleKmsConfig_ErrorCoverage(t *testing.T) {
 
 		params := &common.HandleResourceEventParams{
 			ResourceId: "test-kms-config-id",
-			State:      coremodels.StateOff,
+			State:      datamodel.ResourceEventStateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewUserInputValidationErr("validation failed"))
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, datamodel.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewUserInputValidationErr("validation failed"))
 
-		result, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleKmsConfig(ctx, params, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "validation failed")
@@ -3257,12 +3256,12 @@ func Test_HandleKmsConfig_ErrorCoverage(t *testing.T) {
 
 		params := &common.HandleResourceEventParams{
 			ResourceId: "test-kms-config-id",
-			State:      coremodels.StateOff,
+			State:      datamodel.ResourceEventStateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, errors.New("generic error"))
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, datamodel.LifeCycleStateDisabledDetails, params.State).Return(nil, errors.New("generic error"))
 
-		result, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleKmsConfig(ctx, params, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "generic error")
@@ -3288,13 +3287,13 @@ func Test_HandleSnapshot_ErrorCoverage(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
 			},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, expectedSnapshot).Return(nil, utilErrors.NewNotFoundErr("Snapshot", nil))
 
-		result, err := activity.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleSnapshot(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "Snapshot not found")
@@ -3318,13 +3317,13 @@ func Test_HandleSnapshot_ErrorCoverage(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
 			},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}
 
 		mockSE.On("UpdateSnapshotForHandleResource", ctx, expectedSnapshot).Return(nil, errors.New("generic error"))
 
-		result, err := activity.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleSnapshot(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "generic error")
@@ -3350,13 +3349,13 @@ func Test_HandleVolume_ErrorCoverage(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
 			},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}
 
 		mockSE.On("UpdateVolume", ctx, expectedVolume).Return(utilErrors.NewNotFoundErr("Volume", nil))
 
-		result, err := activity.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleVolume(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "Volume not found")
@@ -3380,13 +3379,13 @@ func Test_HandleVolume_ErrorCoverage(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: params.ResourceId,
 			},
-			State:        coremodels.LifeCycleStateDisabled,
-			StateDetails: coremodels.LifeCycleStateDisabledDetails,
+			State:        datamodel.LifeCycleStateDisabled,
+			StateDetails: datamodel.LifeCycleStateDisabledDetails,
 		}
 
 		mockSE.On("UpdateVolume", ctx, expectedVolume).Return(errors.New("generic error"))
 
-		result, err := activity.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
+		result, err := activity.handleVolume(ctx, params, datamodel.LifeCycleStateDisabled, datamodel.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "generic error")

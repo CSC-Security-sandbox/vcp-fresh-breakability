@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -921,8 +920,8 @@ func TestAutoTieringHotTierAutoResizeWorkflow_Success(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow-id",
 		AccountID:  sql.NullInt64{Int64: pool.AccountID, Valid: true},
@@ -1072,8 +1071,8 @@ func TestAutoTieringHotTierAutoResizeWorkflow_UpdatingPoolError(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow-id",
 		AccountID:  sql.NullInt64{Int64: pool.AccountID, Valid: true},
@@ -1139,8 +1138,8 @@ func TestAutoTieringHotTierAutoResizeWorkflow_UpdatePoolWorkflowError(t *testing
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow-id",
 		AccountID:  sql.NullInt64{Int64: pool.AccountID, Valid: true},
@@ -1636,8 +1635,8 @@ func TestAutoTieringHotTierAutoResizeWorkflow_ONTAPModePool_Success(t *testing.T
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow-id",
 		AccountID:  sql.NullInt64{Int64: pool.AccountID, Valid: true},

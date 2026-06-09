@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpBatch "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/batch"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -391,9 +390,9 @@ func mapBackupStateToBatchState(s string) gcpgenserver.BatchBackupV1betaState {
 	switch s {
 	case "":
 		return gcpgenserver.BatchBackupV1betaStateSTATEUNSPECIFIED
-	case coremodels.LifeCycleStateAvailable:
+	case datamodel.LifeCycleStateAvailable:
 		return gcpgenserver.BatchBackupV1betaStateREADY
-	case coremodels.LifeCycleStateUpdating:
+	case datamodel.LifeCycleStateUpdating:
 		return gcpgenserver.BatchBackupV1betaStateSTATEUNSPECIFIED
 	}
 	v := gcpgenserver.BatchBackupV1betaState(s)

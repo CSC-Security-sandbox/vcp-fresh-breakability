@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,8 +17,8 @@ func TestPoolUpdateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 2)
-	require.Contains(t, jobTypes, models.JobTypeUpdatePool)
-	require.Contains(t, jobTypes, models.JobTypeUpdateLargePool)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdatePool)
+	require.Contains(t, jobTypes, datamodel.JobTypeUpdateLargePool)
 }
 
 func TestNewPoolUpdateHandler(t *testing.T) {
@@ -100,7 +99,7 @@ func TestPoolUpdateHandler_Handle_SkipsNonUpdatingState(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateAvailable,
+		State:     datamodel.LifeCycleStateAvailable,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
 
@@ -113,8 +112,8 @@ func TestPoolUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewPoolUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -126,7 +125,7 @@ func TestPoolUpdateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
 	storage.EXPECT().UpdatePoolState(mock.Anything, pool, previousState, previousStateDetails).Return(pool, nil).Once()
@@ -148,10 +147,10 @@ func TestPoolUpdateHandler_Handle_SuccessWithFallbackToAvailable(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -161,8 +160,8 @@ func TestPoolUpdateHandler_Handle_UpdatePoolStateError(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewPoolUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -174,7 +173,7 @@ func TestPoolUpdateHandler_Handle_UpdatePoolStateError(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
@@ -189,7 +188,7 @@ func TestPoolUpdateHandler_Handle_WithPreviousStateDetails(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewPoolUpdateHandler()
 
-	previousState := models.LifeCycleStateREADY
+	previousState := datamodel.LifeCycleStateREADY
 	previousStateDetails := "Custom state details"
 
 	job := &datamodel.Job{
@@ -202,7 +201,7 @@ func TestPoolUpdateHandler_Handle_WithPreviousStateDetails(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
 	storage.EXPECT().UpdatePoolState(mock.Anything, pool, previousState, previousStateDetails).Return(pool, nil).Once()
@@ -216,7 +215,7 @@ func TestPoolUpdateHandler_Handle_UpdateLargePoolJobType(t *testing.T) {
 	handler := NewPoolUpdateHandler()
 
 	job := &datamodel.Job{
-		Type: string(models.JobTypeUpdateLargePool),
+		Type: string(datamodel.JobTypeUpdateLargePool),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "pool-uuid",
 		},
@@ -224,10 +223,10 @@ func TestPoolUpdateHandler_Handle_UpdateLargePoolJobType(t *testing.T) {
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -242,20 +241,20 @@ func TestPoolUpdateHandler_Handle_CompleteSuccessPath(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type: string(models.JobTypeUpdatePool),
+		Type: string(datamodel.JobTypeUpdatePool),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID:         "pool-uuid",
-			PreviousState:        models.LifeCycleStateREADY,
-			PreviousStateDetails: models.LifeCycleStateReadyDetails,
+			PreviousState:        datamodel.LifeCycleStateREADY,
+			PreviousStateDetails: datamodel.LifeCycleStateReadyDetails,
 		},
 	}
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Return(pool, nil).Once()
 
 	// This should execute all code including logger initialization and final logger.Infof
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)

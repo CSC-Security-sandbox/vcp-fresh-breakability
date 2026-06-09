@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -26,8 +25,8 @@ func TestJobManagerWorkflow_Success(t *testing.T) {
 	// Mock CreateJob activity
 	env.OnActivity("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "test-job"},
-		Type:       string(models.JobTypeRefreshAdminJobSpecs),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeRefreshAdminJobSpecs),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow",
 	}, nil)
@@ -57,8 +56,8 @@ func TestJobManagerWorkflow_ActivitiesFail(t *testing.T) {
 	// Mock CreateJob activity
 	env.OnActivity("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "test-job"},
-		Type:       string(models.JobTypeRefreshAdminJobSpecs),
-		State:      string(models.JobsStatePROCESSING),
+		Type:       string(datamodel.JobTypeRefreshAdminJobSpecs),
+		State:      string(datamodel.JobsStatePROCESSING),
 		IsAdminJob: true,
 		WorkflowID: "test-workflow",
 	}, nil)

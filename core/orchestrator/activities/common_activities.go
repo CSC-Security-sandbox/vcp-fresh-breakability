@@ -622,7 +622,7 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 
 func allPoolsDeleting(pools []*datamodel.PoolView) bool {
 	for _, pool := range pools {
-		if pool.State != models.LifeCycleStateDeleting {
+		if pool.State != datamodel.LifeCycleStateDeleting {
 			return false
 		}
 	}

@@ -143,8 +143,8 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"wrongly-deleted-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateDeleted,
-				StateDetails: models.LifeCycleStateDeletedDetails,
+				State:        datamodel.LifeCycleStateDeleted,
+				StateDetails: datamodel.LifeCycleStateDeletedDetails,
 			},
 		}
 		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
@@ -167,7 +167,7 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 
 		// Mock the batch get wrongly deleted snapshots call
 		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
-			[]*datamodel.Snapshot{{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}}, nil)
+			[]*datamodel.Snapshot{{State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails}}, nil)
 		// Mock the batch undelete snapshots call
 		mockStorage.On("BatchUnDeleteSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(nil)
 
@@ -180,8 +180,8 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"wrongly-deleted-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateDeleted,
-				StateDetails: models.LifeCycleStateDeletedDetails,
+				State:        datamodel.LifeCycleStateDeleted,
+				StateDetails: datamodel.LifeCycleStateDeletedDetails,
 			},
 		}
 		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
@@ -215,8 +215,8 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"wrongly-deleted-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateDeleted,
-				StateDetails: models.LifeCycleStateDeletedDetails,
+				State:        datamodel.LifeCycleStateDeleted,
+				StateDetails: datamodel.LifeCycleStateDeletedDetails,
 			},
 		}
 		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
@@ -239,7 +239,7 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 
 		// Mock the batch get wrongly deleted snapshots call
 		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
-			[]*datamodel.Snapshot{{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}}, nil)
+			[]*datamodel.Snapshot{{State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails}}, nil)
 		// Mock the batch undelete snapshots call to return error
 		mockStorage.On("BatchUnDeleteSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(errors.New("could not undelete snapshots"))
 
@@ -262,8 +262,8 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"wrongly-deleted-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateDeleted,
-				StateDetails: models.LifeCycleStateDeletedDetails,
+				State:        datamodel.LifeCycleStateDeleted,
+				StateDetails: datamodel.LifeCycleStateDeletedDetails,
 			},
 		}
 		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
@@ -302,8 +302,8 @@ func TestSyncUpdatedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"updated-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1, UUID: "updated-snapshot-uuid"},
-				State:        models.LifeCycleStateREADY,
-				StateDetails: models.LifeCycleStateReadyDetails,
+				State:        datamodel.LifeCycleStateREADY,
+				StateDetails: datamodel.LifeCycleStateReadyDetails,
 			},
 		}
 		updatedSSMap := map[string]*vsa.Snapshot{
@@ -339,8 +339,8 @@ func TestSyncUpdatedSnapshotsToDatabase(t *testing.T) {
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"updated-snapshot-uuid": {
 				BaseModel:    datamodel.BaseModel{ID: 1, UUID: "updated-snapshot-uuid"},
-				State:        models.LifeCycleStateREADY,
-				StateDetails: models.LifeCycleStateReadyDetails,
+				State:        datamodel.LifeCycleStateREADY,
+				StateDetails: datamodel.LifeCycleStateReadyDetails,
 			},
 		}
 		updatedSSMap := map[string]*vsa.Snapshot{
@@ -705,16 +705,16 @@ func TestProcessSnapshotSync(t *testing.T) {
 	dbVolumeMap := map[string]*datamodel.Volume{
 		"test-volume-uuid-1": {
 			BaseModel:    datamodel.BaseModel{ID: 1},
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				ExternalUUID: "test-volume-uuid-1",
 			},
 		},
 		"test-volume-uuid-2": {
 			BaseModel:    datamodel.BaseModel{ID: 2},
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				ExternalUUID: "test-volume-uuid-2",
 			},
@@ -776,7 +776,7 @@ func TestSyncSnapshotActivity_SyncUpdatedSnapshotsToDatabase(t *testing.T) {
 	ctx := context.TODO()
 	mockStorage := database.NewMockStorage(t)
 	activity := SyncSnapshotActivity{SE: mockStorage}
-	dbSnapshotsMap := map[string]*datamodel.Snapshot{"snap-uuid": {BaseModel: datamodel.BaseModel{ID: 1, UUID: "snap-uuid"}, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid"}, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}}
+	dbSnapshotsMap := map[string]*datamodel.Snapshot{"snap-uuid": {BaseModel: datamodel.BaseModel{ID: 1, UUID: "snap-uuid"}, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid"}, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateReadyDetails}}
 	updatedSSMap := map[string]*vsa.Snapshot{"snap-uuid.vol-uuid": {ExternalUUID: "snap-uuid", SizeInBytes: 1, LogicalSizeUsedInBytes: 1, Snapshot: ontaprestmodel.Snapshot{Name: nillable.GetStringPtr("snap")}}}
 	mockStorage.On("BatchUpdateSnapshots", ctx, mock.Anything).Return(nil)
 	result, err := activity.SyncUpdatedSnapshotsToDatabase(ctx, []string{"snap-uuid.vol-uuid"}, updatedSSMap, dbSnapshotsMap)
@@ -879,7 +879,7 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 				},
 				Name:      "test-pool",
 				AccountID: accountID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolCredentials: &datamodel.PoolCredentials{
 					Password: "test-password",
 				},
@@ -964,7 +964,7 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 				},
 				Name:      "full-test-pool",
 				AccountID: accountID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolCredentials: &datamodel.PoolCredentials{
 					Password:      "full-password",
 					SecretID:      "secret-123",
@@ -1037,7 +1037,7 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 				},
 				Name:      "zero-account-pool",
 				AccountID: accountID,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 

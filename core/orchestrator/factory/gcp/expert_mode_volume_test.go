@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
@@ -96,7 +95,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
 				IPSpace:      "Default",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -137,7 +136,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 		assert.Equal(tt, account.ID, createdVolume.AccountID)
 		assert.Equal(tt, svm.ID, createdVolume.SvmID)
 		assert.Equal(tt, params.Style, createdVolume.Style)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdVolume.State)
 		// ExternalUUID is only populated after the volume is fetched from ONTAP in the workflow
 		assert.Empty(tt, createdVolume.ExternalUUID)
 
@@ -437,7 +436,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
 				IPSpace:      "Default",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		assert.NoError(tt, err)
@@ -528,13 +527,13 @@ func TestCreateExpertModeVolume(t *testing.T) {
 		err = store.DB().Where("name = ?", params.VolumeName).First(&createdVolume).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, params.VolumeName, createdVolume.Name)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdVolume.State)
 
 		// Job should be marked as ERROR
 		var job datamodel.Job
 		err = store.DB().Where("resource_name = ?", params.VolumeName).First(&job).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), job.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -874,7 +873,7 @@ func TestCreateExpertModeVolume_CloneValidationBranches(t *testing.T) {
 			SvmID:        svm.ID,
 			SizeInBytes:  1024,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		assert.NoError(t, store.DB().Create(parent).Error)
 
@@ -1065,7 +1064,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
 				IPSpace:      "Default",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -1080,7 +1079,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			AccountID:    account.ID,
 			SvmID:        svm.ID,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 		}
 		err = store.DB().Create(volume).Error
@@ -1113,14 +1112,14 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		var updatedVolume datamodel.ExpertModeVolumes
 		err = store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateDeleting, updatedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleting, updatedVolume.State)
 
 		// Verify job was created
 		var job datamodel.Job
 		err = store.DB().Where("resource_name = ?", volume.Name).First(&job).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobTypeDeleteExpertModeVolume), job.Type)
-		assert.Equal(tt, string(models.JobsStateNEW), job.State)
+		assert.Equal(tt, string(datamodel.JobTypeDeleteExpertModeVolume), job.Type)
+		assert.Equal(tt, string(datamodel.JobsStateNEW), job.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -1175,7 +1174,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
 		// Mark volume as already deleted
-		volume.State = models.LifeCycleStateDeleted
+		volume.State = datamodel.LifeCycleStateDeleted
 		err := store.DB().Save(volume).Error
 		assert.NoError(tt, err)
 
@@ -1227,7 +1226,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		var job datamodel.Job
 		err = store.DB().Where("resource_name = ?", volume.Name).First(&job).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateERROR), job.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), job.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -1368,7 +1367,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 		}
@@ -1427,7 +1426,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 		}
@@ -1473,7 +1472,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
 		// Set volume to DELETING state (not DELETED)
-		volume.State = models.LifeCycleStateDeleting
+		volume.State = datamodel.LifeCycleStateDeleting
 		err := store.DB().Save(volume).Error
 		assert.NoError(tt, err)
 
@@ -1503,7 +1502,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-creating-uuid"},
 			VolumeUUID: volume.ExternalUUID,
-			State:      models.LifeCycleStateCreating,
+			State:      datamodel.LifeCycleStateCreating,
 		}
 		err := store.DB().Create(backup).Error
 		assert.NoError(tt, err)
@@ -1525,7 +1524,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		var updatedVolume datamodel.ExpertModeVolumes
 		dbErr := store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
 		assert.NoError(tt, dbErr)
-		assert.NotEqual(tt, models.LifeCycleStateDeleting, updatedVolume.State)
+		assert.NotEqual(tt, datamodel.LifeCycleStateDeleting, updatedVolume.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -1540,7 +1539,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-deleting-uuid"},
 			VolumeUUID: volume.ExternalUUID,
-			State:      models.LifeCycleStateDeleting,
+			State:      datamodel.LifeCycleStateDeleting,
 		}
 		err := store.DB().Create(backup).Error
 		assert.NoError(tt, err)
@@ -1562,7 +1561,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		var updatedVolume datamodel.ExpertModeVolumes
 		dbErr := store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
 		assert.NoError(tt, dbErr)
-		assert.NotEqual(tt, models.LifeCycleStateDeleting, updatedVolume.State)
+		assert.NotEqual(tt, datamodel.LifeCycleStateDeleting, updatedVolume.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -1586,7 +1585,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 		}
@@ -1665,7 +1664,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
 				IPSpace:      "Default",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		if err != nil {
@@ -1679,7 +1678,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			AccountID:    account.ID,
 			SvmID:        svm.ID,
 			Style:        "flexvol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 		}
 		err = store.DB().Create(expertModeVolume).Error
@@ -1796,7 +1795,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			SizeInBytes:  1099511627776, // 1TB
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 			Account:      account,
@@ -2023,7 +2022,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeStateDeleted", func(tt *testing.T) {
 		account, pool, volume := setupTestData()
-		volume.State = models.LifeCycleStateDeleted
+		volume.State = datamodel.LifeCycleStateDeleted
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -2053,7 +2052,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeStateError", func(tt *testing.T) {
 		account, pool, volume := setupTestData()
-		volume.State = models.LifeCycleStateError
+		volume.State = datamodel.LifeCycleStateError
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -2083,7 +2082,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeStateCreating", func(tt *testing.T) {
 		account, pool, volume := setupTestData()
-		volume.State = models.LifeCycleStateCreating
+		volume.State = datamodel.LifeCycleStateCreating
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -2113,7 +2112,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeStateDeleting", func(tt *testing.T) {
 		account, pool, volume := setupTestData()
-		volume.State = models.LifeCycleStateDeleting
+		volume.State = datamodel.LifeCycleStateDeleting
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -2143,7 +2142,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeStateUpdating", func(tt *testing.T) {
 		account, pool, volume := setupTestData()
-		volume.State = models.LifeCycleStateUpdating
+		volume.State = datamodel.LifeCycleStateUpdating
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -2710,7 +2709,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start workflow")).Once()
 		// Defer function should update job status and revert volume state
-		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(nil).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -2749,7 +2748,7 @@ func TestRenameExpertModeVolume(t *testing.T) {
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
 			SvmID:        svm.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 			Account:      account,
@@ -2972,7 +2971,7 @@ func TestRenameExpertModeVolume(t *testing.T) {
 
 	t.Run("Failure_VolumeInTransitionalState", func(tt *testing.T) {
 		account, pool, _, volume := setupRenameTestData()
-		volume.State = models.LifeCycleStateUpdating
+		volume.State = datamodel.LifeCycleStateUpdating
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -3032,7 +3031,7 @@ func TestRenameExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed")).Once()
-		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(nil).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 
 		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -3244,7 +3243,7 @@ func TestRenameExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed")).Once()
-		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(errors.New("failed to update job status to error")).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(errors.New("failed to update job status to error")).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 		params := &commonparams.ExpertModeVolumeRenameParams{
 			VolumeName:  volume.Name,
@@ -3319,7 +3318,7 @@ func TestValidateUpdateParams(t *testing.T) {
 			Name:         "test-volume",
 			SizeInBytes:  1099511627776, // 1TB
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
 			Pool:         pool,
 		}
@@ -3418,7 +3417,7 @@ func TestValidateUpdateParams(t *testing.T) {
 
 	t.Run("Failure_VolumeStateDeleted", func(tt *testing.T) {
 		_, volume := setupTestData()
-		volume.State = models.LifeCycleStateDeleted
+		volume.State = datamodel.LifeCycleStateDeleted
 		mockStorage := database.NewMockStorage(tt)
 
 		params := &commonparams.ExpertModeVolumeParams{
@@ -3436,7 +3435,7 @@ func TestValidateUpdateParams(t *testing.T) {
 
 	t.Run("Failure_VolumeStateError", func(tt *testing.T) {
 		_, volume := setupTestData()
-		volume.State = models.LifeCycleStateError
+		volume.State = datamodel.LifeCycleStateError
 		mockStorage := database.NewMockStorage(tt)
 
 		params := &commonparams.ExpertModeVolumeParams{
@@ -3454,7 +3453,7 @@ func TestValidateUpdateParams(t *testing.T) {
 
 	t.Run("Failure_VolumeStateCreating", func(tt *testing.T) {
 		_, volume := setupTestData()
-		volume.State = models.LifeCycleStateCreating
+		volume.State = datamodel.LifeCycleStateCreating
 		mockStorage := database.NewMockStorage(tt)
 
 		params := &commonparams.ExpertModeVolumeParams{
@@ -3472,7 +3471,7 @@ func TestValidateUpdateParams(t *testing.T) {
 
 	t.Run("Failure_VolumeStateDeleting", func(tt *testing.T) {
 		_, volume := setupTestData()
-		volume.State = models.LifeCycleStateDeleting
+		volume.State = datamodel.LifeCycleStateDeleting
 		mockStorage := database.NewMockStorage(tt)
 
 		params := &commonparams.ExpertModeVolumeParams{
@@ -3490,7 +3489,7 @@ func TestValidateUpdateParams(t *testing.T) {
 
 	t.Run("Failure_VolumeStateUpdating", func(tt *testing.T) {
 		_, volume := setupTestData()
-		volume.State = models.LifeCycleStateUpdating
+		volume.State = datamodel.LifeCycleStateUpdating
 		mockStorage := database.NewMockStorage(tt)
 
 		params := &commonparams.ExpertModeVolumeParams{
@@ -3631,7 +3630,7 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
 				IPSpace:      "Default",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(svm).Error
 		assert.NoError(tt, err)
@@ -3644,7 +3643,7 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 			AccountID:   account.ID,
 			SvmID:       svm.ID,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 		}
 		err = store.DB().Create(expertModeVolume).Error
 		assert.NoError(tt, err)
@@ -3710,7 +3709,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 		ExternalUUID: "volume-uuid",
 		Name:         "expert-vol",
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 	}
 
@@ -3812,7 +3811,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		volumeInDifferentPool := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "other-pool-uuid"}},
 		}
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeInDifferentPool, nil)
@@ -3837,7 +3836,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		deletingVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(deletingVolume, nil)
@@ -3862,7 +3861,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		deletedVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateDeleted,
+			State:        datamodel.LifeCycleStateDeleted,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(deletedVolume, nil)
@@ -3932,7 +3931,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
 		}
@@ -3971,7 +3970,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid", BackupPolicyID: "policy-uuid"},
 		}
@@ -4001,7 +4000,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid", KmsGrant: &kmsGrant},
 		}
@@ -4030,7 +4029,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid"},
 		}
@@ -4061,7 +4060,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid"},
 		}
@@ -4087,7 +4086,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		errorVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateError}
+		errorVault := &datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateError}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(errorVault, nil)
@@ -4110,7 +4109,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 		kmsPath := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
 		cmekVault := &datamodel.BackupVault{
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CmekAttributes: &datamodel.CmekAttributes{KmsConfigResourcePath: &kmsPath},
 		}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
@@ -4133,7 +4132,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		notReadyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateCreating}
+		notReadyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateCreating}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
@@ -4206,12 +4205,12 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
+		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: datamodel.LifeCycleStateREADY}
 		volumeWithExistingVault := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
 		}
@@ -4239,13 +4238,13 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "new-different-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
+		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: datamodel.LifeCycleStateREADY}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "new-different-vault-uuid"}, LifeCycleState: datamodel.LifeCycleStateREADY}
 		volumeWithExistingVault := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
 		}
@@ -4283,7 +4282,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		readyVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}
+		readyVault := &datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
@@ -4322,11 +4321,11 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
 		nonGCBDRVault := &datamodel.BackupVault{
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ServiceType:    "GCNV", // not GCBDR
 		}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
@@ -4360,11 +4359,11 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
 		gcbdrVault := &datamodel.BackupVault{
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			ServiceType:    activities.GCBDRServiceType,
 		}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
@@ -4402,10 +4401,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 		}
-		nonGCBDRVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY, ServiceType: "GCNV"}
+		nonGCBDRVault := &datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY, ServiceType: "GCNV"}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volNoVault, nil)
 		mockStorage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(nonGCBDRVault, nil)
@@ -4438,7 +4437,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		enabled := true
 		params := baseParams()
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
@@ -4474,7 +4473,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		enabled := true
 		params := baseParams()
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
@@ -4510,7 +4509,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		enabled := true
 		params := baseParams()
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
@@ -4546,7 +4545,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
 		enabled := true
 		params := baseParams()
@@ -4607,7 +4606,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		// Defer 1: mark job ERROR.
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow start failed").Return(nil)
 		// Set volume to UPDATING before launching the workflow.
 		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
@@ -4664,7 +4663,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		// Defer 1: job must be marked ERROR.
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
 		// Setting UPDATING fails.
 		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(nil, errors.New("db write failed"))
 		// Workflow must NOT be launched (Defer 2 does not fire since UPDATING was never set).
@@ -4693,7 +4692,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		// Defer 1: job → ERROR.
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
 		// Set volume UPDATING (succeeds).
 		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal unavailable"))
@@ -4718,7 +4717,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		enabled := true
 		params := baseParams()
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
@@ -4771,8 +4770,8 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "ext-volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
-			Style:        models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			Style:        datamodel.LifeCycleStateAvailableDetails,
 			PoolID:       dbPool.ID,
 			AccountID:    dbAccount.ID,
 		}
@@ -4800,7 +4799,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		err = store.DB().Where("resource_name = ?", dbVolume.Name).First(&job).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, jobUUID, job.UUID)
-		assert.Equal(tt, string(models.JobTypeManageBackupConfigExpertModeVolume), job.Type)
+		assert.Equal(tt, string(datamodel.JobTypeManageBackupConfigExpertModeVolume), job.Type)
 		mockLogger.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -4897,7 +4896,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 		crbVault := &datamodel.BackupVault{
-			LifeCycleState:  models.LifeCycleStateREADY,
+			LifeCycleState:  datamodel.LifeCycleStateREADY,
 			BackupVaultType: activities.CrossRegionBackupType,
 		}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
@@ -4951,7 +4950,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 		// Vault must be found (non-nil) so code proceeds past vault check to the policy check.
-		readyVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}
+		readyVault := &datamodel.BackupVault{LifeCycleState: datamodel.LifeCycleStateREADY}
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
 		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(readyVault, nil)
@@ -4987,7 +4986,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: datamodel.LifeCycleStateREADY}
 		enabled := true
 		params := baseParams()
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
@@ -5018,7 +5017,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
 		}
@@ -5048,7 +5047,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
 		}
@@ -5088,7 +5087,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		// Defer 2: mark volume ERROR after workflow launch fails.
 		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(expertModeVolume, nil).Once()
 		// Defer 1: UpdateJob also fails; deferred function logs the error and swallows it
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow start failed").
 			Return(errors.New("update job failed"))
 
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
@@ -5256,7 +5255,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5292,7 +5291,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5327,7 +5326,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
@@ -5342,7 +5341,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(errors.New("update state failed"))
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "update state failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "update state failed").Return(nil)
 
 		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -5368,7 +5367,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
@@ -5385,7 +5384,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil) // defer rollback
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow start failed").Return(nil)
 
 		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -5422,7 +5421,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "ext-volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Style:        "flexvol",
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
@@ -5450,7 +5449,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		err = store.DB().Where("resource_name = ?", expertModeVolume.UUID).First(&job).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, result, job.UUID)
-		assert.Equal(tt, string(models.JobTypeRestoreOntapModeBackup), job.Type)
+		assert.Equal(tt, string(datamodel.JobTypeRestoreOntapModeBackup), job.Type)
 		mockLogger.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -5597,7 +5596,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5629,7 +5628,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5661,7 +5660,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5694,7 +5693,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -5727,7 +5726,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5762,11 +5761,11 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateCreating}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: datamodel.LifeCycleStateCreating}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -5800,11 +5799,11 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateAvailable}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: datamodel.LifeCycleStateAvailable}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -5837,11 +5836,11 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateAvailable}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: datamodel.LifeCycleStateAvailable}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5854,7 +5853,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup-id", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(errors.New("update state failed"))
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "update state failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "update state failed").Return(nil)
 
 		result, err := sfrOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -5877,11 +5876,11 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateAvailable}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: datamodel.LifeCycleStateAvailable}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5896,7 +5895,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil) // defer rollback
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow start failed").Return(nil)
 
 		result, err := sfrOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -5920,11 +5919,11 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateAvailable}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{ID: 1}, State: datamodel.LifeCycleStateAvailable}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5968,7 +5967,7 @@ func Test_startExpertModeFlexCloneSplit(t *testing.T) {
 			Name:         "clone-vol",
 			SizeInBytes:  1000,
 			SharedBytes:  900,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			AccountID:    account.ID,
 			PoolID:       pool.ID,
 			Pool: &datamodel.Pool{
@@ -6010,7 +6009,7 @@ func Test_startExpertModeFlexCloneSplit(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
 			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
-			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+			return v.UUID == volume.UUID && v.State == datamodel.LifeCycleStateUpdating
 		})).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -6045,7 +6044,7 @@ func Test_startExpertModeFlexCloneSplit(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
 			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
-			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+			return v.UUID == volume.UUID && v.State == datamodel.LifeCycleStateUpdating
 		})).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -6093,7 +6092,7 @@ func Test_startExpertModeFlexCloneSplit(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		updatedVolume := *volume
-		updatedVolume.State = models.LifeCycleStateUpdating
+		updatedVolume.State = datamodel.LifeCycleStateUpdating
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
 			WorkflowID: "wf-id",
@@ -6105,15 +6104,15 @@ func Test_startExpertModeFlexCloneSplit(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
 			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
-			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+			return v.UUID == volume.UUID && v.State == datamodel.LifeCycleStateUpdating
 		})).Return(&updatedVolume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("failed to start workflow")).Once()
-		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).
 			Return(nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
-			return v.UUID == volume.UUID && v.State == models.LifeCycleStateAvailable
+			return v.UUID == volume.UUID && v.State == datamodel.LifeCycleStateAvailable
 		})).Return(&updatedVolume, nil).Once()
 
 		err := _startExpertModeFlexCloneSplit(ctx, mockStorage, temporal, params)
@@ -6671,7 +6670,7 @@ func TestExpertModeVolumeToVolumeForSFR(t *testing.T) {
 		ExternalUUID: "ext-uuid",
 		Name:         "vol",
 		Description:  "desc",
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		SizeInBytes:  1024,
 		AccountID:    1,
 		PoolID:       2,
@@ -6685,7 +6684,7 @@ func TestExpertModeVolumeToVolumeForSFR(t *testing.T) {
 	assert.Equal(t, "emv-uuid", vol.UUID)
 	assert.Equal(t, "vol", vol.Name)
 	assert.Equal(t, "desc", vol.Description)
-	assert.Equal(t, models.LifeCycleStateREADY, vol.State)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, vol.State)
 	assert.Equal(t, int64(1024), vol.SizeInBytes)
 	assert.Equal(t, int64(1), vol.AccountID)
 	assert.Equal(t, int64(2), vol.PoolID)
@@ -6839,7 +6838,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
 			AccountName:     "test-account",
@@ -6872,7 +6871,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6908,7 +6907,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6944,7 +6943,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6978,7 +6977,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -7013,12 +7012,12 @@ func TestSFROntapModeBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:      "backup-id",
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -7055,12 +7054,12 @@ func TestSFROntapModeBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:      "backup-id",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -7098,13 +7097,13 @@ func TestSFROntapModeBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:      "backup-id",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Style:        "flexvol",
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
@@ -7128,7 +7127,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup-id", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(errors.New("update state failed"))
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "update state failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "update state failed").Return(nil)
 
 		_, err := sfrOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -7144,13 +7143,13 @@ func TestSFROntapModeBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:      "backup-id",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Style:        "flexvol",
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
@@ -7176,7 +7175,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed"))
 		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil)
-		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow failed").Return(nil)
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow failed").Return(nil)
 
 		_, err := sfrOntapModeBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)

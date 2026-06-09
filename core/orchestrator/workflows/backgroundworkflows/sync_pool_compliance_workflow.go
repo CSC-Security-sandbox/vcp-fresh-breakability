@@ -1,9 +1,9 @@
 package backgroundworkflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -51,7 +51,7 @@ func SyncPoolZIZSDetailsWorkflow(ctx workflow.Context) error {
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	commonActivities := &activities.CommonActivities{}
 
-	filterState := []string{models.LifeCycleStateREADY}
+	filterState := []string{datamodel.LifeCycleStateREADY}
 	var poolIdentifiers []*database.PoolIdentifier
 	err = workflow.ExecuteActivity(ctx, commonActivities.ListPoolsUUID, filterState).Get(ctx, &poolIdentifiers)
 	if err != nil {

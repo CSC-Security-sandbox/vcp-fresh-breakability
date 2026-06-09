@@ -261,7 +261,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			Account:   account, // Account already set
 			Pool:      pool,    // Pool preloaded
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Name:      "expert-vol",
 			Svm:       svm,
 		}
@@ -276,8 +276,8 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
@@ -328,7 +328,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			Account:   account, // Account not set - should be set by _createBackup
 			Pool:      pool,    // Pool preloaded
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Name:      "expert-vol",
 			Svm:       svm,
 		}
@@ -343,8 +343,8 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
@@ -400,7 +400,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			},
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Name:      "regular-vol",
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
@@ -417,8 +417,8 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: volume.Name, Protocols: volume.VolumeAttributes.Protocols},
 			Description:  params.Description,
@@ -588,8 +588,8 @@ func Test_createBackupEdgeCases(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "vol", Protocols: []string{"NFS"}},
 		}
@@ -761,7 +761,7 @@ func TestDeleteBackup(t *testing.T) {
 		}
 		defer func() { validateBackupDeleteParams = _validateBackupDeleteParams }()
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{DeleteInitiated: false}}, nil)
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{DeleteInitiated: false}}, nil)
 		_, _, err := deleteBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "validation failed")
 	})
@@ -808,14 +808,14 @@ func TestDeleteBackup(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 
 		// Mock GetJobsWithCondition to return jobs
 		mockJobs := []*datamodel.Job{
-			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-1"}, State: string(models.JobsStateNEW)},
-			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-2"}, State: string(models.JobsStatePROCESSING)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-1"}, State: string(datamodel.JobsStateNEW)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-uuid-2"}, State: string(datamodel.JobsStatePROCESSING)},
 		}
 		store.On("GetJobsWithCondition", ctx, mock.Anything).Return(mockJobs, nil)
 
@@ -840,7 +840,7 @@ func TestDeleteBackup(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 
@@ -879,7 +879,7 @@ func TestDeleteBackup(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: params.BackupUUID},
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 
@@ -996,7 +996,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
 			ExternalUUID: externalBackupUUID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Attributes:   &datamodel.BackupAttributes{DeleteInitiated: false},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
@@ -1028,7 +1028,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 
 		// Mock ListVolumes to return empty (no local volumes restoring)
-		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", models.LifeCycleStateRestoring}}
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", datamodel.LifeCycleStateRestoring}}
 		store.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{}, nil)
 
 		// Mock fetchRemoteBackupFromVCP to return a backup that is restoring
@@ -1065,7 +1065,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
 			ExternalUUID: externalBackupUUID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Attributes:   &datamodel.BackupAttributes{DeleteInitiated: false},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
@@ -1097,7 +1097,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 
 		// Mock ListVolumes to return empty (no local volumes restoring)
-		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", models.LifeCycleStateRestoring}}
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", datamodel.LifeCycleStateRestoring}}
 		store.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{}, nil)
 
 		// Mock fetchRemoteBackupFromVCP to return a backup that is NOT restoring
@@ -1148,7 +1148,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
 			ExternalUUID: externalBackupUUID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			Attributes:   &datamodel.BackupAttributes{DeleteInitiated: false},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
@@ -1180,7 +1180,7 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 
 		// Mock ListVolumes to return empty (no local volumes restoring)
-		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", models.LifeCycleStateRestoring}}
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", datamodel.LifeCycleStateRestoring}}
 		store.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{}, nil)
 
 		// Mock fetchRemoteBackupFromVCP to return an error
@@ -2197,7 +2197,7 @@ func TestUpdateBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
 			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
@@ -2227,7 +2227,7 @@ func TestUpdateBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
 			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
-			State:       models.LifeCycleStateCreating,
+			State:       datamodel.LifeCycleStateCreating,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 
@@ -2253,7 +2253,7 @@ func TestUpdateBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
 			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}, BackupVaultType: activities.CrossRegionBackupType, BackupRegionName: nillable.ToPointer("us-central1")},
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 
@@ -2279,7 +2279,7 @@ func TestUpdateBackup(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
 			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job creation failed"))
@@ -2320,7 +2320,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 			Name:      "test-volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: backupVault.UUID,
 			},
@@ -2336,7 +2336,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:      "test-snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "ext-snapshot-uuid",
 			},
@@ -2349,7 +2349,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:          "existing-backup",
 			VolumeUUID:    volume.UUID,
 			BackupVaultID: backupVault.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{
 				SnapshotID: snapshot.SnapshotAttributes.ExternalUUID,
 			},
@@ -2398,7 +2398,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 			Name:      "test-volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: backupVault.UUID,
 			},
@@ -2414,7 +2414,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:      "test-snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "ext-snapshot-uuid",
 			},
@@ -2465,7 +2465,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 			Name:      "test-volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: backupVault.UUID,
 			},
@@ -2481,7 +2481,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:      "test-snapshot",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "ext-snapshot-uuid",
 			},
@@ -2494,7 +2494,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:          "first-backup",
 			VolumeUUID:    volume.UUID,
 			BackupVaultID: backupVault.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{
 				SnapshotID: snapshot.SnapshotAttributes.ExternalUUID,
 			},
@@ -2543,7 +2543,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
 			Name:      "test-volume",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: backupVault.UUID,
 			},
@@ -2559,7 +2559,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:      "test-snapshot-1",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "ext-snapshot-uuid-1",
 			},
@@ -2572,7 +2572,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:          "backup-1",
 			VolumeUUID:    volume.UUID,
 			BackupVaultID: backupVault.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{
 				SnapshotID: snapshot1.SnapshotAttributes.ExternalUUID,
 			},
@@ -2585,7 +2585,7 @@ func TestValidateSnapshotForBackup_SnapshotAlreadyUsed_Integration(t *testing.T)
 			Name:      "test-snapshot-2",
 			VolumeID:  volume.ID,
 			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "ext-snapshot-uuid-2",
 			},
@@ -2621,7 +2621,7 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}, nil)
 
 		err := _validateCreateBackupParams(ctx, store, params)
@@ -2636,11 +2636,11 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateSplitting,
+					State:            datamodel.CloneStateSplitting,
 				},
 			},
 		}, nil)
@@ -2660,11 +2660,11 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
-					State:            models.CloneStateCloned,
+					State:            datamodel.CloneStateCloned,
 				},
 			},
 			DataProtection: nil,
@@ -2682,7 +2682,7 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			DataProtection: nil,
 		}, nil)
 
@@ -2699,7 +2699,7 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "different-vault-id",
 			},
@@ -2719,7 +2719,7 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2743,7 +2743,7 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2781,7 +2781,7 @@ func TestValidateCreateBackupParams_RegularVolume_ValidateSnapshotError(t *testi
 				UUID: params.VolumeUUID,
 				ID:   1,
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: params.BackupVaultID,
 			},
@@ -2826,7 +2826,7 @@ func TestValidateCreateBackupParams_RegularVolume_ValidateSnapshotError(t *testi
 				UUID: params.VolumeUUID,
 				ID:   1,
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: params.BackupVaultID,
 			},
@@ -2865,7 +2865,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2890,7 +2890,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2916,7 +2916,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2924,7 +2924,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		}
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(vol, nil)
 		store.On("GetSnapshotByUUID", ctx, params.SnapshotID, vol.AccountID, vol.ID).Return(&datamodel.Snapshot{
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}, nil)
 
 		err := _validateCreateBackupParams(ctx, store, params)
@@ -2944,7 +2944,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -2952,7 +2952,7 @@ func TestValidateCreateBackupParams_ExistingSnapshot(t *testing.T) {
 		}
 		store.On("GetVolume", ctx, params.VolumeUUID).Return(vol, nil)
 		store.On("GetSnapshotByUUID", ctx, params.SnapshotID, vol.AccountID, vol.ID).Return(&datamodel.Snapshot{
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			Name:  "snapmirror.12345678.2023-01-01_010101",
 		}, nil)
 
@@ -2977,7 +2977,7 @@ func TestValidateCreateBackupParams_NewSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -3002,7 +3002,7 @@ func TestValidateCreateBackupParams_NewSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -3030,7 +3030,7 @@ func TestValidateCreateBackupParams_NewSnapshot(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "vault-id",
 			},
@@ -3063,7 +3063,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			Name:      "test-volume",
 			AccountID: 1,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "test-vault-id",
 			},
@@ -3111,8 +3111,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 				VolumeUUID:    params.VolumeUUID,
 				BackupVaultID: backupVault.ID,
 				BackupVault:   backupVault, // Add the BackupVault relationship
-				State:         models.LifeCycleStateCreating,
-				StateDetails:  models.LifeCycleStateCreatingDetails,
+				State:         datamodel.LifeCycleStateCreating,
+				StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 				Attributes: &datamodel.BackupAttributes{
 					VolumeName:          volume.Name,
 					AccountIdentifier:   account.Name,
@@ -3164,7 +3164,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			existingSnapshot := &datamodel.Snapshot{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid"},
 				Name:      "existing-snapshot",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				VolumeID:  volume.ID,
 				AccountID: account.ID,
 				SnapshotAttributes: &datamodel.SnapshotAttributes{
@@ -3194,8 +3194,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 				VolumeUUID:    params.VolumeUUID,
 				BackupVaultID: backupVault.ID,
 				BackupVault:   backupVault, // Add the BackupVault relationship
-				State:         models.LifeCycleStateCreating,
-				StateDetails:  models.LifeCycleStateCreatingDetails,
+				State:         datamodel.LifeCycleStateCreating,
+				StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 				Attributes: &datamodel.BackupAttributes{
 					VolumeName:          volume.Name,
 					AccountIdentifier:   account.Name,
@@ -3253,7 +3253,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			notAvailableSnapshot := &datamodel.Snapshot{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid"},
 				Name:      "creating-snapshot",
-				State:     models.LifeCycleStateCreating, // Not in READY state
+				State:     datamodel.LifeCycleStateCreating, // Not in READY state
 				VolumeID:  volume.ID,
 				AccountID: account.ID,
 				SnapshotAttributes: &datamodel.SnapshotAttributes{
@@ -3407,7 +3407,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			snapmirrorSnapshot := &datamodel.Snapshot{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid"},
 				Name:      "snapmirror.12345678.2023-01-01_010101", // Snapmirror name
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				VolumeID:  volume.ID,
 				AccountID: account.ID,
 			}
@@ -3450,7 +3450,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			existingSnapshot := &datamodel.Snapshot{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid"},
 				Name:      "existing-snapshot",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				VolumeID:  volume.ID,
 				AccountID: account.ID,
 			}
@@ -3494,7 +3494,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 				Name:      "test-dp-volume",
 				AccountID: 1,
 				Account:   account,
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupVaultID: "test-vault-id",
 				},
@@ -3607,7 +3607,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			account, volume, backupVault := createCommonTestObjects()
 
 			// Change volume state to not ready
-			volume.State = models.LifeCycleStateCreating
+			volume.State = datamodel.LifeCycleStateCreating
 
 			params := &common.CreateBackupParams{
 				BackupName:          "test-backup",
@@ -3880,7 +3880,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 			store.On("CreateBackup", ctx, mock.Anything).Return(nil, errors.New("failed to create backup"))
 
 			// Mock error handling
-			store.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, "failed to create backup").Return(nil, nil)
+			store.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, "failed to create backup").Return(nil, nil)
 
 			// Act
 			_, _, err := _createBackup(ctx, store, temporal, params)
@@ -3913,8 +3913,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 				VolumeUUID:    params.VolumeUUID,
 				BackupVaultID: backupVault.ID,
 				BackupVault:   backupVault, // Add the BackupVault relationship
-				State:         models.LifeCycleStateCreating,
-				StateDetails:  models.LifeCycleStateCreatingDetails,
+				State:         datamodel.LifeCycleStateCreating,
+				StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 				Attributes: &datamodel.BackupAttributes{
 					VolumeName:          volume.Name,
 					AccountIdentifier:   account.Name,
@@ -3946,7 +3946,7 @@ func TestBackupCreationIntegration(t *testing.T) {
 
 			// Mock error handling - add DeleteBackup and UpdateJob mocks
 			store.On("DeleteBackup", ctx, backup.UUID).Return(backup, nil)
-			store.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil, nil)
+			store.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil, nil)
 
 			// Act
 			_, _, err := _createBackup(ctx, store, temporal, params)
@@ -3977,8 +3977,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 			job := &datamodel.Job{
 				BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
 				WorkflowID:   "workflow-id",
-				Type:         string(models.JobTypeCreateBackup),
-				State:        string(models.JobsStateNEW),
+				Type:         string(datamodel.JobTypeCreateBackup),
+				State:        string(datamodel.JobsStateNEW),
 				ResourceName: params.BackupName,
 				AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			}
@@ -3989,8 +3989,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 				VolumeUUID:    params.VolumeUUID,
 				BackupVaultID: backupVault.ID,
 				BackupVault:   backupVault, // Add the BackupVault relationship
-				State:         models.LifeCycleStateCreating,
-				StateDetails:  models.LifeCycleStateCreatingDetails,
+				State:         datamodel.LifeCycleStateCreating,
+				StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 				Attributes: &datamodel.BackupAttributes{
 					VolumeName:          volume.Name,
 					AccountIdentifier:   account.Name,
@@ -4018,14 +4018,14 @@ func TestBackupCreationIntegration(t *testing.T) {
 			store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, account.ID).Return(volume, nil)
 			store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
 			store.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
-				return j.Type == string(models.JobTypeCreateBackup) &&
-					j.State == string(models.JobsStateNEW) &&
+				return j.Type == string(datamodel.JobTypeCreateBackup) &&
+					j.State == string(datamodel.JobsStateNEW) &&
 					j.ResourceName == params.BackupName
 			})).Return(job, nil)
 			store.On("CreateBackup", ctx, mock.MatchedBy(func(b *datamodel.Backup) bool {
 				return b.Name == params.BackupName &&
 					b.VolumeUUID == params.VolumeUUID &&
-					b.State == models.LifeCycleStateCreating
+					b.State == datamodel.LifeCycleStateCreating
 			})).Return(backup, nil)
 
 			// Mock successful workflow execution
@@ -4069,7 +4069,7 @@ func TestDeleteBackup_DeleteBackupFailure(t *testing.T) {
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
-		State:     models.LifeCycleStateError,
+		State:     datamodel.LifeCycleStateError,
 		Attributes: &datamodel.BackupAttributes{
 			DeleteInitiated: false,
 		},
@@ -4120,7 +4120,7 @@ func TestDeleteBackup_ListVolumesFailure(t *testing.T) {
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
-		State:     models.LifeCycleStateAvailable,
+		State:     datamodel.LifeCycleStateAvailable,
 		Attributes: &datamodel.BackupAttributes{
 			DeleteInitiated: false,
 		},
@@ -5421,7 +5421,7 @@ func Test_createBackup_WithOptionalAttributes(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"NFS"},
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			DataProtection: &datamodel.DataProtection{
 				BackupVaultID: "testVaultID",
 			},
@@ -5434,16 +5434,16 @@ func Test_createBackup_WithOptionalAttributes(t *testing.T) {
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
 			WorkflowID:   "workflow-id",
-			Type:         string(models.JobTypeCreateBackup),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeCreateBackup),
+			State:        string(datamodel.JobsStateNEW),
 			ResourceName: "testBackup",
 			AccountID:    sql.NullInt64{Int64: 1, Valid: true},
 		}
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
@@ -5536,8 +5536,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
 				Name:             "test-vault",
@@ -5663,8 +5663,8 @@ func Test_createBackupInternal(t *testing.T) {
 		existingBackup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
@@ -5758,8 +5758,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName, Protocols: params.Protocols},
 		}
@@ -5800,8 +5800,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault:  backupVault,
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
@@ -5853,8 +5853,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault:  nil, // This should trigger the error
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
@@ -5913,8 +5913,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
 				Name:             "test-vault",
@@ -5977,8 +5977,8 @@ func Test_createBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
 				Name:             "test-vault",
@@ -6038,8 +6038,8 @@ func Test_updateBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			Description:  "old description",
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
@@ -6047,8 +6047,8 @@ func Test_updateBackupInternal(t *testing.T) {
 		updatedBackup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			Description:  params.Description,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
@@ -6128,8 +6128,8 @@ func Test_updateBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
@@ -6162,8 +6162,8 @@ func Test_updateBackupInternal(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         "testBackup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			Description:  "old description",
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
@@ -6303,7 +6303,7 @@ func Test_createVolumePayloadFromExpertModeVolume(t *testing.T) {
 			Pool:         pool, // Pool preloaded
 			AccountID:    1,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Name:         "expert-vol",
 			ExternalUUID: "external-uuid",
 			Svm:          svm,
@@ -6384,7 +6384,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 			AccountID: account.ID,
 			Account:   account,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			Name:      "expert-vol",
 			Svm:       svm,
 			SvmID:     svm.ID,
@@ -6401,8 +6401,8 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
@@ -6420,7 +6420,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 
 		// The defer block will try to delete the backup and update the job when error occurs
 		store.On("DeleteBackup", ctx, backup.UUID).Return(nil, nil)
-		store.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+		store.On("UpdateJob", ctx, job.UUID, string(datamodel.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		_, _, err := _createBackup(ctx, store, temporal, params)
 		assert.Error(t, err)
@@ -6446,7 +6446,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid", ID: 1},
 			ExternalUUID: params.VolumeUUID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Name:         "expert-vol",
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: currentVaultID},
 		}
@@ -6490,7 +6490,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 			Pool:         pool,
 			SvmID:        svm.ID,
 			Svm:          svm,
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 			Name:         "expert-vol",
 			BackupConfig: &datamodel.DataProtection{BackupVaultID: currentVaultID},
 		}
@@ -6501,8 +6501,8 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVault:  newVault,
 			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 		}
@@ -6560,8 +6560,8 @@ func TestDeleteBackup_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			BackupVaultUUID: "testVaultID",
 		}
 
-		previousState := models.LifeCycleStateAvailable
-		previousStateDetails := models.LifeCycleStateAvailableDetails
+		previousState := datamodel.LifeCycleStateAvailable
+		previousStateDetails := datamodel.LifeCycleStateAvailableDetails
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: params.BackupUUID},
 			State:        previousState,
@@ -6866,7 +6866,7 @@ func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: 5, UUID: "vault-uuid"},
-		ServiceType: models.ServiceTypeCrossProject,
+		ServiceType: datamodel.ServiceTypeCrossProject,
 		AccountID:   account.ID,
 	}
 
@@ -6877,7 +6877,7 @@ func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
 		AccountName:            account.Name,
 		Description:            "GCBDR test backup",
 		BackupType:             "MANUAL",
-		BackupVaultServiceType: models.ServiceTypeCrossProject, // triggers GetVolume path
+		BackupVaultServiceType: datamodel.ServiceTypeCrossProject, // triggers GetVolume path
 	}
 
 	job := &datamodel.Job{
@@ -6891,8 +6891,8 @@ func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
 		VolumeUUID:    params.VolumeUUID,
 		BackupVaultID: backupVault.ID,
 		BackupVault:   backupVault,
-		State:         models.LifeCycleStateCreating,
-		StateDetails:  models.LifeCycleStateCreatingDetails,
+		State:         datamodel.LifeCycleStateCreating,
+		StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 		Attributes: &datamodel.BackupAttributes{
 			VolumeName:        volume.Name,
 			AccountIdentifier: account.Name,
@@ -6945,7 +6945,7 @@ func TestGetBackupVaultByUUIDWithoutAccount_Success(t *testing.T) {
 	backupVault := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: 1, UUID: bvUUID},
 		Name:        "gcbdr-vault",
-		ServiceType: models.ServiceTypeCrossProject,
+		ServiceType: datamodel.ServiceTypeCrossProject,
 		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
 	}
 

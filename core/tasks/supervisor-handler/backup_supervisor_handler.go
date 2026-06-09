@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewBackupHandler() *BackupHandler {
 }
 
 // JobTypes enumerates the job types supported by the backup handler.
-func (h *BackupHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreateBackup,
-		models.JobTypeCreateScheduledBackup,
+func (h *BackupHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreateBackup,
+		datamodel.JobTypeCreateScheduledBackup,
 	}
 }
 

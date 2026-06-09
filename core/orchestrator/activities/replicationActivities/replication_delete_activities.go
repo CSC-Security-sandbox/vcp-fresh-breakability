@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -280,7 +281,7 @@ func (a *DeleteVolumeReplicationActivity) DeleteClusterPeeringDB(ctx context.Con
 	logger := util.GetLogger(ctx)
 	clusterPeeringRow := result.Event.ReplicationModel.ClusterPeer
 	se := a.SE
-	clusterPeeringRow.State = models.CvpClusterPeeringStatusDELETED
+	clusterPeeringRow.State = datamodel.CvpClusterPeeringStatusDELETED
 	timeNow := time.Now()
 	clusterPeeringRow.DeletedAt = &gorm.DeletedAt{Time: timeNow, Valid: true}
 	clusterPeeringRow.UpdatedAt = clusterPeeringRow.DeletedAt.Time
@@ -565,8 +566,8 @@ func (a *DeleteVolumeReplicationActivity) updateReplicationToErrorState(ctx cont
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
 	updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-		State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-		StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+		State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+		StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 	}
 	updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 		ProjectNumber:       projectNumber,
@@ -607,8 +608,8 @@ func (a *DeleteVolumeReplicationActivity) UpdateReplicationInDBToErrorState(ctx 
 	}
 
 	volumeRep := result.Event.ReplicationModel
-	volumeRep.State = models.LifeCycleStateError
-	volumeRep.StateDetails = models.LifeCycleStateDeletionErrorDetails
+	volumeRep.State = datamodel.LifeCycleStateError
+	volumeRep.StateDetails = datamodel.LifeCycleStateDeletionErrorDetails
 
 	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
 		logger.Errorf("Failed to update volume replication state in database: %v", err)

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonfactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -90,7 +89,7 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 		if err != nil && preallocatedSvm != nil {
 			compCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 			defer cancel()
-			if compErr := se.ErroredSVM(compCtx, preallocatedSvm, models.LifeCycleStateCreationErrorDetails); compErr != nil {
+			if compErr := se.ErroredSVM(compCtx, preallocatedSvm, datamodel.LifeCycleStateCreationErrorDetails); compErr != nil {
 				logger.Error("Failed to mark pre-allocated SVM as ERROR after orchestrator-level failure",
 					"svmUUID", preallocatedSvm.UUID, "compensationError", compErr)
 			}
@@ -121,11 +120,11 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 // validateSvmDeletionState ensures the SVM is in a state that allows deletion.
 func validateSvmDeletionState(svm *datamodel.Svm) error {
 	switch svm.State {
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return customerrors.NewNotFoundErr("svm deleted already", nil)
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return customerrors.NewConflictErr("SVM delete is already in progress")
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return customerrors.NewConflictErr("SVM cannot be deleted while creation is in progress")
 	}
 	return nil
@@ -192,7 +191,7 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 		if err != nil && deletingSvm != nil {
 			compCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 			defer cancel()
-			if compErr := se.ErroredSVM(compCtx, deletingSvm, models.LifeCycleStateDeletionErrorDetails); compErr != nil {
+			if compErr := se.ErroredSVM(compCtx, deletingSvm, datamodel.LifeCycleStateDeletionErrorDetails); compErr != nil {
 				logger.Error("Failed to mark SVM as ERROR after orchestrator-level delete failure",
 					"svmUUID", deletingSvm.UUID, "compensationError", compErr)
 			}

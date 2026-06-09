@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpBatch "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/batch"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -313,7 +312,7 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", datamodel.LifeCycleStateAvailable)
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{b}, nil)
 
@@ -351,7 +350,7 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", datamodel.LifeCycleStateAvailable)
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{b}, nil)
 
@@ -404,9 +403,9 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		// match request order so positional consumers see stable indexing across all modes.
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", datamodel.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", datamodel.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", datamodel.LifeCycleStateAvailable),
 			}, nil)
 
 		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}}
@@ -435,8 +434,8 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		// Expect the deduplicated list only.
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", datamodel.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", datamodel.LifeCycleStateAvailable),
 			}, nil)
 
 		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"}}
@@ -476,7 +475,7 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "c0000000-0000-0000-0000-cccccccccccc"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", datamodel.LifeCycleStateAvailable),
 			}, nil)
 
 		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "c0000000-0000-0000-0000-cccccccccccc"}}
@@ -548,7 +547,7 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", datamodel.LifeCycleStateAvailable),
 			}, nil)
 
 		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
@@ -609,9 +608,9 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", datamodel.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", datamodel.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", datamodel.LifeCycleStateAvailable),
 			}, nil)
 
 		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}}
@@ -683,8 +682,8 @@ func TestMapBackupStateToBatchState(t *testing.T) {
 		want gcpgenserver.BatchBackupV1betaState
 	}{
 		{"", gcpgenserver.BatchBackupV1betaStateSTATEUNSPECIFIED},
-		{coremodels.LifeCycleStateAvailable, gcpgenserver.BatchBackupV1betaStateREADY},
-		{coremodels.LifeCycleStateUpdating, gcpgenserver.BatchBackupV1betaStateSTATEUNSPECIFIED},
+		{datamodel.LifeCycleStateAvailable, gcpgenserver.BatchBackupV1betaStateREADY},
+		{datamodel.LifeCycleStateUpdating, gcpgenserver.BatchBackupV1betaStateSTATEUNSPECIFIED},
 		{string(gcpgenserver.BatchBackupV1betaStateCREATING), gcpgenserver.BatchBackupV1betaStateCREATING},
 		{string(gcpgenserver.BatchBackupV1betaStateREADY), gcpgenserver.BatchBackupV1betaStateREADY},
 		{string(gcpgenserver.BatchBackupV1betaStateUPLOADING), gcpgenserver.BatchBackupV1betaStateUPLOADING},
@@ -702,7 +701,7 @@ func TestMapBackupStateToBatchState(t *testing.T) {
 }
 
 func TestConvertBackupToBatchBackup_FieldMaskRemovesUnrequested(t *testing.T) {
-	b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
+	b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", datamodel.LifeCycleStateAvailable)
 	fieldSet := map[string]bool{"resourceId": true, "volumeId": true}
 
 	out := convertBackupToBatchBackup(b, fieldSet)
@@ -760,7 +759,7 @@ func TestIndexBatchBackupsByUUID_SkipsUnsetIDs(t *testing.T) {
 
 func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	t.Run("WithChildAssets_Emitted", func(tt *testing.T) {
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", datamodel.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{
 			ChildAssets: []datamodel.ChildAsset{
 				{AssetType: "TABLE", AssetNames: []string{"orders", "users"}},
@@ -775,7 +774,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("AssetMetadataNil_FieldRequested_EmitsEmptyObject", func(tt *testing.T) {
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", datamodel.LifeCycleStateAvailable)
 		b.AssetMetadata = nil
 
 		out := convertBackupToBatchBackup(b, map[string]bool{"assetLocationMetadata": true})
@@ -785,7 +784,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("AssetMetadataPresentWithEmptyChildren_StillEmitted", func(tt *testing.T) {
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", datamodel.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{ChildAssets: nil}
 
 		out := convertBackupToBatchBackup(b, map[string]bool{"assetLocationMetadata": true})
@@ -793,7 +792,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("FieldNotRequested_Omitted", func(tt *testing.T) {
-		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", datamodel.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{
 			ChildAssets: []datamodel.ChildAsset{{AssetType: "TABLE"}},
 		}
@@ -855,7 +854,7 @@ func makeRichVCPBackup() *datamodel.Backup {
 		},
 		Name:                    "rich-name",
 		Description:             "rich-desc",
-		State:                   coremodels.LifeCycleStateAvailable,
+		State:                   datamodel.LifeCycleStateAvailable,
 		Type:                    commonutils.BackupTypeMANUAL,
 		VolumeUUID:              "vol-rich",
 		SizeInBytes:             1024,

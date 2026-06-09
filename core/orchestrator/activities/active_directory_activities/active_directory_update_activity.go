@@ -57,8 +57,8 @@ func (a ActiveDirectoryUpdateActivity) MarkVcpAdToUpdatingActivity(ctx context.C
 		return nil
 	}
 
-	olAdVcpDbRecord.State = models.LifeCycleStateUpdating
-	olAdVcpDbRecord.StateDetails = models.LifeCycleStateUpdatingDetails
+	olAdVcpDbRecord.State = datamodel.LifeCycleStateUpdating
+	olAdVcpDbRecord.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	_, err = a.SE.UpdateActiveDirectory(ctx, olAdVcpDbRecord)
 	if err != nil {
@@ -84,8 +84,8 @@ func (a ActiveDirectoryUpdateActivity) MarkVcpAdToErrorActivity(ctx context.Cont
 		return nil
 	}
 
-	olAdVcpDbRecord.State = models.LifeCycleStateError
-	olAdVcpDbRecord.StateDetails = models.LifeCycleStateUpdateErrorDetails
+	olAdVcpDbRecord.State = datamodel.LifeCycleStateError
+	olAdVcpDbRecord.StateDetails = datamodel.LifeCycleStateUpdateErrorDetails
 
 	_, err = a.SE.UpdateActiveDirectory(ctx, olAdVcpDbRecord)
 	if err != nil {

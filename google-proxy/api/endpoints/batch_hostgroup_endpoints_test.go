@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -607,7 +608,7 @@ func TestConvertToBatchHostGroupV1Beta(t *testing.T) {
 		hg := &models.HostGroup{
 			BaseModel:     models.BaseModel{UUID: "test-uuid", CreatedAt: now},
 			Name:          "hg",
-			State:         models.LifeCycleStateDeleted,
+			State:         datamodel.LifeCycleStateDeleted,
 			OSType:        "not-a-real-os",
 			Hosts:         []string{"iqn.example"},
 			HostGroupType: "FC_INITIATOR",

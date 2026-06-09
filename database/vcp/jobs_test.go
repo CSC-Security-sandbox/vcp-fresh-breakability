@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -141,7 +140,7 @@ func TestCreateJobWithWorkflowID(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-1"},
-			Type:      string(models.JobTypeFlexCacheEstablishPeering),
+			Type:      string(datamodel.JobTypeFlexCacheEstablishPeering),
 		}
 
 		createdJob, err := store.CreateJobWithWorkflowID(context.Background(), job, "shared-wf-id")

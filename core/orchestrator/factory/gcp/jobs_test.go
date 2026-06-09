@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -30,7 +29,7 @@ func TestCreateJobValidation(t *testing.T) {
 
 	t.Run("MissingAccountName", func(t *testing.T) {
 		params := &common.CreateJobParams{
-			Type: models.JobTypeCreatePool,
+			Type: datamodel.JobTypeCreatePool,
 		}
 		job, err := orch.CreateJob(ctx, params)
 		require.Nil(t, job)
@@ -63,7 +62,7 @@ func TestCreateJobAccountLookupError(t *testing.T) {
 
 	params := &common.CreateJobParams{
 		AccountName: "project-1",
-		Type:        models.JobTypeCreatePool,
+		Type:        datamodel.JobTypeCreatePool,
 	}
 
 	job, err := orch.CreateJob(context.Background(), params)
@@ -91,8 +90,8 @@ func TestCreateJobDefaultsAndContextFallback(t *testing.T) {
 
 	storage.EXPECT().
 		CreateJob(mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			require.Equal(t, string(models.JobTypeCreatePool), job.Type)
-			require.Equal(t, string(models.JobsStateNEW), job.State)
+			require.Equal(t, string(datamodel.JobTypeCreatePool), job.Type)
+			require.Equal(t, string(datamodel.JobsStateNEW), job.State)
 			require.Equal(t, "resource-name", job.ResourceName)
 			require.Equal(t, int64(42), job.AccountID.Int64)
 			require.True(t, job.AccountID.Valid)
@@ -113,7 +112,7 @@ func TestCreateJobDefaultsAndContextFallback(t *testing.T) {
 
 	params := &common.CreateJobParams{
 		AccountName:   "project-1",
-		Type:          models.JobTypeCreatePool,
+		Type:          datamodel.JobTypeCreatePool,
 		ResourceName:  "resource-name",
 		JobAttributes: jobAttributes,
 	}
@@ -140,8 +139,8 @@ func TestCreateJobHonoursExplicitParams(t *testing.T) {
 
 	storage.EXPECT().
 		CreateJob(mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-			require.Equal(t, string(models.JobTypeDeletePool), job.Type)
-			require.Equal(t, string(models.JobsStatePROCESSING), job.State)
+			require.Equal(t, string(datamodel.JobTypeDeletePool), job.Type)
+			require.Equal(t, string(datamodel.JobsStatePROCESSING), job.State)
 			require.Equal(t, "named-resource", job.ResourceName)
 			require.Equal(t, jobAttributes, job.JobAttributes)
 			require.Equal(t, "explicit-corr", job.CorrelationID)
@@ -154,8 +153,8 @@ func TestCreateJobHonoursExplicitParams(t *testing.T) {
 
 	params := &common.CreateJobParams{
 		AccountName:   "project-1",
-		Type:          models.JobTypeDeletePool,
-		State:         models.JobsStatePROCESSING,
+		Type:          datamodel.JobTypeDeletePool,
+		State:         datamodel.JobsStatePROCESSING,
 		ResourceName:  "named-resource",
 		JobAttributes: jobAttributes,
 		CorrelationID: "explicit-corr",

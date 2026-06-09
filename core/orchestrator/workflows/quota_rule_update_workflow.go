@@ -39,12 +39,12 @@ func UpdateQuotaRuleWorkflow(ctx workflow.Context, params *common.UpdateQuotaRul
 		return nil, err
 	}
 	// Ensure job is available before updating status
-	if err := quotaRuleWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := quotaRuleWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		logger.Infof("Quota rule workflow job state check executed with error: %v", err)
 		return nil, ConvertToVSAError(err)
 	}
 	quotaRuleWf.Status = WorkflowStatusRunning
-	err = quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for quota rule executed with error: %v", err)
 		return nil, err
@@ -53,7 +53,7 @@ func UpdateQuotaRuleWorkflow(ctx workflow.Context, params *common.UpdateQuotaRul
 	if customErr != nil {
 		logger.Infof("Quota rule workflow run executed with error: %v", customErr)
 		quotaRuleWf.Status = WorkflowStatusFailed
-		jobUpdateErr := quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		jobUpdateErr := quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if jobUpdateErr != nil {
 			logger.Errorf("Failed to update job status to Error for UpdateQuotaRuleWorkflow: %v", jobUpdateErr)
 			return nil, jobUpdateErr
@@ -61,7 +61,7 @@ func UpdateQuotaRuleWorkflow(ctx workflow.Context, params *common.UpdateQuotaRul
 		return nil, customErr
 	}
 	quotaRuleWf.Status = WorkflowStatusCompleted
-	err = quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = quotaRuleWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		logger.Errorf("Failed to update job status to Done for UpdateQuotaRuleWorkflow: %v", err)
 	}
@@ -116,8 +116,8 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	defer func() {
 		if err != nil {
 			// On error, mark quota rule in error state
-			quotaRule.State = models.LifeCycleStateError
-			quotaRule.StateDetails = models.LifeCycleStateUpdateErrorDetails
+			quotaRule.State = datamodel.LifeCycleStateError
+			quotaRule.StateDetails = datamodel.LifeCycleStateUpdateErrorDetails
 			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule, false).Get(ctx, nil)
 			if err2 != nil {
 				logger.Errorf("Failed to update quota rule state in DB to error: %v", err2)

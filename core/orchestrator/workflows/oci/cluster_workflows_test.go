@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
@@ -56,7 +56,7 @@ func defaultUpgradeParams() *OCIClusterUpgradeWorkflowParams {
 			Name:                   "test-pool",
 			PoolExternalIdentifier: "ocid1.pool..a",
 			VLMConfig:              "{}",
-			State:                  models.LifeCycleStateAvailable,
+			State:                  datamodel.LifeCycleStateAvailable,
 			PoolCredentials:        &datamodel.PoolCredentials{Password: "ontap-pw"},
 			ClusterDetails:         datamodel.ClusterDetails{OntapVersion: "9.17.1"},
 		},
@@ -258,7 +258,7 @@ func TestOCIClusterUpgradeWorkflow_VLMUpgradeFails(t *testing.T) {
 func TestOCIClusterUpgradeWorkflow_PowerOffWhenClusterWasDisabled(t *testing.T) {
 	env := newClusterUpgradeTestEnv(t)
 	params := defaultUpgradeParams()
-	params.Pool.State = models.LifeCycleStateDisabled
+	params.Pool.State = datamodel.LifeCycleStateDisabled
 	params.SkipUpdateRBAC = true
 
 	upgradedVlmConfig := defaultVLMConfig()
@@ -411,7 +411,7 @@ func TestOCIClusterUpgradeWorkflow_SetupFails_MarksJobFailed(t *testing.T) {
 func TestOCIClusterUpgradeWorkflow_DisabledCluster_PowersOffOnUpgradeFailure(t *testing.T) {
 	env := newClusterUpgradeTestEnv(t)
 	params := defaultUpgradeParams()
-	params.Pool.State = models.LifeCycleStateDisabled
+	params.Pool.State = datamodel.LifeCycleStateDisabled
 	params.SkipUpdateRBAC = true
 
 	mockVlm := installMockVlmForUpgrade(t)
@@ -705,7 +705,7 @@ func TestOCIClusterUpgradeWorkflow_LargePool_CalculateBatchPlanFails(t *testing.
 func TestOCIClusterUpgradeWorkflow_DisabledCluster_PowerOnFails(t *testing.T) {
 	env := newClusterUpgradeTestEnv(t)
 	params := defaultUpgradeParams()
-	params.Pool.State = models.LifeCycleStateDisabled
+	params.Pool.State = datamodel.LifeCycleStateDisabled
 	params.SkipUpdateRBAC = true
 
 	mockVlm := installMockVlmForUpgrade(t)

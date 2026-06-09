@@ -285,7 +285,7 @@ func (a *ReverseHybridReplicationActivity) UpdateReplicationWithReverseCommandsF
 		result.DbVolReplication.HybridReplicationAttributes.HybridReplicationUserCommands = result.HybridReplicationUserCommands
 
 		// Set status to PendingReverseResume
-		result.DbVolReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingRemoteResync
+		result.DbVolReplication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPendingRemoteResync
 
 		// Set status details
 		result.DbVolReplication.HybridReplicationAttributes.StatusDetails = "Please execute the SnapMirror commands on the on-premises system to establish a new SnapMirror relationship."
@@ -364,7 +364,7 @@ func (a *ReverseHybridReplicationActivity) SetReplicationToErrorForReverseHybrid
 		return nil
 	}
 	replicationToUpdate := *replication
-	replicationToUpdate.State = models.LifeCycleStateError
+	replicationToUpdate.State = datamodel.LifeCycleStateError
 	replicationToUpdate.StateDetails = fmt.Sprintf("Reverse was not successful: %s", errorMessage)
 
 	if replicationToUpdate.HybridReplicationAttributes == nil {
@@ -373,12 +373,12 @@ func (a *ReverseHybridReplicationActivity) SetReplicationToErrorForReverseHybrid
 	replicationToUpdate.HybridReplicationAttributes.StatusDetails = replicationToUpdate.StateDetails
 	replicationToUpdate.HybridReplicationAttributes.HybridReplicationUserCommands = nil
 	if isSrcForHybridReplication {
-		replicationToUpdate.HybridReplicationAttributes.Status = models.HybridReplicationStatusExternalManaged
-		hybridType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		replicationToUpdate.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusExternalManaged
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		replicationToUpdate.HybridReplicationAttributes.HybridReplicationType = &hybridType
 	} else {
-		replicationToUpdate.HybridReplicationAttributes.Status = models.HybridReplicationStatusPeered
-		hybridType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		replicationToUpdate.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusPeered
+		hybridType := string(datamodel.HybridReplicationParametersReplicationTypeONPREM)
 		replicationToUpdate.HybridReplicationAttributes.HybridReplicationType = &hybridType
 	}
 
@@ -410,11 +410,11 @@ func (a *ReverseHybridReplicationActivity) UpdateReplicationStateForHybridRevers
 	}
 
 	// Set hybrid replication type
-	hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+	hybridReplicationType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 	dbReplication.HybridReplicationAttributes.HybridReplicationType = &hybridReplicationType
 
 	// Set status to ExternalManaged
-	dbReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusExternalManaged
+	dbReplication.HybridReplicationAttributes.Status = datamodel.HybridReplicationStatusExternalManaged
 
 	// Set status details
 	dbReplication.HybridReplicationAttributes.StatusDetails = "Replication is being externally managed by the On-Prem cluster"
@@ -448,7 +448,7 @@ func (a *ReverseHybridReplicationActivity) CreateJobForHybridReverse(ctx context
 	job := &datamodel.Job{
 		AccountID:     sql.NullInt64{Int64: result.DbVolReplication.AccountID, Valid: true},
 		Type:          jobType,
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: result.DbVolReplication.UUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -587,14 +587,14 @@ func (a *ReverseHybridReplicationActivity) DescribeRemoteJobOnDstForHybridRevers
 }
 
 func (a *ReverseHybridReplicationActivity) HydrateReplicationSateAndTypeForReverseHybridReplication(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
-	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, result.Event.Location, result.Event.VolumeResourceID)
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateExternalManaged, datamodel.HybridReplicationParametersReplicationTypeREVERSE, result.Event.Location, result.Event.VolumeResourceID)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
 	return result, nil
 }
 
-func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbVolRep *datamodel.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, location, volumeResourceId string) error {
+func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbVolRep *datamodel.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType datamodel.HybridReplicationParametersReplicationType, location, volumeResourceId string) error {
 	if hydrationEnabled {
 		logger := util.GetLogger(ctx)
 		logger.Debugf("Hydrating volume replication for hybrid replication after reverse")

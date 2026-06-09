@@ -12,7 +12,6 @@ import (
 
 	clientmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -1346,7 +1345,7 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 
 			// Check if we need to skip bidirectional replications
 			if !p.config.EnableBidirectionalReplicationBillingMetrics {
-				if volumeReplication.ReplicationAttributes != nil && (volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM)) {
+				if volumeReplication.ReplicationAttributes != nil && (volumeReplication.ReplicationAttributes.ReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) || volumeReplication.ReplicationAttributes.ReplicationType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM)) {
 					logger.Debugf("Skipping volume replication %s (%s) - bidirectional replication type", volumeReplication.Name, volumeReplication.UUID)
 					continue
 				}
@@ -2491,6 +2490,7 @@ func splitTimeSeriesByFreeTrial(series common.TimeSeries, freeTrialEndAt *time.T
 	commercialSeries.DataPoints = post
 	return []common.TimeSeries{freeTrialSeries, commercialSeries}
 }
+
 // This aggregates volume-level metrics to pool-level by summing volumes within each pool.
 func (p *BillingProvider) fetchHistoricalVolumeSizeMetrics(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, backfillLimit time.Duration, measuredType metadata.MeasuredType, resourceType metadata.ResourceType, resourceCollection *ResourceCollection, aggregatedRecords []datamodel2.AggregatedUsage) ([]datamodel2.HydratedMetrics, error) {
 	logger := util.GetLogger(ctx)

@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/inmemotasksprocessor"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/gcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -98,7 +98,7 @@ func _syncVSAClusterHealth(ctx context.Context, se database.Storage, correlation
 	logger.Infof("[SyncVSAClusterHealth] Starting VSA Cluster Health Synchronization - CorrelationID: %s", correlationID)
 
 	filter := utils2.CreateFilterWithConditions(
-		utils2.NewFilterCondition("state", "in", []string{models.LifeCycleStateREADY, models.LifeCycleStateDegraded}),
+		utils2.NewFilterCondition("state", "in", []string{datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateDegraded}),
 	)
 	pools, err := se.ListPoolUUIDs(ctx, filter)
 	if err != nil {
@@ -438,7 +438,7 @@ func updatePoolToDegradedState(ctx *inmemotasksprocessor.IMTPContext, clusterHea
 	}
 
 	// Update pool state to DEGRADED
-	err := updatePoolState(se, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
+	err := updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateDegraded, datamodel.LifeCycleStateDegradedDetails)
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to DEGRADED: %v", correlationID, poolIdentifier.UUID, err)
 	} else {
@@ -488,7 +488,7 @@ func updatePoolToReadyState(ctx *inmemotasksprocessor.IMTPContext, clusterHealth
 	}
 
 	// Update pool state to READY
-	err := updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+	err := updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to READY: %v", correlationID, poolIdentifier.UUID, err)
 	} else {
@@ -498,7 +498,7 @@ func updatePoolToReadyState(ctx *inmemotasksprocessor.IMTPContext, clusterHealth
 
 // updatePoolToReadyStateSimple updates pool to READY state when no JSWAP is needed
 func updatePoolToReadyStateSimple(se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string) {
-	err := updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+	err := updatePoolState(se, poolIdentifier, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to READY: %v", correlationID, poolIdentifier.UUID, err)
 	} else {
@@ -520,7 +520,7 @@ func updatePoolState(se database.Storage, poolIdentifier *database.PoolIdentifie
 
 	// Only update if pool is in expected states (READY or DEGRADED)
 	// This prevents race conditions where pool may have transitioned to DELETING, UPDATING, etc.
-	if poolState != models.LifeCycleStateREADY && poolState != models.LifeCycleStateDegraded {
+	if poolState != datamodel.LifeCycleStateREADY && poolState != datamodel.LifeCycleStateDegraded {
 		logger.Infof("Skipping pool state update - pool %s is in state %s (not READY/DEGRADED)", poolIdentifier.UUID, poolState)
 		return nil // Not an error, just skip the update
 	}

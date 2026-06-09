@@ -566,7 +566,7 @@ func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, 
 		if other.DeletedAt != nil && other.DeletedAt.Valid {
 			continue
 		}
-		if other.State == models.LifeCycleStateDeleted {
+		if other.State == datamodel.LifeCycleStateDeleted {
 			continue
 		}
 		if other.VolumeAttributes == nil {

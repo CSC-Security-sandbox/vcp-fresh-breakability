@@ -5,25 +5,26 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
 	ReplicationJobTypes = []string{
-		string(models.JobTypeCreateVolumeReplication),
-		string(models.JobTypeDeleteVolumeReplication),
-		string(models.JobTypeUpdateVolumeReplication),
-		string(models.JobTypeResumeVolumeReplication),
-		string(models.JobTypeReverseResumeVolumeReplication),
-		string(models.JobTypeStopVolumeReplication),
-		string(models.JobTypeCreateHybridReplication),
-		string(models.JobTypeReverseHybridReplicationInternal),
-		string(models.JobTypeReverseHybridReplicationFallbackInternal),
+		string(datamodel.JobTypeCreateVolumeReplication),
+		string(datamodel.JobTypeDeleteVolumeReplication),
+		string(datamodel.JobTypeUpdateVolumeReplication),
+		string(datamodel.JobTypeResumeVolumeReplication),
+		string(datamodel.JobTypeReverseResumeVolumeReplication),
+		string(datamodel.JobTypeStopVolumeReplication),
+		string(datamodel.JobTypeCreateHybridReplication),
+		string(datamodel.JobTypeReverseHybridReplicationInternal),
+		string(datamodel.JobTypeReverseHybridReplicationFallbackInternal),
 	}
 	ScheduledJobTypes = []string{
-		string(models.JobsStateNEW),
-		string(models.JobsStatePROCESSING),
+		string(datamodel.JobsStateNEW),
+		string(datamodel.JobsStatePROCESSING),
 	}
 )
 

@@ -16,6 +16,7 @@ import (
 	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -2963,85 +2964,85 @@ func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
 func Test_compareADStateHierarchy_ErrorFromVCPWins(t *testing.T) {
 	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateReadyDetails),
 	}
 	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateDeletionErrorDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 	}
 
 	compareADStateHierarchy(sdeAD, vcpAD)
 
 	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
-	assert.Equal(t, vcpModels.LifeCycleStateDeletionErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+	assert.Equal(t, datamodel.LifeCycleStateDeletionErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
 		"StateDetails should come from VCP (the winner with ERROR state)")
 }
 
 func Test_compareADStateHierarchy_ErrorFromSDEWins(t *testing.T) {
 	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateCreationErrorDetails),
 	}
 	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateReadyDetails),
 	}
 
 	compareADStateHierarchy(sdeAD, vcpAD)
 
 	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
-	assert.Equal(t, vcpModels.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+	assert.Equal(t, datamodel.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
 		"StateDetails should come from SDE (the winner with ERROR state)")
 }
 
 func Test_compareADStateHierarchy_UpdatingWins(t *testing.T) {
 	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateUpdatingDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateUpdatingDetails),
 	}
 	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateCreationErrorDetails),
 	}
 
 	compareADStateHierarchy(sdeAD, vcpAD)
 
 	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, sdeAD.ActiveDirectoryState.Value)
-	assert.Equal(t, vcpModels.LifeCycleStateUpdatingDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+	assert.Equal(t, datamodel.LifeCycleStateUpdatingDetails, sdeAD.ActiveDirectoryStateDetails.Value,
 		"StateDetails should come from SDE (the winner with UPDATING state)")
 }
 
 func Test_compareADStateHierarchy_InUseWins(t *testing.T) {
 	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateReadyDetails),
 	}
 	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateInUseDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateInUseDetails),
 	}
 
 	compareADStateHierarchy(sdeAD, vcpAD)
 
 	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, sdeAD.ActiveDirectoryState.Value)
-	assert.Equal(t, vcpModels.LifeCycleStateInUseDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+	assert.Equal(t, datamodel.LifeCycleStateInUseDetails, sdeAD.ActiveDirectoryStateDetails.Value,
 		"StateDetails should come from VCP (the winner with IN_USE state)")
 }
 
 func Test_compareADStateHierarchy_BothError(t *testing.T) {
 	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateCreationErrorDetails),
 	}
 	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
-		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateDeletionErrorDetails),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 	}
 
 	compareADStateHierarchy(sdeAD, vcpAD)
 
 	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
-	assert.Equal(t, vcpModels.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+	assert.Equal(t, datamodel.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
 		"StateDetails should come from SDE (equal priority, SDE wins)")
 }
 
@@ -3057,27 +3058,27 @@ func Test_compareADStateHierarchy_AllStateCombinations(t *testing.T) {
 	}{
 		{
 			"UPDATING vs ERROR",
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, vcpModels.LifeCycleStateUpdatingDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateCreationErrorDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, vcpModels.LifeCycleStateUpdatingDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, datamodel.LifeCycleStateUpdatingDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateCreationErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, datamodel.LifeCycleStateUpdatingDetails,
 		},
 		{
 			"READY vs ERROR",
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, vcpModels.LifeCycleStateReadyDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateDeletionErrorDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateDeletionErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, datamodel.LifeCycleStateReadyDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateDeletionErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateDeletionErrorDetails,
 		},
 		{
 			"READY vs IN_USE",
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, vcpModels.LifeCycleStateReadyDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, datamodel.LifeCycleStateReadyDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, datamodel.LifeCycleStateInUseDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, datamodel.LifeCycleStateInUseDetails,
 		},
 		{
 			"ERROR vs IN_USE",
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateUpdateErrorDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
-			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateUpdateErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateUpdateErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, datamodel.LifeCycleStateInUseDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateUpdateErrorDetails,
 		},
 	}
 

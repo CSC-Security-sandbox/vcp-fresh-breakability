@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -64,7 +64,7 @@ func (provider *OntapRestProvider) UpdateActiveDirectoryCredentials(params Updat
 	if params.NewCredentials != nil && svmExternalUUID == "" {
 		return errors.New("Error determining server for update")
 	}
-	forceUpdate := strings.Contains(params.OldCredentials.Status, models.LifeCycleStateError)
+	forceUpdate := strings.Contains(params.OldCredentials.Status, datamodel.LifeCycleStateError)
 	serverForUpdate := svmName
 
 	api, err := provider.CreateRESTClient()

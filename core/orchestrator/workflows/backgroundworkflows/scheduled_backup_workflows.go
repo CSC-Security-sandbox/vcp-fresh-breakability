@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -61,7 +60,7 @@ func CreateScheduledBackupInitWorkflow(ctx workflow.Context, backupPolicy *datam
 
 	createScheduledBackupInitWF := new(createScheduledBackupInitWorkflow)
 	createdJob, err := createScheduledBackupInitWF.CreateJob(
-		ctx, backupPolicy.AccountID, backupPolicy.Name, string(models.JobTypeInitCreateScheduledBackup))
+		ctx, backupPolicy.AccountID, backupPolicy.Name, string(datamodel.JobTypeInitCreateScheduledBackup))
 	if err != nil {
 		return err
 	}
@@ -75,14 +74,14 @@ func CreateScheduledBackupInitWorkflow(ctx workflow.Context, backupPolicy *datam
 	_, workflowErr := createScheduledBackupInitWF.Run(ctx, backupPolicy)
 	if workflowErr != nil {
 		createScheduledBackupInitWF.Status = workflows.WorkflowStatusFailed
-		err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			createScheduledBackupInitWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	createScheduledBackupInitWF.Status = workflows.WorkflowStatusCompleted
-	err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		createScheduledBackupInitWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -170,16 +169,16 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 
 		// Check backup policy state and decide whether to proceed or continue polling
 		switch backupPolicy.LifeCycleState {
-		case models.LifeCycleStateREADY:
+		case datamodel.LifeCycleStateREADY:
 			// Backup policy is ready, proceed with scheduled backup
 			wf.Logger.Infof("Backup policy %s is in READY state, proceeding with scheduled backup", backupPolicy.UUID)
 
-		case models.LifeCycleStateDeleted:
+		case datamodel.LifeCycleStateDeleted:
 			// Backup policy was deleted, exit gracefully
 			wf.Logger.Infof("Backup policy %s is DELETED, exiting workflow", backupPolicy.UUID)
 			return nil, nil
 
-		case models.LifeCycleStateUpdating, models.LifeCycleStateDeleting:
+		case datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateDeleting:
 			// Backup policy is in transition state, continue polling
 			wf.Logger.Infof("Backup policy %s is in %s state, waiting for it to reach READY state", backupPolicy.UUID, backupPolicy.LifeCycleState)
 			err = workflow.Sleep(ctx, pollBackupPolicyInterval)
@@ -194,7 +193,7 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 		}
 
 		// Break out of the loop if backup policy is in READY state
-		if backupPolicy.LifeCycleState == models.LifeCycleStateREADY {
+		if backupPolicy.LifeCycleState == datamodel.LifeCycleStateREADY {
 			break
 		}
 	}
@@ -216,7 +215,7 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 
 		for _, volume := range volumes {
 			if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
-				if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+				if volume.VolumeAttributes.CloneParentInfo.State == datamodel.CloneStateSplitting {
 					wf.Logger.Info("Scheduled Backup creation is skipped when the volume is splitting", "volume_id", volume.UUID)
 					continue
 				}
@@ -258,7 +257,7 @@ type createScheduledBackupWorkflow struct {
 func CreateScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
 	createScheduledBackupWF := new(createScheduledBackupWorkflow)
 	createdJob, err := createScheduledBackupWF.CreateJob(
-		ctx, backupPolicy.AccountID, volume.Name, string(models.JobTypeCreateScheduledBackup))
+		ctx, backupPolicy.AccountID, volume.Name, string(datamodel.JobTypeCreateScheduledBackup))
 	if err != nil {
 		return workflows.ConvertToVSAError(err)
 	}
@@ -275,14 +274,14 @@ func CreateScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volum
 			return workflowErr
 		}
 		createScheduledBackupWF.Status = workflows.WorkflowStatusFailed
-		err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	createScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
-	err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -312,7 +311,7 @@ func CreateScheduledBackupWorkflowWithContext(ctx workflow.Context, scheduledBac
 			return workflowErr
 		}
 		createScheduledBackupWF.Status = workflows.WorkflowStatusFailed
-		err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
@@ -320,7 +319,7 @@ func CreateScheduledBackupWorkflowWithContext(ctx workflow.Context, scheduledBac
 	}
 
 	createScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
-	err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -633,12 +632,12 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if smRelationship.State != nil && *smRelationship.State != models.OntapSnapmirrored {
+	if smRelationship.State != nil && *smRelationship.State != datamodel.OntapSnapmirrored {
 		unhealthyMsg := ""
 		if smRelationship.Healthy != nil && !*smRelationship.Healthy && smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			unhealthyMsg = fmt.Sprintf(" Unhealthy reasons: %v", *smRelationship.UnhealthyReason)
 		}
-		wf.Logger.Infof("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg)
+		wf.Logger.Infof("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, datamodel.OntapSnapmirrored, unhealthyMsg)
 		preTransferErr = vsaerrors.New("snapmirror relationship state is not snapmirrored")
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, preTransferErr)
 	}
@@ -774,7 +773,7 @@ type deleteScheduledBackupWorkflow struct {
 func DeleteScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
 	deleteScheduledBackupWF := new(deleteScheduledBackupWorkflow)
 	createdJob, err := deleteScheduledBackupWF.CreateJob(
-		ctx, backupPolicy.AccountID, volume.Name, string(models.JobTypeDeleteScheduledBackup))
+		ctx, backupPolicy.AccountID, volume.Name, string(datamodel.JobTypeDeleteScheduledBackup))
 	if err != nil {
 		return err
 	}
@@ -788,14 +787,14 @@ func DeleteScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volum
 	_, workflowErr := deleteScheduledBackupWF.Run(ctx, volume, backupPolicy)
 	if workflowErr != nil {
 		deleteScheduledBackupWF.Status = workflows.WorkflowStatusFailed
-		err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			deleteScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	deleteScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
-	err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		deleteScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2
@@ -985,7 +984,7 @@ func (wf *baseScheduledBackupWorkflow) CreateJob(ctx workflow.Context, accountID
 		CorrelationID: correlationID,
 		ResourceName:  resourceName,
 		Type:          jobType,
-		State:         string(models.JobsStatePROCESSING),
+		State:         string(datamodel.JobsStatePROCESSING),
 	}
 
 	commonActivities := activities.CommonActivities{}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -33,7 +32,7 @@ func TestGetAccountsWithFilter(t *testing.T) {
 	enabled := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{UUID: "list-acct-enabled"},
 		Name:      "list_acct_enabled",
-		State:     models.AccountStateEnabled,
+		State:     datamodel.AccountStateEnabled,
 	}
 	disabled := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{UUID: "list-acct-disabled"},
@@ -51,7 +50,7 @@ func TestGetAccountsWithFilter(t *testing.T) {
 
 	t.Run("state filter", func(t *testing.T) {
 		filter := dbutils.CreateFilterWithConditions(
-			dbutils.NewFilterCondition("state", "=", models.AccountStateEnabled),
+			dbutils.NewFilterCondition("state", "=", datamodel.AccountStateEnabled),
 		)
 		got, err := store.GetAccountsWithFilter(ctx, filter, nil)
 		require.NoError(t, err)

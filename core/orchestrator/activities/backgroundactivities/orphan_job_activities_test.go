@@ -57,8 +57,8 @@ func TestOrphanJobsActivity(t *testing.T) {
 		testJobs := []*datamodel.Job{
 			{
 				BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-				Type:       string(models.JobTypeCreateKmsConfig),
-				State:      string(models.JobsStateWaitForTemporal),
+				Type:       string(datamodel.JobTypeCreateKmsConfig),
+				State:      string(datamodel.JobsStateWaitForTemporal),
 				TrackingID: 0,
 				WorkflowID: "workflow-1",
 				JobAttributes: &datamodel.JobAttributes{
@@ -68,8 +68,8 @@ func TestOrphanJobsActivity(t *testing.T) {
 			},
 			{
 				BaseModel:  datamodel.BaseModel{UUID: "job-2"},
-				Type:       string(models.JobTypeDeleteKmsConfig),
-				State:      string(models.JobsStateWaitForTemporal),
+				Type:       string(datamodel.JobTypeDeleteKmsConfig),
+				State:      string(datamodel.JobsStateWaitForTemporal),
 				TrackingID: 1,
 				WorkflowID: "workflow-2",
 				JobAttributes: &datamodel.JobAttributes{
@@ -81,7 +81,7 @@ func TestOrphanJobsActivity(t *testing.T) {
 
 		// Mock expectations
 		filter := dbutils.CreateFilterWithConditions(
-			dbutils.NewFilterCondition("state", "=", models.JobsStateWaitForTemporal),
+			dbutils.NewFilterCondition("state", "=", datamodel.JobsStateWaitForTemporal),
 		)
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return(testJobs, nil)
 
@@ -124,8 +124,8 @@ func TestProcessSingleJob_Success(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -194,8 +194,8 @@ func TestProcessSingleJob_MaxRetriesExceeded_CreateKmsConfig(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -250,8 +250,8 @@ func TestProcessSingleJob_MaxRetriesExceeded_DeleteKmsConfig(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeDeleteKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeDeleteKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -262,7 +262,7 @@ func TestProcessSingleJob_MaxRetriesExceeded_DeleteKmsConfig(t *testing.T) {
 
 	// Mock storage calls
 	mockStorage.On("UpdateJobAttributes", ctx, "job-1", mock.Anything).Return(nil)
-	mockStorage.On("UpdateJob", ctx, "job-1", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-1", string(datamodel.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 	// Execute
 	mockTemporalClient := &mocks.Client{}
@@ -281,7 +281,7 @@ func TestProcessSingleJob_UnknownJobType(t *testing.T) {
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
 		Type:       "UNKNOWN_JOB_TYPE", // Invalid job type
-		State:      string(models.JobsStateWaitForTemporal),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -310,8 +310,8 @@ func TestProcessSingleJob_PrepareWorkflowArgsFails(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -341,8 +341,8 @@ func TestProcessSingleJob_WorkflowExecutionFails(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -367,7 +367,7 @@ func TestProcessSingleJob_WorkflowExecutionFails(t *testing.T) {
 	// Mock storage calls
 	mockStorage.On("GetKmsConfig", ctx, "kms-config-1").Return(mockKmsConfig, nil)
 	mockStorage.On("UpdateJobAttributes", ctx, "job-1", mock.AnythingOfType("*datamodel.JobAttributes")).Return(nil)
-	mockStorage.On("UpdateJob", ctx, "job-1", string(models.JobsStateWaitForTemporal), 0, workflowError.Error()).Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-1", string(datamodel.JobsStateWaitForTemporal), 0, workflowError.Error()).Return(nil)
 
 	// Mock temporal client
 	mockTemporalClient := &mocks.Client{}
@@ -396,8 +396,8 @@ func TestProcessSingleJob_RetryCountIncrementFails(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -453,8 +453,8 @@ func TestProcessSingleJob_SplitVolume_TaskQueueAndTimeout(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-split-1"},
-		Type:       string(models.JobTypeSplitVolume),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeSplitVolume),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-split-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -519,8 +519,8 @@ func TestProcessSingleJob_DefaultJobType_UsesCustomerTaskQueueAndGlobalTimeout(t
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-kms-1"},
-		Type:       string(models.JobTypeCreateKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeCreateKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-kms-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -578,8 +578,8 @@ func TestProcessSingleJob_DeleteKmsConfig_Success(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-1"},
-		Type:       string(models.JobTypeDeleteKmsConfig),
-		State:      string(models.JobsStateWaitForTemporal),
+		Type:       string(datamodel.JobTypeDeleteKmsConfig),
+		State:      string(datamodel.JobsStateWaitForTemporal),
 		TrackingID: 0,
 		WorkflowID: "workflow-1",
 		JobAttributes: &datamodel.JobAttributes{

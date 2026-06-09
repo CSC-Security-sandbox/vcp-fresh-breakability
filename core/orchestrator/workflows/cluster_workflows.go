@@ -36,18 +36,18 @@ func AcceptClusterPeerWorkflow(ctx workflow.Context, params *common.ClusterPeerP
 		return err
 	}
 	clusterPeerWF.Status = WorkflowStatusRunning
-	err = clusterPeerWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = clusterPeerWF.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return err
 	}
 	_, customErr := clusterPeerWF.Run(ctx, params, pool)
 	if customErr != nil {
 		clusterPeerWF.Status = WorkflowStatusFailed
-		err = clusterPeerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = clusterPeerWF.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return err
 	}
 	clusterPeerWF.Status = WorkflowStatusCompleted
-	err = clusterPeerWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = clusterPeerWF.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return err
 }
 
@@ -343,7 +343,7 @@ func (wf *clusterUpgradeWorkflow) preUpgradePhase(ctx workflow.Context, params *
 
 	// Check if cluster is in DISABLED state (powered off) and handle power operations
 	clusterWasDisabled := false
-	if params.Pool.State == models.LifeCycleStateDisabled {
+	if params.Pool.State == datamodel.LifeCycleStateDisabled {
 		wf.Logger.Info("Cluster is in DISABLED state, will power on before upgrade", "jobID", params.JobID, "clusterID", params.ClusterID)
 		clusterWasDisabled = true
 

@@ -373,8 +373,8 @@ func TestFlexCacheVolumeUpdateActivity_CreatePrepopulateJob(t *testing.T) {
 
 		createdJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "created-job-uuid"},
-			Type:          string(models.JobTypeFlexCachePrePopulate),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeFlexCachePrePopulate),
+			State:         string(datamodel.JobsStateNEW),
 			ResourceName:  volumeUUID,
 			IsAdminJob:    false,
 			AccountID:     sql.NullInt64{Int64: accountID, Valid: true},
@@ -382,8 +382,8 @@ func TestFlexCacheVolumeUpdateActivity_CreatePrepopulateJob(t *testing.T) {
 		}
 
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeFlexCachePrePopulate) &&
-				job.State == string(models.JobsStateNEW) &&
+			return job.Type == string(datamodel.JobTypeFlexCachePrePopulate) &&
+				job.State == string(datamodel.JobsStateNEW) &&
 				job.ResourceName == volumeUUID &&
 				job.IsAdminJob == false &&
 				job.AccountID.Int64 == accountID &&

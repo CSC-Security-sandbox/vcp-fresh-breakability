@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -39,17 +38,17 @@ func (s *SplitVolumeArgs) FailedWorkflowJob(ctx context.Context, se database.Sto
 
 	updatedAttrs := *volume.VolumeAttributes
 	cloneInfo := *volume.VolumeAttributes.CloneParentInfo
-	cloneInfo.State = models.CloneStateErrorInSplitting
+	cloneInfo.State = datamodel.CloneStateErrorInSplitting
 	cloneInfo.StateDetails = reason
 	updatedAttrs.CloneParentInfo = &cloneInfo
 
 	if updateErr := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
 		"volume_attributes": &updatedAttrs,
 	}); updateErr != nil {
-		return fmt.Errorf("failed to update clone state to %s for volume %s: %w", models.CloneStateErrorInSplitting, volumeUUID, updateErr)
+		return fmt.Errorf("failed to update clone state to %s for volume %s: %w", datamodel.CloneStateErrorInSplitting, volumeUUID, updateErr)
 	}
 
-	logger.Warnf("Marked volume %s clone state as %s after split workflow failed to start: %s", volumeUUID, models.CloneStateErrorInSplitting, reason)
+	logger.Warnf("Marked volume %s clone state as %s after split workflow failed to start: %s", volumeUUID, datamodel.CloneStateErrorInSplitting, reason)
 	return nil
 }
 

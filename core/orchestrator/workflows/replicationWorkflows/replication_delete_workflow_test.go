@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -785,7 +784,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 						SourceLocation: "us-central1",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
-						Status: models.HybridReplicationStatusPendingClusterPeer,
+						Status: datamodel.HybridReplicationStatusPendingClusterPeer,
 					},
 				},
 				SourceProjectNumber:      "123456789",

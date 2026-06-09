@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -87,7 +86,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -124,7 +123,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   "invalid-resource-type",
 	}
@@ -165,7 +164,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -202,7 +201,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -250,7 +249,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateONWorkflow, param)
 
@@ -294,7 +293,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -343,7 +342,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -384,7 +383,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -432,7 +431,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -469,7 +468,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -504,7 +503,7 @@ func (s *HandleResourceEventOnStateTestSuite) Test_UpdateResourceStateONWorkflow
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "storage-pool-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeStoragePool,
 	}
@@ -574,7 +573,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -617,7 +616,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -654,7 +653,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -700,7 +699,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateOFFWorkflow, param)
 
@@ -748,7 +747,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -788,7 +787,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -835,7 +834,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOffWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -877,7 +876,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -925,7 +924,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -962,7 +961,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "hostgroup-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeHostGroup,
 	}
@@ -997,7 +996,7 @@ func (s *HandleResourceEventOffStateTestSuite) Test_UpdateResourceStateOFFWorkfl
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "storage-pool-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeStoragePool,
 	}
@@ -1069,7 +1068,7 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeKmsConfig,
 	}
@@ -1107,7 +1106,7 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateCommonResourceOFFWorkflow, param)
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1153,7 +1152,7 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateCommonResourceOFFWorkflow, param)
 
@@ -1194,7 +1193,7 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -1241,7 +1240,7 @@ func (s *HandleResourceEventCommonResourceOffStateTestSuite) Test_UpdateResource
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOff,
+		State:          datamodel.ResourceEventStateOff,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -1319,7 +1318,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeKmsConfig,
 	}
@@ -1356,7 +1355,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateCommonResourceONWorkflow, param)
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1404,7 +1403,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -1446,7 +1445,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -1495,7 +1494,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeKmsConfig,
 	}
@@ -1538,7 +1537,7 @@ func (s *HandleResourceEventCommonResourceOnStateTestSuite) Test_UpdateResourceS
 		ProjectNumber:  "123456789",
 		XCorrelationID: "test-correlation-id",
 		LocationId:     "us-central1",
-		State:          models.StateOn,
+		State:          datamodel.ResourceEventStateOn,
 		ResourceId:     "resource-id",
 		ResourceType:   common.ResourceStateV1ResourceTypeVolume,
 	}
@@ -1620,7 +1619,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateOn, // Invalid state for DELETE workflow
+		State:         datamodel.ResourceEventStateOn, // Invalid state for DELETE workflow
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1644,7 +1643,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "resource-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeKmsConfig, // Invalid resource type
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1675,7 +1674,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1710,7 +1709,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1742,7 +1741,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
-	volumes := []*datamodel.Volume{{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn}}
+	volumes := []*datamodel.Volume{{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn}}
 
 	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
@@ -1752,7 +1751,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1786,7 +1785,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
-	volumes := []*datamodel.Volume{{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn}}
+	volumes := []*datamodel.Volume{{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn}}
 
 	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
@@ -1798,7 +1797,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1851,7 +1850,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1886,8 +1885,8 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 2}
 	volumes := []*datamodel.Volume{
-		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn},
-		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: models.StateOff},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: datamodel.ResourceEventStateOff},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1921,7 +1920,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -1956,8 +1955,8 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 2}
 	volumes := []*datamodel.Volume{
-		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn},
-		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: models.StateOff},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: datamodel.ResourceEventStateOff},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1995,7 +1994,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2030,8 +2029,8 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 2}
 	volumes := []*datamodel.Volume{
-		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn},
-		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: models.StateOff},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-2"}, State: datamodel.ResourceEventStateOff},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{ID: 1},
@@ -2065,7 +2064,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2106,7 +2105,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2143,7 +2142,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "volume-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeVolume,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2168,7 +2167,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2198,7 +2197,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2239,7 +2238,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2277,7 +2276,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2315,7 +2314,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2347,7 +2346,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "volume-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeVolume,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2381,7 +2380,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2425,7 +2424,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2468,7 +2467,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2503,7 +2502,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
 	volumes := []*datamodel.Volume{
-		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn},
 	}
 
 	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
@@ -2515,7 +2514,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2552,7 +2551,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
 	volumes := []*datamodel.Volume{
-		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: datamodel.ResourceEventStateOn},
 	}
 
 	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
@@ -2566,7 +2565,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2606,14 +2605,14 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	volumes := []*datamodel.Volume{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
-			State:     models.StateOn,
+			State:     datamodel.ResourceEventStateOn,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{},
 			},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
-			State:     models.StateOff,
+			State:     datamodel.ResourceEventStateOff,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{},
 			},
@@ -2652,7 +2651,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2694,14 +2693,14 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	volumes := []*datamodel.Volume{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
-			State:     models.StateOn,
+			State:     datamodel.ResourceEventStateOn,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				BlockDevices: &[]datamodel.BlockDevice{},
 			},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
-			State:     models.StateOff,
+			State:     datamodel.ResourceEventStateOff,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				BlockProperties: &datamodel.BlockProperties{},
 			},
@@ -2739,7 +2738,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2775,7 +2774,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	volumes := []*datamodel.Volume{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
-			State:     models.StateOn,
+			State:     datamodel.ResourceEventStateOn,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{},
 			},
@@ -2791,7 +2790,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2835,7 +2834,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2888,7 +2887,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
@@ -2925,7 +2924,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
 		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
-		State:         models.StateDelete,
+		State:         datamodel.ResourceEventStateDelete,
 		ProjectNumber: "123456789",
 	}
 	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)

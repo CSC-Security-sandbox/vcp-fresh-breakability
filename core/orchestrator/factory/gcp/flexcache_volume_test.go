@@ -731,13 +731,13 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			},
 		}, nil)
 		store.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeFlexCacheCreateVolume)
+			return job.Type == string(datamodel.JobTypeFlexCacheCreateVolume)
 		})).Return(&datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 			WorkflowID: "test-workflow-id",
 		}, nil)
 		store.EXPECT().CreateJobWithWorkflowID(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeFlexCacheEstablishPeering)
+			return job.Type == string(datamodel.JobTypeFlexCacheEstablishPeering)
 		}), "test-workflow-id").Return(nil, assert.AnError)
 		mockLogger.EXPECT().Errorf("Failed to create establish peering job in database, error: %v", assert.AnError)
 
@@ -798,7 +798,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name:              params.Name,
 			Description:       params.Description,
 			SizeInBytes:       int64(params.QuotaInBytes),
-			State:             models.LifeCycleStatePreparing,
+			State:             datamodel.LifeCycleStatePreparing,
 			UsedBytes:         0,
 			ClonesSharedBytes: 0,
 			Pool: &datamodel.Pool{
@@ -826,7 +826,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			WorkflowID: "test-workflow-id",
 		}, nil)
 		store.EXPECT().CreateJobWithWorkflowID(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.Type == string(models.JobTypeFlexCacheEstablishPeering)
+			return job.Type == string(datamodel.JobTypeFlexCacheEstablishPeering)
 		}), "test-workflow-id").Return(&datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "establish-job-uuid"},
 			WorkflowID: "test-workflow-id",
@@ -1613,7 +1613,7 @@ func Test_CheckForFlexCacheJobInProgress(t *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		store.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return([]*datamodel.Job{
-			{Type: string(models.JobTypeFlexCacheEstablishPeering), State: string(models.JobsStatePROCESSING), BaseModel: datamodel.BaseModel{UUID: "job-uuid"}},
+			{Type: string(datamodel.JobTypeFlexCacheEstablishPeering), State: string(datamodel.JobsStatePROCESSING), BaseModel: datamodel.BaseModel{UUID: "job-uuid"}},
 		}, nil)
 
 		inProgress, jobUUID, err := _checkForFlexCacheJobInProgress(ctx, store, dbVolume, baseParams)
@@ -1643,7 +1643,7 @@ func Test_VerifyVolumeState_TwoCases(t *testing.T) {
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 			Name:      "vol",
-			State:     models.LifeCycleStatePreparing,
+			State:     datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{
 				PeerClusterName: "peer",
 			},
@@ -1662,7 +1662,7 @@ func Test_VerifyVolumeState_TwoCases(t *testing.T) {
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 			Name:      "vol",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			CacheParameters: &datamodel.CacheParameters{
 				PeerClusterName: "peer",
 			},

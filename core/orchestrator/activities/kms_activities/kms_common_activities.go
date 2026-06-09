@@ -218,7 +218,7 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 		}
 	}
 	activity.RecordHeartbeat(ctx, "Updating service account state")
-	_, err = se.UpdateServiceAccountState(ctx, dbAccount.UUID, models.AccountStateEnabled, models.LifeCycleStateAvailableDetails)
+	_, err = se.UpdateServiceAccountState(ctx, dbAccount.UUID, datamodel.AccountStateEnabled, datamodel.LifeCycleStateAvailableDetails)
 	if err != nil {
 		return nil, err
 	}
@@ -277,13 +277,13 @@ func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, km
 	logger := util.GetLogger(ctx)
 
 	// DB cleanup: mark KMS config as deleted and service account as error
-	_, err := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
+	_, err := se.DeleteKmsConfig(ctx, kmsConfig.UUID, datamodel.LifeCycleStateDeleted, errMsg)
 	if err != nil {
 		return err
 	}
 
 	if kmsConfig.ServiceAccount != nil {
-		_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateError, errMsg)
+		_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, datamodel.LifeCycleStateError, errMsg)
 		if err != nil {
 			return err
 		}
@@ -343,14 +343,14 @@ func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsCon
 	activity.RecordHeartbeat(ctx, "Starting CreatedKmsConfigActivity")
 	defer activity.RecordHeartbeat(ctx, "Finished CreatedKmsConfigActivity")
 	se := j.SE
-	kmsConfig.State = models.LifeCycleStateCreated
-	kmsConfig.StateDetails = models.LifeCycleStateCreatedDetails
+	kmsConfig.State = datamodel.LifeCycleStateCreated
+	kmsConfig.StateDetails = datamodel.LifeCycleStateCreatedDetails
 	activity.RecordHeartbeat(ctx, "Updating KMS configuration to created state")
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails)
 	if err != nil {
 		return err
 	}
-	_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.AccountStateEnabled, models.LifeCycleStateReadyDetails)
+	_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, datamodel.AccountStateEnabled, datamodel.LifeCycleStateReadyDetails)
 	return err
 }
 
@@ -615,27 +615,27 @@ func _updateKmsConfigHealth(ctx context.Context, se database.Storage, configChec
 		return nil, err
 	}
 
-	state := models.LifeCycleStateUnknown
-	stateDetails := models.LifeCycleStateUnknownDetails
+	state := datamodel.LifeCycleStateUnknown
+	stateDetails := datamodel.LifeCycleStateUnknownDetails
 
 	switch configCheck.IsHealthy {
 	case true:
-		state = models.LifeCycleStateREADY
-		stateDetails = models.LifeCycleStateReadyDetails
+		state = datamodel.LifeCycleStateREADY
+		stateDetails = datamodel.LifeCycleStateReadyDetails
 		// keep the state as in use if the KMS config is in use (in use meaning that there are SVMs using this KMS config)
 		if kmsConfigInUse {
-			state = models.LifeCycleStateInUse
-			stateDetails = models.LifeCycleStateAvailableDetails
+			state = datamodel.LifeCycleStateInUse
+			stateDetails = datamodel.LifeCycleStateAvailableDetails
 		}
 	case false:
 		// If the KMS config is in error state, do not update the state to ready.
-		state = models.LifeCycleStateError
+		state = datamodel.LifeCycleStateError
 		stateDetails = configCheck.HealthError
 		if !kmsConfigInUse {
 			healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
 			// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
 			if strings.Contains(stateDetails, healthErrorMessage) || strings.Contains(stateDetails, GcpKmsConfigImpersonationHealthError) {
-				state = models.LifeCycleStateCreated
+				state = datamodel.LifeCycleStateCreated
 			}
 		}
 	}

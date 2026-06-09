@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -166,7 +167,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "deletable-pool-id",
 			},
-			State: models.LifeCycleStateDeleted,
+			State: datamodel.LifeCycleStateDeleted,
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil

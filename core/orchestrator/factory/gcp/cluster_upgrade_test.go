@@ -1408,7 +1408,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1454,7 +1454,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion:       env.CurrentOntapVersionDetails,
 				VSABuildImage:      testVSAName,
@@ -1515,7 +1515,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1593,7 +1593,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1659,7 +1659,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1726,7 +1726,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1807,7 +1807,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				OntapVersion: "9.16.1",
 			},
@@ -1890,7 +1890,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 			BuildInfo: nil,
 			ClusterDetails: datamodel.ClusterDetails{
 				OntapVersion: "9.16.1",
@@ -1955,7 +1955,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				VSABuildImage:      "old-vsa-image",
 				MediatorBuildImage: "old-mediator-image",
@@ -2011,7 +2011,7 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
 				VSABuildImage:      "old-vsa-image",
 				MediatorBuildImage: "old-mediator-image",

@@ -46,11 +46,11 @@ func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParam
 		log.Errorf("Volume update workflow setup executed with error: %v", err)
 		return err
 	}
-	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for UpdateVolumeWorkflow: %v", err)
 		return err
@@ -60,7 +60,7 @@ func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParam
 	if customErr != nil {
 		log.Errorf("UpdateVolumeWorkflow completed with error: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for UpdateVolumeWorkflow: %v", err)
 			return err2
@@ -69,7 +69,7 @@ func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParam
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for UpdateVolumeWorkflow: %v", err)
 	}
@@ -126,7 +126,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to READY: %v", err2)
 			}
@@ -203,8 +203,8 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 						CreatedAt: latestBackup.CreatedAt,
 					},
 					Name:         latestBackup.Name,
-					State:        models.LifeCycleStateDeleted,
-					StateDetails: models.LifeCycleStateDeletedDetails,
+					State:        datamodel.LifeCycleStateDeleted,
+					StateDetails: datamodel.LifeCycleStateDeletedDetails,
 					Description:  latestBackup.Description,
 					Volume:       volume,
 					Account:      volume.Account,

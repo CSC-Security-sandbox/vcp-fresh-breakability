@@ -89,7 +89,7 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 	volume.Name = volumeResponse.Name
 	volume.SizeInBytes = volumeResponse.Size
 	volume.Style = volumeResponse.Style
-	volume.State = models.LifeCycleStateAvailable
+	volume.State = datamodel.LifeCycleStateAvailable
 	volume.ExternalUUID = volumeResponse.ExternalUUID
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsFlexclone {
@@ -290,7 +290,7 @@ func convertOntapToONTAPModeVol(ontapVol *vsa.VolumeResponse, dbVolume *datamode
 	volume.UUID = dbVolume.UUID
 	volume.Svm = dbVolume.Svm
 	volume.Style = dbVolume.Style
-	volume.State = models.LifeCycleStateAvailable
+	volume.State = datamodel.LifeCycleStateAvailable
 	volume.Description = dbVolume.Description
 	volume.AccountID = dbVolume.AccountID
 	volume.PoolID = dbVolume.PoolID
@@ -462,7 +462,7 @@ func (a *ExpertModeVolumeActivity) RecoverExpertModeVolumeAfterFlexCloneSplitFai
 	}
 
 	vol.SharedBytes = sharedBytes
-	vol.State = models.LifeCycleStateAvailable
+	vol.State = datamodel.LifeCycleStateAvailable
 	if _, err := a.SE.UpdateExpertModeVolume(ctx, vol); err != nil {
 		logger.Errorf("Failed to persist volume recovery state: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -490,7 +490,7 @@ func (a *ExpertModeVolumeActivity) CompleteExpertModeFlexCloneSplitInDB(ctx cont
 	vol.VolumeAttributes.IsFlexclone = false
 	vol.SharedBytes = 0
 	vol.VolumeAttributes.Clone = nil
-	vol.State = models.LifeCycleStateAvailable
+	vol.State = datamodel.LifeCycleStateAvailable
 
 	if _, err := a.SE.UpdateExpertModeVolume(ctx, vol); err != nil {
 		logger.Errorf("Failed to update volume after flexclone split: %v", err)

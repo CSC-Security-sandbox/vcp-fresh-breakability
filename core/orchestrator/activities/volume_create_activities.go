@@ -42,8 +42,8 @@ const (
 	VolumeTypeRW                 = "rw"
 	VolumeTypeDP                 = "dp"
 	SnapshotPolicyNone           = "none"
-	CrossRegionBackupType        = models.BackupVaultTypeCrossRegion
-	GCBDRServiceType             = models.ServiceTypeCrossProject
+	CrossRegionBackupType        = datamodel.BackupVaultTypeCrossRegion
+	GCBDRServiceType             = datamodel.ServiceTypeCrossProject
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
@@ -714,11 +714,11 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
 		// This is volume restore case
-		volume.State = models.LifeCycleStateRestoring
-		volume.StateDetails = models.LifeCycleStateRestoringDetails
+		volume.State = datamodel.LifeCycleStateRestoring
+		volume.StateDetails = datamodel.LifeCycleStateRestoringDetails
 	} else {
-		volume.State = models.LifeCycleStateREADY
-		volume.StateDetails = models.LifeCycleStateAvailableDetails
+		volume.State = datamodel.LifeCycleStateREADY
+		volume.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 	if err := se.UpdateVolume(ctx, volume); err != nil {
 		return err
@@ -730,8 +730,8 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 
 func (a VolumeCreateActivity) FinaliseRestoredVolume(ctx context.Context, volume *datamodel.Volume) error {
 	se := a.SE
-	volume.State = models.LifeCycleStateREADY
-	volume.StateDetails = models.LifeCycleStateAvailableDetails
+	volume.State = datamodel.LifeCycleStateREADY
+	volume.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	if err := se.UpdateVolume(ctx, volume); err != nil {
 		return err
 	}
@@ -829,7 +829,7 @@ func (a VolumeCreateActivity) ValidatePoolStateForVolumeCreate(ctx context.Conte
 	if poolView == nil {
 		return nil
 	}
-	if poolView.State == models.LifeCycleStateDeleting {
+	if poolView.State == datamodel.LifeCycleStateDeleting {
 		return a.deleteVolumeOnPoolValidationFailure(ctx, volumeUUID,
 			vsaerrors.NewVCPError(vsaerrors.ErrVolumeCreationFailedDueToPoolInDeletion,
 				fmt.Errorf("specified pool is in Deleting state, hence volume cannot be created")))
@@ -2617,7 +2617,7 @@ func convertGoogleProxyBackupToDatamodel(ctx context.Context, b *googleproxyclie
 	if b.State.IsSet() {
 		state = string(b.State.Value)
 	} else {
-		state = string(models.LifeCycleStateAvailable)
+		state = string(datamodel.LifeCycleStateAvailable)
 	}
 
 	// Extract created time
@@ -2754,10 +2754,10 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 	}
 	backupVaultAccountName := pathInfo.ProjectName
 
-	jobType := models.JobTypeRestoreBackup
+	jobType := datamodel.JobTypeRestoreBackup
 	job := &datamodel.Job{
 		Type:          string(jobType),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),

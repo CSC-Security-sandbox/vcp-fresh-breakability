@@ -8,7 +8,6 @@ require (
 	github.com/oracle/oci-go-sdk/v65 v65.112.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vcp-vsa-control-Plane/vsa-control-plane v0.0.0
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0 // indirect
 	go.temporal.io/sdk v1.33.0
 	golang.org/x/oauth2 v0.34.0
 	google.golang.org/api v0.240.0

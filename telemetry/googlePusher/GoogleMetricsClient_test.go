@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
@@ -1209,7 +1209,7 @@ func Test_GetLabelValue(t *testing.T) {
 
 		// MIGRATION: source_continent, source_region, and source_service_level are suppressed
 		getReplicationType = func(m common.GoogleMetric) (string, error) {
-			return string(models.HybridReplicationParametersReplicationTypeMIGRATION), nil
+			return string(dbmodel.HybridReplicationParametersReplicationTypeMIGRATION), nil
 		}
 		for _, key := range []string{
 			"/replication/source_continent",
@@ -1222,7 +1222,7 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		migrationRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
 		assert.NoError(t, err)
-		expectedMigrationRepType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		expectedMigrationRepType := string(dbmodel.HybridReplicationParametersReplicationTypeMIGRATION)
 		if useNewLabelForHybridReplication {
 			expectedMigrationRepType = ReplicationTypeDataMigration
 		}
@@ -1236,7 +1236,7 @@ func Test_GetLabelValue(t *testing.T) {
 
 		// ONPREM: same suppression for source-side labels
 		getReplicationType = func(m common.GoogleMetric) (string, error) {
-			return string(models.HybridReplicationParametersReplicationTypeONPREM), nil
+			return string(dbmodel.HybridReplicationParametersReplicationTypeONPREM), nil
 		}
 		for _, key := range []string{
 			"/replication/source_continent",
@@ -1249,7 +1249,7 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		onPremRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
 		assert.NoError(t, err)
-		expectedOnPremRepType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		expectedOnPremRepType := string(dbmodel.HybridReplicationParametersReplicationTypeONPREM)
 		if useNewLabelForHybridReplication {
 			expectedOnPremRepType = ReplicationTypeDataMigration
 		}
@@ -1279,25 +1279,25 @@ func Test_GetLabelValue(t *testing.T) {
 			{
 				name:      "MIGRATION with flag off returns raw replication type",
 				flagOn:    false,
-				repType:   string(models.HybridReplicationParametersReplicationTypeMIGRATION),
-				wantLabel: string(models.HybridReplicationParametersReplicationTypeMIGRATION),
+				repType:   string(dbmodel.HybridReplicationParametersReplicationTypeMIGRATION),
+				wantLabel: string(dbmodel.HybridReplicationParametersReplicationTypeMIGRATION),
 			},
 			{
 				name:      "ONPREM_REPLICATION with flag off returns raw replication type",
 				flagOn:    false,
-				repType:   string(models.HybridReplicationParametersReplicationTypeONPREM),
-				wantLabel: string(models.HybridReplicationParametersReplicationTypeONPREM),
+				repType:   string(dbmodel.HybridReplicationParametersReplicationTypeONPREM),
+				wantLabel: string(dbmodel.HybridReplicationParametersReplicationTypeONPREM),
 			},
 			{
 				name:      "MIGRATION with flag on returns DATA_MIGRATION",
 				flagOn:    true,
-				repType:   string(models.HybridReplicationParametersReplicationTypeMIGRATION),
+				repType:   string(dbmodel.HybridReplicationParametersReplicationTypeMIGRATION),
 				wantLabel: ReplicationTypeDataMigration,
 			},
 			{
 				name:      "ONPREM_REPLICATION with flag on returns DATA_MIGRATION",
 				flagOn:    true,
-				repType:   string(models.HybridReplicationParametersReplicationTypeONPREM),
+				repType:   string(dbmodel.HybridReplicationParametersReplicationTypeONPREM),
 				wantLabel: ReplicationTypeDataMigration,
 			},
 			{

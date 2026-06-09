@@ -894,7 +894,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWhenRelationshipStatusIsTransferring", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipTransferring
+		status := datamodel.SnapmirrorRelationshipTransferring
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -908,7 +908,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWhenRelationshipStatusIsFinalizing", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipFinalizing
+		status := datamodel.SnapmirrorRelationshipFinalizing
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -922,7 +922,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldNotRefreshWhenRelationshipStatusIsIdle", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipIdle
+		status := datamodel.SnapmirrorRelationshipIdle
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -936,7 +936,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldNotRefreshWhenRelationshipStatusIsSuccess", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipSuccess
+		status := datamodel.SnapmirrorRelationshipSuccess
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -950,7 +950,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldNotRefreshWhenRelationshipStatusIsFailed", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipFailed
+		status := datamodel.SnapmirrorRelationshipFailed
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -977,7 +977,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWhenBothTimeAndStatusConditionsAreTrue", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipTransferring
+		status := datamodel.SnapmirrorRelationshipTransferring
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -991,7 +991,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWhenTimeConditionIsTrueButStatusIsFalse", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipIdle
+		status := datamodel.SnapmirrorRelationshipIdle
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -1005,7 +1005,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWhenStatusConditionIsTrueButTimeIsFalse", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipTransferring
+		status := datamodel.SnapmirrorRelationshipTransferring
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -1019,7 +1019,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldNotRefreshWhenBothConditionsAreFalse", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipIdle
+		status := datamodel.SnapmirrorRelationshipIdle
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "hourly",
@@ -1048,7 +1048,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWithUnknownScheduleButTransferringStatus", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipTransferring
+		status := datamodel.SnapmirrorRelationshipTransferring
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "unknown",
@@ -1062,7 +1062,7 @@ func TestShouldRefreshReplication(t *testing.T) {
 	})
 
 	t.Run("ShouldRefreshWithEmptyScheduleButTransferringStatus", func(tt *testing.T) {
-		status := models.SnapmirrorRelationshipFinalizing
+		status := datamodel.SnapmirrorRelationshipFinalizing
 		repl := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ReplicationSchedule: "",

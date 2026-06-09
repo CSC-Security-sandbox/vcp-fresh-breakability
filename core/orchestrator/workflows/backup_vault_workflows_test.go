@@ -3,7 +3,6 @@ package workflows
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -16,7 +15,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -66,7 +65,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UseVCPRegion_ApplyBackupV
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -117,7 +116,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateSDEError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -161,7 +160,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateVCPError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -206,7 +205,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_SignedTokenError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -249,7 +248,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -295,7 +294,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteSDEError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -343,7 +342,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteVCPError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -387,7 +386,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -436,7 +435,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteBucketsError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -484,7 +483,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_CrossRegion_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -545,7 +544,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_CrossRegion_DeleteRemoteE
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -601,7 +600,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_CrossRegion_EmptyBackupRe
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -653,7 +652,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_CrossRegion_NilBackupRegi
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -704,7 +703,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_NonCrossRegion_SkipRemote
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -756,7 +755,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -829,7 +828,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_UpdateRemoteE
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -898,7 +897,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_EmptyBackupRe
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -962,7 +961,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_NonCrossRegion_SkipRemote
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
@@ -1027,7 +1026,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_EnsureJobStateError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	des := "description of backup vault"
@@ -1052,7 +1051,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_EnsureJobStateError() {
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(&datamodel.Job{})
 
@@ -1075,7 +1074,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_EnsureJobStateError() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil).Maybe()
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	des := "description of backup vault"
@@ -1100,7 +1099,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_EnsureJobStateError() {
 	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+		State:     string(datamodel.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(&datamodel.Job{})
 
@@ -1155,7 +1154,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_Success() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1208,7 +1207,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_SDEFailure() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1264,7 +1263,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_Success() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1300,7 +1299,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_Success() {
 			if !assert.NotNil(s.T(), bv.CmekAttributes.EncryptionState) {
 				return false
 			}
-			if !assert.Equal(s.T(), models.EncryptionStateInProgress, *bv.CmekAttributes.EncryptionState) {
+			if !assert.Equal(s.T(), datamodel.EncryptionStateInProgress, *bv.CmekAttributes.EncryptionState) {
 				return false
 			}
 			return true
@@ -1341,7 +1340,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_Success() {
 			if !assert.NotNil(s.T(), bv.CmekAttributes.EncryptionState) {
 				return false
 			}
-			if !assert.Equal(s.T(), models.EncryptionStateCompleted, *bv.CmekAttributes.EncryptionState) {
+			if !assert.Equal(s.T(), datamodel.EncryptionStateCompleted, *bv.CmekAttributes.EncryptionState) {
 				return false
 			}
 			return true
@@ -1386,7 +1385,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_VCPBucketFailure() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1427,7 +1426,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_EnsureJobStateError() {
 	// Return a job in PROCESSING state instead of NEW to trigger the EnsureJobState error path.
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING),
+		State:     string(datamodel.JobsStatePROCESSING),
 	}, nil)
 	// Stub UpdateJobStatus so that if it is scheduled by the workflow test harness,
 	// it does not try to call into the mock storage layer.
@@ -1468,7 +1467,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_PopulateRetryPolicyError(
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1517,7 +1516,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_GetAuthJWTTokenF
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1565,7 +1564,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_StartSDEFailure(
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1615,7 +1614,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_WaitForSDEError(
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1671,7 +1670,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_UpdateCmekInVCPFailur
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1730,7 +1729,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
@@ -1784,14 +1783,14 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnFai
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 
 	// First UpdateJobStatus call (PROCESSING) succeeds.
 	s.env.OnActivity(commonActivity.UpdateJobStatus,
 		mock.Anything,
 		mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStatePROCESSING)
+			return job.State == string(datamodel.JobsStatePROCESSING)
 		}),
 	).Return(nil, nil)
 
@@ -1799,7 +1798,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnFai
 	s.env.OnActivity(commonActivity.UpdateJobStatus,
 		mock.Anything,
 		mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStateERROR)
+			return job.State == string(datamodel.JobsStateERROR)
 		}),
 	).Return(nil, errors.New("failed to update job status"))
 
@@ -1850,14 +1849,14 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnCom
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil)
 
 	// First UpdateJobStatus call (PROCESSING) succeeds.
 	s.env.OnActivity(commonActivity.UpdateJobStatus,
 		mock.Anything,
 		mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStatePROCESSING)
+			return job.State == string(datamodel.JobsStatePROCESSING)
 		}),
 	).Return(nil, nil)
 
@@ -1865,7 +1864,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnCom
 	s.env.OnActivity(commonActivity.UpdateJobStatus,
 		mock.Anything,
 		mock.MatchedBy(func(job *datamodel.Job) bool {
-			return job.State == string(models.JobsStateDONE)
+			return job.State == string(datamodel.JobsStateDONE)
 		}),
 	).Return(nil, errors.New("failed to update job status to DONE"))
 

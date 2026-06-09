@@ -3660,8 +3660,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3709,8 +3709,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3759,8 +3759,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3809,8 +3809,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3859,8 +3859,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3909,8 +3909,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -3957,8 +3957,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -4004,8 +4004,8 @@ func TestUpdateReplicationOnSourceToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.SrcProjectNumber,
@@ -4058,8 +4058,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4107,8 +4107,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4157,8 +4157,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4207,8 +4207,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4257,8 +4257,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4307,8 +4307,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4355,8 +4355,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4402,8 +4402,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
@@ -4476,8 +4476,8 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 			},
 		}
 		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
-			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
-			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+			State:        googleproxyclient.NewOptString(datamodel.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(datamodel.LifeCycleStateDeletionErrorDetails),
 		}
 		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,

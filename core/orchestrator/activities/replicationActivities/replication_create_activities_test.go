@@ -2304,7 +2304,7 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeReplicationCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	replication := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test", State: models.LifeCycleStateUpdating, StateDetails: "updated"}
+	replication := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test", State: datamodel.LifeCycleStateUpdating, StateDetails: "updated"}
 
 	mockStorage.On("UpdateVolumeReplicationStates", ctx, replication).Return(nil)
 
@@ -2321,7 +2321,7 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeReplicationCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	replication := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test", State: models.LifeCycleStateUpdating, StateDetails: "updated"}
+	replication := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test", State: datamodel.LifeCycleStateUpdating, StateDetails: "updated"}
 
 	mockStorage.On("UpdateVolumeReplicationStates", ctx, replication).Return(errors.New("some error"))
 
@@ -2398,8 +2398,8 @@ func TestUpdateReplicationDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		volumeRep := result.DbVolReplication
-		volumeRep.State = models.LifeCycleStateCreated
-		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.State = datamodel.LifeCycleStateCreated
+		volumeRep.StateDetails = datamodel.LifeCycleStateCreatedDetails
 		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
@@ -2423,8 +2423,8 @@ func TestUpdateReplicationDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		volumeRep := result.DbVolReplication
-		volumeRep.State = models.LifeCycleStateCreated
-		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.State = datamodel.LifeCycleStateCreated
+		volumeRep.StateDetails = datamodel.LifeCycleStateCreatedDetails
 		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
@@ -2509,8 +2509,8 @@ func TestUpdateDestinationVolumeDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		volumeRep := result.DbVolReplication
-		volumeRep.State = models.LifeCycleStateCreated
-		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.State = datamodel.LifeCycleStateCreated
+		volumeRep.StateDetails = datamodel.LifeCycleStateCreatedDetails
 		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId
@@ -2534,8 +2534,8 @@ func TestUpdateDestinationVolumeDetails(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 		volumeRep := result.DbVolReplication
-		volumeRep.State = models.LifeCycleStateCreated
-		volumeRep.StateDetails = models.LifeCycleStateCreatedDetails
+		volumeRep.State = datamodel.LifeCycleStateCreated
+		volumeRep.StateDetails = datamodel.LifeCycleStateCreatedDetails
 		volumeRep.ReplicationAttributes.DestinationPoolUUID = result.DstPool.PoolId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeUUID = result.DstVolume.VolumeId.Value
 		volumeRep.ReplicationAttributes.DestinationVolumeName = result.DstVolume.ResourceId

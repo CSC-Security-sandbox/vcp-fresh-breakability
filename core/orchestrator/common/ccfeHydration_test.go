@@ -712,7 +712,7 @@ func TestHydrateReplicationStateAndTypeFunc(t *testing.T) {
 	volumeResourceID := "mocked-volume-id"
 	replicationId := "mocked-replication-id"
 	state := models.VolumeReplicationHydrateState("READY")
-	hybridReplicationType := models.HybridReplicationParametersReplicationType("cres")
+	hybridReplicationType := datamodel.HybridReplicationParametersReplicationType("cres")
 	token := "mocked-token"
 	originalHydrateToCffe := hydrateToCffe
 	defer func() { hydrateToCffe = originalHydrateToCffe }()
@@ -1101,15 +1101,15 @@ func TestGetQuotaLimitsForResource(t *testing.T) {
 
 func TestMapStateToGcpState(t *testing.T) {
 	t.Run("ReturnsDeletedState", func(tt *testing.T) {
-		state := models.LifeCycleStateDeleted
+		state := datamodel.LifeCycleStateDeleted
 		expectedState := deletedGcp
 		result := _mapStateToGcpState(state)
 		assert.Equal(tt, expectedState, result)
 	})
 
 	t.Run("ReturnsAvailableState", func(tt *testing.T) {
-		state := models.LifeCycleStateAvailable
-		expectedState := models.LifeCycleStateREADY
+		state := datamodel.LifeCycleStateAvailable
+		expectedState := datamodel.LifeCycleStateREADY
 		result := _mapStateToGcpState(state)
 		assert.Equal(tt, expectedState, result)
 	})

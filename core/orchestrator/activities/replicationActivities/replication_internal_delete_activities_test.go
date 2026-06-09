@@ -144,8 +144,8 @@ func TestUpdateReplicationStateInDB(t *testing.T) {
 
 	err := activity.UpdateReplicationStateInDBForDelete(ctx, volumeRep)
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateError, volumeRep.State)
-	assert.Equal(t, models.LifeCycleStateDeletionErrorDetails, volumeRep.StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateError, volumeRep.State)
+	assert.Equal(t, datamodel.LifeCycleStateDeletionErrorDetails, volumeRep.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 

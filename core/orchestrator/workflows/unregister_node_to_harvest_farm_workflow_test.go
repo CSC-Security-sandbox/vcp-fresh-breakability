@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -68,7 +67,7 @@ func getUnRegisterNodes() []*datamodel.Node {
 				UpdatedAt: createdAt,
 				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
 				UUID:      "test-node-uuid-" + strconv.Itoa(i)},
-			State: models.LifeCycleStateDeleted,
+			State: datamodel.LifeCycleStateDeleted,
 		}
 		nodes = append(nodes, node)
 	}

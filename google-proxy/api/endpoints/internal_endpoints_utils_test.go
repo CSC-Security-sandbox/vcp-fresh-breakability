@@ -18,13 +18,13 @@ func TestMapReplicationStateToInternalLifeCycleState(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaLifeCycleState
 	}{
-		{"Creating", models.LifeCycleStateCreating, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating},
-		{"Available", models.LifeCycleStateAvailable, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateAvailable},
-		{"Deleting", models.LifeCycleStateDeleting, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleting},
-		{"Deleted", models.LifeCycleStateDeleted, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleted},
-		{"Error", models.LifeCycleStateError, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateError},
-		{"Disabled", models.LifeCycleStateDisabled, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDisabled},
-		{"Updating", models.LifeCycleStateUpdating, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateUpdating},
+		{"Creating", datamodel.LifeCycleStateCreating, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateCreating},
+		{"Available", datamodel.LifeCycleStateAvailable, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateAvailable},
+		{"Deleting", datamodel.LifeCycleStateDeleting, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleting},
+		{"Deleted", datamodel.LifeCycleStateDeleted, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDeleted},
+		{"Error", datamodel.LifeCycleStateError, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateError},
+		{"Disabled", datamodel.LifeCycleStateDisabled, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateDisabled},
+		{"Updating", datamodel.LifeCycleStateUpdating, gcpgenserver.VolumeReplicationInternalV1betaLifeCycleStateUpdating},
 	}
 
 	for _, tt := range tests {
@@ -43,8 +43,8 @@ func TestMapEndpointTypeToInternal(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaEndpointType
 	}{
-		{"SrcEndpoint", models.SrcEndpoint, gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc},
-		{"DstEndpoint", models.DstEndpoint, gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst},
+		{"SrcEndpoint", datamodel.SrcEndpoint, gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeSrc},
+		{"DstEndpoint", datamodel.DstEndpoint, gcpgenserver.VolumeReplicationInternalV1betaEndpointTypeDst},
 		{"Unknown", "unknown", ""},
 	}
 
@@ -64,9 +64,9 @@ func TestMapMirrorStateToInternal(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaMirrorState
 	}{
-		{"Uninitialized", models.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING},
-		{"BrokenOff", models.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED},
-		{"Snapmirrored", models.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED},
+		{"Uninitialized", datamodel.OntapUninitialized, gcpgenserver.VolumeReplicationInternalV1betaMirrorStatePREPARING},
+		{"BrokenOff", datamodel.OntapBrokenOff, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateSTOPPED},
+		{"Snapmirrored", datamodel.OntapSnapmirrored, gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED},
 		{"Unknown", "unknown", gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED},
 	}
 
@@ -86,13 +86,13 @@ func TestMapRelationshipStatusToInternal(t *testing.T) {
 		input    string
 		expected gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatus
 	}{
-		{"Idle", models.SnapmirrorRelationshipIdle, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
-		{"Transferring", models.SnapmirrorRelationshipTransferring, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring},
-		{"Queued", models.SnapmirrorRelationshipQueued, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusQueued},
-		{"Failed", models.SnapmirrorRelationshipFailed, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusFailed},
-		{"Aborted", models.SnapmirrorRelationshipAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusAborted},
-		{"HardAborted", models.SnapmirrorRelationshipHardAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted},
-		{"Success", models.SnapmirrorRelationshipSuccess, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
+		{"Idle", datamodel.SnapmirrorRelationshipIdle, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
+		{"Transferring", datamodel.SnapmirrorRelationshipTransferring, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring},
+		{"Queued", datamodel.SnapmirrorRelationshipQueued, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusQueued},
+		{"Failed", datamodel.SnapmirrorRelationshipFailed, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusFailed},
+		{"Aborted", datamodel.SnapmirrorRelationshipAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusAborted},
+		{"HardAborted", datamodel.SnapmirrorRelationshipHardAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted},
+		{"Success", datamodel.SnapmirrorRelationshipSuccess, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
 		{"Unknown", "unknown", gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
 	}
 
@@ -116,20 +116,20 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 		}{
 			{
 				name:                "Transferring with Uninitialized Mirror",
-				replicationStatus:   models.SnapmirrorRelationshipTransferring,
-				mirrorState:         models.OntapUninitialized,
+				replicationStatus:   datamodel.SnapmirrorRelationshipTransferring,
+				mirrorState:         datamodel.OntapUninitialized,
 				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING,
 			},
 			{
 				name:                "Transferring with Mirrored State",
-				replicationStatus:   models.SnapmirrorRelationshipTransferring,
-				mirrorState:         models.OntapSnapmirrored,
+				replicationStatus:   datamodel.SnapmirrorRelationshipTransferring,
+				mirrorState:         datamodel.OntapSnapmirrored,
 				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateTRANSFERRING,
 			},
 			{
 				name:                "Idle with Mirrored State",
-				replicationStatus:   models.SnapmirrorRelationshipIdle,
-				mirrorState:         models.OntapSnapmirrored,
+				replicationStatus:   datamodel.SnapmirrorRelationshipIdle,
+				mirrorState:         datamodel.OntapSnapmirrored,
 				expectedMirrorState: gcpgenserver.VolumeReplicationInternalV1betaMirrorStateMIRRORED,
 			},
 			{
@@ -151,7 +151,7 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 						UpdatedAt: timeNow,
 					},
 					Name:  "Test Replication",
-					State: models.LifeCycleStateAvailable,
+					State: datamodel.LifeCycleStateAvailable,
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						EndpointType:               "src",
 						ReplicationSchedule:        "daily",
@@ -186,8 +186,8 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 
 	t.Run("ValidateFullReplicationObjectConversion", func(t *testing.T) {
 		timeNow := time.Now()
-		snapmirrored := models.OntapSnapmirrored
-		snapmirrorRelationshipIdle := models.SnapmirrorRelationshipIdle
+		snapmirrored := datamodel.OntapSnapmirrored
+		snapmirrorRelationshipIdle := datamodel.SnapmirrorRelationshipIdle
 
 		replication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
@@ -198,7 +198,7 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 			},
 			Name:         "Test Replication",
 			Description:  "Test Description",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Test State Details",
 			Uri:          "projects/45110233509/locations/australia-southeast1/volume/godpvolume4/replications/replication-name-6",
 			RemoteUri:    "projects/45110233509/locations/us-east4/volume/gosrcvolume1/replications/replication-name-6",
@@ -333,10 +333,10 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 				UpdatedAt: timeNow,
 			},
 			Name:                  "Test Replication",
-			State:                 models.LifeCycleStateAvailable,
+			State:                 datamodel.LifeCycleStateAvailable,
 			ReplicationAttributes: nil, // This is nil
-			RelationshipStatus:    nillable.GetNilIfEmptyString(models.SnapmirrorRelationshipTransferring),
-			MirrorState:           nillable.GetNilIfEmptyString(models.OntapUninitialized),
+			RelationshipStatus:    nillable.GetNilIfEmptyString(datamodel.SnapmirrorRelationshipTransferring),
+			MirrorState:           nillable.GetNilIfEmptyString(datamodel.OntapUninitialized),
 			TotalProgress:         100,
 			Healthy:               true,
 		}
@@ -373,7 +373,7 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 				UpdatedAt: timeNow,
 			},
 			Name:  "Test Replication",
-			State: models.LifeCycleStateAvailable,
+			State: datamodel.LifeCycleStateAvailable,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				EndpointType:               "src",
 				ReplicationSchedule:        "daily",
@@ -477,7 +477,7 @@ func TestConvertToPoolInternalV1Beta(t *testing.T) {
 		},
 		Name:                    "Test Pool",
 		Description:             "Test Pool Description",
-		State:                   models.LifeCycleStateAvailable,
+		State:                   datamodel.LifeCycleStateAvailable,
 		StateDetails:            "Pool is available",
 		SizeInBytes:             0,
 		AccountName:             "test-account",
@@ -552,8 +552,8 @@ func TestConvertToPoolInternalV1Beta(t *testing.T) {
 
 func TestConvertToVolumeReplicationsInternalV1Beta(t *testing.T) {
 	timeNow := time.Now()
-	snapmirrored := models.OntapSnapmirrored
-	snapmirrorRelationshipIdle := models.SnapmirrorRelationshipIdle
+	snapmirrored := datamodel.OntapSnapmirrored
+	snapmirrorRelationshipIdle := datamodel.SnapmirrorRelationshipIdle
 
 	replications := []*datamodel.VolumeReplication{
 		{
@@ -566,7 +566,7 @@ func TestConvertToVolumeReplicationsInternalV1Beta(t *testing.T) {
 			},
 			Name:         "Test Replication",
 			Description:  "Test Description",
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Test State Details",
 			Uri:          "projects/45110233509/locations/australia-southeast1/volume/godpvolume4/replications/replication-name-6",
 			RemoteUri:    "projects/45110233509/locations/us-east4/volume/gosrcvolume1/replications/replication-name-6",
@@ -638,7 +638,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:                    "test-backup",
 			VolumeUUID:              "volume-uuid-456",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			SizeInBytes:             1024,
 			Description:             "Test backup description",
 			Type:                    "MANUAL",
@@ -713,7 +713,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -743,7 +743,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateUpdating,
+			State:      datamodel.LifeCycleStateUpdating,
 			Type:       "MANUAL",
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -803,7 +803,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -834,7 +834,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -865,7 +865,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier:   "123456789",
@@ -900,7 +900,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:          "test-bucket",
@@ -933,7 +933,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:          "test-bucket",
@@ -966,7 +966,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				BucketName: "matching-bucket",
@@ -1006,7 +1006,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:                    "test-backup",
 			VolumeUUID:              "volume-uuid",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			Type:                    "MANUAL",
 			LatestLogicalBackupSize: 5000,
 			BackupVault: &datamodel.BackupVault{
@@ -1038,7 +1038,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:                    "test-backup",
 			VolumeUUID:              "volume-uuid",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			Type:                    "MANUAL",
 			LatestLogicalBackupSize: 0,
 			BackupVault: &datamodel.BackupVault{
@@ -1071,7 +1071,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       utils.BackupTypeMANUAL,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -1111,7 +1111,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       utils.BackupTypeMANUAL,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -1147,7 +1147,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       utils.BackupTypeMANUAL,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -1181,7 +1181,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       utils.BackupTypeMANUAL,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -1213,7 +1213,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       utils.BackupTypeMANUAL,
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -1250,7 +1250,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: volumeUUID,
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier:  "test-account",
@@ -1283,7 +1283,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "vol-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier:  "test-account",
@@ -1314,7 +1314,7 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 			},
 			Name:       "test-backup",
 			VolumeUUID: "vol-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 			Type:       "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier:  "test-account",

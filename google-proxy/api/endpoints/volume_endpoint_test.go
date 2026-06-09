@@ -618,7 +618,7 @@ func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T
 	require.NotNil(t, result.CacheParameters)
 	assert.Equal(t, cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING, result.CacheParameters.CacheState)
 	assert.Equal(t, models.InitiatingClusterPeeringCode, result.CacheParameters.CacheStateDetailsCode)
-	assert.Equal(t, models.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
+	assert.Equal(t, datamodel.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
 	assert.Equal(t, "origin_volume", result.CacheParameters.PeerVolumeName)
 	assert.Equal(t, "origin-cluster", result.CacheParameters.PeerClusterName)
 	assert.Equal(t, "origin-svm", result.CacheParameters.PeerSvmName)
@@ -674,7 +674,7 @@ func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
 	require.NotNil(t, result.CacheParameters)
 	assert.Equal(t, cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING, result.CacheParameters.CacheState)
 	assert.Equal(t, models.InitiatingClusterPeeringCode, result.CacheParameters.CacheStateDetailsCode)
-	assert.Equal(t, models.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
+	assert.Equal(t, datamodel.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
 	assert.Equal(t, "origin_volume", result.CacheParameters.PeerVolumeName)
 	assert.Equal(t, "origin-cluster", result.CacheParameters.PeerClusterName)
 	assert.Equal(t, "origin-svm", result.CacheParameters.PeerSvmName)
@@ -1088,31 +1088,31 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
 					ExportPolicyName: req.Volume.CreationToken.Value,
-				ExportRules: []*models.ExportRule{
-					{
-						AllowedClients: "192.168.1.0/24",
-						AccessType:     "READ_WRITE",
-						NFSv3:          true,
-						NFSv4:          false,
-						Index:          1,
-						UnixReadWrite:  true,
-					},
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "READ_ONLY",
-						NFSv3:          false,
-						NFSv4:          true,
-						Index:          2,
-						UnixReadOnly:   true,
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+							UnixReadWrite:  true,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "READ_ONLY",
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          2,
+							UnixReadOnly:   true,
+						},
 					},
 				},
 			},
-		},
-	}
-	result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
-	assert.NoError(tt, err)
-	assert.Equal(tt, expected, result)
-})
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
 
 	t.Run("ValidInputWithFilePropertiesAndExportRulesAllSquashEnabled", func(tt *testing.T) {
 		originalValue := utils.IsAllSquashEnabled
@@ -5069,7 +5069,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
-		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+		for _, zoneState := range []string{datamodel.ZoneSwitching, datamodel.ZoneSwitched} {
 			tt.Run(zoneState, func(t *testing.T) {
 				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 				handler := Handler{Orchestrator: mockOrchestrator}
@@ -6295,7 +6295,7 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 					Recursion: nillable.ToPointer(true),
 				},
 			},
-			CacheStateDetails:     models.InitiatingClusterPeering,
+			CacheStateDetails:     datamodel.InitiatingClusterPeering,
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
 			Passphrase:            nillable.ToPointer("some passphrase"),
 			PeeringCommand:        "some command",
@@ -6585,7 +6585,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
-		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+		for _, zoneState := range []string{datamodel.ZoneSwitching, datamodel.ZoneSwitched} {
 			tt.Run(zoneState, func(t *testing.T) {
 				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 				handler := Handler{Orchestrator: mockOrchestrator}
@@ -7437,7 +7437,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			PoolID:         "pool",
 			QuotaInBytes:   1024,
 			ProtocolTypes:  []string{"NFSV3"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		out := convertModelToVCPVolume(vol)
 		require.NotNil(t, out)
@@ -7453,7 +7453,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			PoolID:         "pool",
 			QuotaInBytes:   1024,
 			ProtocolTypes:  []string{"NFSV3"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		out := convertModelToVCPVolume(vol)
 		require.NotNil(t, out)
@@ -7468,7 +7468,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			PoolID:         "pool",
 			QuotaInBytes:   1024,
 			ProtocolTypes:  []string{"NFSV3"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 		out := convertModelToVCPVolume(vol)
 		require.NotNil(t, out)
@@ -9166,7 +9166,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		assert.Equal(tt, "Test hybrid replication", hybridParams.Description)
 		assert.Equal(tt, "us-west1", hybridParams.ClusterLocation)
 		assert.Equal(tt, "hourly", hybridParams.ReplicationSchedule)
-		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeMIGRATION, hybridParams.ReplicationType)
+		assert.Equal(tt, datamodel.HybridReplicationParametersReplicationTypeMIGRATION, hybridParams.ReplicationType)
 		assert.Equal(tt, SnapshotScheduleLabelHourly, hybridParams.ReplicationSchedule)
 	})
 
@@ -9242,7 +9242,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridReplicationParameters)
-		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeONPREM, result.HybridReplicationParameters.ReplicationType)
+		assert.Equal(tt, datamodel.HybridReplicationParametersReplicationTypeONPREM, result.HybridReplicationParameters.ReplicationType)
 		assert.Equal(tt, "hourly", result.HybridReplicationParameters.ReplicationSchedule)
 	})
 
@@ -9281,7 +9281,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridReplicationParameters)
-		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeMIGRATION, result.HybridReplicationParameters.ReplicationType)
+		assert.Equal(tt, datamodel.HybridReplicationParametersReplicationTypeMIGRATION, result.HybridReplicationParameters.ReplicationType)
 		// MIGRATION type automatically sets replicationSchedule to hourly
 		assert.Equal(tt, SnapshotScheduleLabelHourly, result.HybridReplicationParameters.ReplicationSchedule)
 	})
@@ -10230,7 +10230,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// First GetVolume call to check current state
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10239,7 +10239,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// DeleteVolume call
 		deletedVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleted,
+			LifeCycleState: datamodel.LifeCycleStateDeleted,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10267,7 +10267,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		notFoundErr := errors.NewNotFoundErr("Pool", nil)
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			PoolID:         "pool-db-id",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
@@ -10293,7 +10293,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		describeErr := fmt.Errorf("Internal server error")
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			PoolID:         "pool-db-id",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
@@ -10308,7 +10308,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
-		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+		for _, zoneState := range []string{datamodel.ZoneSwitching, datamodel.ZoneSwitched} {
 			tt.Run(zoneState, func(t *testing.T) {
 				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 				handler := Handler{Orchestrator: mockOrchestrator}
@@ -10320,7 +10320,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 				req := gcpgenserver.OptV1betaDeleteVolumeReq{}
 				volume := &models.Volume{
 					BaseModel:      models.BaseModel{UUID: "vol-1"},
-					LifeCycleState: models.LifeCycleStateREADY,
+					LifeCycleState: datamodel.LifeCycleStateREADY,
 					PoolID:         "pool-db-id",
 				}
 				mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
@@ -10392,20 +10392,20 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleting,
+			LifeCycleState: datamodel.LifeCycleStateDeleting,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeDeleteVolume,
+			Type:      datamodel.JobTypeDeleteVolume,
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "deleting-pool-id",
 			},
-			State: models.JobsStatePROCESSING,
+			State: datamodel.JobsStatePROCESSING,
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteVolume)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(datamodel.JobTypeDeleteVolume)).Return(job, nil)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -10428,21 +10428,21 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleting,
+			LifeCycleState: datamodel.LifeCycleStateDeleting,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 			LargeCapacity:  true,
 		}
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeDeleteLargeVolume,
+			Type:      datamodel.JobTypeDeleteLargeVolume,
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "deleting-pool-id",
 			},
-			State: models.JobsStatePROCESSING,
+			State: datamodel.JobsStatePROCESSING,
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteLargeVolume)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(datamodel.JobTypeDeleteLargeVolume)).Return(job, nil)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -10465,14 +10465,14 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleted,
+			LifeCycleState: datamodel.LifeCycleStateDeleted,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
 		pool := &models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-1"},
 			Name:      "test-pool",
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
@@ -10498,14 +10498,14 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleted,
+			LifeCycleState: datamodel.LifeCycleStateDeleted,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
 		pool := &models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-1"},
 			Name:      "test-pool",
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
@@ -10532,7 +10532,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// GetVolume succeeds
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10564,7 +10564,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// GetVolume succeeds
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10595,7 +10595,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// GetVolume succeeds
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10604,7 +10604,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// DeleteVolume returns volume in deleting state
 		deletingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateDeleting,
+			LifeCycleState: datamodel.LifeCycleStateDeleting,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -10628,12 +10628,12 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		}{
 			{
 				name:         "FromReadyState",
-				initialState: models.LifeCycleStateREADY,
+				initialState: datamodel.LifeCycleStateREADY,
 				expectError:  false,
 			},
 			{
 				name:         "FromErrorState",
-				initialState: models.LifeCycleStateError,
+				initialState: datamodel.LifeCycleStateError,
 				expectError:  false,
 			},
 		}
@@ -10661,7 +10661,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 				// DeleteVolume returns volume in deleted state
 				deletedVolume := &models.Volume{
 					BaseModel:      models.BaseModel{UUID: "vol-1"},
-					LifeCycleState: models.LifeCycleStateDeleted,
+					LifeCycleState: datamodel.LifeCycleStateDeleted,
 					CreationToken:  "token",
 					DisplayName:    "testvolume",
 				}
@@ -10798,7 +10798,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		// GetVolume succeeds
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 			CreationToken:  "token",
 			DisplayName:    "testvolume",
 		}
@@ -16868,7 +16868,7 @@ func TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails(t *testing.T
 	// Volume in DELETING state
 	volume := &models.Volume{
 		BaseModel:      models.BaseModel{UUID: "vol-1"},
-		LifeCycleState: models.LifeCycleStateDeleting,
+		LifeCycleState: datamodel.LifeCycleStateDeleting,
 		CreationToken:  "token",
 		DisplayName:    "testvolume",
 	}
@@ -16876,7 +16876,7 @@ func TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails(t *testing.T
 
 	// GetJobByResourceUUID fails (covers lines 1316, 1318)
 	jobErr := fmt.Errorf("failed to get job")
-	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteVolume)).Return(nil, jobErr)
+	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(datamodel.JobTypeDeleteVolume)).Return(nil, jobErr)
 
 	result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 	assert.NoError(t, err)
@@ -16900,7 +16900,7 @@ func TestV1betaDeleteVolume_DeletingState_LargeVolume(t *testing.T) {
 	// Large volume in DELETING state
 	volume := &models.Volume{
 		BaseModel:      models.BaseModel{UUID: "vol-1"},
-		LifeCycleState: models.LifeCycleStateDeleting,
+		LifeCycleState: datamodel.LifeCycleStateDeleting,
 		LargeCapacity:  true,
 		CreationToken:  "token",
 		DisplayName:    "testvolume",
@@ -16910,9 +16910,9 @@ func TestV1betaDeleteVolume_DeletingState_LargeVolume(t *testing.T) {
 	// Should use JobTypeDeleteLargeVolume (lines 1310-1311)
 	job := &models.Job{
 		BaseModel: models.BaseModel{UUID: "job-123"},
-		State:     models.JobsStateDONE,
+		State:     datamodel.JobsStateDONE,
 	}
-	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteLargeVolume)).Return(job, nil)
+	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(datamodel.JobTypeDeleteLargeVolume)).Return(job, nil)
 
 	result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 	assert.NoError(t, err)

@@ -66,7 +66,7 @@ func (s *VolumeUpdateTestSuite) SetupTest() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 }
 
@@ -1340,7 +1340,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Failure() {
 	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
+	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -1406,7 +1406,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_JobUpdateFailure() {
 	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("ONTAP error"))
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
+	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -1959,7 +1959,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_TokenError() {
 	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get auth JWT token"))
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
+	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -3451,7 +3451,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4043,7 +4043,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateJobStatusProcess
 	// Mock UpdateJobStatus to return error for PROCESSING state
 	expectedError := errors.New("failed to update job status to PROCESSING")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(expectedError)
 
 	// Execute workflow
@@ -4097,13 +4097,13 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateJobStatusDoneErr
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state (successful completion)
 	expectedError := errors.New("failed to update job status to DONE")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails == ""
+		return job.State == string(datamodel.JobsStateDONE) && job.ErrorDetails == ""
 	})).Return(expectedError)
 
 	// Execute workflow
@@ -4157,13 +4157,13 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateJobStatusErrorDe
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state with error details
 	errorDetailsUpdateError := errors.New("failed to update job status with error details")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
+		return job.State == string(datamodel.JobsStateERROR) && job.ErrorDetails != ""
 	})).Return(errorDetailsUpdateError)
 
 	// Execute workflow

@@ -3,11 +3,11 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -34,23 +34,23 @@ func DeleteInternalSnapshotWorkflow(ctx workflow.Context, params *common.Snapsho
 		return nil, err
 	}
 	snapshotWf.Status = workflows.WorkflowStatusRunning
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
 		snapshotWf.Status = workflows.WorkflowStatusFailed
-		err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := snapshotWf.Run(ctx, params)
 	if customErr != nil {
 		logger.Infof("Snapshot delete workflow run executed with error: %v", customErr)
 		snapshotWf.Status = workflows.WorkflowStatusFailed
-		err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	logger.Info("Snapshot workflow completed successfully")
 	snapshotWf.Status = workflows.WorkflowStatusCompleted
-	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = snapshotWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 

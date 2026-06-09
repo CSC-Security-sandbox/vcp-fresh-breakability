@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -1004,7 +1003,7 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -1100,7 +1099,7 @@ func TestOCICreatePoolWorkflow_VMRSEnabled_RunsVMRSBranch(t *testing.T) {
 
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	// IdentifyOCIResources is the activity that owns the OCI VMRS catalogue
@@ -1231,7 +1230,7 @@ func TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials(t *testin
 
 	wfEnv.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -1418,7 +1417,7 @@ func TestOCICreatePoolWorkflow_SetupError(t *testing.T) {
 	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	// Mock UpdateJob on storage (called by UpdateJobStatus activity)
@@ -1468,7 +1467,7 @@ func TestOCICreatePoolWorkflow_EnsureJobStateError(t *testing.T) {
 	// Mock GetJob activity to return ERROR state (should cause EnsureJobState to fail)
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateERROR),
+		State:     string(datamodel.JobsStateERROR),
 	}, nil).Maybe()
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -1519,7 +1518,7 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 	// Mock GetJob activity - return NEW state for workflow job
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -1581,7 +1580,7 @@ func TestOCICreatePoolWorkflow_SaveVSANodeDetailsFailure(t *testing.T) {
 
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -1641,7 +1640,7 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 	// Mock GetJob activity - return NEW state for workflow job
 	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)

@@ -42,12 +42,12 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error 
 		log.Errorf("Volume delete workflow setup executed with error: %v", err)
 		return err
 	}
-	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return err
 	}
 
 	volumeWf.Status = WorkflowStatusRunning
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for DeleteVolumeWorkflow: %v", err)
 		return err
@@ -57,7 +57,7 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error 
 	if customErr != nil {
 		log.Errorf("DeleteVolumeWorkflow completed with error: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for DeleteVolumeWorkflow: %v", err)
 			return err2
@@ -66,7 +66,7 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error 
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
-	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for DeleteVolumeWorkflow: %v", err)
 	}
@@ -203,9 +203,9 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	poolActivity := &activities.PoolActivity{}
 	ackTimeout, forceTimeout := common.GetCancellationTimeouts("VOLUME")
 	// Determine the correct create job type based on volume type
-	createJobType := models.JobTypeCreateVolume
+	createJobType := datamodel.JobTypeCreateVolume
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
-		createJobType = models.JobTypeCreateLargeVolume
+		createJobType = datamodel.JobTypeCreateLargeVolume
 	}
 	if cancelErr := common.HandleCancellationForCreatingResource(ctx, wf.Logger,
 		common.HandleCancellationForCreatingResourceParams{
@@ -227,7 +227,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	defer func() {
 		if err != nil {
 			if shouldUpdateVolumeStateToError(err) {
-				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
+				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
 				if err2 != nil {
 					log.Errorf("Failed to update volume state in DB to error: %v", err2)
 				}
@@ -362,7 +362,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 
 			if dbSvms != nil && len(dbSvms) == 0 {
-				err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.UpdateActiveDirectoryState, volume.Pool.ActiveDirectory.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Get(ctx, nil)
+				err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.UpdateActiveDirectoryState, volume.Pool.ActiveDirectory.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}

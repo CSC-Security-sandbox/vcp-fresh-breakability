@@ -330,7 +330,7 @@ func (j *PSCActivity) DeleteForwardingRule(ctx context.Context, pool *datamodel.
 	conds := []*dbutils.FilterCondition{
 		{Field: "account_id", Op: "=", Value: pool.AccountID},
 		{Field: "network", Op: "=", Value: pool.Network},
-		{Field: "state", Op: "<>", Value: models.LifeCycleStateDeleted},
+		{Field: "state", Op: "<>", Value: datamodel.LifeCycleStateDeleted},
 	}
 	filter := &dbutils.Filter{Conditions: conds}
 	pools, err := se.ListPools(ctx, filter)
@@ -377,7 +377,7 @@ func (j *PSCActivity) DeleteAddress(ctx context.Context, pool *datamodel.Pool) (
 	conds := []*dbutils.FilterCondition{
 		{Field: "account_id", Op: "=", Value: pool.AccountID},
 		{Field: "network", Op: "=", Value: pool.Network},
-		{Field: "state", Op: "<>", Value: models.LifeCycleStateDeleted},
+		{Field: "state", Op: "<>", Value: datamodel.LifeCycleStateDeleted},
 	}
 	filter := &dbutils.Filter{Conditions: conds}
 	pools, err := se.ListPools(ctx, filter)

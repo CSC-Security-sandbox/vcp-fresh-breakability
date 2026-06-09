@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,10 +22,10 @@ func NewVolumeUpdateHandler() *VolumeUpdateHandler {
 }
 
 // JobTypes enumerates the job types supported by the volume update handler.
-func (h *VolumeUpdateHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeUpdateVolume,
-		models.JobTypeUpdateVolumeInReplication,
+func (h *VolumeUpdateHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeUpdateVolume,
+		datamodel.JobTypeUpdateVolumeInReplication,
 	}
 }
 
@@ -57,7 +56,7 @@ func (h *VolumeUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	}
 
 	// Only revert if volume is in UPDATING state
-	if volume.State != models.LifeCycleStateUpdating {
+	if volume.State != datamodel.LifeCycleStateUpdating {
 		logger.Warnf("workflow-supervisor-task: volume not in UPDATING state (%s); skipping revert", volume.State)
 		return nil
 	}
@@ -69,8 +68,8 @@ func (h *VolumeUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	// Fallback if previous state not stored (for backward compatibility with old jobs)
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not stored in job attributes, using default READY")
-		previousState = models.LifeCycleStateREADY
-		previousStateDetails = models.LifeCycleStateAvailableDetails
+		previousState = datamodel.LifeCycleStateREADY
+		previousStateDetails = datamodel.LifeCycleStateAvailableDetails
 	}
 
 	err = storage.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{

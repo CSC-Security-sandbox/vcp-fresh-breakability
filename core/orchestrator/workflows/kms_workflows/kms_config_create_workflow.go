@@ -4,7 +4,6 @@ import (
 	"time"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -41,11 +40,11 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	if err = kmsConfigWorkflow.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = kmsConfigWorkflow.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusRunning
-	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -53,8 +52,8 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 
 	if customErr != nil {
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
-		sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, models.JobsStateERROR, customErr)
-		vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, datamodel.JobsStateERROR, customErr)
+		vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if sdeJobUpdateErr != nil || vcpJobUpdateerr != nil {
 			return nil, workflows.ConvertToVSAError(vsaerrors.Combine(sdeJobUpdateErr, vcpJobUpdateerr, customErr))
 		}
@@ -62,8 +61,8 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 	}
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted
-	sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, models.JobsStateDONE, nil)
-	vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, datamodel.JobsStateDONE, nil)
+	vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if sdeJobUpdateErr != nil || vcpJobUpdateerr != nil {
 		return nil, workflows.ConvertToVSAError(vsaerrors.Combine(sdeJobUpdateErr, vcpJobUpdateerr))
 	}
@@ -244,7 +243,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) RevertCreateKmsConfigWorkflow(
 	return nil
 }
 
-func (kmsConfigWorkflow *createKmsConfigWorkflow) updateSdeJobStatus(ctx workflow.Context, params *common.CreateKmsConfigParams, status models.JobState, customErr *vsaerrors.CustomError) error {
+func (kmsConfigWorkflow *createKmsConfigWorkflow) updateSdeJobStatus(ctx workflow.Context, params *common.CreateKmsConfigParams, status datamodel.JobState, customErr *vsaerrors.CustomError) error {
 	if params == nil || params.SdeJobUUID == "" {
 		return nil
 	}

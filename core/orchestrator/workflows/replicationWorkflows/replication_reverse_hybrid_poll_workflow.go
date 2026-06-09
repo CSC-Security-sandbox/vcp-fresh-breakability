@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -36,23 +37,23 @@ func ReverseHybridReplicationPollWorkflow(ctx workflow.Context, result *replicat
 		return err
 	}
 	pollWf.Status = workflows.WorkflowStatusRunning
-	err = pollWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = pollWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		pollWf.Status = workflows.WorkflowStatusFailed
-		err = pollWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = pollWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return err
 	}
 	_, workflowErr := pollWf.Run(ctx, result)
 	if workflowErr != nil {
 		pollWf.Status = workflows.WorkflowStatusFailed
-		err2 := pollWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), workflowErr)
+		err2 := pollWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), workflowErr)
 		if err2 != nil {
 			pollWf.Logger.Errorf("Failed to update job status: %v", err2)
 		}
 		return workflowErr
 	}
 	pollWf.Status = workflows.WorkflowStatusCompleted
-	err2 := pollWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := pollWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err2 != nil {
 		pollWf.Logger.Errorf("Failed to update job status: %v", err2)
 		return err2

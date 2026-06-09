@@ -42,13 +42,13 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 		logger.Error("Failed to get volume replication details", "error", err)
 		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
-	if snapmirror.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
+	if snapmirror.RelationshipStatus == datamodel.SnapmirrorRelationshipTransferring {
 		if forceStop {
 			if snapmirror.TransferUUID != "" {
 				abortVolRep := &vsa.VolumeReplication{
 					RelationshipID:     snapmirror.RelationshipID,
 					TransferUUID:       snapmirror.TransferUUID,
-					RelationshipStatus: models.SnapmirrorRelationshipAborted,
+					RelationshipStatus: datamodel.SnapmirrorRelationshipAborted,
 				}
 				if _, abortErr := provider.AbortVolumeReplication(abortVolRep); abortErr != nil {
 					logger.Error("Failed to abort volume replication after break failure", "error", abortErr)
@@ -59,10 +59,10 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 			return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication.")))
 		}
 	}
-	if snapmirror.MirrorState == models.OntapUninitialized {
+	if snapmirror.MirrorState == datamodel.OntapUninitialized {
 		return snapmirror, nil
 	}
-	snapmirror.MirrorState = models.OntapBrokenOff
+	snapmirror.MirrorState = datamodel.OntapBrokenOff
 	_, err = provider.BreakVolumeReplication(snapmirror)
 	if err != nil {
 		logger.Error("Failed to break volume replication", "error", err)
@@ -91,7 +91,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 
-	if snapmirror.RelationshipStatus != models.SnapmirrorRelationshipTransferring {
+	if snapmirror.RelationshipStatus != datamodel.SnapmirrorRelationshipTransferring {
 		logger.Info("Replication is not in transferring state, skipping abort volume replication")
 		return vsaReplication, nil
 	}
@@ -102,7 +102,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 
 	vsaReplication.RelationshipID = snapmirror.RelationshipID
 	vsaReplication.TransferUUID = snapmirror.TransferUUID
-	vsaReplication.RelationshipStatus = models.SnapmirrorRelationshipAborted
+	vsaReplication.RelationshipStatus = datamodel.SnapmirrorRelationshipAborted
 	_, err = provider.AbortVolumeReplication(vsaReplication)
 	if err != nil {
 		logger.Error("Failed to abort volume replication", "error", err)
@@ -130,8 +130,8 @@ func (j *InternalStopVolumeReplicationActivity) GetSnapMirrorFromOntap(ctx conte
 func (j *InternalStopVolumeReplicationActivity) UpdateVolumeReplicationStopDetails(ctx context.Context, replication *datamodel.VolumeReplication, vsaReplication *vsa.VolumeReplication) error {
 	se := j.SE
 
-	replication.State = models.LifeCycleStateAvailable
-	replication.StateDetails = models.LifeCycleStateAvailableDetails
+	replication.State = datamodel.LifeCycleStateAvailable
+	replication.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	replication.MirrorState = &vsaReplication.MirrorState
 	replication.RelationshipStatus = &vsaReplication.RelationshipStatus
 	replication.TotalTransferBytes = vsaReplication.TotalTransferBytes
@@ -186,8 +186,8 @@ func (j *InternalStopVolumeReplicationActivity) UpdateQuotaRulesStateToError(
 		}
 
 		// Update state to ERROR
-		currentQuotaRule.State = models.LifeCycleStateError
-		currentQuotaRule.StateDetails = models.LifeCycleStateCreationErrorDetails
+		currentQuotaRule.State = datamodel.LifeCycleStateError
+		currentQuotaRule.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 		currentQuotaRule.UpdatedAt = time.Now()
 
 		_, err = se.UpdateQuotaRule(ctx, currentQuotaRule)
@@ -214,8 +214,8 @@ func (j *InternalStopVolumeReplicationActivity) UpdateVolumeReplicationForQuotaE
 
 	logger.Infof("Updating volume replication to ERROR state due to quota rule failures: uuid=%s", replication.UUID)
 
-	replication.State = models.LifeCycleStateError
-	replication.StateDetails = models.VolumeReplicationBreakRelationshipQuotaRuleFailure
+	replication.State = datamodel.LifeCycleStateError
+	replication.StateDetails = datamodel.VolumeReplicationBreakRelationshipQuotaRuleFailure
 
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {
 		logger.Errorf("Failed to update volume replication state: uuid=%s, error=%v", replication.UUID, err)

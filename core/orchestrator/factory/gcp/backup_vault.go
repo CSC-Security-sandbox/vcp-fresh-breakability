@@ -106,7 +106,7 @@ func (o *GCPOrchestrator) DeleteBackupVaultInternal(ctx context.Context, params 
 		return "", err
 	}
 
-	if hydrationEnabled && (env.UseVCPRegion || remoteBv.ServiceType == models.ServiceTypeCrossProject) {
+	if hydrationEnabled && (env.UseVCPRegion || remoteBv.ServiceType == datamodel.ServiceTypeCrossProject) {
 		err = hydrateDeletedBackupVaults(ctx, remoteBv, params)
 		if err != nil {
 			logger.Errorf("Failed to hydrate deleted backup vault to CCFE: %v", err)
@@ -142,7 +142,7 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+	if dbBv.LifeCycleState == datamodel.LifeCycleStateUpdating || dbBv.LifeCycleState == datamodel.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
@@ -173,8 +173,8 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteBackupVault),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteBackupVault),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -212,14 +212,14 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 			// Mark the job as ERROR
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
 		}
 	}()
 
-	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails)
 	if err != nil {
 		return nil, "", err
 	}
@@ -258,7 +258,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+	if dbBv.LifeCycleState == datamodel.LifeCycleStateUpdating || dbBv.LifeCycleState == datamodel.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
@@ -267,8 +267,8 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateBackupVault),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateBackupVault),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -304,14 +304,14 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 			// Mark job as error if it was created
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
 		}
 	}()
 
-	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 	if err != nil {
 		return nil, "", err
 	}
@@ -438,7 +438,7 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		res.EncryptionState = bv.CmekAttributes.EncryptionState
 		res.BackupsPrimaryKeyVersion = bv.CmekAttributes.BackupsPrimaryKeyVersion
 	}
-	if bv.ServiceType == models.ServiceTypeCrossProject && len(bv.BucketDetails) > 0 &&
+	if bv.ServiceType == datamodel.ServiceTypeCrossProject && len(bv.BucketDetails) > 0 &&
 		bv.BucketDetails[0] != nil && bv.BucketDetails[0].TenantProjectNumber != "" {
 		res.TenantProject = nillable.GetStringPtr(bv.BucketDetails[0].TenantProjectNumber)
 	}
@@ -542,7 +542,7 @@ func (o *GCPOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *d
 		return nil, err
 	}
 
-	if hydrationEnabled && (env.UseVCPRegion || createdBv.ServiceType == models.ServiceTypeCrossProject) {
+	if hydrationEnabled && (env.UseVCPRegion || createdBv.ServiceType == datamodel.ServiceTypeCrossProject) {
 		err = hydrateCreatedBackupVaults(ctx, createdBv, params)
 		if err != nil {
 			logger.Errorf("Failed to hydrate created backup vault to CCFE: %v", err)
@@ -621,8 +621,8 @@ func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultPara
 		Account:               account,
 		RegionName:            params.LocationId,
 		BackupRegionName:      params.BackupRegion,
-		LifeCycleState:        models.LifeCycleStateREADY,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		BackupVaultType:       backupVaultType,
 		SourceRegionName:      nillable.ToPointer(params.LocationId),
 	}
@@ -659,7 +659,7 @@ func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultPara
 		if params.BackupsPrimaryKeyVersion != nil {
 			bv.CmekAttributes.BackupsPrimaryKeyVersion = params.BackupsPrimaryKeyVersion
 		}
-		bv.CmekAttributes.EncryptionState = nillable.GetStringPtr(models.EncryptionStateCompleted)
+		bv.CmekAttributes.EncryptionState = nillable.GetStringPtr(datamodel.EncryptionStateCompleted)
 	}
 	if backupVaultType == CrossRegionBackupType {
 		bv.CrossRegionBackupVaultName = nillable.GetStringPtr(
@@ -667,14 +667,14 @@ func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultPara
 				params.ProjectNumber, *params.BackupRegion, utils.ConvertSourceBackupVaultNameToRemoteBackupVaultName(bv.Name, bv.UUID)))
 	}
 	if params.TenantProject != nil {
-		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.ServiceType = datamodel.ServiceTypeCrossProject
 		bv.BucketDetails = datamodel.BucketDetailsArray{
 			&datamodel.BucketDetails{
 				TenantProjectNumber: *params.TenantProject,
 			},
 		}
 	} else {
-		bv.ServiceType = models.ServiceTypeGCNV
+		bv.ServiceType = datamodel.ServiceTypeGCNV
 	}
 	return bv
 }
@@ -831,7 +831,7 @@ func (o *GCPOrchestrator) RotateCmekBackupsForBackupVault(
 	}
 
 	// Reject rotation if backup vault is in a transitional state.
-	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+	if dbBv.LifeCycleState == datamodel.LifeCycleStateUpdating || dbBv.LifeCycleState == datamodel.LifeCycleStateDeleting {
 		return "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
@@ -848,8 +848,8 @@ func (o *GCPOrchestrator) RotateCmekBackupsForBackupVault(
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeRotateCmekBackups),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeRotateCmekBackups),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  dbBv.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -873,7 +873,7 @@ func (o *GCPOrchestrator) RotateCmekBackupsForBackupVault(
 	// On workflow start failure, mark job as ERROR.
 	defer func() {
 		if err != nil && createdJob != nil {
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update CMEK rotation job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 			}
 		}

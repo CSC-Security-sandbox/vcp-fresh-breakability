@@ -9,7 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -56,8 +55,8 @@ func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Cont
 	}
 
 	adRecord.CredentialPath = secretId
-	adRecord.State = models.LifeCycleStateREADY
-	adRecord.StateDetails = models.LifeCycleStateReadyDetails
+	adRecord.State = datamodel.LifeCycleStateREADY
+	adRecord.StateDetails = datamodel.LifeCycleStateReadyDetails
 	adRecord.ChangeId = utils.RandomUUID()
 	_, err = a.SE.UpdateActiveDirectory(ctx, adRecord)
 	if err != nil {
@@ -74,8 +73,8 @@ func (a ActiveDirectoryCreateActivity) RollbackActiveDirectory(ctx context.Conte
 
 	// Ensure AD state is updated to error regardless of secret deletion outcome
 	defer func() {
-		ad.State = models.LifeCycleStateError
-		ad.StateDetails = models.LifeCycleStateCreationErrorDetails
+		ad.State = datamodel.LifeCycleStateError
+		ad.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 		ad.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 		if _, updateErr := a.SE.UpdateActiveDirectory(ctx, ad); updateErr != nil {
 			logger.Errorf("failed to update AD state during rollback: %v", updateErr)

@@ -108,7 +108,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 			// Run’s own defer should handle job failure; we only handle pre-Run here.
 			log.Errorf("panic in CreateFlexCacheWorkflow: %v", r)
 			if !enteredRun {
-				_ = flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStateERROR), fmt.Errorf("panic: %v", r))
+				_ = flexCacheWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), fmt.Errorf("panic: %v", r))
 			}
 			retErr = fmt.Errorf("panic: %v", r)
 		}
@@ -124,7 +124,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 		log.Errorf("CreateFlexCacheWorkflow aborted (job cancelled before processing): %v", err)
 		return err
 	}
-	if err := flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStatePROCESSING), nil); err != nil {
+	if err := flexCacheWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to Processing for CreateFlexCacheWorkflow: %v", err)
 		return err
 	}
@@ -210,7 +210,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	flexcacheResult := flexcache.CreateFlexCacheResult{
 		Event:         event,
 		DBVolume:      dbVolume,
-		ActiveJobType: coremodels.JobTypeFlexCacheEstablishPeering,
+		ActiveJobType: datamodel.JobTypeFlexCacheEstablishPeering,
 		JobInput: &flexcache.JobActivityInput{
 			ResourceName:  dbVolume.Name,
 			ResourceUUID:  dbVolume.UUID,
@@ -250,7 +250,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 			// Update cluster peering row state to ERROR in DB if not PEERED
 			if flexcacheResult.ClusterPeeringRow != nil && flexcacheResult.ClusterPeeringRow.State !=
-				coremodels.CvpClusterPeeringStatusPEERED {
+				datamodel.CvpClusterPeeringStatusPEERED {
 				err2 := workflow.ExecuteActivity(disconnectedCtx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStateErrorInDBActivity, &flexcacheResult).Get(disconnectedCtx, nil)
 				if err2 != nil {
 					log.Errorf("Failed to update cluster peering row state in DB: %v", err2)
@@ -272,7 +272,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}()
 
 	// Active job helpers
-	setActiveJob := func(jobType coremodels.JobType) {
+	setActiveJob := func(jobType datamodel.JobType) {
 		flexcacheResult.ActiveJobType = jobType
 	}
 
@@ -418,7 +418,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	setActiveJob(coremodels.JobTypeFlexCacheInternalPeering)
+	setActiveJob(datamodel.JobTypeFlexCacheInternalPeering)
 
 	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate || flexcacheResult.ClusterPeerAction == flexcache.ActionWait {
 		clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
@@ -487,7 +487,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// Update the volume to be "creating" state because the volume is actually being created in ONTAP now that peering has been established
 	// In the creating state we must wait for completion or an error before we can delete.
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateCreating).Get(ctx, &flexcacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, datamodel.LifeCycleStateCreating).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -546,7 +546,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateREADY).Get(ctx, &flexcacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, datamodel.LifeCycleStateREADY).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -576,22 +576,22 @@ func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err erro
 		switch vsaErr.TrackingID {
 		case vsaerrors.ErrClusterPeerError:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.ErrorDuringClusterPeer
 		case vsaerrors.ErrClusterPeerTimeout:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ClusterPeeringExpiredCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ClusterPeeringExpired
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.ClusterPeeringExpired
 		case vsaerrors.ErrSVMPeerTimeout:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.SVMPeeringExpiredCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.SVMPeeringExpired
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.SVMPeeringExpired
 		case vsaerrors.ErrSVMPeerError:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringSVMPeeringCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringSVMPeering
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.ErrorDuringSVMPeering
 		case vsaerrors.ErrUnencryptedVolume:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorUnencryptedVolumeCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorUnencryptedVolume
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.ErrorUnencryptedVolume
 		default:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorCreatingCacheVolume
+			result.DBVolume.CacheParameters.CacheStateDetails = datamodel.ErrorCreatingCacheVolume
 		}
 	}
 }

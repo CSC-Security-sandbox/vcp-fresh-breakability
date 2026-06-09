@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -40,15 +39,15 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 	var wf func(ctx workflow.Context, params *commonparams.StartProjectEventParams) (interface{}, error)
 	// For DELETE state we already returned NotImplemented error
 	switch params.State {
-	case models.StateOn:
+	case datamodel.ResourceEventStateOn:
 		wf = workflows.StartProjectEventOnStateWorkflow
-		jobType = string(models.JobTypeStartProjectEventOnState)
-	case models.StateOff:
+		jobType = string(datamodel.JobTypeStartProjectEventOnState)
+	case datamodel.ResourceEventStateOff:
 		wf = workflows.StartProjectEventOffStateWorkflow
-		jobType = string(models.JobTypeStartProjectEventOffState)
+		jobType = string(datamodel.JobTypeStartProjectEventOffState)
 	}
 
-	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+	jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
 
 	// First, get all jobs for this account and job type regardless of zone
 	baseFilterConditions := []*utils2.FilterCondition{
@@ -88,7 +87,7 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 
 	job := &datamodel.Job{
 		Type:          jobType,
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -146,30 +145,30 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 
 	// check for existence of the resource in VCP
 	switch {
-	case params.State == models.StateOn && params.IsCommonResource:
+	case params.State == datamodel.ResourceEventStateOn && params.IsCommonResource:
 		wf = workflows.UpdateResourceStateCommonResourceONWorkflow
-		jobType = string(models.JobTypeHandleResourceEventOnState)
-	case params.State == models.StateOff && params.IsCommonResource:
+		jobType = string(datamodel.JobTypeHandleResourceEventOnState)
+	case params.State == datamodel.ResourceEventStateOff && params.IsCommonResource:
 		wf = workflows.UpdateResourceStateCommonResourceOFFWorkflow
-		jobType = string(models.JobTypeHandleResourceEventOffState)
-	case params.State == models.StateOn && !params.IsCommonResource:
+		jobType = string(datamodel.JobTypeHandleResourceEventOffState)
+	case params.State == datamodel.ResourceEventStateOn && !params.IsCommonResource:
 		wf = workflows.UpdateResourceStateONWorkflow
-		jobType = string(models.JobTypeHandleResourceEventOnState)
-	case params.State == models.StateOff && !params.IsCommonResource:
+		jobType = string(datamodel.JobTypeHandleResourceEventOnState)
+	case params.State == datamodel.ResourceEventStateOff && !params.IsCommonResource:
 		wf = workflows.UpdateResourceStateOFFWorkflow
-		jobType = string(models.JobTypeHandleResourceEventOffState)
-	case params.State == models.StateDelete &&
+		jobType = string(datamodel.JobTypeHandleResourceEventOffState)
+	case params.State == datamodel.ResourceEventStateDelete &&
 		(params.ResourceType == commonparams.ResourceStateV1ResourceTypeStoragePool ||
 			params.ResourceType == commonparams.ResourceStateV1ResourceTypeVolume):
 		wf = workflows.UpdateResourceStateDELETEWorkflow
-		jobType = string(models.JobTypeHandleResourceEventDeleteState)
+		jobType = string(datamodel.JobTypeHandleResourceEventDeleteState)
 	default:
 		return "", errors.NewBadRequestErr("unsupported state or resource type combination")
 	}
 
 	job := &datamodel.Job{
 		Type:          jobType,
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -212,8 +211,8 @@ func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage,
 		return "", err
 	}
 
-	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-	jobType := models.JobTypeFinishProjectEventDeleteState
+	jobTransitioningStates := []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}
+	jobType := datamodel.JobTypeFinishProjectEventDeleteState
 
 	wf := workflows.FinishProjectEventDeleteStateWorkflow
 
@@ -254,7 +253,7 @@ func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage,
 
 	job := datamodel.Job{
 		Type:          string(jobType),
-		State:         string(models.JobsStateNEW),
+		State:         string(datamodel.JobsStateNEW),
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -18,7 +17,7 @@ type SyncBackupZiZsActivity struct {
 func (a *SyncBackupZiZsActivity) GetAllBackupVaults(ctx context.Context) ([]*datamodel.BackupVault, error) {
 	// Filter for backup vaults in READY state
 	conditions := [][]interface{}{
-		{"life_cycle_state = ?", models.LifeCycleStateREADY},
+		{"life_cycle_state = ?", datamodel.LifeCycleStateREADY},
 	}
 	return a.SE.GetMultipleBackupVaults(ctx, conditions)
 }

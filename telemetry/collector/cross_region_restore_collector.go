@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
@@ -124,8 +123,8 @@ func getLastRestoreTimestamp(ctx context.Context, metricsDB metricsdb.Storage, n
 func fetchRestoreJobs(ctx context.Context, vcpDB vcpdb.Storage, since time.Time, until time.Time, includeSFR bool) ([]*datamodel.Job, error) {
 	if !includeSFR {
 		filter := dbutils.CreateFilterWithConditions(
-			dbutils.NewFilterCondition("type", "=", string(models.JobTypeRestoreBackup)),
-			dbutils.NewFilterCondition("state", "=", string(models.JobsStateDONE)),
+			dbutils.NewFilterCondition("type", "=", string(datamodel.JobTypeRestoreBackup)),
+			dbutils.NewFilterCondition("state", "=", string(datamodel.JobsStateDONE)),
 			dbutils.NewFilterCondition("updated_at", ">=", since.Format(time.RFC3339Nano)),
 			dbutils.NewFilterCondition("updated_at", "<=", until.Format(time.RFC3339Nano)),
 		)
@@ -136,12 +135,12 @@ func fetchRestoreJobs(ctx context.Context, vcpDB vcpdb.Storage, since time.Time,
 	// (partial SFR failures may have restored some files before failing).
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("type", "IN", []string{
-			string(models.JobTypeRestoreBackup),
-			string(models.JobTypeRestoreFilesBackup),
+			string(datamodel.JobTypeRestoreBackup),
+			string(datamodel.JobTypeRestoreFilesBackup),
 		}),
 		dbutils.NewFilterCondition("state", "IN", []string{
-			string(models.JobsStateDONE),
-			string(models.JobsStateERROR),
+			string(datamodel.JobsStateDONE),
+			string(datamodel.JobsStateERROR),
 		}),
 		dbutils.NewFilterCondition("updated_at", ">=", since.Format(time.RFC3339Nano)),
 		dbutils.NewFilterCondition("updated_at", "<=", until.Format(time.RFC3339Nano)),
@@ -167,11 +166,11 @@ func processRestoreJob(
 		return nil
 	}
 
-	isSFR := job.Type == string(models.JobTypeRestoreFilesBackup)
+	isSFR := job.Type == string(datamodel.JobTypeRestoreFilesBackup)
 
 	// Failed full volume restores are not billable; failed SFR jobs may have
 	// partially transferred data and are handled via sfr_metadata.
-	if !isSFR && job.State == string(models.JobsStateERROR) {
+	if !isSFR && job.State == string(datamodel.JobsStateERROR) {
 		logger.Debug("Skipping failed full volume restore", "jobUUID", job.UUID)
 		return nil
 	}

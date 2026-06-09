@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	GCBDRServiceType = models.ServiceTypeCrossProject
+	GCBDRServiceType = datamodel.ServiceTypeCrossProject
 )
 
 var (
@@ -219,8 +219,8 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 	stateUpdated := false
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeCreateBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.BackupName,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -312,8 +312,8 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		Description:   params.Description,
 		Type:          params.BackupType,
 	}
-	dbBackup.State = models.LifeCycleStateCreating
-	dbBackup.StateDetails = models.LifeCycleStateCreatingDetails
+	dbBackup.State = datamodel.LifeCycleStateCreating
+	dbBackup.StateDetails = datamodel.LifeCycleStateCreatingDetails
 
 	defer func() {
 		if err != nil {
@@ -329,7 +329,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 			// Mark job as error if it was created
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -395,7 +395,7 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 	// Check if the backup is in a state that allows updates
-	if backup.State != models.LifeCycleStateAvailable {
+	if backup.State != datamodel.LifeCycleStateAvailable {
 		logger.Errorf("Backup %s cannot be updated, current state: %s. Only backups in AVAILABLE state can be updated", params.BackupUUID, backup.State)
 		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
 	}
@@ -409,15 +409,15 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	originalStateDetails := backup.StateDetails
 
 	// Update backup state
-	backup.State = models.LifeCycleStateUpdating
-	backup.StateDetails = models.LifeCycleStateUpdatingDetails
+	backup.State = datamodel.LifeCycleStateUpdating
+	backup.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	// Create a job for the update operation
 	backupVaultUUID := backup.BackupVault.UUID
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeUpdateBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.BackupUUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -449,7 +449,7 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 			// Mark job as error if it was created
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -508,12 +508,12 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 		if err != nil {
 			return err
 		}
-		if vol.State != models.LifeCycleStateREADY {
+		if vol.State != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("Volume is not in available state")
 		}
 		if vol.VolumeAttributes != nil && vol.VolumeAttributes.CloneParentInfo != nil {
 			cloneState := vol.VolumeAttributes.CloneParentInfo.State
-			if cloneState == models.CloneStateSplitting {
+			if cloneState == datamodel.CloneStateSplitting {
 				return customerrors.NewConflictErr("Backup is not allowed when volume is splitting")
 			}
 		}
@@ -690,7 +690,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	if backup.State == models.LifeCycleStateError && !backup.Attributes.DeleteInitiated {
+	if backup.State == datamodel.LifeCycleStateError && !backup.Attributes.DeleteInitiated {
 		_, err = se.DeleteBackup(ctx, backup.UUID)
 		if err != nil {
 			logger.Error("Failed to delete backup in database", "error", err)
@@ -699,10 +699,10 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", nil
 	}
 
-	if backup.State == models.LifeCycleStateDeleting {
+	if backup.State == datamodel.LifeCycleStateDeleting {
 		filter := utils2.CreateFilterWithConditions(
 			utils2.NewFilterCondition("resource_name", "=", backup.UUID),
-			utils2.NewFilterCondition("state", "in", []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}),
+			utils2.NewFilterCondition("state", "in", []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}),
 		)
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {
@@ -719,7 +719,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// Check whether any volume restore is in progress for this backup
-	conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", models.LifeCycleStateRestoring}}
+	conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", datamodel.LifeCycleStateRestoring}}
 	volumes, err := se.ListVolumes(ctx, conditions)
 	if err != nil {
 		return nil, "", err
@@ -745,16 +745,16 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	originalStateDetails := backup.StateDetails
 	stateUpdated := false
 
-	backup.State = models.LifeCycleStateDeleting
-	backup.StateDetails = models.LifeCycleStateDeletingDetails
+	backup.State = datamodel.LifeCycleStateDeleting
+	backup.StateDetails = datamodel.LifeCycleStateDeletingDetails
 
 	backupVaultUUID := ""
 	if backup.BackupVault != nil {
 		backupVaultUUID = backup.BackupVault.UUID
 	}
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteBackup),
-		State:         string(models.JobsStateNEW),
+		Type:          string(datamodel.JobTypeDeleteBackup),
+		State:         string(datamodel.JobsStateNEW),
 		ResourceName:  params.BackupUUID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -787,7 +787,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 			// Mark job as error if it was created
 			if createdJob != nil {
-				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(datamodel.JobsStateERROR), 0, err.Error()); jobErr != nil {
 					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
 				}
 			}
@@ -979,7 +979,7 @@ func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params
 			}
 			return err
 		}
-		if snapshot.State != models.LifeCycleStateREADY {
+		if snapshot.State != datamodel.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("Snapshot is not in available state")
 		}
 		if common.SnapmirrorSnapshotPrefix.MatchString(snapshot.Name) {
@@ -988,7 +988,7 @@ func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params
 		// Check if snapshot has already been used for creating a backup in available state
 		filters := [][]interface{}{
 			{"volume_uuid = ?", vol.UUID},
-			{"state != ?", models.LifeCycleStateDeleted},
+			{"state != ?", datamodel.LifeCycleStateDeleted},
 			{"attributes->>'snapshot_id' = ?", snapshot.SnapshotAttributes.ExternalUUID},
 		}
 		backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, vol.DataProtection.BackupVaultID, vol.Account.ID, filters)
@@ -1149,8 +1149,8 @@ func _createBackupInternal(ctx context.Context, se database.Storage, temporal cl
 		LatestLogicalBackupSize: params.BackupChainBytes,
 		SizeInBytes:             params.VolumeUsageBytes,
 	}
-	dbBackup.State = models.LifeCycleStateAvailable
-	dbBackup.StateDetails = models.LifeCycleStateAvailableDetails
+	dbBackup.State = datamodel.LifeCycleStateAvailable
+	dbBackup.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 	dbBackup, err = se.CreateBackup(ctx, dbBackup)
 	if err != nil {
@@ -1192,7 +1192,7 @@ func _updateBackupInternal(ctx context.Context, se database.Storage, temporal cl
 		return nil, "", err
 	}
 	// Check if the backup is in a state that allows updates
-	if backup.State != models.LifeCycleStateAvailable {
+	if backup.State != datamodel.LifeCycleStateAvailable {
 		logger.Errorf("Backup %s cannot be updated, current state: %s. Only backups in AVAILABLE state can be updated", params.BackupUUID, backup.State)
 		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
 	}

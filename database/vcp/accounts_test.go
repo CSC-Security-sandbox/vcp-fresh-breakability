@@ -10,7 +10,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -386,14 +385,14 @@ func TestGetAccountsWithFilter_ExcludesSoftDeleted(t *testing.T) {
 		active := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "list-active"},
 			Name:      "list_active",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 		}
 		require.NoError(tt, store.db.Create(active).Error())
 
 		deleted := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "list-deleted"},
 			Name:      "list_deleted",
-			State:     models.AccountStateEnabled,
+			State:     datamodel.AccountStateEnabled,
 		}
 		require.NoError(tt, store.db.Create(deleted).Error())
 		require.NoError(tt, store.db.GORM().Delete(deleted).Error)

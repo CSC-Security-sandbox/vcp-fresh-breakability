@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -96,7 +95,7 @@ func TestReconcileHarvestNodeGroupMapWorkflow_Success_WithMaps_ReconcilesBatch(t
 		NodeID:    10, NodeGroupID: 100,
 		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: ""},
 	}
-	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: datamodel.LifeCycleStateDeleted}
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{m}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(nodeDeleted, nil)
 	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
@@ -134,7 +133,7 @@ func TestReconcileHarvestNodeGroupMapWorkflow_BatchSkipsFailedDeletes_WorkflowSu
 		NodeID:    10, NodeGroupID: 100,
 		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1"},
 	}
-	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: datamodel.LifeCycleStateDeleted}
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{m}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(nodeDeleted, nil)
 	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(assert.AnError)

@@ -632,7 +632,7 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel:      models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 			Name:           "mypool",
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-123", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -653,7 +653,7 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel:      models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 			Name:           "mypool",
-			State:          models.LifeCycleStateDeleted,
+			State:          datamodel.LifeCycleStateDeleted,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-456", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -671,7 +671,7 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel:      models.BaseModel{UUID: "pool-uuid", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 			Name:           "mypool",
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-echo", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -747,7 +747,7 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{UUID: "u1"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}, "wf-del", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1..x", TenancyOcid: "ocid1.compartment.oc1..aaa"}

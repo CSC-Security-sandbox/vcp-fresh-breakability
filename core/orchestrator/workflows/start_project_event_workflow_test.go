@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -85,7 +84,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -127,7 +126,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -173,7 +172,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -213,7 +212,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -253,7 +252,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -299,7 +298,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -337,7 +336,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-1", ID: 1},
 				Name:      "test-pool-1",
-				State:     models.LifeCycleStateCreating, // Transient state
+				State:     datamodel.LifeCycleStateCreating, // Transient state
 			},
 		},
 	}
@@ -349,16 +348,16 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	// Account state should be reverted to enabled on failure
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -397,22 +396,22 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-1", ID: 1},
 				Name:      "test-pool-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		},
 	}
 
 	// Mock activities - filter operation fails
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error during filtering"))
 	// Account state should be reverted to enabled on failure
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -469,7 +468,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-1", ID: 1},
 				Name:      "valid-pool",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				VLMConfig: `{"deployment":{"deployment_id":"dep-1"}}`,
 			},
 		},
@@ -477,7 +476,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-2", ID: 2},
 				Name:      "transient-pool",
-				State:     models.LifeCycleStateCreating, // Transient state
+				State:     datamodel.LifeCycleStateCreating, // Transient state
 			},
 		},
 	}
@@ -488,7 +487,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{UUID: "pool-1", ID: 1},
 				Name:      "valid-pool",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				VLMConfig: `{"deployment":{"deployment_id":"dep-1"}}`,
 			},
 		},
@@ -499,7 +498,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(allPoolList, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
@@ -507,12 +506,12 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	// Account state should be reverted to enabled on failure due to transient states
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -600,7 +599,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -637,7 +636,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -683,7 +682,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -758,7 +757,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -839,7 +838,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -908,7 +907,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -994,7 +993,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -1063,7 +1062,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities - account state reversion fails
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
 	sdeResult := &commonparams.StartProjectEventResult{
@@ -1072,13 +1071,13 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(errors.New("failed to revert account state"))
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(errors.New("failed to revert account state"))
 	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -1120,10 +1119,10 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE is already done
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -1132,7 +1131,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1172,17 +1171,17 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil) // Polling succeeds
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1222,18 +1221,18 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("SDE polling failed: operation timeout"))
 	// Account state should be reverted to disabled on SDE failure in ON state workflow
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1285,20 +1284,20 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		FilteredPools: []*datamodel.PoolView{},
 		VSAError:      false,
 	}
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOff,
+		State:          datamodel.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1333,11 +1332,11 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		VSAError:      false,
 	}
 	// First call: set account to DISABLING state
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	// Second call: set account to HYPERSCALER_DISABLED state since no SDE operations
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// SDE activities should NOT be called when CVP_HOST is empty
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Times(0)
@@ -1347,7 +1346,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOff,
+		State:          datamodel.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1380,12 +1379,12 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateDisabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateDisabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	// SDE start operation fails
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to start SDE operation"))
 	// Revert account state due to failure
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE start failed
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -1394,7 +1393,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOff,
+		State:          datamodel.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -1466,7 +1465,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1500,7 +1499,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1535,7 +1534,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
 
 	// Mock activities
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	result := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(false),
@@ -1543,13 +1542,13 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch job details from SDE"))
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1590,7 +1589,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1631,7 +1630,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1677,7 +1676,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1752,7 +1751,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1826,7 +1825,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1879,7 +1878,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -1919,19 +1918,19 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
 
 	// Mock activities - empty pool list
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	sdeResult := &commonparams.StartProjectEventResult{
 		Done: nillable.GetBoolPtr(true), // Set to true so polling is skipped
 		Name: nillable.GetStringPtr("operationID"),
 	}
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2009,7 +2008,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2084,7 +2083,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2168,7 +2167,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2245,7 +2244,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2287,10 +2286,10 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE is already done
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -2299,7 +2298,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2339,17 +2338,17 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil) // Polling succeeds
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2389,18 +2388,18 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("SDE polling failed: operation timeout"))
 	// Account state should be reverted to disabled on SDE failure in ON state workflow
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2447,19 +2446,19 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	}
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2488,9 +2487,9 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 
 	// SDE activities should NOT be called when CVP_HOST is empty
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Times(0)
@@ -2500,7 +2499,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2533,13 +2532,13 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
 
 	// Mock activities - no pools so VSA operations complete immediately
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	// SDE start operation fails
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to start SDE operation"))
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateEnabled).Return(nil)
 	// Add mock for reversion state when SDE fails
-	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, datamodel.AccountStateHyperscalerDisabled).Return(nil)
 
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE start failed
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -2548,7 +2547,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:     "test-location",
 		ProjectNumber:  "123456789",
-		State:          models.StateOn,
+		State:          datamodel.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
 
@@ -2651,7 +2650,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -2760,7 +2759,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOn,
+		State:         datamodel.StateOn,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
@@ -2864,7 +2863,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
@@ -2962,7 +2961,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	params := &commonparams.StartProjectEventParams{
 		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
-		State:         models.StateOff,
+		State:         datamodel.StateOff,
 	}
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 

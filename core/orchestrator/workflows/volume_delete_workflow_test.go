@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -70,7 +69,7 @@ func (s *VolumeDeleteTestSuite) SetupTest() {
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 }
 
@@ -217,7 +216,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WhenJobInErrorState() 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateERROR),
+		State:     string(datamodel.JobsStateERROR),
 	}, nil).Maybe()
 
 	// Execute workflow
@@ -322,7 +321,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ string, status string, _ int, _ string) error {
 			jobStatusUpdates = append(jobStatusUpdates, status)
-			if status == string(models.JobsStateERROR) {
+			if status == string(datamodel.JobsStateERROR) {
 				return errors.New("failed updating job")
 			}
 			return nil
@@ -381,7 +380,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
-	assert.Contains(s.T(), jobStatusUpdates, string(models.JobsStateERROR))
+	assert.Contains(s.T(), jobStatusUpdates, string(datamodel.JobsStateERROR))
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_FirstUpdateJobFails() {
@@ -668,7 +667,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ string, status string, _ int, _ string) error {
 			jobStatusUpdates = append(jobStatusUpdates, status)
-			if status == string(models.JobsStateERROR) {
+			if status == string(datamodel.JobsStateERROR) {
 				return errors.New("failed updating job")
 			}
 			return nil
@@ -739,7 +738,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
-	assert.Contains(s.T(), jobStatusUpdates, string(models.JobsStateERROR))
+	assert.Contains(s.T(), jobStatusUpdates, string(datamodel.JobsStateERROR))
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WithExportPolicy() {
@@ -1672,13 +1671,13 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobStatusDoneErr
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state (successful completion)
 	expectedError := errors.New("failed to update job status to DONE")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails == ""
+		return job.State == string(datamodel.JobsStateDONE) && job.ErrorDetails == ""
 	})).Return(expectedError)
 
 	// Execute workflow
@@ -1726,13 +1725,13 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobStatusErrorDe
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(nil)
 
 	// Mock UpdateJobStatus to fail for DONE state with error details
 	errorDetailsUpdateError := errors.New("failed to update job status with error details")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
+		return job.State == string(datamodel.JobsStateERROR) && job.ErrorDetails != ""
 	})).Return(errorDetailsUpdateError)
 
 	// Execute workflow
@@ -2126,14 +2125,14 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPr
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, wrappedError)
 	// Mock UpdateVolumeStateInDB to succeed when restoring volume state (lines 201-203)
 	// Use Maybe() since the call might not happen if error extraction fails
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details").Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", datamodel.LifeCycleStateREADY, "ready-details").Return(nil).Maybe()
 	// Also mock the error state update in case the error is not recognized (should not be called)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
 
 	// Execute workflow with volume that has State and StateDetails set
 	volume := &datamodel.Volume{
 		BaseModel:    datamodel.BaseModel{UUID: "volume-uuid"},
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		StateDetails: "ready-details",
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -2158,8 +2157,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPr
 
 	// Verify UpdateVolumeStateInDB was called with volume's previous state (not error state)
 	// Check that it was called with READY state (the else branch) and not ERROR state (the if branch)
-	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details")
-	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", datamodel.LifeCycleStateREADY, "ready-details")
+	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails)
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPreviousState_Fails_WhenErrDeleteVolumeWhenInSplitState() {
@@ -2185,14 +2184,14 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPr
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, wrappedError)
 	// Mock UpdateVolumeStateInDB to fail when restoring volume state (lines 201-203)
 	// Use Maybe() since the call might not happen if error extraction fails
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details").Return(errors.New("failed to restore volume state to previous state")).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", datamodel.LifeCycleStateREADY, "ready-details").Return(errors.New("failed to restore volume state to previous state")).Maybe()
 	// Also mock the error state update in case the error is not recognized (should not be called)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
 
 	// Execute workflow with volume that has State and StateDetails set
 	volume := &datamodel.Volume{
 		BaseModel:    datamodel.BaseModel{UUID: "volume-uuid"},
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		StateDetails: "ready-details",
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -2218,8 +2217,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPr
 	// Verify UpdateVolumeStateInDB was called with volume's previous state (not error state)
 	// Even though it fails, the call should still be made (line 201)
 	// Check that it was called with READY state (the else branch) and not ERROR state (the if branch)
-	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details")
-	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", datamodel.LifeCycleStateREADY, "ready-details")
+	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", datamodel.LifeCycleStateError, datamodel.LifeCycleStateDeletionErrorDetails)
 }
 
 // Test_DeleteVolumeWorkflow_LargeVolumeCreateJobType tests line 202: setting createJobType to JobTypeCreateLargeVolume for large volumes
@@ -2272,7 +2271,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_LargeVolumeCreateJobTy
 			Name: "test_account",
 		},
 		Name:  "test_volume",
-		State: models.LifeCycleStateCreating,
+		State: datamodel.LifeCycleStateCreating,
 		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
 			LargeCapacity: true,
 		},
@@ -2286,7 +2285,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_LargeVolumeCreateJobTy
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	// Verify GetCreateJobByResourceUUID was called with JobTypeCreateLargeVolume (line 202)
-	s.env.AssertCalled(s.T(), "GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, string(models.JobTypeCreateLargeVolume))
+	s.env.AssertCalled(s.T(), "GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, string(datamodel.JobTypeCreateLargeVolume))
 }
 
 // Test_DeleteVolumeWorkflow_CancellationHandlingError tests lines 221, 223: HandleCancellationInDeleteWorkflow call and error logging
@@ -2340,7 +2339,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_CancellationHandlingEr
 			Name: "test_account",
 		},
 		Name:  "test_volume",
-		State: models.LifeCycleStateCreating,
+		State: datamodel.LifeCycleStateCreating,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "test-external-uuid",
 		},
@@ -2649,8 +2648,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdatesActiveDirectory
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateREADY,
-		models.LifeCycleStateReadyDetails).Return(nil).Once()
+		datamodel.LifeCycleStateREADY,
+		datamodel.LifeCycleStateReadyDetails).Return(nil).Once()
 
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -2892,8 +2891,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateActiveDirectoryS
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateREADY,
-		models.LifeCycleStateReadyDetails).Return(errors.New("failed to update AD state"))
+		datamodel.LifeCycleStateREADY,
+		datamodel.LifeCycleStateReadyDetails).Return(errors.New("failed to update AD state"))
 
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -2976,8 +2975,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NFSWithLDAP_UpdatesAct
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateREADY,
-		models.LifeCycleStateReadyDetails).Return(nil).Once()
+		datamodel.LifeCycleStateREADY,
+		datamodel.LifeCycleStateReadyDetails).Return(nil).Once()
 
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -3194,8 +3193,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NilPoolAttributes_SMBV
 	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
 		mock.Anything,
 		"ad-uuid",
-		models.LifeCycleStateREADY,
-		models.LifeCycleStateReadyDetails).Return(nil).Once()
+		datamodel.LifeCycleStateREADY,
+		datamodel.LifeCycleStateReadyDetails).Return(nil).Once()
 
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()

@@ -473,7 +473,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 				},
 				Name:     "single-replication",
 				VolumeID: volumeID,
-				State:    models.LifeCycleStateAvailable,
+				State:    datamodel.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:        "us-central1-a",
 					DestinationLocation:   "us-east1-a",
@@ -492,7 +492,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, "single-replication-uuid", result[0].UUID)
 		assert.Equal(t, volumeID, result[0].VolumeID)
-		assert.Equal(t, models.LifeCycleStateAvailable, result[0].State)
+		assert.Equal(t, datamodel.LifeCycleStateAvailable, result[0].State)
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("GetVolumeReplication_ZeroVolumeID_Success", func(t *testing.T) {
@@ -2167,8 +2167,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				UUID: "quota-rule-uuid",
 			},
 			Name:         "test-quota-rule",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		// Mock GetQuotaRuleByUUID to return current state (CREATING)
@@ -2177,16 +2177,16 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				UUID: "quota-rule-uuid",
 			},
 			Name:         "test-quota-rule",
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(0)).Return(currentQuotaRule, nil)
 
 		// Mock UpdateQuotaRule with the updated state (transitions to READY)
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == "quota-rule-uuid" &&
-				qr.State == models.LifeCycleStateREADY &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails
+				qr.State == datamodel.LifeCycleStateREADY &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails
 		})).Return(currentQuotaRule, nil)
 
 		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
@@ -2211,8 +2211,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				UUID: "quota-rule-uuid",
 			},
 			Name:         "test-quota-rule",
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(0)).Return(currentQuotaRule, nil)
 
@@ -2236,8 +2236,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		expectedError := errors.New("failed to fetch quota rule")
@@ -2259,8 +2259,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateError,
-			StateDetails: models.LifeCycleStateCreationErrorDetails,
+			State:        datamodel.LifeCycleStateError,
+			StateDetails: datamodel.LifeCycleStateCreationErrorDetails,
 		}
 
 		currentQuotaRule := &datamodel.QuotaRule{
@@ -2269,8 +2269,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
@@ -2281,13 +2281,13 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateError,
-			StateDetails: models.LifeCycleStateCreationErrorDetails,
+			State:        datamodel.LifeCycleStateError,
+			StateDetails: datamodel.LifeCycleStateCreationErrorDetails,
 		}
 
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateError &&
-				qr.StateDetails == models.LifeCycleStateCreationErrorDetails
+			return qr.State == datamodel.LifeCycleStateError &&
+				qr.StateDetails == datamodel.LifeCycleStateCreationErrorDetails
 		})).Return(updatedQuotaRule, nil)
 
 		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
@@ -2307,8 +2307,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			AccountID:      int64(1),
 			DiskLimitInKib: 2097152,
 			Description:    "updated description",
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateAvailableDetails,
+			State:          datamodel.LifeCycleStateAvailable,
+			StateDetails:   datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		currentQuotaRule := &datamodel.QuotaRule{
@@ -2319,8 +2319,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			AccountID:      int64(1),
 			DiskLimitInKib: 1048576,
 			Description:    "old description",
-			State:          models.LifeCycleStateUpdating,
-			StateDetails:   models.LifeCycleStateUpdatingDetails,
+			State:          datamodel.LifeCycleStateUpdating,
+			StateDetails:   datamodel.LifeCycleStateUpdatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
@@ -2333,13 +2333,13 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			AccountID:      int64(1),
 			DiskLimitInKib: 2097152,
 			Description:    "updated description",
-			State:          models.LifeCycleStateREADY,
-			StateDetails:   models.LifeCycleStateReadyDetails,
+			State:          datamodel.LifeCycleStateREADY,
+			StateDetails:   datamodel.LifeCycleStateReadyDetails,
 		}
 
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateREADY &&
-				qr.StateDetails == models.LifeCycleStateReadyDetails &&
+			return qr.State == datamodel.LifeCycleStateREADY &&
+				qr.StateDetails == datamodel.LifeCycleStateReadyDetails &&
 				qr.DiskLimitInKib == 2097152 &&
 				qr.Description == "updated description"
 		})).Return(updatedQuotaRule, nil)
@@ -2359,8 +2359,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		currentQuotaRule := &datamodel.QuotaRule{
@@ -2369,8 +2369,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
@@ -2382,13 +2382,13 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}
 
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateDeleted &&
-				qr.StateDetails == models.LifeCycleStateDeletedDetails &&
+			return qr.State == datamodel.LifeCycleStateDeleted &&
+				qr.StateDetails == datamodel.LifeCycleStateDeletedDetails &&
 				qr.DeletedAt != nil &&
 				qr.DeletedAt.Valid == true
 		})).Return(updatedQuotaRule, nil)
@@ -2408,8 +2408,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		currentQuotaRule := &datamodel.QuotaRule{
@@ -2418,8 +2418,8 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
@@ -2431,13 +2431,13 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			},
 			Name:         "test-quota-rule",
 			AccountID:    int64(1),
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}
 
 		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateDeleted &&
-				qr.StateDetails == models.LifeCycleStateDeletedDetails &&
+			return qr.State == datamodel.LifeCycleStateDeleted &&
+				qr.StateDetails == datamodel.LifeCycleStateDeletedDetails &&
 				qr.DeletedAt != nil &&
 				qr.DeletedAt.Valid == true
 		})).Return(updatedQuotaRule, nil)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,9 +22,9 @@ func NewSnapshotHandler() *SnapshotHandler {
 }
 
 // JobTypes enumerates the job types supported by the snapshot handler.
-func (h *SnapshotHandler) JobTypes() []models.JobType {
-	return []models.JobType{
-		models.JobTypeCreateSnapshot,
+func (h *SnapshotHandler) JobTypes() []datamodel.JobType {
+	return []datamodel.JobType{
+		datamodel.JobTypeCreateSnapshot,
 	}
 }
 

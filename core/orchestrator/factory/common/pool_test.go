@@ -75,7 +75,7 @@ func TestCreatePoolJob(t *testing.T) {
 
 			assert.NotNil(t, job)
 			assert.Equal(t, tt.expectedType, job.Type)
-			assert.Equal(t, string(models.JobsStateNEW), job.State)
+			assert.Equal(t, string(datamodel.JobsStateNEW), job.State)
 			assert.Equal(t, tt.params.Name, job.ResourceName)
 			assert.Equal(t, sql.NullInt64{Int64: tt.account.ID, Valid: true}, job.AccountID)
 			assert.Equal(t, tt.correlationID, job.CorrelationID)
@@ -118,7 +118,7 @@ func TestHandleCreatePoolError(t *testing.T) {
 
 			mockStorage := database.NewMockStorage(t)
 			mockStorage.EXPECT().
-				UpdateJob(ctx, tt.job.UUID, string(models.JobsStateERROR), 0, tt.err.Error()).
+				UpdateJob(ctx, tt.job.UUID, string(datamodel.JobsStateERROR), 0, tt.err.Error()).
 				Return(tt.updateJobError)
 
 			HandleCreatePoolError(ctx, mockStorage, tt.job, tt.err)
@@ -205,7 +205,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 					Name:             "test-pool",
 					Description:      "test description",
 					SizeInBytes:      1024 * 1024 * 1024, // 1 GiB
-					State:            models.LifeCycleStateAvailable,
+					State:            datamodel.LifeCycleStateAvailable,
 					StateDetails:     "Available",
 					AllowAutoTiering: true,
 					Network:          "test-network",
@@ -232,7 +232,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 				Iops:         512,
 			},
 			accountName:   "test-account",
-			expectedState: models.LifeCycleStateAvailable,
+			expectedState: datamodel.LifeCycleStateAvailable,
 		},
 		{
 			name: "Pool with auto tiering config",
@@ -246,7 +246,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 					},
 					Name:        "test-pool-2",
 					SizeInBytes: 2048 * 1024 * 1024,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 					PoolAttributes: &datamodel.PoolAttributes{
 						ThroughputMibps: 128,
 						Iops:            2048,
@@ -260,7 +260,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 				},
 			},
 			accountName:   "test-account-2",
-			expectedState: models.LifeCycleStateAvailable,
+			expectedState: datamodel.LifeCycleStateAvailable,
 		},
 		{
 			name: "Pool with KMS config",
@@ -274,7 +274,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 					},
 					Name:        "test-pool-3",
 					SizeInBytes: 1024 * 1024 * 1024,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 					PoolAttributes: &datamodel.PoolAttributes{
 						ThroughputMibps: 64,
 						Iops:            1024,
@@ -288,7 +288,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 						},
 						Name:              "test-kms",
 						Description:       "test kms description",
-						State:             models.LifeCycleStateInUse,
+						State:             datamodel.LifeCycleStateInUse,
 						StateDetails:      "In use",
 						KeyRing:           "test-keyring",
 						KeyRingLocation:   "us-central1",
@@ -301,7 +301,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 				},
 			},
 			accountName:   "test-account-3",
-			expectedState: models.LifeCycleStateAvailable,
+			expectedState: datamodel.LifeCycleStateAvailable,
 		},
 		{
 			name: "Pool with Active Directory",
@@ -315,7 +315,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 					},
 					Name:        "test-pool-4",
 					SizeInBytes: 1024 * 1024 * 1024,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 					PoolAttributes: &datamodel.PoolAttributes{
 						ThroughputMibps: 64,
 						Iops:            1024,
@@ -329,7 +329,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 				},
 			},
 			accountName:   "test-account-4",
-			expectedState: models.LifeCycleStateAvailable,
+			expectedState: datamodel.LifeCycleStateAvailable,
 		},
 		{
 			name: "Pool with nil labels",
@@ -343,7 +343,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 					},
 					Name:        "test-pool-5",
 					SizeInBytes: 1024 * 1024 * 1024,
-					State:       models.LifeCycleStateAvailable,
+					State:       datamodel.LifeCycleStateAvailable,
 					PoolAttributes: &datamodel.PoolAttributes{
 						ThroughputMibps: 64,
 						Iops:            1024,
@@ -352,7 +352,7 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 				},
 			},
 			accountName:   "test-account-5",
-			expectedState: models.LifeCycleStateAvailable,
+			expectedState: datamodel.LifeCycleStateAvailable,
 		},
 	}
 

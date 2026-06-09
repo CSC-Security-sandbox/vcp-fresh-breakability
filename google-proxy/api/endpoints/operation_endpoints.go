@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -53,7 +54,7 @@ func describeOperationSurfaceJobErrorDetails(job *models.Job) bool {
 		return true
 	}
 	// ROTATE_CMEK_BACKUPS only — not all ErrGCPResourceProvisionError (3003) jobs.
-	return job.Type == models.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0
+	return job.Type == datamodel.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0
 }
 
 func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserver.V1betaDescribeOperationParams) (gcpgenserver.V1betaDescribeOperationRes, error) {
@@ -85,7 +86,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 	if job != nil {
 		helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, job)
 		switch job.State {
-		case models.JobsStateERROR:
+		case datamodel.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 			detailedErrorMessage := errMsg.Message
 			if describeOperationSurfaceJobErrorDetails(job) {
@@ -94,7 +95,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			errorCode := float64(*errMsg.HttpCode)
 			// CMEK backup rotation: KMS key mismatch is a failed precondition / bad
 			// primaryKeyVersion vs bucket state — surface as 400, not generic 500.
-			if job.Type == models.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0 &&
+			if job.Type == datamodel.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0 &&
 				strings.Contains(detailedErrorMessage, cmekRotationKmsKeyMismatchMarker) {
 				errorCode = float64(400)
 			}
@@ -109,24 +110,24 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 					Set: true,
 				},
 			}, nil
-		case models.JobsStateNEW:
+		case datamodel.JobsStateNEW:
 			return &gcpgenserver.OperationV1beta{
 				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 				Done:     gcpgenserver.NewOptBool(jobNotFinished),
 				Response: encodeOperationV1Beta(jobNewStateDetails),
 			}, nil
-		case models.JobsStatePROCESSING:
+		case datamodel.JobsStatePROCESSING:
 			return &gcpgenserver.OperationV1beta{
 				Done:     gcpgenserver.NewOptBool(jobNotFinished),
 				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 				Response: encodeOperationV1Beta(jobInProgressDetails),
 			}, nil
-		case models.JobsStateDONE:
+		case datamodel.JobsStateDONE:
 			// Check for partial quota rule failures in CRR operations
 			errorDetailsStr := string(job.ErrorDetails)
 
 			// Handle ResumeVolumeReplication quota rule failure
-			if job.Type == models.JobTypeResumeVolumeReplication {
+			if job.Type == datamodel.JobTypeResumeVolumeReplication {
 				if strings.Contains(errorDetailsStr, resumeQuotaRuleError) {
 					metadataValue, err := json.Marshal(errorDetailsStr)
 					if err != nil {
@@ -148,7 +149,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			}
 
 			// Handle ReverseResumeVolumeReplication quota rule failure
-			if job.Type == models.JobTypeReverseResumeVolumeReplication {
+			if job.Type == datamodel.JobTypeReverseResumeVolumeReplication {
 				if strings.Contains(errorDetailsStr, resumeQuotaRuleError) {
 					metadataValue, err := json.Marshal(errorDetailsStr)
 					if err != nil {
@@ -170,7 +171,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			}
 
 			// Handle StopVolumeReplication (main) quota rule failure
-			if job.Type == models.JobTypeStopVolumeReplication {
+			if job.Type == datamodel.JobTypeStopVolumeReplication {
 				if strings.Contains(errorDetailsStr, stopQuotaRuleError) {
 					metadataValue, err := json.Marshal(errorDetailsStr)
 					if err != nil {
@@ -197,7 +198,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 			}, nil
 
-		case models.JobsStateWaitForTemporal:
+		case datamodel.JobsStateWaitForTemporal:
 			return &gcpgenserver.OperationV1beta{
 				Done:     gcpgenserver.NewOptBool(jobNotFinished),
 				Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
@@ -357,7 +358,7 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 	}
 
 	switch job.State {
-	case models.JobsStateERROR:
+	case datamodel.JobsStateERROR:
 		errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 		detailedErrorMessage := errMsg.Message
 		if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
@@ -375,20 +376,20 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 		}
 		return baseOperation, nil
 
-	case models.JobsStateNEW:
+	case datamodel.JobsStateNEW:
 		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
 		baseOperation.Response = encodeOperationV1Beta(jobNewStateDetails)
 		return baseOperation, nil
 
-	case models.JobsStatePROCESSING:
+	case datamodel.JobsStatePROCESSING:
 		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
 		baseOperation.Response = encodeOperationV1Beta(jobInProgressDetails)
 		return baseOperation, nil
 
-	case models.JobsStateDONE:
+	case datamodel.JobsStateDONE:
 		// Handle StopVolumeReplicationInternal quota rule failure - return as Error so caller treats it as failure
 		errorDetailsStr := string(job.ErrorDetails)
-		if job.Type == models.JobTypeStopVolumeReplicationInternal {
+		if job.Type == datamodel.JobTypeStopVolumeReplicationInternal {
 			if strings.Contains(errorDetailsStr, stopQuotaRuleError) {
 				baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
 				baseOperation.Error = gcpgenserver.OptStatusV1Beta{
@@ -404,7 +405,7 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 		baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
 		return baseOperation, nil
 
-	case models.JobsStateWaitForTemporal:
+	case datamodel.JobsStateWaitForTemporal:
 		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
 		baseOperation.Response = encodeOperationV1Beta(jobNewStateDetails)
 		return baseOperation, nil

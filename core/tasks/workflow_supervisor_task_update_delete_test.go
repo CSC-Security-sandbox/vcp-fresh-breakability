@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	supervisorhandler "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks/supervisor-handler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -32,15 +31,15 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForUpdateJob(t *testing.
 		temporal:      temporal,
 		correlationID: "corr-id",
 		handlers: map[string]supervisorhandler.Handler{
-			string(models.JobTypeUpdatePool): handler,
+			string(datamodel.JobTypeUpdatePool): handler,
 		},
 	}
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-update-pool"},
 		WorkflowID: "wf-update-pool",
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStateNEW),
 		TrackingID: 100,
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "pool-uuid",
@@ -50,7 +49,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForUpdateJob(t *testing.
 	detail := supervisorhandler.WorkflowTimeoutDetail
 	expectJobLock(t, storage, job)
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, job.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil)
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, detail).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, detail).Return(nil)
 
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return(&workflowservice.DescribeWorkflowExecutionResponse{
 		WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT},
@@ -59,12 +58,12 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForUpdateJob(t *testing.
 	// Mock pool update handler
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
 
-	runner.evaluateJob(context.Background(), job, handler, models.JobsStateNEW)
+	runner.evaluateJob(context.Background(), job, handler, datamodel.JobsStateNEW)
 
 	storage.AssertExpectations(t)
 }
@@ -79,15 +78,15 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForDeleteJob(t *testing.
 		temporal:      temporal,
 		correlationID: "corr-id",
 		handlers: map[string]supervisorhandler.Handler{
-			string(models.JobTypeDeletePool): handler,
+			string(datamodel.JobTypeDeletePool): handler,
 		},
 	}
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-delete-pool"},
 		WorkflowID: "wf-delete-pool",
-		Type:       string(models.JobTypeDeletePool),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeDeletePool),
+		State:      string(datamodel.JobsStateNEW),
 		TrackingID: 101,
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "pool-uuid",
@@ -97,7 +96,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForDeleteJob(t *testing.
 	detail := supervisorhandler.WorkflowTimeoutDetail
 	expectJobLock(t, storage, job)
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, job.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil)
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, detail).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, detail).Return(nil)
 
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return(&workflowservice.DescribeWorkflowExecutionResponse{
 		WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT},
@@ -106,12 +105,12 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutForDeleteJob(t *testing.
 	// Mock pool delete handler
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
 
-	runner.evaluateJob(context.Background(), job, handler, models.JobsStateNEW)
+	runner.evaluateJob(context.Background(), job, handler, datamodel.JobsStateNEW)
 
 	storage.AssertExpectations(t)
 }
@@ -126,28 +125,28 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobNilResponseForUpdateDelete(t *te
 		temporal:      temporal,
 		correlationID: "corr-id",
 		handlers: map[string]supervisorhandler.Handler{
-			string(models.JobTypeUpdatePool): handler,
+			string(datamodel.JobTypeUpdatePool): handler,
 		},
 	}
 
 	job := &datamodel.Job{
 		BaseModel:  datamodel.BaseModel{UUID: "job-10"},
 		WorkflowID: "wf-10",
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStateNEW),
 	}
 
 	// Nil response
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), nil)
 
-	runner.evaluateJob(context.Background(), job, handler, models.JobsStateNEW)
+	runner.evaluateJob(context.Background(), job, handler, datamodel.JobsStateNEW)
 
 	storage.AssertNotCalled(t, "UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestWorkflowSupervisorTaskRunnerCleanupJobNoTemporalClient(t *testing.T) {
 	storage := database.NewMockStorage(t)
-	handler := newTestHandler(models.JobTypeCreatePool)
+	handler := newTestHandler(datamodel.JobTypeCreatePool)
 
 	runner := &workflowSupervisorTaskRunner{
 		storage:  storage,
@@ -160,9 +159,9 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobNoTemporalClient(t *testing.T) {
 		TrackingID: 50,
 	}
 
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 
-	runner.cleanupJob(context.Background(), job, handler, supervisorhandler.EventTimeout, models.JobsStateNEW, util.GetLogger(context.Background()))
+	runner.cleanupJob(context.Background(), job, handler, supervisorhandler.EventTimeout, datamodel.JobsStateNEW, util.GetLogger(context.Background()))
 
 	require.Len(t, handler.events, 1)
 	require.Equal(t, supervisorhandler.EventTimeout, handler.events[0])
@@ -171,7 +170,7 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobNoTemporalClient(t *testing.T) {
 func TestWorkflowSupervisorTaskRunnerCleanupJobEmptyWorkflowID(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	temporal := workflowEngine.NewMockTemporalTestClient(t)
-	handler := newTestHandler(models.JobTypeCreatePool)
+	handler := newTestHandler(datamodel.JobTypeCreatePool)
 
 	runner := &workflowSupervisorTaskRunner{
 		storage:  storage,
@@ -184,9 +183,9 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobEmptyWorkflowID(t *testing.T) {
 		TrackingID: 51,
 	}
 
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 
-	runner.cleanupJob(context.Background(), job, handler, supervisorhandler.EventTimeout, models.JobsStateNEW, util.GetLogger(context.Background()))
+	runner.cleanupJob(context.Background(), job, handler, supervisorhandler.EventTimeout, datamodel.JobsStateNEW, util.GetLogger(context.Background()))
 
 	require.Len(t, handler.events, 1)
 	temporal.AssertNotCalled(t, "TerminateWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -201,7 +200,7 @@ func TestWorkflowSupervisorTaskRunnerMarkJobAsError(t *testing.T) {
 		TrackingID: 52,
 	}
 
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 
 	err := runner.markJobAsError(context.Background(), job)
 	require.NoError(t, err)
@@ -217,7 +216,7 @@ func TestWorkflowSupervisorTaskRunnerMarkJobAsErrorFailure(t *testing.T) {
 	}
 
 	expectedErr := errors.New("update failed")
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(expectedErr)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(expectedErr)
 
 	err := runner.markJobAsError(context.Background(), job)
 	require.Error(t, err)
@@ -248,8 +247,8 @@ func TestWorkflowSupervisorTaskRunnerScanWithUpdateDeleteJobTypes(t *testing.T) 
 			CreatedAt: time.Now().Add(-10 * time.Minute),
 		},
 		WorkflowID: "update-wf-id",
-		Type:       string(models.JobTypeUpdatePool),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeUpdatePool),
+		State:      string(datamodel.JobsStateNEW),
 		TrackingID: 1,
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "pool-uuid",
@@ -263,8 +262,8 @@ func TestWorkflowSupervisorTaskRunnerScanWithUpdateDeleteJobTypes(t *testing.T) 
 			CreatedAt: time.Now().Add(-10 * time.Minute),
 		},
 		WorkflowID: "delete-wf-id",
-		Type:       string(models.JobTypeDeletePool),
-		State:      string(models.JobsStateNEW),
+		Type:       string(datamodel.JobTypeDeletePool),
+		State:      string(datamodel.JobsStateNEW),
 		TrackingID: 2,
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "pool-uuid",
@@ -279,10 +278,10 @@ func TestWorkflowSupervisorTaskRunnerScanWithUpdateDeleteJobTypes(t *testing.T) 
 					hasUpdate := false
 					hasDelete := false
 					for _, t := range types {
-						if t == string(models.JobTypeUpdatePool) || t == string(models.JobTypeUpdateLargePool) {
+						if t == string(datamodel.JobTypeUpdatePool) || t == string(datamodel.JobTypeUpdateLargePool) {
 							hasUpdate = true
 						}
-						if t == string(models.JobTypeDeletePool) || t == string(models.JobTypeDeleteLargePool) {
+						if t == string(datamodel.JobTypeDeletePool) || t == string(datamodel.JobTypeDeleteLargePool) {
 							hasDelete = true
 						}
 					}
@@ -321,13 +320,13 @@ func TestWorkflowSupervisorTaskRunnerScanWithUpdateDeleteJobTypes(t *testing.T) 
 		return fn(tx)
 	}).Once()
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, updateJob.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
-	storage.EXPECT().UpdateJob(mock.Anything, updateJob.UUID, string(models.JobsStateERROR), updateJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, updateJob.UUID, string(datamodel.JobsStateERROR), updateJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateUpdating,
+		State:     datamodel.LifeCycleStateUpdating,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool, nil).Once()
 
 	// Mock describe for delete job
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, deleteJob.WorkflowID, "").Return(&workflowservice.DescribeWorkflowExecutionResponse{
@@ -357,18 +356,18 @@ func TestWorkflowSupervisorTaskRunnerScanWithUpdateDeleteJobTypes(t *testing.T) 
 		return fn(tx)
 	}).Once()
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, deleteJob.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
-	storage.EXPECT().UpdateJob(mock.Anything, deleteJob.UUID, string(models.JobsStateERROR), deleteJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, deleteJob.UUID, string(datamodel.JobsStateERROR), deleteJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
 	pool2 := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		State:     models.LifeCycleStateDeleting,
+		State:     datamodel.LifeCycleStateDeleting,
 	}
 	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool2, nil).Once()
-	storage.EXPECT().UpdatePoolState(mock.Anything, pool2, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(pool2, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool2, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateAvailableDetails).Return(pool2, nil).Once()
 
 	// Mock for PROCESSING state jobs scan (no jobs found)
 	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.MatchedBy(func(filter dbutils.Filter) bool {
 		for _, condition := range filter.Conditions {
-			if condition.Field == "state" && condition.Op == "=" && condition.Value == string(models.JobsStatePROCESSING) {
+			if condition.Field == "state" && condition.Op == "=" && condition.Value == string(datamodel.JobsStatePROCESSING) {
 				return true
 			}
 		}

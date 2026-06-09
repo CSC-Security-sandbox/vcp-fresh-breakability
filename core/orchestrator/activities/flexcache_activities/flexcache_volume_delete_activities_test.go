@@ -33,11 +33,11 @@ func TestFlexCacheVolumeDeleteActivity_RefreshDBVolumeForDeleteActivity(t *testi
 
 		staleVol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-refresh-uuid"},
-			State:     models.LifeCycleStatePreparing,
+			State:     datamodel.LifeCycleStatePreparing,
 		}
 		refreshedVol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-refresh-uuid"},
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		result := &flexcache.DeleteFlexCacheResult{DBVolume: staleVol}
 
@@ -775,15 +775,15 @@ func TestFlexCacheVolumeDeleteActivity_UpdateClusterPeeringRowStateDeletedInDBAc
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mockStorage.
 			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
-				return r == row && r.State == models.CvpClusterPeeringStatusDELETED
+				return r == row && r.State == datamodel.CvpClusterPeeringStatusDELETED
 			})).
 			Return(nil).Once()
-		logger.EXPECT().Infof("Cluster peering row with UUID %s updated to state %s", row.UUID, models.CvpClusterPeeringStatusDELETED)
+		logger.EXPECT().Infof("Cluster peering row with UUID %s updated to state %s", row.UUID, datamodel.CvpClusterPeeringStatusDELETED)
 
 		updated, err := activity.UpdateClusterPeeringRowStateDeletedInDBActivity(ctx, result)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updated)
-		assert.Equal(tt, models.CvpClusterPeeringStatusDELETED, updated.ClusterPeeringRow.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusDELETED, updated.ClusterPeeringRow.State)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -798,7 +798,7 @@ func TestFlexCacheVolumeDeleteActivity_UpdateClusterPeeringRowStateDeletedInDBAc
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mockStorage.
 			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
-				return r == row && r.State == models.CvpClusterPeeringStatusDELETED
+				return r == row && r.State == datamodel.CvpClusterPeeringStatusDELETED
 			})).
 			Return(assert.AnError).Once()
 		logger.EXPECT().Errorf("Failed to update cluster peering row in DB: %v", assert.AnError)
@@ -1002,7 +1002,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 		job := &datamodel.Job{WorkflowID: "workflow-id"}
@@ -1012,7 +1012,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(nil)
 		mockStorage.EXPECT().CancelRunningJobsForResource(ctx, vol.UUID).Return(nil)
 
@@ -1032,7 +1032,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 		job := &datamodel.Job{WorkflowID: "workflow-id"}
@@ -1042,7 +1042,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(assert.AnError)
 
 		logger.EXPECT().Errorf("failed to cancel create workflow %s for volume %s: %v", job.WorkflowID, vol.Name, assert.AnError)
@@ -1061,7 +1061,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 		job := &datamodel.Job{WorkflowID: "workflow-id"}
@@ -1071,7 +1071,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(serviceerror.NewNotFound("workflow missing"))
 
 		logger.EXPECT().Debugf("create workflow not found in Temporal (workflowID=%s volume=%s); clearing running jobs for resource",
@@ -1094,7 +1094,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStateAvailable,
+			State:           datamodel.LifeCycleStateAvailable,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 
@@ -1116,7 +1116,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
-			State:     models.LifeCycleStatePreparing,
+			State:     datamodel.LifeCycleStatePreparing,
 		}
 
 		mm := newMonkeyMockAndPatch(tt)
@@ -1137,13 +1137,13 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 		objectID := "job-id"
 		notFoundErr := customerrors.NewNotFoundErr("Job", &objectID)
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
 
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -1163,11 +1163,11 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, assert.AnError)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, assert.AnError)
 
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -1187,7 +1187,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:            "test_volume",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "peer-cluster"},
 		}
 		job := &datamodel.Job{WorkflowID: "workflow-id"}
@@ -1197,7 +1197,7 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(nil)
 		mockStorage.EXPECT().CancelRunningJobsForResource(ctx, vol.UUID).Return(assert.AnError)
 
@@ -1229,12 +1229,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		objectID := "job"
 		notFoundErr := customerrors.NewNotFoundErr("Job", &objectID)
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
 
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -1253,12 +1253,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1280,12 +1280,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1309,12 +1309,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1338,7 +1338,7 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1358,10 +1358,10 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, errors.New("db down"))
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(nil, errors.New("db down"))
 
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -1380,12 +1380,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1406,12 +1406,12 @@ func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalAct
 		vol := &datamodel.Volume{
 			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
 			Name:            "vol1",
-			State:           models.LifeCycleStatePreparing,
+			State:           datamodel.LifeCycleStatePreparing,
 			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
 		}
 		job := &datamodel.Job{WorkflowID: "wf-1"}
 
-		mockStorage.EXPECT().GetJobByResourceUUID(cancelCtx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(cancelCtx, vol.UUID, string(datamodel.JobTypeFlexCacheCreateVolume)).Return(job, nil)
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mm.EXPECT().utilGetLogger(cancelCtx).Return(logger)

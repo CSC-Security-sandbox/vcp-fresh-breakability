@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -74,7 +73,7 @@ func TestCmekHandlerHandleSuccess(t *testing.T) {
 	}
 
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
-	storage.EXPECT().DeleteKmsConfig(mock.Anything, "kms-uuid", models.LifeCycleStateError, WorkflowTimeoutDetail).Return(kmsConfig, nil).Once()
+	storage.EXPECT().DeleteKmsConfig(mock.Anything, "kms-uuid", datamodel.LifeCycleStateError, WorkflowTimeoutDetail).Return(kmsConfig, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -149,7 +148,7 @@ func TestCmekHandlerHandleInvokesSdeCleanupWhenAttributesPresent(t *testing.T) {
 	}
 
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
-	storage.EXPECT().DeleteKmsConfig(mock.Anything, "kms-uuid", models.LifeCycleStateError, WorkflowTimeoutDetail).Return(kmsConfig, nil).Once()
+	storage.EXPECT().DeleteKmsConfig(mock.Anything, "kms-uuid", datamodel.LifeCycleStateError, WorkflowTimeoutDetail).Return(kmsConfig, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -204,7 +203,7 @@ func TestCmekHandlerHandleSdeKmsCreateDeletesMatchingConfig(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
-		Type:          string(models.JobTypeSdeKmsCreate),
+		Type:          string(datamodel.JobTypeSdeKmsCreate),
 		CorrelationID: "corr-id",
 		ResourceName:  "resource-1",
 		JobAttributes: &datamodel.JobAttributes{
@@ -259,7 +258,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenNoMatch(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource-1",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{
@@ -289,7 +288,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenResourceNameMissing(t *testing.T)
 	}
 
 	job := &datamodel.Job{
-		Type: string(models.JobTypeSdeKmsCreate),
+		Type: string(datamodel.JobTypeSdeKmsCreate),
 	}
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
@@ -309,7 +308,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenPayloadMissing(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource",
 	}
 
@@ -330,7 +329,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenKeyMissing(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{
@@ -356,7 +355,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenProjectOrLocationMissing(t *testi
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{
@@ -393,7 +392,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenTokenFails(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{
@@ -437,7 +436,7 @@ func TestCmekHandlerHandleSdeKmsCreateSkipsWhenListFails(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{
@@ -504,7 +503,7 @@ func TestCmekHandlerHandleSdeKmsCreateHandlesMultipleConfigs(t *testing.T) {
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeSdeKmsCreate),
+		Type:         string(datamodel.JobTypeSdeKmsCreate),
 		ResourceName: "resource-1",
 		JobAttributes: &datamodel.JobAttributes{
 			PayloadAttributes: map[string]interface{}{

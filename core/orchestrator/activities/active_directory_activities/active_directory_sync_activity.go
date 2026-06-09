@@ -254,8 +254,8 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		Domain:       params.ActiveDirectory.Domain,
 		DNS:          params.ActiveDirectory.DNS,
 		NetBIOS:      params.ActiveDirectory.NetBIOS,
-		State:        models.LifeCycleStateREADY,
-		StateDetails: models.LifeCycleStateReadyDetails,
+		State:        datamodel.LifeCycleStateREADY,
+		StateDetails: datamodel.LifeCycleStateReadyDetails,
 		AccountId:    account.ID,
 	}
 

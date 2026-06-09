@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -108,13 +109,13 @@ func convertKmsConfigToApiResponse(kmsConfig *models.KmsConfig, job *models.Job)
 		// Map job state
 		if job.State != "" {
 			switch job.State {
-			case models.JobsStateNEW:
+			case datamodel.JobsStateNEW:
 				jobV1.State = oasgenserver.NewOptJobV1State(oasgenserver.JobV1StateOngoing)
-			case models.JobsStatePROCESSING:
+			case datamodel.JobsStatePROCESSING:
 				jobV1.State = oasgenserver.NewOptJobV1State(oasgenserver.JobV1StateOngoing)
-			case models.JobsStateDONE:
+			case datamodel.JobsStateDONE:
 				jobV1.State = oasgenserver.NewOptJobV1State(oasgenserver.JobV1StateDone)
-			case models.JobsStateERROR:
+			case datamodel.JobsStateERROR:
 				jobV1.State = oasgenserver.NewOptJobV1State(oasgenserver.JobV1StateError)
 			default:
 				jobV1.State = oasgenserver.NewOptJobV1State(oasgenserver.JobV1StateOngoing)

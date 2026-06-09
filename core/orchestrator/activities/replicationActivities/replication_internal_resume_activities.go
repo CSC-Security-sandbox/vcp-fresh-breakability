@@ -69,8 +69,8 @@ func (a *InternalVolumeReplicationResumeActivity) GetSnapmirrorDetails(ctx conte
 func (a *InternalVolumeReplicationResumeActivity) UpdateVolumeReplicationResumeDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationResumeResponse *vsa.VolumeReplication) error {
 	se := a.SE
 
-	replication.State = models.LifeCycleStateAvailable
-	replication.StateDetails = models.LifeCycleStateAvailableDetails
+	replication.State = datamodel.LifeCycleStateAvailable
+	replication.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	replication.MirrorState = &replicationResumeResponse.MirrorState
 	replication.RelationshipStatus = &replicationResumeResponse.RelationshipStatus
 	replication.TotalTransferBytes = replicationResumeResponse.TotalTransferBytes

@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -152,7 +151,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 			AccountName: "test-account",
 		}
 
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.ReverseReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{
@@ -829,7 +828,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 			AccountName: "test-account",
 		}
 
-		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		reverseType := string(datamodel.HybridReplicationParametersReplicationTypeREVERSE)
 		event := &replication.ReverseReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
 				ReplicationModel: &datamodel.VolumeReplication{

@@ -2137,20 +2137,20 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		existingPool := &models.Pool{
 			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeCreatePool,
+			Type:      datamodel.JobTypeCreatePool,
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "creating-pool-uuid",
 			},
 		}
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeCreatePool)).Return(job, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaCreatePool(context.Background(), req, params)
@@ -2191,12 +2191,12 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		existingPool := &models.Pool{
 			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.NewNotFoundErr("job not found", nil))
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeCreatePool)).Return(nil, errors.NewNotFoundErr("job not found", nil))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaCreatePool(context.Background(), req, params)
@@ -2238,13 +2238,13 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		existingPool := &models.Pool{
 			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeCreateLargePool, // Should use large pool job type
+			Type:      datamodel.JobTypeCreateLargePool, // Should use large pool job type
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "creating-pool-uuid",
 			},
@@ -2252,7 +2252,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		// This is the key assertion - line 225 should use JobTypeCreateLargePool for large capacity pools
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreateLargePool)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeCreateLargePool)).Return(job, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaCreatePool(context.Background(), req, params)
@@ -2294,13 +2294,13 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		existingPool := &models.Pool{
 			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeCreatePool, // Should use regular pool job type
+			Type:      datamodel.JobTypeCreatePool, // Should use regular pool job type
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "creating-pool-uuid",
 			},
@@ -2308,7 +2308,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		// This is the key assertion - line 225 should use JobTypeCreatePool for regular pools
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeCreatePool)).Return(job, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaCreatePool(context.Background(), req, params)
@@ -2350,13 +2350,13 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		existingPool := &models.Pool{
 			BaseModel:      models.BaseModel{UUID: "creating-pool-uuid"},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeCreatePool, // Should default to regular pool job type
+			Type:      datamodel.JobTypeCreatePool, // Should default to regular pool job type
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "creating-pool-uuid",
 			},
@@ -2364,7 +2364,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		// This verifies that common.GetBoolOrDefault(req.LargeCapacity, false) defaults to false when LargeCapacity is not set
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeCreatePool)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeCreatePool)).Return(job, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaCreatePool(context.Background(), req, params)
@@ -2981,7 +2981,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateDegraded,
+			State: datamodel.LifeCycleStateDegraded,
 		}, nil)
 		// HasActiveClusterUpgrade not called: validateUpdatePoolParams returns 409 for DEGRADED state first
 
@@ -3018,7 +3018,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(true, nil)
 
@@ -3051,7 +3051,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, fmt.Errorf("db unavailable"))
 
@@ -3097,7 +3097,7 @@ func TestV1betaUpdatePool_RegionalHAZoneOnlyInvokesOrchestrator(t *testing.T) {
 			SecondaryZone: "us-east4-b",
 			IsRegionalHA:  true,
 		},
-		State: models.LifeCycleStateREADY,
+		State: datamodel.LifeCycleStateREADY,
 	}
 
 	mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-id", "project-number").Return(existing, nil)
@@ -3821,7 +3821,7 @@ func TestV1betaDeletePool(t *testing.T) {
 				UUID: "deletable-pool-id",
 			},
 			PoolAttributes: &models.PoolAttributes{},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -3850,7 +3850,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 		deletePoolParams := &commonparams.DeletePoolParams{
@@ -3885,7 +3885,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "updating-pool-id",
 			},
-			State:          models.LifeCycleStateUpdating,
+			State:          datamodel.LifeCycleStateUpdating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -3915,7 +3915,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "deleting-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -3924,14 +3924,14 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{UUID: "job-uuid"},
-			Type:      models.JobTypeDeletePool,
+			Type:      datamodel.JobTypeDeletePool,
 			JobAttributes: &models.JobAttributes{
 				ResourceUUID: "deleting-pool-id",
 			},
-			State: models.JobsStateNEW,
+			State: datamodel.JobsStateNEW,
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(job, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(job, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3955,7 +3955,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "deleting-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -3963,7 +3963,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3989,7 +3989,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -3997,16 +3997,16 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-delete-job-uuid",
 			},
-			Type:          models.JobTypeDeletePool,
+			Type:          datamodel.JobTypeDeletePool,
 			CorrelationID: correlationID,
-			State:         models.JobsStatePROCESSING,
+			State:         datamodel.JobsStatePROCESSING,
 		}
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(existingDeleteJob, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -4034,7 +4034,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4042,16 +4042,16 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-delete-job-uuid",
 			},
-			Type:          models.JobTypeDeletePool,
+			Type:          datamodel.JobTypeDeletePool,
 			CorrelationID: correlationID,
-			State:         models.JobsStateDONE,
+			State:         datamodel.JobsStateDONE,
 		}
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(existingDeleteJob, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -4079,7 +4079,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4087,9 +4087,9 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-delete-job-uuid",
 			},
-			Type:          models.JobTypeDeletePool,
+			Type:          datamodel.JobTypeDeletePool,
 			CorrelationID: "different-correlation-id", // Mismatched
-			State:         models.JobsStatePROCESSING,
+			State:         datamodel.JobsStatePROCESSING,
 		}
 
 		deletePoolParams := &commonparams.DeletePoolParams{
@@ -4100,7 +4100,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4108,7 +4108,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(existingDeleteJob, nil)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
 
 		handler := Handler{
@@ -4137,7 +4137,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4149,7 +4149,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4157,7 +4157,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
 
 		handler := Handler{
@@ -4185,7 +4185,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4197,7 +4197,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4234,7 +4234,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4246,7 +4246,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4254,7 +4254,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, stderrors.New("database error"))
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, stderrors.New("database error"))
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
 
 		handler := Handler{
@@ -4283,7 +4283,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "creating-pool-id",
 			},
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
@@ -4291,16 +4291,16 @@ func TestV1betaDeletePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-delete-job-uuid",
 			},
-			Type:          models.JobTypeDeletePool,
+			Type:          datamodel.JobTypeDeletePool,
 			CorrelationID: correlationID,
-			State:         models.JobsStateERROR, // Job is in ERROR state
+			State:         datamodel.JobsStateERROR, // Job is in ERROR state
 		}
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(datamodel.JobTypeDeletePool)).Return(existingDeleteJob, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -5113,7 +5113,7 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 			Region:                  "us-east4",
 			SizeInBytes:             1099511627776, // 1 TiB
 			ServiceLevel:            "premium",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			QosType:                 "auto",
 			TotalThroughputMibps:    1024.0,
 			TotalIops:               2048,
@@ -5344,7 +5344,7 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
 			Region:      "us-east4",
 			SizeInBytes: 2147483648, // 2 GiB
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			QosType:     "auto",
 			AssetMetadata: &models.AssetMetadata{
 				ChildAssets: []models.ChildAsset{
@@ -5389,7 +5389,7 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 			Description: "Pool with empty asset metadata",
 			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
 			SizeInBytes: 1073741824, // 1 GiB
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			AssetMetadata: &models.AssetMetadata{
 				ChildAssets: []models.ChildAsset{},
 			},
@@ -5414,7 +5414,7 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 			Description: "Pool with single asset",
 			VendorID:    "/projects/123/locations/us-east4/pools/test-pool",
 			SizeInBytes: 1073741824, // 1 GiB
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 			AssetMetadata: &models.AssetMetadata{
 				ChildAssets: []models.ChildAsset{
 					{
@@ -5637,7 +5637,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			Name:           "ready-pool",
 			Description:    "Test READY pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5667,7 +5667,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			Name:           "deleted-pool",
 			Description:    "Test deleted pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateDeleted,
+			State:          datamodel.LifeCycleStateDeleted,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5698,7 +5698,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			},
 			Name:           "test-pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5728,7 +5728,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			},
 			Name:           "test-pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5759,7 +5759,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			},
 			Name:           "test-pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateDeleted,
+			State:          datamodel.LifeCycleStateDeleted,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5788,7 +5788,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			},
 			Name:           "creating-pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -5811,7 +5811,7 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 			},
 			Name:           "deleting-pool",
 			SizeInBytes:    1099511627776,
-			State:          models.LifeCycleStateDeleting,
+			State:          datamodel.LifeCycleStateDeleting,
 			ServiceLevel:   "premium",
 			PoolAttributes: &models.PoolAttributes{},
 		}
@@ -6686,7 +6686,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 			},
 			Name:        "test-pool",
 			Description: "test description",
-			State:       models.LifeCycleStateCreated,
+			State:       datamodel.LifeCycleStateCreated,
 			SizeInBytes: 2199023255552, // 2TB
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone:     "us-east4-a",
@@ -6758,7 +6758,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:             "test-pool",
 			Description:      "test description",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      2147483648, // 2GB
 			QosType:          "auto",
 			AllowAutoTiering: true, // Pool already has auto-tiering enabled
@@ -6785,7 +6785,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:             "test-pool",
 			Description:      "test description",
-			State:            models.LifeCycleStateUpdating,
+			State:            datamodel.LifeCycleStateUpdating,
 			SizeInBytes:      2147483648, // 2GB
 			QosType:          "auto",
 			AllowAutoTiering: true,
@@ -6826,7 +6826,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:             "test-pool",
 			Description:      "test description",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      2147483648, // 2GB
 			QosType:          "auto",
 			AllowAutoTiering: true,
@@ -6853,7 +6853,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:        "test-pool",
 			Description: "test description",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			SizeInBytes: 2147483648, // 2GB
 			QosType:     "auto",
 			CustomPerformanceParams: &models.CustomPerformanceParams{
@@ -6889,7 +6889,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:             "test-pool",
 			Description:      "test description",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      2147483648, // 2GB
 			QosType:          "auto",
 			AllowAutoTiering: true,
@@ -6916,7 +6916,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:        "test-pool",
 			Description: "test description",
-			State:       models.LifeCycleStateUpdating,
+			State:       datamodel.LifeCycleStateUpdating,
 			SizeInBytes: 2147483648, // 2GB
 			QosType:     "auto",
 			CustomPerformanceParams: &models.CustomPerformanceParams{
@@ -6960,7 +6960,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
@@ -7000,7 +7000,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:             "test-pool",
 			Description:      "test description",
-			State:            models.LifeCycleStateREADY,
+			State:            datamodel.LifeCycleStateREADY,
 			SizeInBytes:      2199023255552, // 2TB
 			QosType:          "auto",
 			AllowAutoTiering: true, // Pool already has auto-tiering enabled
@@ -7027,7 +7027,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 			Name:        "test-pool",
 			Description: "Updating production pool with auto-tiering enabled",
-			State:       models.LifeCycleStateCreated,
+			State:       datamodel.LifeCycleStateCreated,
 			SizeInBytes: 2199023255552, // 2TB
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone:     "us-east4-a",
@@ -7828,7 +7828,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		assert.Equal(tt, domain, adConfig.Domain)
 		assert.Equal(tt, dns, adConfig.DNS)
 		assert.Equal(tt, netbios, adConfig.NetBIOS)
-		assert.Equal(tt, models.LifeCycleStateREADY, adConfig.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, adConfig.State)
 		assert.Equal(tt, "custom-details", adConfig.StateDetails)
 		assert.NotNil(tt, adConfig.ActiveDirectoryAttributes)
 		assert.Equal(tt, orgUnit, adConfig.ActiveDirectoryAttributes.OrganizationalUnit)
@@ -7968,13 +7968,13 @@ func TestConvertCVPActiveDirectoryToModel(t *testing.T) {
 		expectedState  string
 		expectedDetail string
 	}{
-		{"ReadyState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails},
-		{"CreatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateCREATING, models.LifeCycleStateCreating, models.LifeCycleStateCreatingDetails},
-		{"UpdatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails},
-		{"InUseState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateINUSE, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails},
-		{"DeletingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateDELETING, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails},
-		{"ErrorState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateERROR, models.LifeCycleStateError, models.LifeCycleStateError},
-		{"UnknownStateDefaultsToReady", "", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails},
+		{"ReadyState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails},
+		{"CreatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateCREATING, datamodel.LifeCycleStateCreating, datamodel.LifeCycleStateCreatingDetails},
+		{"UpdatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails},
+		{"InUseState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateINUSE, datamodel.LifeCycleStateInUse, datamodel.LifeCycleStateInUseDetails},
+		{"DeletingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateDELETING, datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeletingDetails},
+		{"ErrorState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateERROR, datamodel.LifeCycleStateError, datamodel.LifeCycleStateError},
+		{"UnknownStateDefaultsToReady", "", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails},
 	}
 
 	for _, tc := range tests {
@@ -8320,7 +8320,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		// Request to enable auto-tiering
@@ -8351,7 +8351,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		// Request to enable auto-tiering
@@ -8385,7 +8385,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			AutoTieringConfig: &models.AutoTieringConfig{
 				HotTierSizeInBytes:      1073741824, // 1GB
 				EnableHotTierAutoResize: false,
@@ -8425,7 +8425,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		// Request to enable auto-tiering without HotTierSizeInBytes
@@ -8456,7 +8456,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 			SizeInBytes: 1099511627776, // 1TB
 		}
 
@@ -8491,7 +8491,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
-			State:       models.LifeCycleStateDegraded,
+			State:       datamodel.LifeCycleStateDegraded,
 			SizeInBytes: 1099511627776, // 1TB
 		}
 
@@ -8513,11 +8513,11 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 	})
 
 	t.Run("RejectsUpdateWhenPoolIsZoneSwitchingOrSwitched", func(tt *testing.T) {
-		for _, state := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+		for _, state := range []string{datamodel.ZoneSwitching, datamodel.ZoneSwitched} {
 			tt.Run(state, func(t *testing.T) {
 				existingPool := &models.Pool{
 					BaseModel: models.BaseModel{UUID: "pool-uuid"},
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 					PoolAttributes: &models.PoolAttributes{
 						PrimaryZone:     "us-east4-a",
 						ZoneSwitchState: state,
@@ -8551,7 +8551,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "manual",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8574,7 +8574,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "auto",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8601,7 +8601,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "auto",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8623,7 +8623,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "manual",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8644,7 +8644,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "auto",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8668,7 +8668,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "auto",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8695,7 +8695,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "auto",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -8719,7 +8719,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			QosType: "manual",
-			State:   models.LifeCycleStateREADY,
+			State:   datamodel.LifeCycleStateREADY,
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},

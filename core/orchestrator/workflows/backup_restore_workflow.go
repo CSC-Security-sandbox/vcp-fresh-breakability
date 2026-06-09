@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -48,11 +47,11 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 		log.Errorf("Failed to setup RestoreBackupWorkflow: %v", err)
 		return nil, err
 	}
-	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := restoreWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	restoreWf.Status = WorkflowStatusRunning
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for RestoreBackupWorkflow: %v", err)
 		return nil, err
@@ -66,7 +65,7 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 		}
 		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
 		restoreWf.Status = WorkflowStatusFailed
-		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for RestoreBackupWorkflow: %v", err2)
 			return nil, err2
@@ -74,7 +73,7 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 		return nil, customErr
 	}
 	restoreWf.Status = WorkflowStatusCompleted
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for RestoreBackupWorkflow: %v", err)
 	}
@@ -89,11 +88,11 @@ func RestoreBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesCont
 		log.Errorf("Failed to setup RestoreBackupWorkflow: %v", err)
 		return nil, err
 	}
-	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err := restoreWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	restoreWf.Status = WorkflowStatusRunning
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Processing for RestoreBackupWorkflow: %v", err)
 		return nil, err
@@ -107,7 +106,7 @@ func RestoreBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesCont
 		}
 		log.Errorf("RestoreBackupWorkflow completed with error: %v", customErr.OriginalErr.Error())
 		restoreWf.Status = WorkflowStatusFailed
-		err2 := restoreWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err2 := restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with error for RestoreBackupWorkflow: %v", err2)
 			return nil, err2
@@ -115,7 +114,7 @@ func RestoreBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesCont
 		return nil, customErr
 	}
 	restoreWf.Status = WorkflowStatusCompleted
-	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = restoreWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for RestoreBackupWorkflow: %v", err)
 	}
@@ -228,9 +227,9 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			"transferStatus", backupActivitiesContext.TransferStatus)
 	} else {
 		if createVolumeParams.IsExpertModeRestore {
-			rollbackManager.AddActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails)
+			rollbackManager.AddActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateCreationErrorDetails)
 		} else {
-			rollbackManager.AddActivity(volumeActivity.UpdateVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails)
+			rollbackManager.AddActivity(volumeActivity.UpdateVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateCreationErrorDetails)
 		}
 
 		// Increment restore count to indicate that a volume restoration is in-progress for the backup
@@ -428,7 +427,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	if createVolumeParams.IsExpertModeRestore {
 		expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
-		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateAvailable).Get(ctx, nil)
 	} else {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, volume).Get(ctx, nil)
 	}

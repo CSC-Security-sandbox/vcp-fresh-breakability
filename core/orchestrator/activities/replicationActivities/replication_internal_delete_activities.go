@@ -92,8 +92,8 @@ func prepareDeleteVolumeReplicationParamsVSA(volumeReplication *datamodel.Volume
 
 func (a *InternalVolumeReplicationDeleteActivity) UpdateReplicationStateInDBForDelete(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	se := a.SE
-	volumeRep.State = models.LifeCycleStateError
-	volumeRep.StateDetails = models.LifeCycleStateDeletionErrorDetails
+	volumeRep.State = datamodel.LifeCycleStateError
+	volumeRep.StateDetails = datamodel.LifeCycleStateDeletionErrorDetails
 	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}

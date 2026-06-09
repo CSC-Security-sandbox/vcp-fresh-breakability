@@ -11,7 +11,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -928,7 +928,7 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			serviceLevel, err := getServiceLevel(metric)
 			return getFrequency(serviceLevel), err
 		case "/replication/source_continent":
-			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+			if repType == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) {
 				return "", nil
 			}
 			sourceRegion, err := getSourceRegion(metric)
@@ -937,7 +937,7 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			destinationRegion, err := getDestinationRegion(metric)
 			return getContinent(destinationRegion), err
 		case "/replication/source_region":
-			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+			if repType == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) {
 				return "", nil
 			}
 			sourceRegion, err := getSourceRegion(metric)
@@ -946,14 +946,14 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			destinationRegion, err := getDestinationRegion(metric)
 			return extractRegionValue(destinationRegion), err
 		case "/replication/source_service_level":
-			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+			if repType == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM) {
 				return "", nil
 			}
 			return "FLEX_UNIFIED", nil
 		case "/replication/destination_service_level":
 			return "FLEX_UNIFIED", nil
 		case "/replication/replication_type":
-			if useNewLabelForHybridReplication && (repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM)) {
+			if useNewLabelForHybridReplication && (repType == string(datamodel.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(datamodel.HybridReplicationParametersReplicationTypeONPREM)) {
 				return ReplicationTypeDataMigration, nil
 			}
 			return repType, nil

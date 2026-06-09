@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -267,7 +266,7 @@ func (a *UnRegisterNodeFromHarvestActivity) ListAllMapsWithDeletedNodes(
 				logger.Warnf("GetNodeByID failed for node %d (node group map %d): %v", m.NodeID, m.ID, err)
 				return nil, err
 			}
-			if node.State != models.LifeCycleStateDeleted {
+			if node.State != datamodel.LifeCycleStateDeleted {
 				continue
 			}
 			all = append(all, m)

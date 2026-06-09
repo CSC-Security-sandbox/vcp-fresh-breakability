@@ -3,7 +3,6 @@ package replicationWorkflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -44,24 +43,24 @@ func CreateVolumeReplicationWorkflow(ctx workflow.Context, params *common.Create
 	if err != nil {
 		return nil, err
 	}
-	if err = volumeRepWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+	if err = volumeRepWf.EnsureJobState(ctx, datamodel.JobsStateNEW); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	volumeRepWf.Status = workflows.WorkflowStatusRunning
-	err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		volumeRepWf.Status = workflows.WorkflowStatusFailed
-		err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), err)
 		return nil, err
 	}
 	_, customErr := volumeRepWf.Run(ctx, volumeRep, event)
 	if customErr != nil {
 		volumeRepWf.Status = workflows.WorkflowStatusFailed
-		err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 		return nil, err
 	}
 	volumeRepWf.Status = workflows.WorkflowStatusCompleted
-	err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err = volumeRepWf.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -121,8 +120,8 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 	rollbackManager := common.NewRollbackManager()
 
 	updateReplicationStateToError := func(disconnectedCtx workflow.Context) error {
-		volumeReplication.State = models.LifeCycleStateError
-		volumeReplication.StateDetails = models.LifeCycleStateCreationErrorDetails
+		volumeReplication.State = datamodel.LifeCycleStateError
+		volumeReplication.StateDetails = datamodel.LifeCycleStateCreationErrorDetails
 		err2 := workflow.ExecuteActivity(disconnectedCtx, replicationActivity.UpdateReplicationState, *volumeReplication).Get(disconnectedCtx, nil)
 		if err2 != nil {
 			log.Errorf("Failed to update replication state in DB to error: %v", err2)

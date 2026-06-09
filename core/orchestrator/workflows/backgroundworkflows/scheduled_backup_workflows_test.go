@@ -115,7 +115,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -129,7 +129,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	volumes := []*datamodel.Volume{
@@ -168,7 +168,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -182,7 +182,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	volumes := []*datamodel.Volume{
@@ -222,7 +222,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Create
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 
@@ -253,7 +253,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -267,7 +267,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -300,7 +300,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NoVolu
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -314,7 +314,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NoVolu
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -341,7 +341,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -355,7 +355,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	// Simulate 50 volumes (will be fetched in 3 batches: 20, 20, 10)
@@ -424,7 +424,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -448,7 +448,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -472,7 +472,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -496,12 +496,12 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	backupPolicyUpdating := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateUpdating,
+		LifeCycleState: datamodel.LifeCycleStateUpdating,
 	}
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -532,7 +532,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -555,7 +555,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	backupPolicyDeleted := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateDeleted,
+		LifeCycleState: datamodel.LifeCycleStateDeleted,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -579,7 +579,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -602,12 +602,12 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	backupPolicyDeleting := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateDeleting,
+		LifeCycleState: datamodel.LifeCycleStateDeleting,
 	}
 	backupPolicyDeleted := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateDeleted,
+		LifeCycleState: datamodel.LifeCycleStateDeleted,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -635,7 +635,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -680,7 +680,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -703,7 +703,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	backupPolicyUpdating := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateUpdating,
+		LifeCycleState: datamodel.LifeCycleStateUpdating,
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
@@ -735,7 +735,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -787,7 +787,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_SkipsS
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -801,10 +801,10 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_SkipsS
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
-	splittingState := models.CloneStateSplitting
+	splittingState := datamodel.CloneStateSplitting
 	volumes := []*datamodel.Volume{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "volume-splitting"},
@@ -846,7 +846,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_AllVol
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -860,10 +860,10 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_AllVol
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
-	splittingState := models.CloneStateSplitting
+	splittingState := datamodel.CloneStateSplitting
 	volumes := []*datamodel.Volume{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "volume-splitting-1"},
@@ -905,7 +905,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilVol
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -919,7 +919,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilVol
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	volumes := []*datamodel.Volume{
@@ -955,7 +955,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilClo
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -969,7 +969,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilClo
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	volumes := []*datamodel.Volume{
@@ -1007,7 +1007,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NonSpl
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -1021,7 +1021,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NonSpl
 	backupPolicyReady := &datamodel.BackupPolicy{
 		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		AccountID:      1,
-		LifeCycleState: models.LifeCycleStateREADY,
+		LifeCycleState: datamodel.LifeCycleStateREADY,
 	}
 
 	volumes := []*datamodel.Volume{
@@ -1030,7 +1030,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NonSpl
 			Name:      "test-volume-cloned",
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CloneParentInfo: &datamodel.CloneParentInfo{
-					State: models.CloneStateCloned,
+					State: datamodel.CloneStateCloned,
 				},
 			},
 		},
@@ -1068,7 +1068,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1206,7 +1206,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitc
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1296,7 +1296,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitc
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1379,7 +1379,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1502,7 +1502,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateJobF
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1556,7 +1556,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBackupV
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1615,7 +1615,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_DailySched
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1683,7 +1683,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_WeeklySche
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1761,7 +1761,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_MonthlySch
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1839,7 +1839,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1898,7 +1898,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFai
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -1970,7 +1970,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStor
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2049,7 +2049,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2134,7 +2134,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2224,7 +2224,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSn
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2323,7 +2323,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2424,7 +2424,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2528,7 +2528,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateSnap
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2636,7 +2636,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2747,7 +2747,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2859,7 +2859,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2980,7 +2980,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3108,7 +3108,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3237,7 +3237,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateCons
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3370,7 +3370,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3499,7 +3499,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3631,7 +3631,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBack
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3753,7 +3753,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -3880,7 +3880,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4014,7 +4014,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_CreateJobF
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 
@@ -4074,7 +4074,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetBackupV
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4131,7 +4131,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_FetchSched
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4212,7 +4212,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_NoBackupsT
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4292,7 +4292,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetNodeFai
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4365,7 +4365,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetObjectS
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4458,7 +4458,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4578,7 +4578,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4701,7 +4701,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4828,7 +4828,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -4968,7 +4968,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5103,7 +5103,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SharedBack
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5206,7 +5206,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONT
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5312,7 +5312,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5440,7 +5440,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5545,7 +5545,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5676,7 +5676,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5781,7 +5781,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -5935,7 +5935,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -6063,7 +6063,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -6193,7 +6193,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -6296,7 +6296,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CheckBacku
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -6432,7 +6432,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CheckBacku
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -6552,7 +6552,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CheckBacku
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
+		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}

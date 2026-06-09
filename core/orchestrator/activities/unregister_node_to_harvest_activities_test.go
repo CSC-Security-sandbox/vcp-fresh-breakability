@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -36,7 +35,7 @@ func getUnRegisterNodes() []*datamodel.Node {
 				UpdatedAt: createdAt,
 				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
 				UUID:      "test-node-uuid-" + strconv.Itoa(i)},
-			State: models.LifeCycleStateDeleted,
+			State: datamodel.LifeCycleStateDeleted,
 		}
 		nodes = append(nodes, node)
 	}
@@ -211,15 +210,15 @@ func TestGetNodeGroupMapping_LargePoolMultiHADisabled_SkipsNodeWithNoMap(t *test
 	nodesInfo := []*datamodel.Node{
 		{
 			BaseModel: datamodel.BaseModel{ID: 0, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-0"},
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-1"},
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-2"},
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		},
 	}
 
@@ -660,7 +659,7 @@ func TestListAllMapsWithDeletedNodes_OnePage_OneDeleted(t *testing.T) {
 		NodeID:    10, NodeGroupID: 100,
 		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
 	}
-	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: datamodel.LifeCycleStateDeleted}
 	// Single page with one map (deleted node) -> len(maps) < pageSize so loop exits after one page
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{mapDeleted}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(nodeDeleted, nil)
@@ -720,7 +719,7 @@ func TestListAllMapsWithDeletedNodes_NodeNotFound_SkipsMap(t *testing.T) {
 	m1 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100}
 	m2 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100}
 	notFoundErr := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("node", nil))
-	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: datamodel.LifeCycleStateDeleted}
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 50).Return([]*datamodel.NodeNodeGroupMap{m1, m2}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return((*datamodel.Node)(nil), notFoundErr)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(20)).Return(nodeDeleted, nil)
@@ -749,8 +748,8 @@ func TestListAllMapsWithDeletedNodes_TwoPages_CollectsAllDeleted(t *testing.T) {
 		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
 		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
 	}
-	node10 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
-	node20 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	node10 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: datamodel.LifeCycleStateDeleted}
+	node20 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: datamodel.LifeCycleStateDeleted}
 	// Page size 1: first page returns 1 map, second page returns 1 map, third returns 0
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 1).Return([]*datamodel.NodeNodeGroupMap{page1Map}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(node10, nil)
@@ -778,8 +777,8 @@ func TestListAllMapsWithDeletedNodes_NodeNotDeleted_SkipsMap(t *testing.T) {
 	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
 	m1 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100}
 	m2 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100}
-	node10Active := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateAvailable}
-	node20Deleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	node10Active := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: datamodel.LifeCycleStateAvailable}
+	node20Deleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: datamodel.LifeCycleStateDeleted}
 	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{m1, m2}, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(node10Active, nil)
 	mockStorage.On("GetNodeByID", mock.Anything, int64(20)).Return(node20Deleted, nil)

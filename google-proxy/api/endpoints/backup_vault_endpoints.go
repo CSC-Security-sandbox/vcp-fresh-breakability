@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -1070,7 +1071,7 @@ func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs [
 			if bv.BackupsPrimaryKeyVersion != nil {
 				cvpBv.BackupsPrimaryKeyVersion = bv.BackupsPrimaryKeyVersion
 			}
-			if bv.ServiceType == coremodels.ServiceTypeCrossProject {
+			if bv.ServiceType == datamodel.ServiceTypeCrossProject {
 				crossProject := true
 				cvpBv.CrossProjectVault = &crossProject
 			}
@@ -1245,9 +1246,9 @@ func _performBackupPolicyValidation(ctx context.Context, backupVault *coremodels
 
 	// Validate each backup policy
 	for _, backupPolicy := range backupPolicies {
-		if backupPolicy.State != coremodels.LifeCycleStateDeleted {
+		if backupPolicy.State != datamodel.LifeCycleStateDeleted {
 			// Check if backup policy is in updating state
-			if backupPolicy.State == coremodels.LifeCycleStateUpdating {
+			if backupPolicy.State == datamodel.LifeCycleStateUpdating {
 				return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, fmt.Errorf("Cannot update backup vault: backup policy '%s' is currently being updated. Please wait for the policy update to complete.", backupPolicy.BackupPolicyUUID))
 			}
 			// Validate the backup policy against new immutability settings
@@ -1575,7 +1576,7 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 		cvpBV.DestinationBackupVault = coreBV.DestinationBackupVault
 		cvpBV.SourceBackupVault = coreBV.SourceBackupVault
 	}
-	if coreBV.ServiceType == coremodels.ServiceTypeCrossProject {
+	if coreBV.ServiceType == datamodel.ServiceTypeCrossProject {
 		cvpBV.CrossProjectVault = nillable.ToPointer(true)
 	}
 	return cvpBV
@@ -1640,7 +1641,7 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 	if beta.EncryptionState != nil {
 		result.EncryptionState = gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(*beta.EncryptionState))
 	}
-	if beta.ServiceType == coremodels.ServiceTypeCrossProject {
+	if beta.ServiceType == datamodel.ServiceTypeCrossProject {
 		result.CrossProjectVault = gcpgenserver.NewOptBool(true)
 	}
 	return result
@@ -1697,7 +1698,7 @@ func (h Handler) V1betaRotateCmekBackups(ctx context.Context, req *gcpgenserver.
 	}
 
 	// Sanity: ensure vault state allows rotation (basic check – workflow will also validate).
-	if bv.LifeCycleState == coremodels.LifeCycleStateDeleting || bv.LifeCycleState == coremodels.LifeCycleStateUpdating {
+	if bv.LifeCycleState == datamodel.LifeCycleStateDeleting || bv.LifeCycleState == datamodel.LifeCycleStateUpdating {
 		return &gcpgenserver.V1betaRotateCmekBackupsConflict{
 			Code:    409,
 			Message: "backup vault is in transition state",

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -48,13 +47,13 @@ func FinishProjectEventDeleteStateWorkflow(ctx workflow.Context, params *common.
 	defer func() {
 		if errRun != nil {
 			finishProjectEventWorkflow.Status = WorkflowStatusFailed
-			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
+			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), errRun)
 			if err != nil {
 				log.Errorf("finishProjectEventDeleteStateWorkflow failed to update job status: %v", err)
 			}
 		} else {
 			finishProjectEventWorkflow.Status = WorkflowStatusCompleted
-			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err := finishProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 			if err != nil {
 				log.Errorf("finishProjectEventDeleteStateWorkflow failed to update job status: %v", err)
 			}
@@ -62,7 +61,7 @@ func FinishProjectEventDeleteStateWorkflow(ctx workflow.Context, params *common.
 	}()
 
 	finishProjectEventWorkflow.Status = WorkflowStatusRunning
-	err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		errRun = ConvertToVSAError(err)
 		return nil, errRun

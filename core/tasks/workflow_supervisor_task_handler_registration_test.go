@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	supervisorhandler "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks/supervisor-handler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -58,57 +57,57 @@ func TestRunWorkflowSupervisorTask_RegistersAllHandlers(t *testing.T) {
 	runner.registerHandlers(handlers...)
 
 	// Verify UPDATE handlers are registered
-	handler, ok := runner.handlerFor(string(models.JobTypeUpdatePool))
+	handler, ok := runner.handlerFor(string(datamodel.JobTypeUpdatePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateLargePool))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateLargePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateVolume))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateVolume))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateBackup))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateBackup))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateVolumeReplication))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateVolumeReplication))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
 	// Verify DELETE handlers are registered
-	handler, ok = runner.handlerFor(string(models.JobTypeDeletePool))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeletePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteLargePool))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteLargePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteVolume))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteVolume))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteBackup))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteBackup))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteSnapshot))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteSnapshot))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteVolumeReplication))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteVolumeReplication))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteKmsConfig))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteKmsConfig))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
 	// Verify MIGRATE handlers are registered
-	handler, ok = runner.handlerFor(string(models.JobTypeMigrateKmsConfig))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeMigrateKmsConfig))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 }
@@ -116,7 +115,7 @@ func TestRunWorkflowSupervisorTask_RegistersAllHandlers(t *testing.T) {
 func TestRunWorkflowSupervisorTask_RegistersCustomHandlers(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	temporal := workflowEngine.NewMockTemporalTestClient(t)
-	customHandler := newTestHandler(models.JobTypeUpdatePool)
+	customHandler := newTestHandler(datamodel.JobTypeUpdatePool)
 
 	// Mock GetJobsWithCondition for NEW state scan only.
 	// UPDATE_POOL is not eligible for PROCESSING state scan, so only one call.
@@ -135,7 +134,7 @@ func TestRunWorkflowSupervisorTask_RegistersCustomHandlers(t *testing.T) {
 
 	runner.registerHandlers(customHandler)
 
-	handler, ok := runner.handlerFor(string(models.JobTypeUpdatePool))
+	handler, ok := runner.handlerFor(string(datamodel.JobTypeUpdatePool))
 	require.True(t, ok)
 	require.Equal(t, customHandler, handler)
 }
@@ -160,24 +159,24 @@ func TestWorkflowSupervisorTaskRunner_HandlerFor_UpdateDeleteJobTypes(t *testing
 	)
 
 	// Test UPDATE handlers
-	handler, ok := runner.handlerFor(string(models.JobTypeUpdatePool))
+	handler, ok := runner.handlerFor(string(datamodel.JobTypeUpdatePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateLargePool))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateLargePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeUpdateVolume))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeUpdateVolume))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
 	// Test DELETE handlers
-	handler, ok = runner.handlerFor(string(models.JobTypeDeletePool))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeletePool))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 
-	handler, ok = runner.handlerFor(string(models.JobTypeDeleteVolume))
+	handler, ok = runner.handlerFor(string(datamodel.JobTypeDeleteVolume))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 }

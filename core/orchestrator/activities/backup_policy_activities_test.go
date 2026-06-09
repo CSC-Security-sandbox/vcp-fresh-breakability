@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -275,7 +274,7 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 			MonthlyBackupsToKeep:  monthlyLimit,
 			PolicyEnabled:         policyEnabled,
 			LifeCycleState:        "READY",
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		res := ConvertToBackupPolicyDataModel(backupPolicy)
 		assert.Equal(t, res, expected)
@@ -327,7 +326,7 @@ func TestUpdateBackupPolicyInSDE(t *testing.T) {
 			Description:    nillable.ToPointer("This is a test backup policy"),
 			Enabled:        nillable.ToPointer(true),
 			ResourceID:     nillable.ToPointer("test-backup-policy"),
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			VolumeCount:    nillable.ToPointer(int64(2)),
 		}
 		mockClient.On("V1betaUpdateBackupPolicy", mock.Anything).Return(
@@ -425,7 +424,7 @@ func TestRevertBackupPolicyUpdateInSDE(t *testing.T) {
 		Description:    nil,
 		Enabled:        nillable.ToPointer(false),
 		ResourceID:     nillable.ToPointer("test-backup-policy"),
-		State:          models.LifeCycleStateREADY,
+		State:          datamodel.LifeCycleStateREADY,
 		VolumeCount:    nillable.ToPointer(int64(2)),
 	}
 	mockClient.On("V1betaUpdateBackupPolicy", mock.Anything).Return(
@@ -465,8 +464,8 @@ func TestRevertBackupPolicyUpdateInSDE(t *testing.T) {
 		WeeklyBackupsToKeep:   2,
 		MonthlyBackupsToKeep:  2,
 		PolicyEnabled:         false,
-		LifeCycleState:        models.LifeCycleStateREADY,
-		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
+		LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 	}
 
 	backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -501,8 +500,8 @@ func TestUpdateBackupPolicyInVCP(t *testing.T) {
 			WeeklyBackupsToKeep:   3,
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         true,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(expected, nil)
 
@@ -586,8 +585,8 @@ func TestRevertBackupPolicyUpdateInVCP(t *testing.T) {
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  2,
 			PolicyEnabled:         false,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(expected, nil)
 
@@ -601,8 +600,8 @@ func TestRevertBackupPolicyUpdateInVCP(t *testing.T) {
 			DailyBackupsToKeep:    2,
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -633,8 +632,8 @@ func TestRevertBackupPolicyUpdateInVCP(t *testing.T) {
 			DailyBackupsToKeep:    2,
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  2,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -741,8 +740,8 @@ func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
 			},
 			Name: "test-backup-policy",
 		}
-		state := models.LifeCycleStateREADY
-		stateDetails := models.LifeCycleStateAvailableDetails
+		state := datamodel.LifeCycleStateREADY
+		stateDetails := datamodel.LifeCycleStateAvailableDetails
 
 		expectedUpdates := map[string]interface{}{
 			"life_cycle_state":         state,
@@ -772,8 +771,8 @@ func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
 			},
 			Name: "test-backup-policy",
 		}
-		state := models.LifeCycleStateREADY
-		stateDetails := models.LifeCycleStateAvailableDetails
+		state := datamodel.LifeCycleStateREADY
+		stateDetails := datamodel.LifeCycleStateAvailableDetails
 
 		expectedUpdates := map[string]interface{}{
 			"life_cycle_state":         state,
@@ -803,9 +802,9 @@ func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
 				UUID: "test-backup-policy-uuid",
 			},
 			Name:           "test-backup-policy",
-			LifeCycleState: models.LifeCycleStateDeleting,
+			LifeCycleState: datamodel.LifeCycleStateDeleting,
 		}
-		state := models.LifeCycleStateError
+		state := datamodel.LifeCycleStateError
 		stateDetails := "Deletion failed due to external service error"
 
 		expectedUpdates := map[string]interface{}{
@@ -834,18 +833,18 @@ func TestUpdateBackupPolicyStateInCaseOfError(t *testing.T) {
 		}{
 			{
 				name:         "ReadyState",
-				state:        models.LifeCycleStateREADY,
-				stateDetails: models.LifeCycleStateAvailableDetails,
+				state:        datamodel.LifeCycleStateREADY,
+				stateDetails: datamodel.LifeCycleStateAvailableDetails,
 			},
 			{
 				name:         "ErrorState",
-				state:        models.LifeCycleStateError,
-				stateDetails: models.LifeCycleStateDeletionErrorDetails,
+				state:        datamodel.LifeCycleStateError,
+				stateDetails: datamodel.LifeCycleStateDeletionErrorDetails,
 			},
 			{
 				name:         "AvailableState",
-				state:        models.LifeCycleStateAvailable,
-				stateDetails: models.LifeCycleStateAvailableDetails,
+				state:        datamodel.LifeCycleStateAvailable,
+				stateDetails: datamodel.LifeCycleStateAvailableDetails,
 			},
 		}
 
@@ -900,14 +899,14 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 			WeeklyBackupsToKeep:   2,
 			MonthlyBackupsToKeep:  1,
 			PolicyEnabled:         true,
-			LifeCycleState:        models.LifeCycleStateDeleting,
-			LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateDeleting,
+			LifeCycleStateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 
 		// Test restoring to READY state
 		expectedUpdates := map[string]interface{}{
-			"life_cycle_state":         models.LifeCycleStateREADY,
-			"life_cycle_state_details": models.LifeCycleStateAvailableDetails,
+			"life_cycle_state":         datamodel.LifeCycleStateREADY,
+			"life_cycle_state_details": datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		updatedBackupPolicy := &datamodel.BackupPolicy{
@@ -919,8 +918,8 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 			WeeklyBackupsToKeep:   backupPolicy.WeeklyBackupsToKeep,
 			MonthlyBackupsToKeep:  backupPolicy.MonthlyBackupsToKeep,
 			PolicyEnabled:         backupPolicy.PolicyEnabled,
-			LifeCycleState:        models.LifeCycleStateREADY,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 
 		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates).Return(updatedBackupPolicy, nil).Once()
@@ -929,7 +928,7 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 			SE: mockStorage,
 		}
 
-		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		err := activity.UpdateBackupPolicyStateInCaseOfError(ctx, backupPolicy, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 
 		assert.NoError(tt, err)
 		mockStorage.AssertCalled(tt, "UpdateBackupPolicy", ctx, backupPolicy.UUID, expectedUpdates)
@@ -948,34 +947,34 @@ func TestUpdateBackupPolicyStateInCaseOfError_Integration(t *testing.T) {
 		}{
 			{
 				name:                "DeletingToReady",
-				initialState:        models.LifeCycleStateDeleting,
-				initialStateDetails: models.LifeCycleStateDeletingDetails,
-				targetState:         models.LifeCycleStateREADY,
-				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				initialState:        datamodel.LifeCycleStateDeleting,
+				initialStateDetails: datamodel.LifeCycleStateDeletingDetails,
+				targetState:         datamodel.LifeCycleStateREADY,
+				targetStateDetails:  datamodel.LifeCycleStateAvailableDetails,
 				shouldSucceed:       true,
 			},
 			{
 				name:                "UpdatingToReady",
-				initialState:        models.LifeCycleStateUpdating,
-				initialStateDetails: models.LifeCycleStateUpdatingDetails,
-				targetState:         models.LifeCycleStateREADY,
-				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				initialState:        datamodel.LifeCycleStateUpdating,
+				initialStateDetails: datamodel.LifeCycleStateUpdatingDetails,
+				targetState:         datamodel.LifeCycleStateREADY,
+				targetStateDetails:  datamodel.LifeCycleStateAvailableDetails,
 				shouldSucceed:       true,
 			},
 			{
 				name:                "DeletingToError",
-				initialState:        models.LifeCycleStateDeleting,
-				initialStateDetails: models.LifeCycleStateDeletingDetails,
-				targetState:         models.LifeCycleStateError,
-				targetStateDetails:  models.LifeCycleStateDeletionErrorDetails,
+				initialState:        datamodel.LifeCycleStateDeleting,
+				initialStateDetails: datamodel.LifeCycleStateDeletingDetails,
+				targetState:         datamodel.LifeCycleStateError,
+				targetStateDetails:  datamodel.LifeCycleStateDeletionErrorDetails,
 				shouldSucceed:       true,
 			},
 			{
 				name:                "DatabaseFailure",
-				initialState:        models.LifeCycleStateDeleting,
-				initialStateDetails: models.LifeCycleStateDeletingDetails,
-				targetState:         models.LifeCycleStateREADY,
-				targetStateDetails:  models.LifeCycleStateAvailableDetails,
+				initialState:        datamodel.LifeCycleStateDeleting,
+				initialStateDetails: datamodel.LifeCycleStateDeletingDetails,
+				targetState:         datamodel.LifeCycleStateREADY,
+				targetStateDetails:  datamodel.LifeCycleStateAvailableDetails,
 				shouldSucceed:       false,
 				expectedError:       "database connection failed",
 			},

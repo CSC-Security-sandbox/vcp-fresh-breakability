@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -82,14 +81,14 @@ func TestValidateCreateSvm(t *testing.T) {
 	makeReadyPool := func(id int64) *datamodel.Pool {
 		return &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: id},
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "some-config",
 		}
 	}
 
 	readyNodes := []*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
 	}
 
 	makeValidParams := func(name string) *commonparams.CreateSvmParams {
@@ -128,7 +127,7 @@ func TestValidateCreateSvm(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(1)).Return(readyNodes, nil)
 		mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(1)).
-			Return(&datamodel.Svm{Name: "svm1", PoolID: 1, State: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.Svm{Name: "svm1", PoolID: 1, State: datamodel.LifeCycleStateREADY}, nil)
 		err := validateCreateSvm(ctx, mockStorage, makeValidParams("svm1"), pool)
 		require.Error(tt, err)
 		assert.True(tt, utilserrors.IsConflictErr(err))
@@ -160,7 +159,7 @@ func TestValidateSvmNameNotInUseInPool(t *testing.T) {
 	t.Run("LiveSvmFound_ReturnsConflict", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(7)).
-			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: models.LifeCycleStateREADY}, nil)
+			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: datamodel.LifeCycleStateREADY}, nil)
 		err := validateSvmNameNotInUseInPool(ctx, mockStorage, "svm1", 7)
 		require.Error(tt, err)
 		assert.True(tt, utilserrors.IsConflictErr(err))
@@ -173,7 +172,7 @@ func TestValidateSvmNameNotInUseInPool(t *testing.T) {
 	t.Run("CreatingSvmFound_ReturnsConflict", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(7)).
-			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: models.LifeCycleStateCreating}, nil)
+			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: datamodel.LifeCycleStateCreating}, nil)
 		err := validateSvmNameNotInUseInPool(ctx, mockStorage, "svm1", 7)
 		require.Error(tt, err)
 		assert.True(tt, utilserrors.IsConflictErr(err))
@@ -185,7 +184,7 @@ func TestValidateSvmNameNotInUseInPool(t *testing.T) {
 	t.Run("DeletedSvmFound_NoError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(7)).
-			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: models.LifeCycleStateDeleted}, nil)
+			Return(&datamodel.Svm{Name: "svm1", PoolID: 7, State: datamodel.LifeCycleStateDeleted}, nil)
 		err := validateSvmNameNotInUseInPool(ctx, mockStorage, "svm1", 7)
 		assert.NoError(tt, err)
 	})
@@ -205,7 +204,7 @@ func TestValidateCreateSvmClusterStateAndCapacity_GetNodesError(t *testing.T) {
 	ctx := context.Background()
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{ID: 1},
-		State:     string(models.LifeCycleStateREADY),
+		State:     string(datamodel.LifeCycleStateREADY),
 		VLMConfig: "some-config",
 	}
 	mockStorage := database.NewMockStorage(t)
@@ -240,7 +239,7 @@ func TestValidateCreateSvmIPRequirements(t *testing.T) {
 			nodes[i] = &datamodel.Node{
 				BaseModel: datamodel.BaseModel{ID: int64(i + 1)},
 				Name:      fmt.Sprintf("node%d", i+1),
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			}
 		}
 		return nodes
@@ -305,7 +304,7 @@ func TestValidateCreateSvmClusterStateAndCapacity(t *testing.T) {
 	t.Run("EmptyVLMConfig_ReturnsValidationError", func(tt *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "",
 		}
 		mockStorage := database.NewMockStorage(tt)
@@ -318,12 +317,12 @@ func TestValidateCreateSvmClusterStateAndCapacity(t *testing.T) {
 	t.Run("NotEnoughNodes_ReturnsError", func(tt *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "some-config",
 		}
 		mockStorage := database.NewMockStorage(tt)
 		nodes := []*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: models.LifeCycleStateREADY},
+			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: datamodel.LifeCycleStateREADY},
 		}
 		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.AnythingOfType("int64")).Return(nodes, nil)
 
@@ -335,12 +334,12 @@ func TestValidateCreateSvmClusterStateAndCapacity(t *testing.T) {
 	t.Run("NodeNotReady_ReturnsError", func(tt *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "some-config",
 		}
 		mockStorage := database.NewMockStorage(tt)
 		nodes := []*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: models.LifeCycleStateREADY},
+			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: datamodel.LifeCycleStateREADY},
 			{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", State: "CREATING"},
 		}
 		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.AnythingOfType("int64")).Return(nodes, nil)
@@ -353,13 +352,13 @@ func TestValidateCreateSvmClusterStateAndCapacity(t *testing.T) {
 	t.Run("AllNodesReady_NoError", func(tt *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			State:     string(models.LifeCycleStateREADY),
+			State:     string(datamodel.LifeCycleStateREADY),
 			VLMConfig: "some-config",
 		}
 		mockStorage := database.NewMockStorage(tt)
 		nodes := []*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: models.LifeCycleStateREADY},
-			{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", State: models.LifeCycleStateAvailable},
+			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", State: datamodel.LifeCycleStateREADY},
+			{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", State: datamodel.LifeCycleStateAvailable},
 		}
 		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.AnythingOfType("int64")).Return(nodes, nil)
 

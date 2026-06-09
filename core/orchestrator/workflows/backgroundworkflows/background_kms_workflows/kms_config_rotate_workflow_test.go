@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -310,7 +309,7 @@ func TestRotateKmsConfigWorkflow_JobStatusUpdateFails(t *testing.T) {
 
 	// Mock job status update failure
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStatePROCESSING)
+		return job.State == string(datamodel.JobsStatePROCESSING)
 	})).Return(errors.New("failed to update job status"))
 
 	// Execute workflow

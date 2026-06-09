@@ -502,7 +502,7 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		err := activity.UpdateReplicationInDB(context.Background(), replication, nil)
 
 		assert.Error(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, replication.State)
 		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -530,7 +530,7 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
 
 		assert.Error(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, replication.State)
 		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -555,7 +555,7 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
 
 		assert.Error(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, replication.State)
 		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1742,7 +1742,7 @@ func TestAbortVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 			TransferUUID:       "transfer-uuid",
 			RelationshipID:     "relationship-id",
 		}
@@ -1778,7 +1778,7 @@ func TestAbortVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
 			TransferUUID:       "transfer-uuid",
 			RelationshipID:     "relationship-id",
 		}
@@ -1838,7 +1838,7 @@ func TestAbortVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1901,8 +1901,8 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
-			MirrorState:        models.OntapSnapmirrored,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapSnapmirrored,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1936,8 +1936,8 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
-			MirrorState:        models.OntapSnapmirrored,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapSnapmirrored,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1995,8 +1995,8 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipIdle,
-			MirrorState:        models.OntapUninitialized,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipIdle,
+			MirrorState:        datamodel.OntapUninitialized,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -2034,8 +2034,8 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 			ExternalUUID:       "external-uuid",
 			RelationshipID:     "relationship-id",
 			TransferUUID:       "transfer-uuid",
-			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
-			MirrorState:        models.OntapSnapmirrored,
+			RelationshipStatus: datamodel.SnapmirrorRelationshipTransferring,
+			MirrorState:        datamodel.OntapSnapmirrored,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {

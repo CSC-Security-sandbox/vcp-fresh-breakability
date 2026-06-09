@@ -608,7 +608,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Single
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 				Name:      "test-volume",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -628,7 +628,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Single
 				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 				VolumeUUID: "test-volume-uuid",
 				Name:       "test-backup",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "test-object-store-uuid",
 					EndpointUUID:    "test-endpoint-uuid",
@@ -716,7 +716,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-success-uuid"},
 				Name:      "volume-success",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -736,7 +736,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 				BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
 				VolumeUUID: "volume-success-uuid",
 				Name:       "backup-success",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-success-uuid",
 					EndpointUUID:    "endpoint-success-uuid",
@@ -748,7 +748,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-backup-fail-uuid"},
 				Name:      "volume-backup-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    2,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 2},
@@ -767,7 +767,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-fail-uuid"},
 				Name:      "backup-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-fail-uuid",
 					EndpointUUID:    "endpoint-fail-uuid",
@@ -779,7 +779,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "volume-vol-fail-uuid"},
 				Name:      "volume-vol-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    3,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 3},
@@ -798,7 +798,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-vol-fail-uuid"},
 				Name:      "backup-vol-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-vol-fail-uuid",
 					EndpointUUID:    "endpoint-vol-fail-uuid",
@@ -940,7 +940,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Backup
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 				Name:      "test-volume",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -960,7 +960,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Backup
 				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 				VolumeUUID: "test-volume-uuid",
 				Name:       "test-backup",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "test-object-store-uuid",
 					EndpointUUID:    "test-endpoint-uuid",
@@ -1133,7 +1133,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario4_MultipleVolume
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
 				Name:      "volume-no-backup-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: nil, // No backup available
 		},
@@ -1141,7 +1141,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario4_MultipleVolume
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-uuid-2"},
 				Name:      "volume-no-backup-2",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: nil, // No backup available
 		},
@@ -1169,7 +1169,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario5_MultipleVolume
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-ready-1"},
 				Name:      "volume-ready-1",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(0)),
 				},
@@ -1177,7 +1177,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario5_MultipleVolume
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-available-1"},
 				Name:      "backup-available-1",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-1",
 					EndpointUUID:    "endpoint-uuid-1",
@@ -1189,7 +1189,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario5_MultipleVolume
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-ready-2"},
 				Name:      "volume-ready-2",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(500 * 1024 * 1024)), // 500MB existing
 				},
@@ -1197,7 +1197,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario5_MultipleVolume
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-available-2"},
 				Name:      "backup-available-2",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-2",
 					EndpointUUID:    "endpoint-uuid-2",
@@ -1209,12 +1209,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario5_MultipleVolume
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "volume-ready-3"},
 				Name:      "volume-ready-3",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-no-attrs-3"},
 				Name:      "backup-no-attrs-3",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "", // Missing ObjectStoreUUID
 					EndpointUUID:    "endpoint-uuid-3",
@@ -1269,7 +1269,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario6_DeletedVolumes
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-ready-only"},
 				Name:      "volume-ready-only",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(0)),
 				},
@@ -1277,7 +1277,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario6_DeletedVolumes
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-for-ready-volume"},
 				Name:      "backup-for-ready-volume",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid",
 					EndpointUUID:    "endpoint-uuid",
@@ -1318,12 +1318,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario7_SizeNotSynced_
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-nil-size"},
 				Name:      "volume-nil-size",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-nil-size"},
 				Name:      "backup-nil-size",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-1",
 					EndpointUUID:    "endpoint-uuid-1",
@@ -1335,12 +1335,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario7_SizeNotSynced_
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-endpoint-fail"},
 				Name:      "volume-endpoint-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-endpoint-fail"},
 				Name:      "backup-endpoint-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-2",
 					EndpointUUID:    "endpoint-uuid-2",
@@ -1352,7 +1352,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario7_SizeNotSynced_
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "volume-update-fail"},
 				Name:      "volume-update-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(0)),
 				},
@@ -1360,7 +1360,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario7_SizeNotSynced_
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-update-fail"},
 				Name:      "backup-update-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-3",
 					EndpointUUID:    "endpoint-uuid-3",
@@ -1410,12 +1410,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario8_NullPointerHan
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-nil-attrs"},
 				Name:      "volume-nil-attrs",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "backup-nil-attrs"},
 				Name:       "backup-nil-attrs",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: nil, // Nil attributes
 			},
 		},
@@ -1424,7 +1424,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario8_NullPointerHan
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-nil-backup"},
 				Name:      "volume-nil-backup",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: nil, // Nil latest backup
 		},
@@ -1433,13 +1433,13 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario8_NullPointerHan
 			Volume: &datamodel.Volume{
 				BaseModel:      datamodel.BaseModel{ID: 3, UUID: "volume-nil-dataprotection"},
 				Name:           "volume-nil-dataprotection",
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				DataProtection: nil, // Nil data protection
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-for-nil-dataprotection"},
 				Name:      "backup-for-nil-dataprotection",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-3",
 					EndpointUUID:    "endpoint-uuid-3",
@@ -1451,7 +1451,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario8_NullPointerHan
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 4, UUID: "volume-valid"},
 				Name:      "volume-valid",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(0)),
 				},
@@ -1459,7 +1459,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario8_NullPointerHan
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-valid"},
 				Name:      "backup-valid",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-4",
 					EndpointUUID:    "endpoint-uuid-4",
@@ -1515,7 +1515,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario9_LargeScale_Mix
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: i, UUID: fmt.Sprintf("volume-success-%d", i)},
 				Name:      fmt.Sprintf("volume-success-%d", i),
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)), // 100MB
 				},
@@ -1523,7 +1523,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario9_LargeScale_Mix
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("backup-success-%d", i)},
 				Name:      fmt.Sprintf("backup-success-%d", i),
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: fmt.Sprintf("object-store-uuid-%d", i),
 					EndpointUUID:    fmt.Sprintf("endpoint-uuid-%d", i),
@@ -1538,7 +1538,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario9_LargeScale_Mix
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: i, UUID: fmt.Sprintf("volume-fail-%d", i)},
 				Name:      fmt.Sprintf("volume-fail-%d", i),
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(200 * 1024 * 1024)), // 200MB
 				},
@@ -1546,7 +1546,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario9_LargeScale_Mix
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("backup-fail-%d", i)},
 				Name:      fmt.Sprintf("backup-fail-%d", i),
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: fmt.Sprintf("object-store-uuid-%d", i),
 					EndpointUUID:    fmt.Sprintf("endpoint-uuid-%d", i),
@@ -1617,12 +1617,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario11_EdgeCase_Empt
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-empty-object-store"},
 				Name:      "volume-empty-object-store",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-empty-object-store"},
 				Name:      "backup-empty-object-store",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "", // Empty ObjectStoreUUID
 					EndpointUUID:    "endpoint-uuid-1",
@@ -1633,12 +1633,12 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario11_EdgeCase_Empt
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-empty-endpoint"},
 				Name:      "volume-empty-endpoint",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-empty-endpoint"},
 				Name:      "backup-empty-endpoint",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-2",
 					EndpointUUID:    "", // Empty EndpointUUID
@@ -1672,7 +1672,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario12_Performance_T
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-timeout-test"},
 				Name:      "volume-timeout-test",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				DataProtection: &datamodel.DataProtection{
 					BackupChainBytes: nillable.ToPointer(int64(0)),
 				},
@@ -1680,7 +1680,7 @@ func (s *BackupLogicalSizeSyncIntegrationTestSuite) TestScenario12_Performance_T
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-timeout-test"},
 				Name:      "backup-timeout-test",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-uuid-timeout",
 					EndpointUUID:    "endpoint-uuid-timeout",
@@ -1767,7 +1767,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 				Name:      "test-volume",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1787,7 +1787,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 				VolumeUUID: "test-volume-uuid",
 				Name:       "test-backup",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "test-object-store-uuid",
 					EndpointUUID:    "test-endpoint-uuid",
@@ -1867,7 +1867,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-success-uuid"},
 				Name:      "volume-success",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1887,7 +1887,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 				BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
 				VolumeUUID: "volume-success-uuid",
 				Name:       "backup-success",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-success-uuid",
 					EndpointUUID:    "endpoint-success-uuid",
@@ -1899,7 +1899,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-backup-fail-uuid"},
 				Name:      "volume-backup-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1918,7 +1918,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-fail-uuid"},
 				Name:      "backup-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-fail-uuid",
 					EndpointUUID:    "endpoint-fail-uuid",
@@ -1930,7 +1930,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 3, UUID: "volume-vol-fail-uuid"},
 				Name:      "volume-vol-fail",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -1949,7 +1949,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			LatestBackup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "backup-vol-fail-uuid"},
 				Name:      "backup-vol-fail",
-				State:     models.LifeCycleStateAvailable,
+				State:     datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-vol-fail-uuid",
 					EndpointUUID:    "endpoint-vol-fail-uuid",
@@ -2056,7 +2056,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-zero-size-uuid"},
 				Name:      "volume-zero-size",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -2076,7 +2076,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 				BaseModel:  datamodel.BaseModel{UUID: "backup-zero-size-uuid"},
 				VolumeUUID: "volume-zero-size-uuid",
 				Name:       "backup-zero-size",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-zero-uuid",
 					EndpointUUID:    "endpoint-zero-uuid",
@@ -2143,7 +2143,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-large-size-uuid"},
 				Name:      "volume-large-size",
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 				PoolID:    1,
 				Pool: &datamodel.Pool{
 					BaseModel:      datamodel.BaseModel{ID: 1},
@@ -2163,7 +2163,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 				BaseModel:  datamodel.BaseModel{UUID: "backup-large-size-uuid"},
 				VolumeUUID: "volume-large-size-uuid",
 				Name:       "backup-large-size",
-				State:      models.LifeCycleStateAvailable,
+				State:      datamodel.LifeCycleStateAvailable,
 				Attributes: &datamodel.BackupAttributes{
 					ObjectStoreUUID: "object-store-large-uuid",
 					EndpointUUID:    "endpoint-large-uuid",

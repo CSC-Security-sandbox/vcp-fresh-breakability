@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	supervisorhandler "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks/supervisor-handler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -52,11 +51,11 @@ var (
 	// because a timed-out create workflow may have partially provisioned external
 	// resources (ONTAP/GCP) that require manual investigation rather than
 	// automatic state transition.
-	processingStateEligibleJobTypes = map[models.JobType]struct{}{
-		models.JobTypeDeletePool:        {},
-		models.JobTypeDeleteLargePool:   {},
-		models.JobTypeDeleteVolume:      {},
-		models.JobTypeDeleteLargeVolume: {},
+	processingStateEligibleJobTypes = map[datamodel.JobType]struct{}{
+		datamodel.JobTypeDeletePool:        {},
+		datamodel.JobTypeDeleteLargePool:   {},
+		datamodel.JobTypeDeleteVolume:      {},
+		datamodel.JobTypeDeleteLargeVolume: {},
 	}
 )
 
@@ -240,13 +239,13 @@ func (r *workflowSupervisorTaskRunner) fetchAndProcessJobs(
 func (r *workflowSupervisorTaskRunner) scanNewStateJobs(ctx context.Context, jobTypes []string) {
 	cutoffTimestamp := time.Now().Add(-workflowNotFoundGracePeriod).UTC().Format(time.RFC3339)
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "=", string(models.JobsStateNEW)),
+		dbutils.NewFilterCondition("state", "=", string(datamodel.JobsStateNEW)),
 		dbutils.NewFilterCondition("type", "IN", jobTypes),
 		dbutils.NewFilterCondition("created_at", "<=", cutoffTimestamp),
 	)
 
 	r.fetchAndProcessJobs(ctx, *filter, "NEW", nil, func(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler) {
-		r.evaluateJob(ctx, job, handler, models.JobsStateNEW)
+		r.evaluateJob(ctx, job, handler, datamodel.JobsStateNEW)
 	})
 }
 
@@ -289,7 +288,7 @@ func (r *workflowSupervisorTaskRunner) scanProcessingStateTimeouts(ctx context.C
 	// jobs are then re-checked against their specific timeout in fetchAndProcessJobs.
 	cutoffTimestamp := time.Now().Add(-minTimeout - processingTimeoutGracePeriod).UTC().Format(time.RFC3339)
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "=", string(models.JobsStatePROCESSING)),
+		dbutils.NewFilterCondition("state", "=", string(datamodel.JobsStatePROCESSING)),
 		dbutils.NewFilterCondition("type", "IN", eligible),
 		dbutils.NewFilterCondition("created_at", "<=", cutoffTimestamp),
 	)
@@ -354,13 +353,13 @@ func (r *workflowSupervisorTaskRunner) evaluateProcessingJob(ctx context.Context
 	}
 
 	logger.Warnf("workflow-supervisor-task: detected timed-out workflow for PROCESSING job; starting cleanup")
-	r.cleanupJob(ctx, job, handler, supervisorhandler.EventTimeout, models.JobsStatePROCESSING, logger)
+	r.cleanupJob(ctx, job, handler, supervisorhandler.EventTimeout, datamodel.JobsStatePROCESSING, logger)
 }
 
 // evaluateJob inspects Temporal state for a job and triggers cleanup when
 // timeout conditions are met. The expectedState parameter indicates which job
 // state we expect to find when acquiring the lock for cleanup.
-func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler, expectedState models.JobState) {
+func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler, expectedState datamodel.JobState) {
 	describeCtx, cancel := context.WithTimeout(ctx, temporalDescribeTimeout)
 	defer cancel()
 
@@ -404,14 +403,14 @@ func (r *workflowSupervisorTaskRunner) markJobAsError(ctx context.Context, job *
 	if trackingID == 0 {
 		trackingID = vsaerrors.ErrWorkflowSupervisorTimeout
 	}
-	return r.storage.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), trackingID, supervisorhandler.WorkflowTimeoutDetail)
+	return r.storage.UpdateJob(ctx, job.UUID, string(datamodel.JobsStateERROR), trackingID, supervisorhandler.WorkflowTimeoutDetail)
 }
 
 // cleanupJob terminates the workflow if needed, delegates compensating actions,
 // and marks the job as failed. The expectedState parameter specifies which job
 // state to look for when acquiring the row lock - this prevents race conditions
 // where the job state changed between scan and cleanup.
-func (r *workflowSupervisorTaskRunner) cleanupJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler, event supervisorhandler.Event, expectedState models.JobState, logger log.Logger) {
+func (r *workflowSupervisorTaskRunner) cleanupJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler, event supervisorhandler.Event, expectedState datamodel.JobState, logger log.Logger) {
 	if r.temporal != nil && job.WorkflowID != "" {
 		lockErr := r.storage.WithTransaction(ctx, func(tx dbutils.Transaction) error {
 			var dbJob datamodel.Job
@@ -461,7 +460,7 @@ func (r *workflowSupervisorTaskRunner) cleanupJob(ctx context.Context, job *data
 func filterEligibleProcessingJobTypes(jobTypes []string) []string {
 	var eligible []string
 	for _, jt := range jobTypes {
-		if _, ok := processingStateEligibleJobTypes[models.JobType(jt)]; ok {
+		if _, ok := processingStateEligibleJobTypes[datamodel.JobType(jt)]; ok {
 			eligible = append(eligible, jt)
 		}
 	}

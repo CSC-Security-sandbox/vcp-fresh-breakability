@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +17,7 @@ func TestKmsMigrateHandler_JobTypes(t *testing.T) {
 	jobTypes := handler.JobTypes()
 
 	require.Len(t, jobTypes, 1)
-	require.Contains(t, jobTypes, models.JobTypeMigrateKmsConfig)
+	require.Contains(t, jobTypes, datamodel.JobTypeMigrateKmsConfig)
 }
 
 func TestNewKmsMigrateHandler(t *testing.T) {
@@ -99,7 +98,7 @@ func TestKmsMigrateHandler_Handle_SkipsNonMigratingState(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 
@@ -112,8 +111,8 @@ func TestKmsMigrateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsMigrateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -125,7 +124,7 @@ func TestKmsMigrateHandler_Handle_SuccessWithPreviousState(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", previousState, previousStateDetails).Return(kmsConfig, nil).Once()
@@ -138,8 +137,8 @@ func TestKmsMigrateHandler_Handle_SuccessWithPreviousStateInUse(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsMigrateHandler()
 
-	previousState := models.LifeCycleStateInUse
-	previousStateDetails := models.LifeCycleStateInUseDetails
+	previousState := datamodel.LifeCycleStateInUse
+	previousStateDetails := datamodel.LifeCycleStateInUseDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -151,7 +150,7 @@ func TestKmsMigrateHandler_Handle_SuccessWithPreviousStateInUse(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", previousState, previousStateDetails).Return(kmsConfig, nil).Once()
@@ -173,10 +172,10 @@ func TestKmsMigrateHandler_Handle_SuccessWithFallbackToReady(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
-	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kmsConfig, nil).Once()
+	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Return(kmsConfig, nil).Once()
 
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
@@ -186,8 +185,8 @@ func TestKmsMigrateHandler_Handle_UpdateKmsConfigStateError(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsMigrateHandler()
 
-	previousState := models.LifeCycleStateREADY
-	previousStateDetails := models.LifeCycleStateReadyDetails
+	previousState := datamodel.LifeCycleStateREADY
+	previousStateDetails := datamodel.LifeCycleStateReadyDetails
 
 	job := &datamodel.Job{
 		JobAttributes: &datamodel.JobAttributes{
@@ -199,7 +198,7 @@ func TestKmsMigrateHandler_Handle_UpdateKmsConfigStateError(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	expectedErr := errors.New("update failed")
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
@@ -214,7 +213,7 @@ func TestKmsMigrateHandler_Handle_WithPreviousStateDetails(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	handler := NewKmsMigrateHandler()
 
-	previousState := models.LifeCycleStateREADY
+	previousState := datamodel.LifeCycleStateREADY
 	previousStateDetails := "Custom state details"
 
 	job := &datamodel.Job{
@@ -227,7 +226,7 @@ func TestKmsMigrateHandler_Handle_WithPreviousStateDetails(t *testing.T) {
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
 	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", previousState, previousStateDetails).Return(kmsConfig, nil).Once()
@@ -245,20 +244,20 @@ func TestKmsMigrateHandler_Handle_CompleteSuccessPath(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-job-uuid",
 		},
-		Type: string(models.JobTypeMigrateKmsConfig),
+		Type: string(datamodel.JobTypeMigrateKmsConfig),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID:         "kms-uuid",
-			PreviousState:        models.LifeCycleStateREADY,
-			PreviousStateDetails: models.LifeCycleStateReadyDetails,
+			PreviousState:        datamodel.LifeCycleStateREADY,
+			PreviousStateDetails: datamodel.LifeCycleStateReadyDetails,
 		},
 	}
 
 	kmsConfig := &datamodel.KmsConfig{
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		State:     models.LifeCycleStateMigrating,
+		State:     datamodel.LifeCycleStateMigrating,
 	}
 	storage.EXPECT().GetKmsConfig(mock.Anything, "kms-uuid").Return(kmsConfig, nil).Once()
-	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kmsConfig, nil).Once()
+	storage.EXPECT().UpdateKmsConfigState(mock.Anything, "kms-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails).Return(kmsConfig, nil).Once()
 
 	// This should execute all code including logger initialization and final logger.Infof
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)

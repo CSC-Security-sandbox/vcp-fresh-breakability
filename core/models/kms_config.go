@@ -1,8 +1,16 @@
 package models
 
+import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+)
+
 const (
 	ProxyTypeVcp = "vcp"
 	ProxyTypeCvp = "cvp"
+)
+
+const (
+	KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED = "KEY_STATE_UNSPECIFIED"
 )
 
 // KmsConfig describes a KMS configuration in the VCP cloud model
@@ -37,24 +45,6 @@ type KmsAttributes struct {
 	VcpServiceAccountEmail    string
 }
 
-const (
-	KmsCreationModeSDE = "SDE"
-	KmsCreationModeVCP = "VCP"
-)
-
-// GetCreationMode returns the creation mode, defaulting to SDE for backward compatibility.
-func (a *KmsAttributes) GetCreationMode() string {
-	if a == nil || a.CreationMode == "" {
-		return KmsCreationModeSDE
-	}
-	return a.CreationMode
-}
-
-// IsVCPCreated returns true if the KMS config was created via VCP (no SDE involvement).
-func (a *KmsAttributes) IsVCPCreated() bool {
-	return a.GetCreationMode() == KmsCreationModeVCP
-}
-
 // GetServiceAccountEmail returns the appropriate service account email
 // based on the creation mode. VCP configs use the VCP SA email;
 // SDE configs use the SDE SA email.
@@ -66,6 +56,19 @@ func (a *KmsAttributes) GetServiceAccountEmail() string {
 		return a.VcpServiceAccountEmail
 	}
 	return a.SdeServiceAccountEmail
+}
+
+// GetCreationMode returns the creation mode, defaulting to "SDE" for backward compatibility.
+func (a *KmsAttributes) GetCreationMode() string {
+	if a == nil || a.CreationMode == "" {
+		return datamodel.KmsCreationModeSDE
+	}
+	return a.CreationMode
+}
+
+// IsVCPCreated returns true if the KMS config was created via VCP (no SDE involvement).
+func (a *KmsAttributes) IsVCPCreated() bool {
+	return a.GetCreationMode() == datamodel.KmsCreationModeVCP
 }
 
 // KmsConfigCheck describes an gcp kms configuration check object in the cloud volumes model

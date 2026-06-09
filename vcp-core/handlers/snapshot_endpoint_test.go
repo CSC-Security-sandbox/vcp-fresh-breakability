@@ -13,6 +13,7 @@ import (
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -75,7 +76,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 			Description:           description,
 			VolumeUUID:            volumeId,
 			VolumeName:            "my-volume",
-			LifeCycleState:        coremodels.LifeCycleStateREADY,
+			LifeCycleState:        datamodel.LifeCycleStateREADY,
 			LifeCycleStateDetails: "Available for use",
 			SizeInBytes:           1099511627776,
 		}
@@ -107,7 +108,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 		assert.Equal(t, "snapshot-uuid-123", snapshotData["snapshotId"])
 		assert.Equal(t, volumeId, snapshotData["volumeId"])
 		assert.Equal(t, "my-volume", snapshotData["volumeResourceId"])
-		assert.Equal(t, coremodels.LifeCycleStateREADY, snapshotData["snapshotState"])
+		assert.Equal(t, datamodel.LifeCycleStateREADY, snapshotData["snapshotState"])
 	})
 
 	t.Run("WhenSuccessfulWithSyncModeInProgress", func(t *testing.T) {
@@ -160,7 +161,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 			},
 			Name:                  snapshotName,
 			VolumeUUID:            volumeId,
-			LifeCycleState:        coremodels.LifeCycleStateCreating,
+			LifeCycleState:        datamodel.LifeCycleStateCreating,
 			LifeCycleStateDetails: "Creation in progress",
 		}
 
@@ -477,7 +478,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 			},
 			Name:           "my-snapshot",
 			VolumeUUID:     "volume-uuid",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		// Set up expectations
@@ -533,7 +534,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 			},
 			Name:           "my-snapshot",
 			VolumeUUID:     "volume-uuid",
-			LifeCycleState: coremodels.LifeCycleStateREADY,
+			LifeCycleState: datamodel.LifeCycleStateREADY,
 		}
 
 		// Set up expectations

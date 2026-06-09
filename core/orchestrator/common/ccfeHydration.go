@@ -298,7 +298,7 @@ func _hydrateReplicationState(ctx context.Context, logger log.Logger, region str
 	return err
 }
 
-func _hydrateReplicationStateAndType(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
+func _hydrateReplicationStateAndType(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType datamodel.HybridReplicationParametersReplicationType, token string) error {
 	request := &models.VolumeReplicationUpdateMaskRequest{
 		State:                 state,
 		HybridReplicationType: hybridReplicationType,
@@ -512,10 +512,10 @@ func getResourceQuotaType(resourceType ResourceType) QuotaType {
 // _mapStateToGcpState maps a local state string to its corresponding GCP-compatible state string.
 func _mapStateToGcpState(state string) string {
 	switch state {
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return deletedGcp
-	case models.LifeCycleStateAvailable:
-		return models.LifeCycleStateREADY
+	case datamodel.LifeCycleStateAvailable:
+		return datamodel.LifeCycleStateREADY
 	case "":
 		return defaultGcp
 	default:

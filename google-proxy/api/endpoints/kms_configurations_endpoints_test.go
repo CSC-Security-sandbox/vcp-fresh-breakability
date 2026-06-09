@@ -58,7 +58,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Maybe().
 			Return(job, nil)
 		mockOrchestrator.EXPECT().
-			UpdateJobStatus(mock.Anything, job.UUID, string(vsaCoreModels.JobsStateERROR), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
+			UpdateJobStatus(mock.Anything, job.UUID, string(datamodel.JobsStateERROR), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
 			Maybe().
 			Return(nil)
 		mockOrchestrator.EXPECT().
@@ -422,7 +422,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		job := &vsaCoreModels.Job{}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateError,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateError,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
@@ -449,7 +449,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		job := &vsaCoreModels.Job{}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreating,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateCreating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
@@ -480,7 +480,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:         vsaCoreModels.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 			ResourceID:    "existing-resource-id",
 			KmsAttributes: &vsaCoreModels.KmsAttributes{},
 		}
@@ -511,7 +511,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		job := &vsaCoreModels.Job{}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateInUse,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateInUse,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
@@ -538,7 +538,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreating,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateCreating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some other error"))
@@ -591,7 +591,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateDeleting,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateDeleting,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		// No GetJobByResourceUUID call expected since the method returns early for Deleting state
@@ -618,7 +618,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateUpdating,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateUpdating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		// No GetJobByResourceUUID call expected since the method returns early for Updating state
@@ -645,7 +645,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateMigrating,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateMigrating,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		// No GetJobByResourceUUID call expected since the method returns early for Migrating state
@@ -673,7 +673,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		job := &vsaCoreModels.Job{BaseModel: vsaCoreModels.BaseModel{UUID: "operation-123"}}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreated,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateCreated,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
@@ -703,7 +703,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		job := &vsaCoreModels.Job{BaseModel: vsaCoreModels.BaseModel{UUID: "operation-123"}}
-		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateREADY,
+		kmsConfig := &vsaCoreModels.KmsConfig{State: datamodel.LifeCycleStateREADY,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
 		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
@@ -736,7 +736,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:         vsaCoreModels.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			ResourceID:    "existing-resource-id",
 			KmsAttributes: &vsaCoreModels.KmsAttributes{},
 		}
@@ -953,7 +953,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:         vsaCoreModels.LifeCycleStateError,
+			State:         datamodel.LifeCycleStateError,
 			ResourceID:    "existing-resource-id",
 			KmsAttributes: &vsaCoreModels.KmsAttributes{},
 		}
@@ -988,7 +988,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		}
 		job := &vsaCoreModels.Job{BaseModel: vsaCoreModels.BaseModel{UUID: "operation-123"}}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:         vsaCoreModels.LifeCycleStateError,
+			State:         datamodel.LifeCycleStateError,
 			ResourceID:    "req-resource-id",
 			KmsAttributes: &vsaCoreModels.KmsAttributes{},
 		}
@@ -2047,7 +2047,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 				UUID:                "test-id",
 				ServiceAccountEmail: "test-email",
 				KeyFullPath:         &keyFullPath,
-				KmsState:            vsaCoreModels.LifeCycleStateInUse,
+				KmsState:            datamodel.LifeCycleStateInUse,
 				KmsStateDetails:     "test-details",
 				Description:         &description,
 				CreatedTime:         strfmt.DateTime(time.Now()),
@@ -2078,7 +2078,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:          vsaCoreModels.LifeCycleStateCreated,
+			State:          datamodel.LifeCycleStateCreated,
 			KmsAttributes:  &vsaCoreModels.KmsAttributes{},
 			ServiceAccount: &vsaCoreModels.ServiceAccount{},
 		}
@@ -2090,7 +2090,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the resource name is as expected
-		assert.Equal(t, vsaCoreModels.LifeCycleStateInUse, string(result.(*gcpgenserver.KmsConfigV1beta).KmsState.Value))
+		assert.Equal(t, datamodel.LifeCycleStateInUse, string(result.(*gcpgenserver.KmsConfigV1beta).KmsState.Value))
 	})
 
 	t.Run("WhenStateIsInErrorInSDEAndCreatedInVCP", func(t *testing.T) {
@@ -2121,7 +2121,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 				UUID:                "test-id",
 				ServiceAccountEmail: "test-email",
 				KeyFullPath:         &keyFullPath,
-				KmsState:            vsaCoreModels.LifeCycleStateError,
+				KmsState:            datamodel.LifeCycleStateError,
 				KmsStateDetails:     "test-details",
 				Description:         &description,
 				CreatedTime:         strfmt.DateTime(time.Now()),
@@ -2155,7 +2155,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		kmsConfig := &vsaCoreModels.KmsConfig{
-			State:          vsaCoreModels.LifeCycleStateCreated,
+			State:          datamodel.LifeCycleStateCreated,
 			KmsAttributes:  &vsaCoreModels.KmsAttributes{},
 			ServiceAccount: &vsaCoreModels.ServiceAccount{},
 		}
@@ -2167,7 +2167,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the resource name is as expected
-		assert.Equal(t, vsaCoreModels.LifeCycleStateError, string(result.(*gcpgenserver.KmsConfigV1beta).KmsState.Value))
+		assert.Equal(t, datamodel.LifeCycleStateError, string(result.(*gcpgenserver.KmsConfigV1beta).KmsState.Value))
 	})
 }
 
@@ -2199,7 +2199,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			KeyRingLocation: "us",
 			ResourceID:      resourceId,
 			Description:     "test-description",
-			State:           vsaCoreModels.LifeCycleStateAvailable,
+			State:           datamodel.LifeCycleStateAvailable,
 			KmsAttributes:   &vsaCoreModels.KmsAttributes{},
 		}
 
@@ -3769,21 +3769,21 @@ func TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge(t *testing.T) {
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPError, DeletedAt: nil},
 			Name:      "kms-err", ResourceID: "res-vcp-err", ServiceAccountID: &saID,
-			State: vsaCoreModels.LifeCycleStateError, StateDetails: "vcp-only-error-detail",
+			State: datamodel.LifeCycleStateError, StateDetails: "vcp-only-error-detail",
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPInUse, DeletedAt: nil},
 			Name:      "kms-inuse", ResourceID: "res-vcp-inuse", ServiceAccountID: &saID,
-			State: vsaCoreModels.LifeCycleStateInUse, StateDetails: "db-in-use-details",
+			State: datamodel.LifeCycleStateInUse, StateDetails: "db-in-use-details",
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPReady, DeletedAt: nil},
 			Name:      "kms-ready", ResourceID: "res-vcp-ready", ServiceAccountID: &saID,
-			State: vsaCoreModels.LifeCycleStateREADY, StateDetails: vsaCoreModels.LifeCycleStateReadyDetails,
+			State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateReadyDetails,
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
 		},
@@ -3806,9 +3806,9 @@ func TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge(t *testing.T) {
 		}
 	}
 	sdeList := []*models.KmsConfigV1beta{
-		makeSDE(uuidVCPError, vsaCoreModels.LifeCycleStateInUse, "sde-in-use-should-not-appear"),
-		makeSDE(uuidVCPInUse, vsaCoreModels.LifeCycleStateError, "sde-error-detail"),
-		makeSDE(uuidVCPReady, vsaCoreModels.LifeCycleStateError, "sde-error-for-ready"),
+		makeSDE(uuidVCPError, datamodel.LifeCycleStateInUse, "sde-in-use-should-not-appear"),
+		makeSDE(uuidVCPInUse, datamodel.LifeCycleStateError, "sde-error-detail"),
+		makeSDE(uuidVCPReady, datamodel.LifeCycleStateError, "sde-error-for-ready"),
 	}
 
 	mockClient := kms_configurations.NewMockClientService(t)
@@ -4586,7 +4586,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    vsaCoreModels.LifeCycleStateError,
+			KmsState:    datamodel.LifeCycleStateError,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -4608,7 +4608,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",
 			},
-			State: vsaCoreModels.LifeCycleStateCreated,
+			State: datamodel.LifeCycleStateCreated,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{
 				SdeServiceAccountEmail: "test@example.com",
 			},
@@ -4648,7 +4648,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    vsaCoreModels.LifeCycleStateInUse,
+			KmsState:    datamodel.LifeCycleStateInUse,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -4670,7 +4670,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",
 			},
-			State: vsaCoreModels.LifeCycleStateCreated,
+			State: datamodel.LifeCycleStateCreated,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{
 				SdeServiceAccountEmail: "test@example.com",
 			},
@@ -4710,7 +4710,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    vsaCoreModels.LifeCycleStateREADY,
+			KmsState:    datamodel.LifeCycleStateREADY,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -4732,7 +4732,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",
 			},
-			State: vsaCoreModels.LifeCycleStateCreated,
+			State: datamodel.LifeCycleStateCreated,
 			KmsAttributes: &vsaCoreModels.KmsAttributes{
 				SdeServiceAccountEmail: "test@example.com",
 			},
@@ -4893,7 +4893,7 @@ func TestV1betaCheckKmsConfiguration_RoutesVCPCreatedConfigToVCPPath(t *testing.
 
 	kmsConfig := &vsaCoreModels.KmsConfig{
 		KmsAttributes: &vsaCoreModels.KmsAttributes{
-			CreationMode:           vsaCoreModels.KmsCreationModeVCP,
+			CreationMode:           datamodel.KmsCreationModeVCP,
 			VcpServiceAccountEmail: "vcp-sa@test-project.iam.gserviceaccount.com",
 		},
 	}
@@ -4975,7 +4975,7 @@ func TestCreateSDEKmsConfig_Branches(t *testing.T) {
 		mockOrchestrator.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(job, nil)
 		mockClient.EXPECT().V1betaCreateKmsConfiguration(mock.Anything).Return(nil, fmt.Errorf("cvp error"))
 		mockOrchestrator.EXPECT().
-			UpdateJobStatus(mock.Anything, "job-1", string(vsaCoreModels.JobsStateERROR), 1234, mock.AnythingOfType("string")).
+			UpdateJobStatus(mock.Anything, "job-1", string(datamodel.JobsStateERROR), 1234, mock.AnythingOfType("string")).
 			Return(fmt.Errorf("update status failed"))
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -5034,7 +5034,7 @@ func TestV1betaDescribeKmsConfiguration_Branches(t *testing.T) {
 		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(&vsaCoreModels.KmsConfig{
 			BaseModel: vsaCoreModels.BaseModel{UUID: "kms-id"},
 			KmsAttributes: &vsaCoreModels.KmsAttributes{
-				CreationMode: vsaCoreModels.KmsCreationModeVCP,
+				CreationMode: datamodel.KmsCreationModeVCP,
 			},
 		}, nil)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -5076,7 +5076,7 @@ func TestV1betaDescribeKmsConfiguration_Branches(t *testing.T) {
 		kmsCfg := &vsaCoreModels.KmsConfig{
 			BaseModel: vsaCoreModels.BaseModel{UUID: "kms-id"},
 			KmsAttributes: &vsaCoreModels.KmsAttributes{
-				CreationMode:     vsaCoreModels.KmsCreationModeSDE,
+				CreationMode:     datamodel.KmsCreationModeSDE,
 				SdeKmsConfigUUID: "sde-id-1",
 			},
 		}
@@ -5084,7 +5084,7 @@ func TestV1betaDescribeKmsConfiguration_Branches(t *testing.T) {
 		mockClient.EXPECT().V1betaDescribeKmsConfiguration(mock.MatchedBy(func(p *kms_configurations.V1betaDescribeKmsConfigurationParams) bool {
 			return p != nil && p.KmsConfigID == "sde-id-1"
 		})).Return(&kms_configurations.V1betaDescribeKmsConfigurationOK{
-			Payload: &models.KmsConfigV1beta{UUID: "sde-id-1", KmsState: vsaCoreModels.LifeCycleStateREADY},
+			Payload: &models.KmsConfigV1beta{UUID: "sde-id-1", KmsState: datamodel.LifeCycleStateREADY},
 		}, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}

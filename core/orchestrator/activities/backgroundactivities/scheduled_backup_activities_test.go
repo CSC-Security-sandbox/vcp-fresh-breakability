@@ -44,8 +44,8 @@ func TestCreateScheduledBackup(t *testing.T) {
 			VolumeUUID:    volume.UUID,
 			BackupVaultID: backupVault.ID,
 			BackupVault:   backupVault,
-			State:         models.LifeCycleStateCreating,
-			StateDetails:  models.LifeCycleStateCreatingDetails,
+			State:         datamodel.LifeCycleStateCreating,
+			StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		mockStorage.On("CreateBackup", mock.Anything, mock.Anything).Return(expectedBackup, nil)
@@ -92,7 +92,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 
 		// State check: volume is READY so creation proceeds.
 		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).
-			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: models.LifeCycleStateREADY}, nil).Once()
+			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: datamodel.LifeCycleStateREADY}, nil).Once()
 		// For expert mode, VolumeUUID in the created backup must be ExternalUUID, not volume.UUID.
 		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
 			return b.VolumeUUID == externalUUID
@@ -119,7 +119,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 123}}
 
 		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).
-			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: models.LifeCycleStateDeleting}, nil).Once()
+			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: datamodel.LifeCycleStateDeleting}, nil).Once()
 
 		backup, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "daily", true)
 		assert.Nil(t, backup)
@@ -147,7 +147,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 
 		// CREATING is not DELETING/DELETED, so the guard passes and backup creation proceeds.
 		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).
-			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: models.LifeCycleStateCreating}, nil).Once()
+			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: datamodel.LifeCycleStateCreating}, nil).Once()
 		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
 			return b.VolumeUUID == externalUUID
 		})).Return(expectedBackup, nil).Once()
@@ -220,7 +220,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 		expectedBackup := &datamodel.Backup{VolumeUUID: externalUUID, Type: backupTypeSCHEDULED}
 
 		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).
-			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: models.LifeCycleStateREADY}, nil).Once()
+			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: datamodel.LifeCycleStateREADY}, nil).Once()
 		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
 			return b.VolumeUUID == externalUUID
 		})).Return(expectedBackup, nil).Once()
@@ -244,7 +244,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 		expectedBackup := &datamodel.Backup{VolumeUUID: externalUUID, Type: backupTypeSCHEDULED}
 
 		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).
-			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: models.LifeCycleStateAvailable}, nil).Once()
+			Return(&datamodel.ExpertModeVolumes{ExternalUUID: externalUUID, State: datamodel.LifeCycleStateAvailable}, nil).Once()
 		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
 			return b.VolumeUUID == externalUUID
 		})).Return(expectedBackup, nil).Once()
@@ -466,13 +466,13 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		expertModeConditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateAvailable},
+			{"state = ?", datamodel.LifeCycleStateAvailable},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -496,7 +496,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -527,13 +527,13 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		expertModeConditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateAvailable},
+			{"state = ?", datamodel.LifeCycleStateAvailable},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -558,13 +558,13 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		expertModeConditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateAvailable},
+			{"state = ?", datamodel.LifeCycleStateAvailable},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -598,7 +598,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 				BaseModel:    datamodel.BaseModel{UUID: "em-vol-1"},
 				Name:         "expert-vol",
 				ExternalUUID: "em-ext-uuid",
-				State:        models.LifeCycleStateREADY,
+				State:        datamodel.LifeCycleStateREADY,
 				AccountID:    accountID,
 				Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}, Network: network},
 				BackupConfig: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyEnabled},
@@ -607,13 +607,13 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		expertModeConditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateAvailable},
+			{"state = ?", datamodel.LifeCycleStateAvailable},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -648,13 +648,13 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 		expertModeConditions := [][]interface{}{
 			{"account_id = ?", accountID},
-			{"state = ?", models.LifeCycleStateAvailable},
+			{"state = ?", datamodel.LifeCycleStateAvailable},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -1157,8 +1157,8 @@ func TestUpdateBackupSnapshotInDB(t *testing.T) {
 		updatedSnapshot := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{ID: 789, UUID: "snapshot-uuid"},
 			Name:         "test-snapshot",
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				SizeInBytes:            1024000,
 				ExternalUUID:           "ontap-external-uuid",
@@ -1173,8 +1173,8 @@ func TestUpdateBackupSnapshotInDB(t *testing.T) {
 		assert.Equal(t, updatedSnapshot, result)
 
 		// Verify the snapshot object was updated correctly
-		assert.Equal(t, models.LifeCycleStateREADY, dbSnapshot.State)
-		assert.Equal(t, models.LifeCycleStateAvailableDetails, dbSnapshot.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateREADY, dbSnapshot.State)
+		assert.Equal(t, datamodel.LifeCycleStateAvailableDetails, dbSnapshot.StateDetails)
 		assert.Equal(t, ontapSnapshot.SizeInBytes, dbSnapshot.SnapshotAttributes.SizeInBytes)
 		assert.Equal(t, ontapSnapshot.ExternalUUID, dbSnapshot.SnapshotAttributes.ExternalUUID)
 		assert.Equal(t, ontapSnapshot.LogicalSizeInBytes, dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
@@ -1687,7 +1687,7 @@ func TestUpdateBackupState(t *testing.T) {
 				UUID: "backup-uuid-1",
 			},
 			Name:  "test-backup",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		expectedUpdatedBackup := &datamodel.Backup{
@@ -1696,7 +1696,7 @@ func TestUpdateBackupState(t *testing.T) {
 				UUID: "backup-uuid-1",
 			},
 			Name:  "test-backup",
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 		}
 
 		mockStorage.On("UpdateBackupState", ctx, backup).Return(expectedUpdatedBackup, nil).Once()
@@ -1705,7 +1705,7 @@ func TestUpdateBackupState(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, updatedBackup)
 		assert.Equal(t, expectedUpdatedBackup, updatedBackup)
-		assert.Equal(t, models.LifeCycleStateREADY, updatedBackup.State)
+		assert.Equal(t, datamodel.LifeCycleStateREADY, updatedBackup.State)
 
 		mockStorage.AssertExpectations(t)
 	})
@@ -1728,7 +1728,7 @@ func TestUpdateBackupState(t *testing.T) {
 				UUID: "backup-uuid-1",
 			},
 			Name:  "test-backup",
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}
 
 		mockStorage.On("UpdateBackupState", ctx, backup).Return(nil, errors.New("database connection failed")).Once()
@@ -1749,18 +1749,18 @@ func TestUpdateBackupState(t *testing.T) {
 		}{
 			{
 				name:          "CreatingToReady",
-				initialState:  models.LifeCycleStateCreating,
-				expectedState: models.LifeCycleStateREADY,
+				initialState:  datamodel.LifeCycleStateCreating,
+				expectedState: datamodel.LifeCycleStateREADY,
 			},
 			{
 				name:          "ReadyToError",
-				initialState:  models.LifeCycleStateREADY,
-				expectedState: models.LifeCycleStateError,
+				initialState:  datamodel.LifeCycleStateREADY,
+				expectedState: datamodel.LifeCycleStateError,
 			},
 			{
 				name:          "CreatingToError",
-				initialState:  models.LifeCycleStateCreating,
-				expectedState: models.LifeCycleStateError,
+				initialState:  datamodel.LifeCycleStateCreating,
+				expectedState: datamodel.LifeCycleStateError,
 			},
 		}
 
@@ -1811,7 +1811,7 @@ func TestCreateRemoteScheduledBackupsFromVCPActivity(t *testing.T) {
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 			Account:   &datamodel.Account{Name: projectNumber},
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 
 		backupVault := &datamodel.BackupVault{

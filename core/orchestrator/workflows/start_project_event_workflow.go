@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -73,7 +72,7 @@ func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.Star
 		return nil, ConvertToVSAError(err)
 	}
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
-	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		customErr = ConvertToVSAError(err)
 		return nil, customErr
@@ -81,13 +80,13 @@ func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.Star
 	defer func() {
 		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 			if err != nil {
 				log.Errorf("startProjectEventOffStateWorkflow failed to update job status: %v", err)
 			}
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -152,7 +151,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao2 := ao1
 
-	accountStateToSet := models.AccountStateEnabled // default to failure state, will be changed to success state only on completion
+	accountStateToSet := datamodel.AccountStateEnabled // default to failure state, will be changed to success state only on completion
 	defer func() {
 		// Skip account state update if this is a zone-specific operation
 		if isZone {
@@ -164,7 +163,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		if updateErr != nil {
 			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
 			// Return error if we failed to update account state and the target state was success (AccountStateHyperscalerDisabled)
-			if accountStateToSet == models.AccountStateHyperscalerDisabled {
+			if accountStateToSet == datamodel.AccountStateHyperscalerDisabled {
 				customErr = ConvertToVSAError(updateErr)
 				return
 			}
@@ -175,7 +174,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 
 	// Set account state to "disabling" before starting VSA operations - skip if Zone is specified
 	if !isZone {
-		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateDisabling).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, datamodel.AccountStateDisabling).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -228,7 +227,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		}
 	} else {
 		// Start VSA cluster operations in background asynchronously
-		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOff, poolList, s.processClusterForOFFState, models.LifeCycleStateDisabled, isZone)
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOff, poolList, s.processClusterForOFFState, datamodel.LifeCycleStateDisabled, isZone)
 		if err != nil {
 			logger.Errorf("Failed to start VSA cluster operations: %v", err)
 			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
@@ -303,7 +302,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 		logger.Errorf("SDE operations failed: %v", sdeError)
 	}
 
-	// Handle failures - account state remains at failure state (models.AccountStateEnabled)
+	// Handle failures - account state remains at failure state (datamodel.AccountStateEnabled)
 	if hasVSAFailure || hasSDEFailure {
 		logger.Error("One or more operations failed, account state remains enabled")
 		// Return appropriate error based on what failed
@@ -326,7 +325,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 
 	// All operations completed successfully - set account state to success state
 	if !isZone {
-		accountStateToSet = models.AccountStateHyperscalerDisabled
+		accountStateToSet = datamodel.AccountStateHyperscalerDisabled
 	} else {
 		logger.Infof("Zone specified (%s), skipping account state transition to HYPERSCALERDISABLED", startProjectEventParams.Zone)
 	}
@@ -351,7 +350,7 @@ func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.Start
 		return nil, ConvertToVSAError(err)
 	}
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
-	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStatePROCESSING), nil)
 	if err != nil {
 		customErr = ConvertToVSAError(err)
 		return nil, customErr
@@ -359,13 +358,13 @@ func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.Start
 	defer func() {
 		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateERROR), customErr)
 			if err != nil {
 				log.Errorf("startProjectEventOffStateWorkflow failed to update job status: %v", err)
 			}
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(datamodel.JobsStateDONE), nil)
 		}
 	}()
 
@@ -431,7 +430,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao2 := ao1
 
-	accountStateToSet := models.AccountStateHyperscalerDisabled // default to failure state, will be changed to success state only on completion
+	accountStateToSet := datamodel.AccountStateHyperscalerDisabled // default to failure state, will be changed to success state only on completion
 	defer func() {
 		// Skip account state update if this is a zone-specific operation
 		if isZone {
@@ -443,7 +442,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		if updateErr != nil {
 			logger.Errorf("Failed to update account state to %s: %v", accountStateToSet, updateErr)
 			// Return error if we failed to update account state and the target state was success (AccountStateEnabled)
-			if accountStateToSet == models.AccountStateEnabled {
+			if accountStateToSet == datamodel.AccountStateEnabled {
 				customErr = ConvertToVSAError(updateErr)
 				return
 			}
@@ -454,7 +453,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 
 	// Set account state to "enabling" before starting VSA operations - skip if Zone is specified
 	if !isZone {
-		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, models.AccountStateEnabling).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, startProjectEventActivity.UpdateAccountStateForHandleResource, startProjectEventParams.ProjectNumber, datamodel.AccountStateEnabling).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -488,7 +487,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	} else {
 		// Start VSA cluster operations in background asynchronously
-		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOn, poolList, s.processClusterForONState, models.LifeCycleStateREADY, isZone)
+		vsaOperationsChan, err = executeVSAClusterOperations(ctx, startProjectEventParams, vlm.ClusterPowerOn, poolList, s.processClusterForONState, datamodel.LifeCycleStateREADY, isZone)
 		if err != nil {
 			logger.Errorf("Failed to start VSA cluster operations: %v", err)
 			// Note: This error path should never occur as executeVSAClusterOperations always returns nil error
@@ -574,7 +573,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 		logger.Errorf("SDE operations failed: %v", sdeError)
 	}
 
-	// Handle failures - account state remains at failure state (models.AccountStateHyperscalerDisabled)
+	// Handle failures - account state remains at failure state (datamodel.AccountStateHyperscalerDisabled)
 	if hasVSAFailure || hasSDEFailure {
 		logger.Error("One or more operations failed, account state remains disabled")
 
@@ -590,7 +589,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 
 	// All operations completed successfully - set account state to success state
 	if !isZone {
-		accountStateToSet = models.AccountStateEnabled
+		accountStateToSet = datamodel.AccountStateEnabled
 	} else {
 		logger.Infof("Zone specified (%s), skipping account state transition to ENABLED", startProjectEventParams.Zone)
 	}
@@ -659,10 +658,10 @@ func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProje
 				pool.UUID = result.PoolUUID
 				var stateDetails string
 				switch targetLifecycleState {
-				case models.LifeCycleStateDisabled:
-					stateDetails = models.LifeCycleStateDisabledDetails
-				case models.LifeCycleStateREADY:
-					stateDetails = models.LifeCycleStateAvailableDetails
+				case datamodel.LifeCycleStateDisabled:
+					stateDetails = datamodel.LifeCycleStateDisabledDetails
+				case datamodel.LifeCycleStateREADY:
+					stateDetails = datamodel.LifeCycleStateAvailableDetails
 				}
 
 				err := workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, pool, targetLifecycleState, stateDetails).Get(ctx, nil)
@@ -716,7 +715,7 @@ func handleHarvestFarmPollerRegistration(ctx workflow.Context, currentPoolView *
 	logger := util.GetLogger(ctx)
 
 	// Deregister poller when pool is disabled
-	if targetLifecycleState == models.LifeCycleStateDisabled {
+	if targetLifecycleState == datamodel.LifeCycleStateDisabled {
 		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
 			PoolID:            currentPoolView.Pool.ID,
 			CustomerProjectID: params.ProjectNumber,
@@ -737,7 +736,7 @@ func handleHarvestFarmPollerRegistration(ctx workflow.Context, currentPoolView *
 	}
 
 	// Register poller when pool becomes ready
-	if targetLifecycleState == models.LifeCycleStateREADY {
+	if targetLifecycleState == datamodel.LifeCycleStateREADY {
 		registerNodeToHarvestFarmWorkflowInput := RegisterNodeToHarvestFarmWorkflowInput{
 			PoolID:            currentPoolView.Pool.ID,
 			MaxNodesPerGroup:  maxNodesPerGroup,

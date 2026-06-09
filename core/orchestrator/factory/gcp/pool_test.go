@@ -958,7 +958,7 @@ func TestCreatePool(t *testing.T) {
 				ThroughputMibps: 64,
 				Iops:            &iops,
 			},
-			KmsConfig: &models.KmsConfig{State: models.LifeCycleStateInUse},
+			KmsConfig: &models.KmsConfig{State: datamodel.LifeCycleStateInUse},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -1038,7 +1038,7 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error on updating pool with valid ActiveDirectoryConfigId")
 		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, pool.State)
 
 		// Verify the ActiveDirectoryID was set in the database
 		var updatedPool datamodel.Pool
@@ -1168,7 +1168,7 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error when ActiveDirectoryConfigId is empty")
 		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
-		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, pool.State)
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdProvidedButNotCheckedInVCP", func(tt *testing.T) {
@@ -1312,7 +1312,7 @@ func TestUpdatePool(t *testing.T) {
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error on updating pool")
 		assert.Equal(tt, pools[0].Name, pool.Name)
-		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, pool.State)
 	})
 	t.Run("WhenUpdatePoolSucceeds_LargeCapacity_UsesLVWorkflowTimeout", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1331,7 +1331,7 @@ func TestUpdatePool(t *testing.T) {
 			AccountID:     account.ID,
 			VendorID:      "test-vendor-id-lv",
 			LargeCapacity: true,
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			PoolAttributes: &datamodel.PoolAttributes{
 				ThroughputMibps: 64,
 				Iops:            1024,
@@ -1391,7 +1391,7 @@ func TestUpdatePool(t *testing.T) {
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error on updating LV pool")
 		assert.Equal(tt, lvPool.Name, pool.Name)
-		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, pool.State)
 	})
 	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1592,7 +1592,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 				Account:   account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone:     "us-central1-a",
@@ -1604,10 +1604,10 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a job with matching correlation ID
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
 			CorrelationID: correlationID,
 		}, nil)
@@ -1654,15 +1654,15 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a job with different correlation ID
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
 			CorrelationID: "different-correlation-id",
 		}, nil)
@@ -1696,15 +1696,15 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 			},
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return an error
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("job not found"))
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(nil, errors.New("job not found"))
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
@@ -1769,15 +1769,15 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating, // Triggers lines 553-557
+				State:     datamodel.LifeCycleStateCreating, // Triggers lines 553-557
 			},
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return an error (triggers lines 554-557)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("database error"))
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(nil, errors.New("database error"))
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
@@ -1813,16 +1813,16 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating, // Triggers lines 553-566
+				State:     datamodel.LifeCycleStateCreating, // Triggers lines 553-566
 			},
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a job with different correlation ID
 		// This triggers lines 559-560, 562 (correlationID != "" && createJob.CorrelationID != correlationID)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
 			CorrelationID: "different-correlation-id-456", // Different from context correlation ID
 		}, nil)
@@ -1861,8 +1861,8 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating, // Triggers lines 553-566
-				Account:   account,                       // Required for convertDatastorePoolToModel
+				State:     datamodel.LifeCycleStateCreating, // Triggers lines 553-566
+				Account:   account,                          // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone:     "us-central1-a",
 					SecondaryZone:   "us-central1-b",
@@ -1873,11 +1873,11 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a job with matching correlation ID
 		// This triggers line 565 (logger.Infof when correlation ID matches)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
 			CorrelationID: correlationID, // Same as context correlation ID
 		}, nil)
@@ -1920,7 +1920,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY, // NOT in CREATING state, triggers line 601-604
+				State:     datamodel.LifeCycleStateREADY, // NOT in CREATING state, triggers line 601-604
 			},
 			VolumeCount: 0, // No volumes, so delete is allowed
 		}, nil)
@@ -1941,7 +1941,7 @@ func TestDeletePool(t *testing.T) {
 		mockStorage.On("DeletingPool", ctx, mock.Anything).Return(deletingPoolError)
 
 		// Mock UpdateJob - when DeletingPool fails, the defer function will call UpdateJob to mark the job as ERROR
-		mockStorage.On("UpdateJob", ctx, "delete-job-uuid", string(models.JobsStateERROR), 0, "failed to mark pool as deleting").Return(nil)
+		mockStorage.On("UpdateJob", ctx, "delete-job-uuid", string(datamodel.JobsStateERROR), 0, "failed to mark pool as deleting").Return(nil)
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
@@ -1975,8 +1975,8 @@ func TestDeletePool(t *testing.T) {
 		existingDeleteJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeDeletePool),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeDeletePool),
+			State:         string(datamodel.JobsStatePROCESSING),
 		}
 
 		// Mock GetPool to return a pool in CREATING state
@@ -1986,7 +1986,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating,
+				State:     datamodel.LifeCycleStateCreating,
 				Account:   account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone:     "us-central1-a",
@@ -1999,7 +1999,7 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(existingDeleteJob, nil)
 
 		result, jobUUID, err := _deletePool(ctx, temporal, mockStorage, params)
 
@@ -2039,7 +2039,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel:     datamodel.BaseModel{UUID: pool.UUID},
 				Name:          pool.Name,
 				AccountID:     account.ID,
-				State:         models.LifeCycleStateCreating,
+				State:         datamodel.LifeCycleStateCreating,
 				LargeCapacity: true,    // Large capacity pool
 				Account:       account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
@@ -2053,19 +2053,19 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_LARGE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeleteLargePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeleteLargePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a CREATE_LARGE_POOL job with matching correlation ID
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreateLargePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreateLargePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-large-pool-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeCreateLargePool),
+			Type:          string(datamodel.JobTypeCreateLargePool),
 		}, nil)
 
 		// Mock CreateJob
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			// Verify that the delete job type is DELETE_LARGE_POOL
-			return job.Type == string(models.JobTypeDeleteLargePool)
+			return job.Type == string(datamodel.JobTypeDeleteLargePool)
 		})).Return(&datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "delete-large-pool-job-uuid"},
 			WorkflowID: "test-workflow-id",
@@ -2104,8 +2104,8 @@ func TestDeletePool(t *testing.T) {
 		existingDeleteJob := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-large-pool-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeDeleteLargePool),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(datamodel.JobTypeDeleteLargePool),
+			State:         string(datamodel.JobsStatePROCESSING),
 		}
 
 		// Mock GetPool to return a large capacity pool in CREATING state
@@ -2115,7 +2115,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel:     datamodel.BaseModel{UUID: pool.UUID},
 				Name:          pool.Name,
 				AccountID:     account.ID,
-				State:         models.LifeCycleStateCreating,
+				State:         datamodel.LifeCycleStateCreating,
 				LargeCapacity: true,    // Large capacity pool
 				Account:       account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
@@ -2129,7 +2129,7 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeleteLargePool)).Return(existingDeleteJob, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeleteLargePool)).Return(existingDeleteJob, nil)
 
 		result, jobUUID, err := _deletePool(ctx, temporal, mockStorage, params)
 
@@ -2169,7 +2169,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel:     datamodel.BaseModel{UUID: pool.UUID},
 				Name:          pool.Name,
 				AccountID:     account.ID,
-				State:         models.LifeCycleStateCreating,
+				State:         datamodel.LifeCycleStateCreating,
 				LargeCapacity: false,   // Standard pool
 				Account:       account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
@@ -2183,19 +2183,19 @@ func TestDeletePool(t *testing.T) {
 		}, nil)
 
 		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a CREATE_POOL job with matching correlation ID
-		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(datamodel.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "create-pool-job-uuid"},
 			CorrelationID: correlationID,
-			Type:          string(models.JobTypeCreatePool),
+			Type:          string(datamodel.JobTypeCreatePool),
 		}, nil)
 
 		// Mock CreateJob - verify it uses DELETE_POOL job type
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			// Verify that the delete job type is DELETE_POOL for standard pools
-			return job.Type == string(models.JobTypeDeletePool)
+			return job.Type == string(datamodel.JobTypeDeletePool)
 		})).Return(&datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "delete-pool-job-uuid"},
 			WorkflowID: "test-workflow-id",
@@ -2235,7 +2235,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+				State:     datamodel.LifeCycleStateUpdating, // Transitional state (not DELETING)
 			},
 			VolumeCount: 0,
 		}, nil)
@@ -2247,7 +2247,7 @@ func TestDeletePool(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "pool is in transition state and cannot be deleted")
-		assert.Contains(tt, err.Error(), models.LifeCycleStateUpdating)
+		assert.Contains(tt, err.Error(), datamodel.LifeCycleStateUpdating)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -2272,8 +2272,8 @@ func TestDeletePool(t *testing.T) {
 
 		existingJob := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
-			Type:      string(models.JobTypeDeletePool),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeDeletePool),
+			State:     string(datamodel.JobsStateNEW),
 		}
 
 		// Mock GetPool to return a pool in DELETING state
@@ -2283,7 +2283,7 @@ func TestDeletePool(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
 				Name:      pool.Name,
 				AccountID: account.ID,
-				State:     models.LifeCycleStateDeleting,
+				State:     datamodel.LifeCycleStateDeleting,
 				Account:   account, // Required for convertDatastorePoolToModel
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone:     "us-central1-a",
@@ -2931,8 +2931,8 @@ func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeCreatePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeCreatePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	pool := &datamodel.Pool{
@@ -2967,7 +2967,7 @@ func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock job update to errored state
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock pool state update to errored state (called by defer function)
 	mockStorage.On("DeletePool", ctx, mock.Anything).Return(nil)
@@ -2982,7 +2982,7 @@ func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify job was marked as errored
-	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed")
 	mockStorage.AssertCalled(t, "DeletePool", ctx, pool)
 }
 
@@ -3012,8 +3012,8 @@ func TestUpdatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:         "test-pool",
 		AccountID:    account.ID,
-		State:        models.LifeCycleStateREADY,
-		StateDetails: models.LifeCycleStateReadyDetails,
+		State:        datamodel.LifeCycleStateREADY,
+		StateDetails: datamodel.LifeCycleStateReadyDetails,
 	}).Error
 	assert.NoError(t, err)
 
@@ -3051,14 +3051,14 @@ func TestUpdatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	var jobs []datamodel.Job
 	store.DB().Find(&jobs)
 	assert.Len(t, jobs, 1)
-	assert.Equal(t, string(models.JobsStateERROR), jobs[0].State)
+	assert.Equal(t, string(datamodel.JobsStateERROR), jobs[0].State)
 
 	// Verify pool was also marked as errored
 	var pools []datamodel.Pool
 	store.DB().Find(&pools)
 	assert.Len(t, pools, 1)
-	assert.Equal(t, models.LifeCycleStateREADY, pools[0].State)
-	assert.Equal(t, models.LifeCycleStateReadyDetails, pools[0].StateDetails)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, pools[0].State)
+	assert.Equal(t, datamodel.LifeCycleStateReadyDetails, pools[0].StateDetails)
 }
 
 // TestDeletePool_WorkflowFailure_JobMarkedAsErrored tests that jobs are marked as errored when workflow fails to start
@@ -3077,8 +3077,8 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeDeletePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeDeletePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	poolView := &datamodel.PoolView{
@@ -3087,8 +3087,8 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 			Name:         "test-pool",
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		},
 		VolumeCount: 0, // No volumes so it can be deleted
 	}
@@ -3109,7 +3109,7 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	// Setup mocks
 	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
 	// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
-	mockStorage.On("GetJobByResourceUUID", ctx, "pool-uuid", string(models.JobTypeDeletePool)).Return(nil, nil)
+	mockStorage.On("GetJobByResourceUUID", ctx, "pool-uuid", string(datamodel.JobTypeDeletePool)).Return(nil, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
 
@@ -3118,7 +3118,7 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock job update to errored state
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock pool state update to errored state (called by defer function)
 	mockStorage.On("UpdatePoolState", ctx, dbpool, dbpool.State, dbpool.StateDetails).Return(nil, nil)
@@ -3133,8 +3133,8 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify job was marked as errored
-	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
-	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, dbpool, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, dbpool, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 }
 
 // TestCreatePool_WorkflowFailure_JobUpdateFails tests error handling when both workflow and job update fail
@@ -3153,8 +3153,8 @@ func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeCreatePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeCreatePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	pool := &datamodel.Pool{
@@ -3190,7 +3190,7 @@ func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
 
 	// Mock job update to also fail
 	jobUpdateError := errors.New("job update failed")
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
 
 	// Mock pool state update to errored state (called by defer function)
 	mockStorage.On("DeletePool", ctx, mock.Anything).Return(nil)
@@ -3205,7 +3205,7 @@ func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify job update was attempted (even though it failed)
-	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed")
 	mockStorage.AssertCalled(t, "DeletePool", ctx, pool)
 }
 
@@ -3325,8 +3325,8 @@ func TestCreatePool_DeletePoolFailsInDefer(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeCreatePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeCreatePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	params := &common.CreatePoolParams{
@@ -3355,7 +3355,7 @@ func TestCreatePool_DeletePoolFailsInDefer(t *testing.T) {
 	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock UpdateJob to succeed
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock DeletePool to fail (Line 80)
 	poolStateError := errors.New("pool deletion failed")
@@ -3470,8 +3470,8 @@ func TestUpdatePool_UpdateJobFailsInDefer(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeUpdatePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeUpdatePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	params := &common.UpdatePoolParams{
@@ -3501,7 +3501,7 @@ func TestUpdatePool_UpdateJobFailsInDefer(t *testing.T) {
 
 	// Mock UpdateJob to fail (Line 235)
 	jobUpdateError := errors.New("job update failed")
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
 
 	// Mock UpdatePoolState to succeed
 	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3516,7 +3516,7 @@ func TestUpdatePool_UpdateJobFailsInDefer(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify UpdateJob was called (even though it failed)
-	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed")
 }
 
 // TestUpdatePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 240)
@@ -3558,8 +3558,8 @@ func TestUpdatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeUpdatePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeUpdatePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	params := &common.UpdatePoolParams{
@@ -3588,7 +3588,7 @@ func TestUpdatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock UpdateJob to succeed
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock UpdatePoolState to fail (Line 240)
 	poolStateError := errors.New("pool state update failed")
@@ -3633,8 +3633,8 @@ func TestDeletePool_UpdateJobFailsInDefer(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeDeletePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeDeletePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	params := &common.DeletePoolParams{
@@ -3663,7 +3663,7 @@ func TestDeletePool_UpdateJobFailsInDefer(t *testing.T) {
 
 	// Mock UpdateJob to fail (Line 406)
 	jobUpdateError := errors.New("job update failed")
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
 
 	// Mock UpdatePoolState to succeed
 	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3678,7 +3678,7 @@ func TestDeletePool_UpdateJobFailsInDefer(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify UpdateJob was called (even though it failed)
-	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed")
 }
 
 // TestDeletePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 419)
@@ -3707,8 +3707,8 @@ func TestDeletePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
-		Type:      string(models.JobTypeDeletePool),
-		State:     string(models.JobsStateNEW),
+		Type:      string(datamodel.JobTypeDeletePool),
+		State:     string(datamodel.JobsStateNEW),
 	}
 
 	params := &common.DeletePoolParams{
@@ -3736,7 +3736,7 @@ func TestDeletePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
 
 	// Mock UpdateJob to succeed
-	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(datamodel.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock UpdatePoolState to fail (Line 419)
 	poolStateError := errors.New("pool state update failed")
@@ -4420,9 +4420,9 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 				Iops:            nillable.ToPointer(int64(2048)),
 			},
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateREADY,
+				State: datamodel.LifeCycleStateREADY,
 				ServiceAccount: &models.ServiceAccount{
-					State: models.AccountStateEnabled,
+					State: datamodel.AccountStateEnabled,
 				},
 			},
 		}
@@ -4442,9 +4442,9 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 				Iops:            nillable.ToPointer(int64(2048)),
 			},
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateInUse,
+				State: datamodel.LifeCycleStateInUse,
 				ServiceAccount: &models.ServiceAccount{
-					State: models.AccountStateEnabled,
+					State: datamodel.AccountStateEnabled,
 				},
 			},
 		}
@@ -4464,9 +4464,9 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 				Iops:            nillable.ToPointer(int64(2048)),
 			},
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateCreating, // Invalid state for pool creation
+				State: datamodel.LifeCycleStateCreating, // Invalid state for pool creation
 				ServiceAccount: &models.ServiceAccount{
-					State: models.AccountStateEnabled,
+					State: datamodel.AccountStateEnabled,
 				},
 			},
 		}
@@ -4487,9 +4487,9 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 				Iops:            nillable.ToPointer(int64(2048)),
 			},
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateDisabled, // Invalid state for pool creation
+				State: datamodel.LifeCycleStateDisabled, // Invalid state for pool creation
 				ServiceAccount: &models.ServiceAccount{
-					State: models.AccountStateEnabled,
+					State: datamodel.AccountStateEnabled,
 				},
 			},
 		}
@@ -4527,7 +4527,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 				Iops:            nillable.ToPointer(int64(2048)),
 			},
 			KmsConfig: &models.KmsConfig{
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				ServiceAccount: nil, // Nil service account should be valid
 			},
 		}
@@ -5838,7 +5838,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test-pool-uuid",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
 					{
@@ -5876,7 +5876,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test-pool-uuid",
 			AccountID: account.ID,
-			State:     models.LifeCycleStateDeleting,
+			State:     datamodel.LifeCycleStateDeleting,
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
 					{
@@ -6339,17 +6339,17 @@ func TestCreatePool_JobTypeSelection(t *testing.T) {
 
 	t.Run("LargeCapacityPool_UsesCreateLargePoolJobType", func(tt *testing.T) {
 		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryLargeCapacity)
-		assert.Equal(tt, models.JobTypeCreateLargePool, jobType)
+		assert.Equal(tt, datamodel.JobTypeCreateLargePool, jobType)
 	})
 
 	t.Run("StandardPool_UsesCreatePoolJobType", func(tt *testing.T) {
 		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryStandard)
-		assert.Equal(tt, models.JobTypeCreatePool, jobType)
+		assert.Equal(tt, datamodel.JobTypeCreatePool, jobType)
 	})
 
 	t.Run("DefaultPool_UsesCreatePoolJobType", func(tt *testing.T) {
 		jobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, models.PoolCategoryDefault)
-		assert.Equal(tt, models.JobTypeCreatePool, jobType) // Default maps to standard
+		assert.Equal(tt, datamodel.JobTypeCreatePool, jobType) // Default maps to standard
 	})
 }
 
@@ -6360,46 +6360,46 @@ func TestGetResourceJobType_PoolOperations_ComprehensiveMapping(t *testing.T) {
 		name            string
 		operation       models.ResourceOperation
 		isLargeCapacity bool
-		expectedJobType models.JobType
+		expectedJobType datamodel.JobType
 	}{
 		// CREATE operations
 		{
 			name:            "Create_RegularCapacity",
 			operation:       models.ResourceOperationCreate,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeCreatePool,
+			expectedJobType: datamodel.JobTypeCreatePool,
 		},
 		{
 			name:            "Create_LargeCapacity",
 			operation:       models.ResourceOperationCreate,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeCreateLargePool,
+			expectedJobType: datamodel.JobTypeCreateLargePool,
 		},
 		// UPDATE operations
 		{
 			name:            "Update_RegularCapacity",
 			operation:       models.ResourceOperationUpdate,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeUpdatePool,
+			expectedJobType: datamodel.JobTypeUpdatePool,
 		},
 		{
 			name:            "Update_LargeCapacity",
 			operation:       models.ResourceOperationUpdate,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeUpdateLargePool,
+			expectedJobType: datamodel.JobTypeUpdateLargePool,
 		},
 		// DELETE operations
 		{
 			name:            "Delete_RegularCapacity",
 			operation:       models.ResourceOperationDelete,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeDeletePool,
+			expectedJobType: datamodel.JobTypeDeletePool,
 		},
 		{
 			name:            "Delete_LargeCapacity",
 			operation:       models.ResourceOperationDelete,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeDeleteLargePool,
+			expectedJobType: datamodel.JobTypeDeleteLargePool,
 		},
 	}
 
@@ -6420,19 +6420,19 @@ func TestGetResourceJobType_PoolOperations_EdgeCases(t *testing.T) {
 	t.Run("InvalidOperation_FallsBackToCreatePool", func(tt *testing.T) {
 		// Test what happens with invalid operation
 		jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryStandard)
-		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
+		assert.Equal(tt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
 	})
 
 	t.Run("InvalidOperation_WithLargeCapacity_FallsBackToCreatePool", func(tt *testing.T) {
 		// Test what happens with invalid operation and large capacity
 		jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryLargeCapacity)
-		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation even with large capacity")
+		assert.Equal(tt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation even with large capacity")
 	})
 
 	t.Run("EmptyOperation_FallsBackToCreatePool", func(tt *testing.T) {
 		// Test what happens with empty operation
 		jobType := models.GetResourceJobType(models.ResourceTypePool, "", models.PoolCategoryStandard)
-		assert.Equal(tt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for empty operation")
+		assert.Equal(tt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for empty operation")
 	})
 }
 
@@ -6443,49 +6443,49 @@ func TestGetResourceJobType_PoolOperations_AllValidCombinations(t *testing.T) {
 		name            string
 		operation       models.ResourceOperation
 		isLargeCapacity bool
-		expectedJobType models.JobType
+		expectedJobType datamodel.JobType
 		description     string
 	}{
 		{
 			name:            "CreateRegular",
 			operation:       models.ResourceOperationCreate,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeCreatePool,
+			expectedJobType: datamodel.JobTypeCreatePool,
 			description:     "Create operation with regular capacity should return CREATE_POOL",
 		},
 		{
 			name:            "CreateLarge",
 			operation:       models.ResourceOperationCreate,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeCreateLargePool,
+			expectedJobType: datamodel.JobTypeCreateLargePool,
 			description:     "Create operation with large capacity should return CREATE_LARGE_POOL",
 		},
 		{
 			name:            "UpdateRegular",
 			operation:       models.ResourceOperationUpdate,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeUpdatePool,
+			expectedJobType: datamodel.JobTypeUpdatePool,
 			description:     "Update operation with regular capacity should return UPDATE_POOL",
 		},
 		{
 			name:            "UpdateLarge",
 			operation:       models.ResourceOperationUpdate,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeUpdateLargePool,
+			expectedJobType: datamodel.JobTypeUpdateLargePool,
 			description:     "Update operation with large capacity should return UPDATE_LARGE_POOL",
 		},
 		{
 			name:            "DeleteRegular",
 			operation:       models.ResourceOperationDelete,
 			isLargeCapacity: false,
-			expectedJobType: models.JobTypeDeletePool,
+			expectedJobType: datamodel.JobTypeDeletePool,
 			description:     "Delete operation with regular capacity should return DELETE_POOL",
 		},
 		{
 			name:            "DeleteLarge",
 			operation:       models.ResourceOperationDelete,
 			isLargeCapacity: true,
-			expectedJobType: models.JobTypeDeleteLargePool,
+			expectedJobType: datamodel.JobTypeDeleteLargePool,
 			description:     "Delete operation with large capacity should return DELETE_LARGE_POOL",
 		},
 	}
@@ -6511,12 +6511,12 @@ func TestGetResourceJobType_PoolOperations_OperationConstants(t *testing.T) {
 
 	t.Run("JobTypeConstantsAreDefined", func(tt *testing.T) {
 		// Verify all job type constants exist and have expected values
-		assert.Equal(tt, models.JobType("CREATE_POOL"), models.JobTypeCreatePool)
-		assert.Equal(tt, models.JobType("CREATE_LARGE_POOL"), models.JobTypeCreateLargePool)
-		assert.Equal(tt, models.JobType("UPDATE_POOL"), models.JobTypeUpdatePool)
-		assert.Equal(tt, models.JobType("UPDATE_LARGE_POOL"), models.JobTypeUpdateLargePool)
-		assert.Equal(tt, models.JobType("DELETE_POOL"), models.JobTypeDeletePool)
-		assert.Equal(tt, models.JobType("DELETE_LARGE_POOL"), models.JobTypeDeleteLargePool)
+		assert.Equal(tt, datamodel.JobType("CREATE_POOL"), datamodel.JobTypeCreatePool)
+		assert.Equal(tt, datamodel.JobType("CREATE_LARGE_POOL"), datamodel.JobTypeCreateLargePool)
+		assert.Equal(tt, datamodel.JobType("UPDATE_POOL"), datamodel.JobTypeUpdatePool)
+		assert.Equal(tt, datamodel.JobType("UPDATE_LARGE_POOL"), datamodel.JobTypeUpdateLargePool)
+		assert.Equal(tt, datamodel.JobType("DELETE_POOL"), datamodel.JobTypeDeletePool)
+		assert.Equal(tt, datamodel.JobType("DELETE_LARGE_POOL"), datamodel.JobTypeDeleteLargePool)
 	})
 }
 
@@ -6581,9 +6581,9 @@ func TestGetResourceJobType_PoolOperations_Consistency(t *testing.T) {
 
 			// Neither should fallback to the default CREATE_POOL (unless it's actually CREATE operation)
 			if operation != models.ResourceOperationCreate {
-				assert.NotEqual(tt, models.JobTypeCreatePool, regularJobType,
+				assert.NotEqual(tt, datamodel.JobTypeCreatePool, regularJobType,
 					"Operation %s should not fallback to CREATE_POOL", operation)
-				assert.NotEqual(tt, models.JobTypeCreatePool, largeJobType,
+				assert.NotEqual(tt, datamodel.JobTypeCreatePool, largeJobType,
 					"Operation %s with large capacity should not fallback to CREATE_POOL", operation)
 			}
 
@@ -6603,49 +6603,49 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			name            string
 			operation       models.ResourceOperation
 			isLargeCapacity bool
-			expectedJobType models.JobType
+			expectedJobType datamodel.JobType
 			description     string
 		}{
 			{
 				name:            "Pool_Create_Regular",
 				operation:       models.ResourceOperationCreate,
 				isLargeCapacity: false,
-				expectedJobType: models.JobTypeCreatePool,
+				expectedJobType: datamodel.JobTypeCreatePool,
 				description:     "Pool create with regular capacity",
 			},
 			{
 				name:            "Pool_Create_Large",
 				operation:       models.ResourceOperationCreate,
 				isLargeCapacity: true,
-				expectedJobType: models.JobTypeCreateLargePool,
+				expectedJobType: datamodel.JobTypeCreateLargePool,
 				description:     "Pool create with large capacity",
 			},
 			{
 				name:            "Pool_Update_Regular",
 				operation:       models.ResourceOperationUpdate,
 				isLargeCapacity: false,
-				expectedJobType: models.JobTypeUpdatePool,
+				expectedJobType: datamodel.JobTypeUpdatePool,
 				description:     "Pool update with regular capacity",
 			},
 			{
 				name:            "Pool_Update_Large",
 				operation:       models.ResourceOperationUpdate,
 				isLargeCapacity: true,
-				expectedJobType: models.JobTypeUpdateLargePool,
+				expectedJobType: datamodel.JobTypeUpdateLargePool,
 				description:     "Pool update with large capacity",
 			},
 			{
 				name:            "Pool_Delete_Regular",
 				operation:       models.ResourceOperationDelete,
 				isLargeCapacity: false,
-				expectedJobType: models.JobTypeDeletePool,
+				expectedJobType: datamodel.JobTypeDeletePool,
 				description:     "Pool delete with regular capacity",
 			},
 			{
 				name:            "Pool_Delete_Large",
 				operation:       models.ResourceOperationDelete,
 				isLargeCapacity: true,
-				expectedJobType: models.JobTypeDeleteLargePool,
+				expectedJobType: datamodel.JobTypeDeleteLargePool,
 				description:     "Pool delete with large capacity",
 			},
 		}
@@ -6665,21 +6665,21 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			name            string
 			operation       models.ResourceOperation
 			isLargeCapacity bool
-			expectedJobType models.JobType
+			expectedJobType datamodel.JobType
 			description     string
 		}{
 			{
 				name:            "Subnet_Create_Regular",
 				operation:       models.ResourceOperationCreate,
 				isLargeCapacity: false,
-				expectedJobType: models.JobTypeCreateSubnet,
+				expectedJobType: datamodel.JobTypeCreateSubnet,
 				description:     "Subnet create with regular capacity",
 			},
 			{
 				name:            "Subnet_Create_Large",
 				operation:       models.ResourceOperationCreate,
 				isLargeCapacity: true,
-				expectedJobType: models.JobTypeCreateLargeSubnet,
+				expectedJobType: datamodel.JobTypeCreateLargeSubnet,
 				description:     "Subnet create with large capacity",
 			},
 		}
@@ -6698,18 +6698,18 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 
 		t.Run("InvalidResourceType", func(ttt *testing.T) {
 			jobType := models.GetResourceJobType("INVALID_RESOURCE", models.ResourceOperationCreate, models.PoolCategoryStandard)
-			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid resource type")
+			assert.Equal(ttt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid resource type")
 		})
 
 		t.Run("InvalidOperation", func(ttt *testing.T) {
 			jobType := models.GetResourceJobType(models.ResourceTypePool, "INVALID_OPERATION", models.PoolCategoryStandard)
-			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
+			assert.Equal(ttt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for invalid operation")
 		})
 
 		t.Run("UnsupportedSubnetOperation", func(ttt *testing.T) {
 			// Subnets don't support UPDATE operations
 			jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationUpdate, models.PoolCategoryStandard)
-			assert.Equal(ttt, models.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for unsupported subnet operation")
+			assert.Equal(ttt, datamodel.JobTypeCreatePool, jobType, "Should fallback to CREATE_POOL for unsupported subnet operation")
 		})
 	})
 	t.Run("KmsConfigIsNotReady", func(tt *testing.T) {
@@ -6721,7 +6721,7 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			QosType:                 utils.QosTypeAuto,
 			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: &ipos}, // Just above 160000 IOPS
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateKeyCheckPending,
+				State: datamodel.LifeCycleStateKeyCheckPending,
 			},
 		}
 		defer func() {
@@ -6743,7 +6743,7 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 			ServiceLevel:            ServiceLevelNameFLEX,
 			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: &ipos}, // Just above 160000 IOPS
 			KmsConfig: &models.KmsConfig{
-				State: models.LifeCycleStateCreated,
+				State: datamodel.LifeCycleStateCreated,
 			},
 		}
 		defer func() {
@@ -8464,8 +8464,8 @@ func TestDeletePool_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		pools, account := createDBPools(t, store)
 		pool := pools[0]
 
-		previousState := models.LifeCycleStateAvailable
-		previousStateDetails := models.LifeCycleStateAvailableDetails
+		previousState := datamodel.LifeCycleStateAvailable
+		previousStateDetails := datamodel.LifeCycleStateAvailableDetails
 		pool.State = previousState
 		pool.StateDetails = previousStateDetails
 		err := store.DB().Save(pool).Error

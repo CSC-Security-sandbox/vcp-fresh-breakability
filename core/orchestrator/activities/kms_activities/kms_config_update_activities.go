@@ -3,7 +3,6 @@ package kms_activities
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -27,7 +26,7 @@ func UpdateKmsConfig(se database.Storage, ctx context.Context, kmsConfig *datamo
 		updateFields["key_ring"] = params.KeyRing
 		updateFields["key_ring_location"] = params.KeyRingLocation
 		updateFields["key_project_id"] = params.KeyProjectID
-		updateFields["state"] = models.LifeCycleStateCreated
+		updateFields["state"] = datamodel.LifeCycleStateCreated
 	}
 	err := se.UpdateKmsConfig(ctx, kmsConfig.UUID, updateFields)
 	if err != nil {
