@@ -288,15 +288,30 @@ def priority(action, severity):
 
 
 def map_policy(decision):
+    # CANONICAL mapping lives in .github/scripts/verdict_contract.py::map_policy_decision.
+    # Prefer it so the renderer, reconcile, and the gate never drift again; fall back to the
+    # inline copy (kept in sync) if the module can't be imported in this heredoc context.
+    try:
+        import os as _os, sys as _sys
+        _sd = _os.path.join(_os.getcwd(), ".github", "scripts")
+        if _sd not in _sys.path:
+            _sys.path.insert(0, _sd)
+        from verdict_contract import map_policy_decision as _canon
+        return _canon(decision)
+    except Exception:
+        pass
     action = decision.get("verdict")
     severity = decision.get("severity")
     if severity not in severity_rank:
         severity = {"FIX": "high", "ABSTAIN": "medium", "REVIEW": "medium", "GLANCE": "low", "MERGE": "none"}.get(action, "medium")
     if action == "FIX":
         verdict = "BLOCKED"
-    elif action in {"REVIEW", "ABSTAIN", "GLANCE"}:
+    elif action in {"REVIEW", "ABSTAIN"}:
         verdict = "REVIEW"
-    elif action == "MERGE":
+    elif action in {"MERGE", "GLANCE"}:
+        # GLANCE = clean build/tests, only soft/missing-changelog uncertainty -> auto-clear
+        # (Safe to merge / optional glance, Low). Mapping GLANCE->REVIEW was the #121->#128
+        # review-wall regression. Keep in sync with verdict_contract._ACTION_TO_BUCKET.
         verdict = "SAFE"
     else:
         return None
@@ -404,6 +419,18 @@ for pr in (data.get("prs") or {}).values():
         allow_glance_lowering = (
             decision.get("verdict") == "GLANCE"
             and str(decision.get("reason_code") or "").startswith("glance:")
+            and existing_sev != "high"
+            and not policy_has_hard_fail(policy)
+        )
+        if not allow_glance_lowering:
+            continue
+    if mapped["verdict"] == "SAFE" and existing_verdict == "REVIEW" and decision.get("verdict") == "GLANCE":
+        # A clean-build GLANCE auto-clears to SAFE, but it must NOT override an existing
+        # high-risk REVIEW (e.g. a declared-break flagged by another layer). Only lower a
+        # SOFT (non-high) glance-class REVIEW. MERGE (hard-clean) keeps its prior override.
+        existing_sev = existing.get("severity")
+        allow_glance_lowering = (
+            str(decision.get("reason_code") or "").startswith("glance:")
             and existing_sev != "high"
             and not policy_has_hard_fail(policy)
         )

@@ -145,7 +145,10 @@ class MergePlanRendererTests(unittest.TestCase):
         })
 
         low = out["prs"]["1"]["verdict_v2"]
-        self.assertEqual(low["verdict"], "REVIEW")
+        # #121 semantics (the fix): a GLANCE decision = clean build/tests/api-diff with only
+        # missing-changelog uncertainty -> SAFE/Low (Safe to merge / optional glance), NOT a
+        # REVIEW. Mapping GLANCE->REVIEW here was the #128 review-wall regression.
+        self.assertEqual(low["verdict"], "SAFE")
         self.assertEqual(low["severity"], "low")
         self.assertEqual(low["residual"]["check"], "glance:clean-missing-release-notes")
 

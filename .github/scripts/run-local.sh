@@ -185,23 +185,35 @@ fi
 if run_stage summary; then
   say "6/6 final verdicts"
   python3 - /tmp/build-results.json <<'PY'
-import json, sys
+import json, os, sys
+sys.path.insert(0, os.path.join(os.getcwd(), ".github", "scripts"))
+from verdict_contract import authoritative_verdict, prediction_for_pr, stage_report
 d = json.load(open(sys.argv[1]))
 prs = d.get("prs") or {}
 rows = []
+review_prs, ai_applied = 0, 0
 for k, p in prs.items():
-    v2 = p.get("verdict_v2") or {}
-    pol = (p.get("policy_lowering") or {}).get("decision") or {}
-    verdict = v2.get("verdict") or pol.get("verdict") or "?"
-    conf = v2.get("confidence") or "-"
-    aj = p.get("ai_adjudication") or {}
-    src = aj.get("source") or aj.get("applied") or "-"
+    av = authoritative_verdict(p)            # the SINGLE source of truth
+    verdict = av.get("verdict", "?")
+    conf = av.get("confidence", "-")
+    src = av.get("source", "-")
+    if verdict == "REVIEW":
+        review_prs += 1
+    if str((p.get("ai_adjudication") or {}).get("applied") or ""):
+        ai_applied += 1
     pkg = p.get("package") or "?"
     rows.append((int(k) if str(k).isdigit() else k, verdict, conf, src, pkg))
 rows.sort(key=lambda r: str(r[0]))
-print(f"{'PR':>5}  {'VERDICT':<8} {'CONF':<5} {'AI/SOURCE':<26} PACKAGE")
+print(f"{'PR':>5}  {'VERDICT':<8} {'CONF':<5} {'SOURCE':<16} PACKAGE")
 for r in rows:
-    print(f"{r[0]:>5}  {r[1]:<8} {r[2]:<5} {r[3]:<26} {r[4]}")
+    print(f"{r[0]:>5}  {r[1]:<8} {r[2]:<5} {r[3]:<16} {r[4]}")
+# Loud AI-coverage visibility — surfaces the "dormant AI layer" failure immediately
+# instead of weeks later. (Not a hard fail: a REVIEW PR may legitimately need no AI.)
+print()
+print(stage_report("ai-coverage", input_count=review_prs, processed_count=ai_applied))
+if review_prs > 0 and ai_applied == 0:
+    print("  [warn] AI layer applied 0 verdicts to %d REVIEW PR(s) — check the agent ran "
+          "(auth/keychain/field-mismatch), not silently dormant." % review_prs)
 PY
 fi
 

@@ -56,3 +56,12 @@ tools/safesql/safesql
 
 # Local secrets for run-local.sh (never commit)
 .github/breakability/.env.local
+
+# Python test/build artifacts
+__pycache__/
+*.pyc
+.venv-test/
+.venv/
+
+# Local gate output
+gate-result.json

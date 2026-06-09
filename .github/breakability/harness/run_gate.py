@@ -28,9 +28,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 from breakability_eval import CorpusCase, Scorer  # noqa: E402
 
+try:
+    from verdict_contract import prediction_for_pr as _contract_prediction  # noqa: E402
+except Exception:  # pragma: no cover - contract must exist, but never crash the gate
+    _contract_prediction = None
 
-def derive_prediction(pr):
-    """Map deterministic tool output -> {auto_clear|review|fix}. Mirrors SPEC buckets."""
+
+def _legacy_prediction(pr):
+    """Original derivation from build.verdict + merge_risk.tag (pre-typed-policy artifacts)."""
     build = pr.get("build") or {}
     if build.get("verdict") == "fail":
         return "fix"
@@ -38,6 +43,22 @@ def derive_prediction(pr):
     if tag in ("low", "none", ""):
         return "auto_clear"
     return "review"  # medium / high -> needs a look
+
+
+def derive_prediction(pr):
+    """Map tool output -> {auto_clear|review|fix}, mirroring SPEC buckets.
+
+    The gate MUST grade the same verdict the developer sees, otherwise a renderer/policy
+    regression (e.g. the #121->#128 GLANCE->REVIEW review-wall) moves the rendered output
+    but not the gate number and slips through. So when the typed policy layer is present we
+    grade via the single authoritative source (verdict_contract); we fall back to the legacy
+    build+merge_risk derivation only for older artifacts that predate typed policy lowering.
+    """
+    has_policy = isinstance(pr.get("policy_lowering"), dict) and \
+        isinstance((pr.get("policy_lowering") or {}).get("decision"), dict)
+    if _contract_prediction is not None and has_policy:
+        return _contract_prediction(pr)
+    return _legacy_prediction(pr)
 
 
 def claims_reachability(pr):
