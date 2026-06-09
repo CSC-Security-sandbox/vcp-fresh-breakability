@@ -60,6 +60,24 @@ def invented_citation(pr, repo_root):
     return False, ""
 
 
+def _validate_ai(v, repo_root):
+    """Same falsifiability contract as validate_adjudication.py: reject invented citations,
+    reject FIX/CVE attempts, require citation for a downgrade-to-safe."""
+    need = {"reachable", "recommendation", "citation"}
+    if not need <= set(v):
+        return False, f"missing keys {sorted(need - set(v))}"
+    if v["recommendation"] not in ("safe", "review"):
+        return False, "AI can only say safe|review (never fix/clear-CVE)"
+    cite = (v.get("citation") or "").strip()
+    if cite:
+        path = cite.split(":")[0].lstrip("./")
+        if not os.path.exists(os.path.join(repo_root, path)):
+            return False, f"INVENTED CITATION {cite}"
+    if v["recommendation"] == "safe" and not (v["reachable"] is False and cite):
+        return False, "downgrade to safe needs reachable=false WITH real citation"
+    return True, ""
+
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: run_gate.py <build-results.json> <corpus.json> [--repo R] [--golden G]")
@@ -67,12 +85,15 @@ def main():
     results_path, corpus_path = sys.argv[1], sys.argv[2]
     repo_root = "."
     golden_path = None
+    ai_path = None
     args = sys.argv[3:]
     for i, a in enumerate(args):
         if a == "--repo" and i + 1 < len(args):
             repo_root = args[i + 1]
         if a == "--golden" and i + 1 < len(args):
             golden_path = args[i + 1]
+        if a == "--ai" and i + 1 < len(args):
+            ai_path = args[i + 1]
 
     results = json.load(open(results_path))
     corpus = json.load(open(corpus_path))
@@ -82,13 +103,35 @@ def main():
 
     cases = [CorpusCase(c) for c in corpus["cases"]]
 
-    # 1. predictions for corpus PRs only
+    # 1. deterministic predictions for corpus PRs (AI-off baseline)
     predictions = {}
     for c in cases:
         pid = str(c.pr_id)
         if pid in prs:
             predictions[pid] = derive_prediction(prs[pid])
         # else -> Scorer defaults to abstain (counts as false_none for review/fix)
+
+    base_res = Scorer(cases).score(dict(predictions))
+    base_ac = base_res["metrics"]["auto_clear_pct"]
+    base_fb = base_res["errors"]["false_block_count"]
+
+    # 1b. apply VALIDATED AI verdicts on top (the differentiator, measurable).
+    #     AI may only downgrade REVIEW->auto_clear with a real citation; never touch FIX/CVE.
+    ai_applied, ai_proof_added, ai_rejected = [], [], []
+    if ai_path and os.path.exists(ai_path):
+        ai = json.load(open(ai_path))
+        for pid, v in ai.items():
+            if predictions.get(pid) != "review":
+                continue  # AI only adjudicates the REVIEW bucket
+            ok, why = _validate_ai(v, repo_root)
+            if not ok:
+                ai_rejected.append((pid, why))
+                continue
+            if v.get("recommendation") == "safe":
+                predictions[pid] = "auto_clear"
+                ai_applied.append((pid, v.get("citation", "")))
+            else:  # review, but now PROOF-backed (citation) instead of generic caution
+                ai_proof_added.append((pid, v.get("citation", "")))
 
     score_res = Scorer(cases).score(predictions)
 
@@ -135,6 +178,14 @@ def main():
     print(f"INVENTED_CITATIONS: {len(invented)}")
     print(f"GOLDEN_REGRESSIONS: {len(golden_regressions)}")
     print(f"AUTO_CLEAR_PCT: {ac:.1f}")
+    if ai_path:
+        print(f"AI_OFF_AUTO_CLEAR_PCT: {base_ac:.1f}")
+        print(f"AI_ON_AUTO_CLEAR_PCT: {ac:.1f}")
+        print(f"AI_OFF_FALSE_BLOCK: {base_fb}")
+        print(f"AI_ON_FALSE_BLOCK: {fb}")
+        print(f"AI_DOWNGRADES_APPLIED: {len(ai_applied)}")
+        print(f"AI_PROOF_ADDED: {len(ai_proof_added)}")
+        print(f"AI_REJECTED: {len(ai_rejected)}")
     print("FINDINGS:")
     sev = {"false_green": "P0", "false_none": "P1", "false_block": "P2"}
     for c in score_res["per_case"]:

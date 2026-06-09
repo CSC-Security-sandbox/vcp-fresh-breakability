@@ -41,3 +41,17 @@ python3 .github/breakability/harness/run_gate.py /tmp/build-results.json \
 1. Fix module-scoped reachability → invented_citations = 0.
 2. Stop over-flagging clean patch/minor/CVE-fix bumps → false_block ↓, auto_clear ≥ 30%.
 3. Keep false_green at 0 the whole time.
+
+## Measure the AI layer (the differentiator)
+Add `--ai ai_verdicts.json` to apply only VALIDATED AI verdicts on the REVIEW bucket and report
+the AI-on vs AI-off delta. AI may downgrade REVIEW→auto_clear only with `reachable=false` + a real
+`file:line`; a bogus/invented citation is rejected (`AI_REJECTED`), never lowering false_green.
+```bash
+python3 .github/breakability/harness/run_gate.py /tmp/build-results.json \
+  .github/breakability/harness/corpus.json --repo . \
+  --golden .github/breakability/harness/golden_predictions.json \
+  --ai .github/breakability/harness/ai_verdicts.json
+```
+Current AI-on result on real output: `AI_PROOF_ADDED: 3` (otel #23/#27 cite metric.go:22, go-jira
+#10 cites release.go:11), `AI_DOWNGRADES_APPLIED: 0`, `FALSE_GREEN: 0`. AI adds falsifiable proof
+to genuine reviews; the bulk auto_clear lift is deterministic, by design. See `../AI_DIFFERENTIATOR.md`.

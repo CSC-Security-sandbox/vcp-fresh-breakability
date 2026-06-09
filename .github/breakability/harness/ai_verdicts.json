@@ -1,0 +1,20 @@
+{
+  "23": {
+    "reachable": true,
+    "recommendation": "review",
+    "citation": "utils/middleware/log/metric.go:22",
+    "evidence": "We call prometheus.New (otel exporter) at metric.go:22. The otel SDK bump changes exporter default behavior, so the declared change is behaviorally relevant to our call site. Stays REVIEW, now proof-backed instead of generic caution."
+  },
+  "27": {
+    "reachable": true,
+    "recommendation": "review",
+    "citation": "utils/middleware/log/metric.go:22",
+    "evidence": "Same otel exporter call site at metric.go:22 is on the changed API surface. REVIEW with citation."
+  },
+  "10": {
+    "reachable": true,
+    "recommendation": "review",
+    "citation": "cicd/cmd/jira/release.go:11",
+    "evidence": "go-jira is imported and used at cicd/cmd/jira/release.go:11. The bumped symbol is reachable from our CI tooling. REVIEW with citation rather than a generic 'medium risk' label."
+  }
+}
