@@ -20,6 +20,30 @@ set -u
 export LC_ALL=en_US.UTF-8
 unset GH_TOKEN
 
+# ── Local dry-run mode ────────────────────────────────────────────────────────
+# When DRY_RUN=1, never post or delete anything on GitHub. Instead render each
+# PR's comment body to $DRY_RUN_DIR/pr-<N>.md so we can iterate on the comment
+# content locally in seconds (see .github/scripts/run-local.sh). Destructive gh
+# calls are routed through these guards.
+DRY_RUN="${DRY_RUN:-0}"
+DRY_RUN_DIR="${DRY_RUN_DIR:-/tmp/breakability-local/comments}"
+if [[ "$DRY_RUN" == "1" ]]; then
+  mkdir -p "$DRY_RUN_DIR"
+fi
+gh_pr_comment() {  # gh_pr_comment <pr> <body>
+  local pr="$1" body="$2"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    printf '%s\n' "$body" > "$DRY_RUN_DIR/pr-${pr}.md"
+    echo "  [dry-run] wrote comment -> $DRY_RUN_DIR/pr-${pr}.md"
+    return 0
+  fi
+  gh pr comment "$pr" --body "$body" 2>/dev/null
+}
+gh_delete_comment() {  # gh_delete_comment <owner> <repo> <comment_id>
+  if [[ "$DRY_RUN" == "1" ]]; then return 0; fi
+  gh api -X DELETE "repos/$1/$2/issues/comments/$3" 2>/dev/null || true
+}
+
 RESULTS_FILE="/tmp/build-results.json"
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 
@@ -126,7 +150,7 @@ for _CANCEL_PR in $CANCELLED_PRS; do
     --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
     2>/dev/null || true)
   for _CID in $_OLD_IDS; do
-    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$_CID" 2>/dev/null || true
+    gh_delete_comment "$OWNER" "$REPO" "$_CID"
   done
   _CANCEL_TITLE=$(gh pr view "$_CANCEL_PR" --json title --jq '.title' 2>/dev/null || echo "Unknown")
   _CANCEL_COMMENT="<!-- breakability-check -->
@@ -138,7 +162,7 @@ This PR was discovered but the analysis batch was cancelled or timed out before 
 
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — batch incomplete*"
-  gh pr comment "$_CANCEL_PR" --body "$_CANCEL_COMMENT" 2>/dev/null && \
+  gh_pr_comment "$_CANCEL_PR" "$_CANCEL_COMMENT" && \
     echo "  Posted 'cancelled' comment for PR #$_CANCEL_PR" || true
 
   # Add to results JSON so merge plan picks it up
@@ -177,6 +201,62 @@ if [[ -f ".github/scripts/policy_lowering.py" ]]; then
 fi
 
 node "$CLI_PATH" verdict-map "$RESULTS_FILE" >/dev/null 2>&1 || echo "[warn] verdict-map unavailable; rendering will fail-closed to REVIEW"
+
+# ── Re-assert AI adjudication as the LAST word ────────────────────────────────
+# policy_lowering.py --enrich and `verdict-map` (above) rebuild verdict_v2 / the
+# policy decision from raw deterministic evidence, clobbering any AI downgrade the
+# reconcile step applied. The AI arbiter is authoritative for the break-reachable
+# residue it resolved, so re-apply its decision here, after the clobbering steps
+# and before the overlay. Without this, a verified false-positive the AI cleared
+# (e.g. dep not imported in the bumped module) snaps back to REVIEW.
+python3 - "$RESULTS_FILE" <<'PYEOF' || echo "[warn] ai re-assertion skipped"
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+changed = False
+for pr in (data.get("prs") or {}).values():
+    if not isinstance(pr, dict):
+        continue
+    adj = pr.get("ai_adjudication")
+    if not isinstance(adj, dict):
+        continue
+    applied = adj.get("applied")
+    if applied == "downgrade_to_safe":
+        ev = adj.get("evidence") or ""
+        pr["verdict_v2"] = {
+            "verdict": "SAFE", "confidence": "L4", "priority": "P3", "severity": "low",
+            "evidenceState": {"api_diff": "NONE", "usage": "NONE"},
+            "residual": {"summary": ev, "check": adj.get("reason_code") or "safe:ai-resolved"},
+            "reason": ev,
+        }
+        dec = (pr.get("policy_lowering") or {}).get("decision")
+        if isinstance(dec, dict):
+            dec.update({"verdict": "SAFE", "reason_code": adj.get("reason_code") or "safe:ai-resolved",
+                        "severity": "low", "display_reason": ev})
+        # Neutralize the raw deterministic merge-risk so the collapsed "Internal merge-risk
+        # detail" block stops shouting REVIEW REQUIRED / High while the headline says SAFE.
+        mr = pr.get("merge_risk")
+        if isinstance(mr, dict):
+            mr.update({"tag": "Low",
+                       "reason": ev,
+                       "evidenceAxis": "AI-adjudicated: change not reachable in the bumped module"})
+        changed = True
+    elif applied == "needs_change":
+        v2 = pr.setdefault("verdict_v2", {})
+        v2["verdict"] = "REVIEW"
+        v2.setdefault("confidence", "L3")
+        v2.setdefault("priority", "P2")
+        v2.setdefault("severity", "medium")
+        v2["residual"] = {"summary": adj.get("evidence") or "",
+                          "check": "review:ai-needs-change"}
+        v2["reason"] = adj.get("evidence") or v2.get("reason")
+        changed = True
+if changed:
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+    print("  AI adjudication re-asserted over deterministic rebuild")
+PYEOF
 
 python3 - "$RESULTS_FILE" <<'PYEOF' || echo "[warn] policy lowering overlay unavailable; using legacy verdict_v2"
 import json
@@ -654,6 +734,11 @@ PYEOF
 # issue. So close stale plans and create a fresh placeholder NOW, capture its number,
 # and EDIT it with the real body at the end. (Fixes stale "Merge plan: #NNN" links.)
 _MP_LABEL="breakability-merge-plan"
+if [[ "$DRY_RUN" == "1" ]]; then
+  MERGE_PLAN_NUM="LOCAL"
+  export MERGE_PLAN_NUM
+  echo "  [dry-run] skipping merge-plan issue close/create (number=LOCAL)"
+else
 _MP_OLD=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
 _MP_OLD_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
   -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan|[Dd]ependabot [Mm]erge [Pp]lan|[Bb]reakability [Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
@@ -674,6 +759,7 @@ if [[ -n "$MERGE_PLAN_NUM" ]]; then
   echo "  Reserved merge plan issue #$MERGE_PLAN_NUM"
 else
   echo "  ⚠️  Could not pre-create merge plan issue — comments will omit the plan link"
+fi
 fi
 
 for PR_NUM in $PR_NUMBERS; do
@@ -702,7 +788,7 @@ for PR_NUM in $PR_NUMBERS; do
       --jq ".[] | select(.body | contains(\"<!-- breakability-agent -->\")) | select(.created_at < \"$_CUTOFF\") | .id" \
       2>/dev/null || true)
     for CID in $STALE_AGENT_IDS; do
-      gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
+      gh_delete_comment "$OWNER" "$REPO" "$CID"
     done
     SKIPPED=$((SKIPPED + 1))
     continue
@@ -714,7 +800,7 @@ for PR_NUM in $PR_NUMBERS; do
     --jq '.[] | select(.body | contains("<!-- breakability-check -->") or (.body | contains("<!-- breakability-agent -->"))) | .id' \
     2>/dev/null || true)
   for CID in $OLD_COMMENT_IDS; do
-    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
+    gh_delete_comment "$OWNER" "$REPO" "$CID"
   done
 
   # Extract all fields for this PR in one python call
@@ -2694,7 +2780,7 @@ for line in body.splitlines():
 body = "\n".join(normalized)
 print(body)
 ' 2>/dev/null || printf '%s' "$COMMENT")
-    if gh pr comment "$PR_NUM" --body "$COMMENT" 2>/dev/null; then
+    if gh_pr_comment "$PR_NUM" "$COMMENT"; then
       echo "  Posted comment for PR #$PR_NUM ($PKG ${FROM}→${TO}, $VERDICT)"
       POSTED=$((POSTED + 1))
     else
@@ -3859,7 +3945,10 @@ print(len(data.get('prs', {})))
   # The plan issue was reserved (and stale plans closed) BEFORE the per-PR loop so
   # comments could link the live number. Update THAT issue in place with the final
   # title + body. Only if reservation failed do we create one now (fallback).
-  if [[ -n "${MERGE_PLAN_NUM:-}" ]]; then
+  if [[ "$DRY_RUN" == "1" ]]; then
+    printf '%s\n' "$MERGE_PLAN_BODY" > "$DRY_RUN_DIR/merge-plan.md"
+    echo "  [dry-run] wrote merge plan -> $DRY_RUN_DIR/merge-plan.md"
+  elif [[ -n "${MERGE_PLAN_NUM:-}" ]]; then
     if gh issue edit "$MERGE_PLAN_NUM" --title "$_MP_TITLE" --body "$MERGE_PLAN_BODY" >/dev/null 2>&1; then
       echo "  Updated merge plan issue #$MERGE_PLAN_NUM"
     else
