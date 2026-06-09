@@ -101,15 +101,21 @@ if command -v gh >/dev/null 2>&1; then
     echo
   fi
 fi
-# (b) The AI stage uses `agent -p` (print mode), which requires CURSOR_API_KEY even
-#     when you are interactively logged in (the keychain session is ignored headlessly).
+# (b) The AI stage uses a headless agent. Cursor's `agent -p` requires CURSOR_API_KEY
+#     even when interactively logged in (the keychain session is ignored headlessly).
+#     Other backends authenticate differently: GitHub Copilot CLI (`copilot`) uses your
+#     `gh`/Copilot login and needs NO Cursor key. So only gate on the key when the
+#     configured backend is actually Cursor's agent.
 #     EXCEPTION: replay mode (BRK_AGENT_MODE=replay) reads recorded cassettes and needs
 #     no key or network — never skip the AI stage in replay.
-if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 && "${BRK_AGENT_MODE:-live}" != "replay" ]]; then
+_AGENT_PROG="$(basename "$(echo "${BRK_AGENT_CMD:-agent}" | awk '{print $1}')")"
+if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 && "${BRK_AGENT_MODE:-live}" != "replay" \
+      && ( "$_AGENT_PROG" == "agent" || "$_AGENT_PROG" == "cursor-agent" ) ]]; then
   if [[ -z "${CURSOR_API_KEY:-}" ]]; then
     echo "⚠️  CURSOR_API_KEY is not set — agent -p (headless) cannot authenticate."
     echo "    The AI stage will be SKIPPED (Tier-0 deterministic module-scope still runs)."
     echo "    To enable the AI layer locally:  export CURSOR_API_KEY=<your key>  (same as the CI secret)"
+    echo "    Or use GitHub Copilot CLI:  BRK_AGENT_CMD='copilot --model {model}' BRK_AGENT_MODEL=claude-sonnet-4.5"
     echo "    Or run fully offline from cassettes:  BRK_AGENT_MODE=replay"
     echo
     SKIP_AI=1
