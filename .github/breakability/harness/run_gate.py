@@ -126,9 +126,31 @@ def _cite_references_pkg(citation, repo_root, package):
     return any(t and t in text for t in tokens)
 
 
+def _normalize_ai_verdict(v):
+    """Accept BOTH the legacy {reachable, recommendation, citation} shape and the
+    normalized adjudicator shape {final_verdict, break_class, citation, proof} emitted
+    by independent_adjudicate.sh -> validate_adjudication.py. Returns a dict in the
+    legacy shape so the single falsifiability contract below applies to both.
+
+    The adjudicator's `safe` is only ever produced after validate_adjudication.py has
+    already enforced a real citation + shown proof, so mapping safe -> reachable=False
+    is faithful (the AI asserted the break does not reach us)."""
+    if "final_verdict" in v and "recommendation" not in v:
+        fv = v.get("final_verdict")
+        rec = "safe" if fv == "safe" else "review"  # needs_change/escalate stay REVIEW
+        return {
+            "reachable": False if fv == "safe" else True,
+            "recommendation": rec,
+            "citation": v.get("citation", ""),
+            "proof": v.get("proof", ""),
+        }
+    return v
+
+
 def _validate_ai(v, repo_root, package=None):
     """Falsifiability contract: reject invented citations, reject FIX/CVE attempts, require a
     citation that actually references the symbol for any downgrade-to-safe."""
+    v = _normalize_ai_verdict(v)
     need = {"reachable", "recommendation", "citation"}
     if not need <= set(v):
         return False, f"missing keys {sorted(need - set(v))}"
@@ -195,11 +217,12 @@ def main():
             if not ok:
                 ai_rejected.append((pid, why))
                 continue
-            if v.get("recommendation") == "safe":
+            nv = _normalize_ai_verdict(v)
+            if nv.get("recommendation") == "safe":
                 predictions[pid] = "auto_clear"
-                ai_applied.append((pid, v.get("citation", "")))
+                ai_applied.append((pid, nv.get("citation", "")))
             else:  # review, but now PROOF-backed (citation) instead of generic caution
-                ai_proof_added.append((pid, v.get("citation", "")))
+                ai_proof_added.append((pid, nv.get("citation", "")))
 
     score_res = Scorer(cases).score(predictions)
 

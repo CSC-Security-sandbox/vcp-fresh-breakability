@@ -138,6 +138,16 @@ fi
 # ── 2. Policy lowering ────────────────────────────────────────────────────────
 if run_stage policy; then
   say "2/6 policy lowering (enrich verdicts)"
+  # M8 changelog comprehension: enrich each PR with structured breaking_claims[]
+  # (symbol/kind/old/new/severity) so reachability has named symbols to check, not
+  # just a '### Breaking Changes' heading. Advisory + non-breaking: never changes a
+  # verdict here. Set M8_USE_AI=1 (and BRK_AGENT_MODE) to enable AI enrichment.
+  if [[ -f .github/scripts/changelog_comprehension.py ]]; then
+    python3 .github/scripts/changelog_comprehension.py /tmp/build-results.json \
+      ${M8_USE_AI:+--ai} --write \
+      && echo "M8 changelog comprehension applied" \
+      || echo "[warn] M8 changelog comprehension failed; continuing"
+  fi
   if [[ -f .github/scripts/policy_lowering.py ]]; then
     python3 .github/scripts/policy_lowering.py /tmp/build-results.json --enrich -o /tmp/build-results.policy.json \
       && mv /tmp/build-results.policy.json /tmp/build-results.json \

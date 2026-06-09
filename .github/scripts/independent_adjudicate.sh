@@ -23,8 +23,18 @@ OUT="${2:?out verdicts path required}"
 MODEL="${3:-claude-4-sonnet}"
 HARNESS="$(cd "$(dirname "$0")/../breakability/harness" && pwd)"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
 
-command -v agent >/dev/null 2>&1 || { echo "[independent] agent CLI not found; skipping (Tier-0 only)"; echo '{}' > "$OUT"; exit 0; }
+# Backend mode: live (default) | replay | record. In replay mode the AI layer runs
+# fully offline from cassettes (sub-second, no agent CLI, no keychain) so the local
+# loop and unit tests are deterministic. Selected via BRK_AGENT_MODE.
+MODE="${BRK_AGENT_MODE:-live}"
+export BRK_AGENT_MODEL="${BRK_AGENT_MODEL:-$MODEL}"
+
+# The agent CLI is only required for live/record. In replay we need nothing.
+if [ "$MODE" != "replay" ]; then
+  command -v agent >/dev/null 2>&1 || { echo "[independent] agent CLI not found; skipping (Tier-0 only)"; echo '{}' > "$OUT"; exit 0; }
+fi
 [ -f "$RESULTS" ] || { echo "[independent] no results file; skipping"; echo '{}' > "$OUT"; exit 0; }
 
 # Which PRs need independent adjudication? REVIEW + break-reachable + dep imported in module.
@@ -59,8 +69,10 @@ for pid in "${PR_IDS[@]}"; do
   [ -z "$pid" ] && continue
   prompt="$(HARNESS="$HARNESS" python3 "$HARNESS/render_prompt.py" "$RESULTS" "$pid" "$HARNESS/ai_adjudicator_prompt.md" 2>/dev/null)"
   [ -z "$prompt" ] && { echo "[independent] PR#$pid: render failed, skip"; continue; }
-  echo "[independent] PR#$pid: calling agent ($MODEL)..."
-  raw="$(cd "$REPO_ROOT" && agent -p --force --model "$MODEL" "$prompt" 2>/dev/null)"
+  echo "[independent] PR#$pid: invoking backend (mode=$MODE model=$BRK_AGENT_MODEL)..."
+  # Route through the unified backend (live | replay | record) with a stable,
+  # portable cassette key so replay works on any machine.
+  raw="$(printf '%s' "$prompt" | python3 "$SCRIPTS/ai_backend.py" --namespace adjudication --key "pr-$pid" --cwd "$REPO_ROOT" 2>/dev/null)"
   if [ -z "$raw" ]; then echo "[independent] PR#$pid: empty agent output, skip"; continue; fi
   norm="$(printf '%s' "$raw" | python3 "$HARNESS/validate_adjudication.py" --repo "$REPO_ROOT" 2>/dev/null)"
   acc="$(printf '%s' "$norm" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("accepted"))' 2>/dev/null)"
