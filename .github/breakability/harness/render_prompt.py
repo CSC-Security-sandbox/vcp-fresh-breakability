@@ -47,15 +47,32 @@ def main():
     ]
     sites = "\n".join(in_mod_sites) or "(no recorded usages inside the bumped module)"
 
+    # ALL deterministic-claimed sites (in- AND out-of-module), tagged so the AI can audit the
+    # cross-module miscount that produces false positives like #38.
+    all_claimed = [
+        f"- {u.get('file')}:{u.get('line')} {u.get('symbol')} "
+        f"[{'IN bumped module' if in_module(u.get('file', ''), mod) else 'OUTSIDE bumped module — different go.mod'}]"
+        for u in (det.get("usages") or [])
+    ]
+    claimed = "\n".join(all_claimed) or "(deterministic recorded no symbol usages)"
+
+    v2 = pr.get("verdict_v2") or {}
+    det_verdict = (v2.get("verdict") or "?")
+    det_reason = ((v2.get("residual") or {}).get("check") or v2.get("reason") or "?")
+
     sub = {
         "pr_id": str(pr_id),
         "package": pr.get("package", "?"),
+        "module": mod if mod else ".",
         "from": pr.get("from", "?"),
         "to": pr.get("to", "?"),
         "bump": pr.get("bump", "?"),
         "changelog_breaking_bullets": bullets,
         "apidiff_symbols": apidiff,
         "our_call_sites_in_bumped_module": sites,
+        "det_verdict": det_verdict,
+        "det_reason": det_reason,
+        "det_claimed_sites": claimed,
         "build_verdict": (pr.get("build") or {}).get("verdict", "?"),
         "test_verdict": (pr.get("test") or {}).get("verdict", "n/a"),
     }

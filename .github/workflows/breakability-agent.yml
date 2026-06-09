@@ -411,6 +411,33 @@ jobs:
           mv /tmp/build-results.policy.json /tmp/build-results.json
         timeout-minutes: 5
 
+      # ── AI layer: independent per-PR adjudication + reconcile (PRD differentiator) ──
+      # The AI does its OWN module-scoped analysis and AUDITS the deterministic layer, then a
+      # single reconciler applies the result. Tier-0 (module-scope) clears cross-module false
+      # positives for $0; the AI resolves the residue (safe / needs_change) instead of punting
+      # "review". Fail-safe: if the agent is unavailable or output is rejected, PRs stay REVIEW.
+      - name: Independent AI adjudication (per-PR)
+        if: ${{ inputs.skip_agent != true }}
+        continue-on-error: true
+        run: |
+          if [ ! -f /tmp/build-results.json ]; then echo "no results; skip"; exit 0; fi
+          chmod +x .github/scripts/independent_adjudicate.sh
+          bash .github/scripts/independent_adjudicate.sh /tmp/build-results.json /tmp/ai_verdicts.json "${ADJ_MODEL:-claude-4-sonnet}"
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 60
+
+      - name: Reconcile AI + deterministic verdicts
+        if: always()
+        run: |
+          if [ ! -f /tmp/build-results.json ]; then echo "no results; skip"; exit 0; fi
+          VERDICTS=""
+          [ -f /tmp/ai_verdicts.json ] && VERDICTS="--verdicts /tmp/ai_verdicts.json"
+          python3 .github/scripts/reconcile_adjudication.py /tmp/build-results.json $VERDICTS --repo . --write
+        timeout-minutes: 5
+
       # Upload AFTER the probe and policy lowering so the artifact carries the
       # committed behavioral grades plus typed policy evidence.
       - name: Upload merged results

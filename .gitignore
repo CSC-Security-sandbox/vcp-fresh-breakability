@@ -52,3 +52,4 @@ triagebot_logs/
 .toolchain/
 .gomodcache/
 tools/safesql/safesql
+.github/tools/reachability/reachability
