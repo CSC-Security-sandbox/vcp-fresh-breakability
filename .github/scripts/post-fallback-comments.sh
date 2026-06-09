@@ -292,6 +292,12 @@ for pr in (data.get("prs") or {}).values():
     if not isinstance(pr, dict):
         continue
     policy = pr.get("policy_lowering") or {}
+    # The AI arbiter (independent-first + deterministic-audit) is authoritative for the
+    # break-reachable residue it resolved. Do not let the legacy policy overlay revert an
+    # AI-applied downgrade/finding using the stale pre-reconcile policy decision.
+    adj = pr.get("ai_adjudication")
+    if isinstance(adj, dict) and adj.get("applied") in ("downgrade_to_safe", "needs_change"):
+        continue
     decision = policy.get("decision") if isinstance(policy, dict) else None
     if not isinstance(decision, dict):
         continue
