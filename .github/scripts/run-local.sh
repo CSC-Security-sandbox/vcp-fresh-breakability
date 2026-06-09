@@ -75,6 +75,15 @@ FROM_I=$(stage_idx "$FROM"); TO_I=$(stage_idx "$TO")
 run_stage() { local i; i=$(stage_idx "$1"); [[ "$i" -ge "$FROM_I" && "$i" -le "$TO_I" ]]; }
 
 cd "$REPO_ROOT"
+# Auto-load a local, gitignored env file so CURSOR_API_KEY (and any registry tokens) are
+# picked up without re-exporting every shell. Create .github/breakability/.env.local with:
+#   export CURSOR_API_KEY=...
+ENV_LOCAL="$REPO_ROOT/.github/breakability/.env.local"
+if [[ -f "$ENV_LOCAL" ]]; then
+  # shellcheck disable=SC1090
+  set -a; source "$ENV_LOCAL"; set +a
+  echo "loaded local env: $ENV_LOCAL"
+fi
 hr() { printf '─%.0s' {1..78}; echo; }
 t0=$(date +%s)
 say() { echo; hr; echo "▶ $*"; hr; }

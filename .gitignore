@@ -53,3 +53,6 @@ triagebot_logs/
 .gomodcache/
 tools/safesql/safesql
 .github/tools/reachability/reachability
+
+# Local secrets for run-local.sh (never commit)
+.github/breakability/.env.local
