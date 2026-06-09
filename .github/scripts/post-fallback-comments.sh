@@ -660,6 +660,12 @@ def norm(v):
     v = (v or "").strip().lstrip("v")
     m = re.search(r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", v)
     return m.group(1) if m else v
+def _clip(x, n=220):
+    x = (x or "").strip()
+    if len(x) <= n:
+        return x
+    head = x[:n].rsplit(" ", 1)[0].rstrip(" ,.;:-")
+    return (head or x[:n]) + "…"
 def tup(v):
     m = re.match(r"(\d+)\.(\d+)\.(\d+)", norm(v))
     return tuple(map(int, m.groups())) if m else None
@@ -679,13 +685,13 @@ for rel in releases:
     for line in text.splitlines():
         line = line.strip(" -*\t")
         if line and patterns.search(line):
-            items.append((tag, line[:220]))
+            items.append((tag, _clip(line, 220)))
             break
 if changelog:
     for line in changelog.splitlines():
         line = line.strip(" -*\t")
         if line and patterns.search(line):
-            items.append(("CHANGELOG", line[:220]))
+            items.append(("CHANGELOG", _clip(line, 220)))
             if len(items) >= 10:
                 break
 seen=[]
@@ -716,6 +722,12 @@ build_changelog_block_persisted() {
   local _bcp
   _bcp=$(_BC_PRF="$1" python3 - <<'PYEOF' 2>/dev/null
 import json, os, re
+def _clip(x, n=220):
+    x = (x or '').strip()
+    if len(x) <= n:
+        return x
+    head = x[:n].rsplit(' ', 1)[0].rstrip(' ,.;:-')
+    return (head or x[:n]) + '…'
 data = json.loads(os.environ.get('_BC_PRF', '') or '{}')
 det = data.get('deterministic') or {}
 sig = det.get('changelogSignal') or {}
@@ -731,7 +743,7 @@ for b in (sig.get('bullets') or []):
     s = re.sub(r'\s+', ' ', b.replace('\r', ' ').replace('\n', ' ')).strip(' -*\t')
     if not s or s.startswith('#'):  # drop pure markdown headers
         continue
-    s = s[:220]
+    s = _clip(s, 220)
     k = s.lower()
     if k in seen:
         continue
@@ -747,7 +759,7 @@ if clean:
 elif status and status != 'breaking':
     print("- No breaking-change markers found in the analyzed changelog.")
 else:
-    snippet = re.sub(r'\s+', ' ', text).strip()[:220]
+    snippet = _clip(re.sub(r'\s+', ' ', text), 220)
     print(f"- {snippet}" if snippet else "- Changelog analyzed; see release notes for details.")
 PYEOF
 )
