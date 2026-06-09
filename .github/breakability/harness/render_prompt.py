@@ -21,36 +21,6 @@ def in_module(fp, mod):
     return f.startswith(mod + "/") or f == mod
 
 
-def render_reach(reach):
-    """Render the SOUND call-graph reachability evidence (go/ssa + RTA) for the
-    AI prompt. This is authoritative over the AI's own name-grep: RTA resolves
-    interface and func-value dispatch, so a `direct_in_module=false` is a sound
-    'no compile/signature break' and `transitively_reachable=true` flags genuine
-    behavioral-change exposure that grep cannot see."""
-    if not reach:
-        return ("(call-graph not run — fall back to grep, but a textual grep can MISS "
-                "indirect/interface dispatch; treat a grep 'not used' as weak evidence)")
-    if not reach.get("analyzed", False):
-        return (f"(call-graph analysis FAILED: {reach.get('error', 'unknown')} — treat as "
-                "UNKNOWN reachability, do NOT assume safe on this signal)")
-    lines = []
-    for r in reach.get("results") or []:
-        direct = r.get("direct_in_module")
-        trans = r.get("transitively_reachable")
-        sites = ", ".join(r.get("direct_sites") or []) or "—"
-        verdict = ("DIRECTLY CALLED by our code (compile/signature break would hit us)"
-                   if direct else
-                   ("reachable via the dependency's internals (behavioral-change exposure only)"
-                    if trans else
-                    "NOT reachable at all (neither directly nor transitively)"))
-        lines.append(f"- {r.get('symbol')}: direct={direct} transitive={trans} "
-                     f"sites=[{sites}] → {verdict}")
-    head = (f"Sound call-graph (go/ssa + RTA, {reach.get('roots', '?')} roots). "
-            f"any_direct_in_module={reach.get('any_direct_in_module')} "
-            f"any_transitively_reachable={reach.get('any_transitively_reachable')}.")
-    return head + "\n" + ("\n".join(lines) or "(no flagged symbols)")
-
-
 def main():
     results_path, pr_id, tmpl_path = sys.argv[1], sys.argv[2], sys.argv[3]
     prs = json.load(open(results_path)).get("prs", {})
@@ -100,7 +70,6 @@ def main():
         "changelog_breaking_bullets": bullets,
         "apidiff_symbols": apidiff,
         "our_call_sites_in_bumped_module": sites,
-        "callgraph_reachability": render_reach(det.get("reach")),
         "det_verdict": det_verdict,
         "det_reason": det_reason,
         "det_claimed_sites": claimed,
