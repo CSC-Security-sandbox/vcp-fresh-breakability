@@ -725,6 +725,10 @@ func (s *PersistenceStore) UpdateAccountTrialMetadata(ctx context.Context, accou
 	return s.dataStore.UpdateAccountTrialMetadata(ctx, account, trial)
 }
 
+func (s *PersistenceStore) GetAccountsWithFilter(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	return s.dataStore.GetAccountsWithFilter(ctx, filter, pagination)
+}
+
 func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return s.dataStore.CreateAccount(ctx, account)
 }

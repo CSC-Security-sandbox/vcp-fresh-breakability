@@ -1548,6 +1548,22 @@ func (re *retryEngine) GetAccounts(ctx context.Context, includeDelete bool, pagi
 	return var0, err
 }
 
+func (re *retryEngine) GetAccountsWithFilter(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	var var0 []*datamodel.Account
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAccountsWithFilter(ctx, filter, pagination)
+		if err != nil {
+			re.logError("GetAccountsWithFilter", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error) {
 	var var0 []*AccountTelemetryData
 	err := retry.Do(func(attempt int) (bool, error) {

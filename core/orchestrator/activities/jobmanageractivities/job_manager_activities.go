@@ -34,6 +34,7 @@ const (
 	FlexCachePrepopulate            = "SYNC_FLEXCACHE_PREPOPULATE_JOBS"
 	BackupSizeJob                   = "BACKUP_SIZE_JOB"
 	PollerRebalanceJob              = "POLLER_REBALANCE_JOB"
+	TrialAccountSync                = "TRIAL_ACCOUNT_SYNC"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -57,6 +58,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	FlexCachePrepopulate:            backgroundworkflows.SyncFlexCachePrepopulateWorkflow,
 	BackupSizeJob:                   backgroundworkflows.BackupSizeDetailsWorkflow,
 	PollerRebalanceJob:              backgroundworkflows.PollerRebalanceWorkflow,
+	TrialAccountSync:                backgroundworkflows.TrialAccountSyncWorkflow,
 }
 
 type JobManagerActivity struct {

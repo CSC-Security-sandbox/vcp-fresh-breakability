@@ -2,6 +2,7 @@ package gcp
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -294,7 +295,15 @@ func TestValidateTrialModeParams(t *testing.T) {
 	})
 }
 
+func withTrialAccountSyncEnabled(t *testing.T) {
+	t.Helper()
+	require.NoError(t, os.Setenv("TRIAL_ACCOUNT_SYNC_ENABLED", "true"))
+	t.Cleanup(func() { _ = os.Unsetenv("TRIAL_ACCOUNT_SYNC_ENABLED") })
+}
+
 func TestPersistAccountTrialMetadataIfSet_PassesAccountToStorageWithoutRefetch(t *testing.T) {
+	withTrialAccountSyncEnabled(t)
+
 	ctx := context.Background()
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
@@ -341,6 +350,8 @@ func TestPersistAccountTrialMetadataIfSet_InvalidTrialDoesNotUpdateStorage(t *te
 }
 
 func TestPersistAccountTrialMetadataIfSet_OmittedTrialOnSecondCallDoesNotUpdate(t *testing.T) {
+	withTrialAccountSyncEnabled(t)
+
 	ctx := context.Background()
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
@@ -362,4 +373,27 @@ func TestPersistAccountTrialMetadataIfSet_OmittedTrialOnSecondCallDoesNotUpdate(
 	o := &GCPOrchestrator{storage: mockStorage}
 	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, trial))
 	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, nil))
+}
+
+func TestPersistAccountTrialMetadataIfSet_SkipsPersistenceWhenDisabled(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+		Name:      "project-1",
+	}
+	defer stubGetOrCreateAccount(account)()
+
+	t.Cleanup(func() { _ = os.Unsetenv("TRIAL_ACCOUNT_SYNC_ENABLED") })
+	require.NoError(t, os.Unsetenv("TRIAL_ACCOUNT_SYNC_ENABLED"))
+
+	start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
+	s, e := start, end
+	trial := &commonparams.TrialModeParams{Start: &s, End: &e}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.AssertNotCalled(t, "UpdateAccountTrialMetadata", mock.Anything, mock.Anything, mock.Anything)
+
+	o := &GCPOrchestrator{storage: mockStorage}
+	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, trial))
 }

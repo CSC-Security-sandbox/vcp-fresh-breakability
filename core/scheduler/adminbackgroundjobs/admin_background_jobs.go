@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +70,18 @@ func LoadJobSpecs() error {
 	if !env.GetBool("ENABLE_POLLER_REBALANCING", false) {
 		delete(adminJobSpecs, "POLLER_REBALANCE_JOB")
 	}
+
+	if !env.GetBool("TRIAL_ACCOUNT_SYNC_ENABLED", false) {
+		delete(adminJobSpecs, "TRIAL_ACCOUNT_SYNC")
+	}
+
+	// TRIAL_ACCOUNT_SYNC_CRON_EXPRESSION overrides admin_background_jobs.json when non-empty (google-proxy Helm default: "0 * * * *").
+	if trialSyncSpec, exists := adminJobSpecs["TRIAL_ACCOUNT_SYNC"]; exists {
+		if envCronExpr := strings.TrimSpace(env.GetString("TRIAL_ACCOUNT_SYNC_CRON_EXPRESSION", "")); envCronExpr != "" {
+			trialSyncSpec.CronExpression = envCronExpr
+		}
+	}
+
 	return nil
 }
 

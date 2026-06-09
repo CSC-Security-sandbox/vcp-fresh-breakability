@@ -1248,3 +1248,26 @@ func TestApplyRestrictedActionsToVolume(t *testing.T) {
 		ApplyRestrictedActionsToVolume(nil, []string{"DELETE"})
 	})
 }
+
+func TestChunkSlice(t *testing.T) {
+	t.Run("normal batches", func(t *testing.T) {
+		items := []int{1, 2, 3, 4, 5}
+		batches := ChunkSlice(items, 2)
+		assert.Len(t, batches, 3)
+		assert.Equal(t, []int{1, 2}, batches[0])
+		assert.Equal(t, []int{3, 4}, batches[1])
+		assert.Equal(t, []int{5}, batches[2])
+	})
+
+	t.Run("empty slice", func(t *testing.T) {
+		assert.Nil(t, ChunkSlice([]int(nil), 2))
+		assert.Nil(t, ChunkSlice([]int{}, 2))
+	})
+
+	t.Run("non-positive size returns single batch", func(t *testing.T) {
+		items := []int{1, 2}
+		batches := ChunkSlice(items, 0)
+		assert.Len(t, batches, 1)
+		assert.Equal(t, items, batches[0])
+	})
+}

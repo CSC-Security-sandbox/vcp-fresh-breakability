@@ -5658,6 +5658,66 @@ func (_c *MockStorage_GetAccounts_Call) RunAndReturn(run func(context.Context, b
 	return _c
 }
 
+// GetAccountsWithFilter provides a mock function with given fields: ctx, filter, pagination
+func (_m *MockStorage) GetAccountsWithFilter(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination) ([]*datamodel.Account, error) {
+	ret := _m.Called(ctx, filter, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAccountsWithFilter")
+	}
+
+	var r0 []*datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.Account, error)); ok {
+		return rf(ctx, filter, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) []*datamodel.Account); ok {
+		r0 = rf(ctx, filter, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, *utils.Pagination) error); ok {
+		r1 = rf(ctx, filter, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetAccountsWithFilter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccountsWithFilter'
+type MockStorage_GetAccountsWithFilter_Call struct {
+	*mock.Call
+}
+
+// GetAccountsWithFilter is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) GetAccountsWithFilter(ctx interface{}, filter interface{}, pagination interface{}) *MockStorage_GetAccountsWithFilter_Call {
+	return &MockStorage_GetAccountsWithFilter_Call{Call: _e.mock.On("GetAccountsWithFilter", ctx, filter, pagination)}
+}
+
+func (_c *MockStorage_GetAccountsWithFilter_Call) Run(run func(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination)) *MockStorage_GetAccountsWithFilter_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetAccountsWithFilter_Call) Return(_a0 []*datamodel.Account, _a1 error) *MockStorage_GetAccountsWithFilter_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetAccountsWithFilter_Call) RunAndReturn(run func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.Account, error)) *MockStorage_GetAccountsWithFilter_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetActiveDirectoryByNameAndAccountID provides a mock function with given fields: ctx, name, accountID
 func (_m *MockStorage) GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error) {
 	ret := _m.Called(ctx, name, accountID)

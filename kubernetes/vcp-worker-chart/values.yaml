@@ -96,6 +96,10 @@ workerConfig:
   snapshotSyncMaxConcurrentActivitiesPerChild: 5
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
+  googleInternalTrialApiTimeout: "60s"
+  trialAccountSyncEnabled: "false" # mirrors google-proxy TRIAL_ACCOUNT_SYNC_ENABLED
+  trialAccountSyncBatchSize: "50"
+  trialAccountSyncAccountPageSize: "500"
   flexcachePrepopulateMaxJobsPerRun: 20
   resourceCleanupParentWorkflowBatchSize: 100
   resourceCleanupChildWorkflowTimeout: 240

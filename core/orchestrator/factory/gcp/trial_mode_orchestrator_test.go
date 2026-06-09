@@ -44,12 +44,16 @@ func stubGetOrCreateAccount(account *datamodel.Account) func() {
 }
 
 func expectTrialMetadataUpdate(
+	t *testing.T,
 	mockStorage *database.MockStorage,
 	ctx context.Context,
 	account *datamodel.Account,
 	start, end time.Time,
 	retErr error,
 ) {
+	t.Helper()
+	withTrialAccountSyncEnabled(t)
+
 	mockStorage.On(
 		"UpdateAccountTrialMetadata",
 		ctx,
@@ -110,7 +114,7 @@ func Test_createHostGroup_TrialMode(t *testing.T) {
 		defer stubGetOrCreateAccount(account)()
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 
 		created := &datamodel.HostGroup{
 			BaseModel: datamodel.BaseModel{UUID: "hg-uuid"},
@@ -160,7 +164,7 @@ func Test_createHostGroup_TrialMode(t *testing.T) {
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
 		trialErr := errors.New("trial metadata failed")
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, trialErr)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, trialErr)
 
 		_, err := _createHostGroup(ctx, mockStorage, &common.CreateHostGroupParams{
 			AccountName: "project-1",
@@ -218,6 +222,7 @@ func Test_createActiveDirectory_TrialMode(t *testing.T) {
 	}
 
 	t.Run("PersistsTrialMetadataWhenSet", func(t *testing.T) {
+		withTrialAccountSyncEnabled(t)
 		setupADCreateTestEnv(t)
 		mockStorage := database.NewMockStorage(t)
 		start, end, trial := trialWindow(t)
@@ -266,6 +271,7 @@ func Test_createActiveDirectory_TrialMode(t *testing.T) {
 	})
 
 	t.Run("ReturnsErrorWhenTrialMetadataUpdateFails", func(t *testing.T) {
+		withTrialAccountSyncEnabled(t)
 		setupADCreateTestEnv(t)
 		mockStorage := database.NewMockStorage(t)
 		start, end, trial := trialWindow(t)
@@ -312,7 +318,7 @@ func Test_createPool_TrialMode(t *testing.T) {
 
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 		mockStorage.On("CreatingPool", ctx, mock.Anything).Return(nil, errors.New("stop after trial metadata"))
 
 		_, _, err := _createPool(ctx, mockStorage, nil, minimalPoolParams(trial))
@@ -343,7 +349,7 @@ func Test_createPool_TrialMode(t *testing.T) {
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
 		trialErr := errors.New("trial metadata failed")
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, trialErr)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, trialErr)
 
 		_, _, err := _createPool(ctx, mockStorage, nil, minimalPoolParams(trial))
 		require.Error(t, err)
@@ -429,7 +435,7 @@ func Test_createKmsConfig_TrialMode(t *testing.T) {
 
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 		parseKeyFullPathResource = func(string) (*utils.ParsedKeyFullPathResource, error) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
@@ -459,7 +465,7 @@ func Test_createKmsConfig_TrialMode(t *testing.T) {
 
 		start, end, trial := trialWindow(t)
 		mockStorage := new(database.MockStorage)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 		parseKeyFullPathResource = func(string) (*utils.ParsedKeyFullPathResource, error) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
@@ -490,7 +496,7 @@ func Test_createKmsConfig_TrialMode(t *testing.T) {
 		mockStorage := new(database.MockStorage)
 		start, end, trial := trialWindow(t)
 		trialErr := errors.New("trial metadata update failed")
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, trialErr)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, trialErr)
 		parseKeyFullPathResource = func(string) (*utils.ParsedKeyFullPathResource, error) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
@@ -512,6 +518,8 @@ func Test_createKmsConfig_TrialMode(t *testing.T) {
 // TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata verifies that a second create
 // omitting trialMode does not write trial metadata again (prior DB values are retained).
 func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing.T) {
+	withTrialAccountSyncEnabled(t)
+
 	ctx := context.Background()
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
@@ -522,7 +530,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 	t.Run("host_group", func(t *testing.T) {
 		defer stubGetOrCreateAccount(account)()
 		mockStorage := new(database.MockStorage)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 
 		created := &datamodel.HostGroup{
 			BaseModel: datamodel.BaseModel{UUID: "hg-uuid"},
@@ -558,7 +566,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 		defer func() { ValidateCreatePoolParams = origValidate }()
 
 		mockStorage := new(database.MockStorage)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 		mockStorage.On("CreatingPool", ctx, mock.Anything).Return(nil, errors.New("stop")).Twice()
 
 		iops := int64(1000)
@@ -597,7 +605,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 		}()
 
 		mockStorage := new(database.MockStorage)
-		expectTrialMetadataUpdate(mockStorage, ctx, account, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, account, start, end, nil)
 		parseKeyFullPathResource = func(string) (*utils.ParsedKeyFullPathResource, error) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
@@ -630,7 +638,7 @@ func TestTrialMode_SecondCreateWithoutTrial_RetainsPriorTrialMetadata(t *testing
 		mockStorage := database.NewMockStorage(t)
 		mockTemporal := mocks.NewClient(t)
 		mockStorage.EXPECT().GetAccount(mock.Anything, "123").Return(adAccount, nil).Maybe()
-		expectTrialMetadataUpdate(mockStorage, ctx, adAccount, start, end, nil)
+		expectTrialMetadataUpdate(t, mockStorage, ctx, adAccount, start, end, nil)
 
 		mockStorage.EXPECT().ListActiveDirectories(mock.Anything, adAccount.ID).Return([]*datamodel.ActiveDirectory{}, nil).Twice()
 		mockStorage.EXPECT().CreateActiveDirectory(mock.Anything, mock.Anything).Return(&datamodel.ActiveDirectory{

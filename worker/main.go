@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ccfe"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/trial"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
@@ -535,6 +536,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.PollerRebalanceWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SnapshotAndPlanWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupEmptyLeasesWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.TrialAccountSyncWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -586,4 +588,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.ScanRegionalAddressesActivity{})
 	worker.RegisterActivity(&backgroundactivities.ScanGCEDisksActivity{})
 	worker.RegisterActivity(&activities.PollerRebalanceActivities{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.TrialAccountSyncActivity{
+		SE:   conn,
+		CCFE: trial.NewClient(auth.GenerateCallbackToken),
+	})
 }

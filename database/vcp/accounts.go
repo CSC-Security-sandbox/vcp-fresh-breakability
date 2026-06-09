@@ -52,6 +52,18 @@ func (d *DataStoreRepository) GetAccounts(ctx context.Context, includeDelete boo
 	return getAccounts(db, pagination)
 }
 
+// GetAccountsWithFilter returns non-deleted accounts matching filter with optional pagination.
+func (d *DataStoreRepository) GetAccountsWithFilter(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	if filter != nil {
+		return listAccounts(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx), pagination)
+	}
+	return listAccounts(d.db.GORM().WithContext(ctx), pagination)
+}
+
+func listAccounts(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
+	return getAccounts(db, pagination)
+}
+
 // ListAccountsForTelemetry retrieves accounts with only the fields required for telemetry/bizops operations.
 // This is an optimized query that selects only id, name, and state columns.
 // Parameters:

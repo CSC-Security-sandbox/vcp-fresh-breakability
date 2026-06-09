@@ -93,5 +93,10 @@
     "jobType": "BACKUP_SIZE_JOB",
     "cronExpression": "0 0 * * *",
     "state": "CREATING"
+  },
+  "TRIAL_ACCOUNT_SYNC": {
+    "jobType": "TRIAL_ACCOUNT_SYNC",
+    "cronExpression": "0 * * * *",
+    "state": "CREATING"
   }
 }

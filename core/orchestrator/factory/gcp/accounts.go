@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -116,13 +117,17 @@ func validateTrialModeParams(trial *commonparams.TrialModeParams) error {
 	return nil
 }
 
-// persistAccountTrialMetadataIfSet validates trialMode then writes trial window to account_metadata.
+// persistAccountTrialMetadataIfSet validates trialMode then writes trial window to account_metadata
+// when TRIAL_ACCOUNT_SYNC_ENABLED is true (same flag as the background trial sync admin job).
 func persistAccountTrialMetadataIfSet(ctx context.Context, se database.Storage, account *datamodel.Account, trial *commonparams.TrialModeParams) error {
 	if trial == nil {
 		return nil
 	}
 	if err := validateTrialModeParams(trial); err != nil {
 		return err
+	}
+	if !env.GetBool("TRIAL_ACCOUNT_SYNC_ENABLED", false) {
+		return nil
 	}
 
 	return se.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{

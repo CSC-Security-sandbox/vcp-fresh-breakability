@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -7374,6 +7375,40 @@ func TestPersistenceStore_ListAccountsForTelemetry(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
+}
+
+func TestPersistenceStore_GetAccountsWithFilter(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "list_accounts_delegate",
+		State:     models.AccountStateEnabled,
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("state", "=", models.AccountStateEnabled),
+	)
+	results, err := store.GetAccountsWithFilter(ctx, filter, nil)
+	assert.NoError(t, err)
+	require.NotEmpty(t, results)
+
+	names := make([]string, 0, len(results))
+	for _, acct := range results {
+		names = append(names, acct.Name)
+	}
+	assert.Contains(t, names, "list_accounts_delegate")
 }
 
 func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {

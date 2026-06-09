@@ -371,3 +371,9 @@ func TestCreateScheduleActivity_UnknownJobType(t *testing.T) {
 	// Ensure Create was never called on mockScheduleClient
 	mockScheduleClient.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
+
+func TestJobTypeToWorkflow_IncludesTrialAccountSync(t *testing.T) {
+	workflowFunc, ok := JobTypeToWorkflow[TrialAccountSync]
+	assert.True(t, ok)
+	assert.NotNil(t, workflowFunc)
+}

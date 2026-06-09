@@ -283,3 +283,24 @@ func RestrictedActionsSet(actions ...string) *[]string {
 	v := append([]string(nil), actions...)
 	return &v
 }
+
+// ChunkSlice splits slice into sub-slices of at most size elements.
+// Returns nil when slice is empty. When size <= 0, returns a single chunk containing all elements.
+func ChunkSlice[T any](slice []T, size int) [][]T {
+	if len(slice) == 0 {
+		return nil
+	}
+	if size <= 0 {
+		size = len(slice)
+	}
+
+	batches := make([][]T, 0, (len(slice)+size-1)/size)
+	for start := 0; start < len(slice); start += size {
+		end := start + size
+		if end > len(slice) {
+			end = len(slice)
+		}
+		batches = append(batches, slice[start:end])
+	}
+	return batches
+}

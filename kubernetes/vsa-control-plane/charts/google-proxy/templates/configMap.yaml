@@ -40,6 +40,8 @@ data:
   VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
   DELETE_RESOURCES_CRON_EXPRESSION: "{{ index .Values "deleteResourcesCronExpression" }}"
   CERTIFICATE_ROTATION_CRON_EXPRESSION: "{{ index .Values "certificateRotationCronExpression" }}"
+  TRIAL_ACCOUNT_SYNC_CRON_EXPRESSION: "{{ index .Values "trialAccountSyncCronExpression" }}"
+  TRIAL_ACCOUNT_SYNC_ENABLED: "{{ index .Values "trialAccountSyncEnabled" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
   MAX_BATCH_VOLUME_UUIDS: "{{ index .Values "maxBatchVolumeUUIDs" }}"

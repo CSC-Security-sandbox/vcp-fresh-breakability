@@ -10,6 +10,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -371,6 +372,36 @@ func TestListAccountsForTelemetry(t *testing.T) {
 		result, err := store.ListAccountsForTelemetry(context.Background(), pagination)
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 0)
+	})
+}
+
+func TestGetAccountsWithFilter_ExcludesSoftDeleted(t *testing.T) {
+	t.Run("excludes soft-deleted accounts", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		active := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "list-active"},
+			Name:      "list_active",
+			State:     models.AccountStateEnabled,
+		}
+		require.NoError(tt, store.db.Create(active).Error())
+
+		deleted := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "list-deleted"},
+			Name:      "list_deleted",
+			State:     models.AccountStateEnabled,
+		}
+		require.NoError(tt, store.db.Create(deleted).Error())
+		require.NoError(tt, store.db.GORM().Delete(deleted).Error)
+
+		got, err := store.GetAccountsWithFilter(context.Background(), nil, nil)
+		require.NoError(tt, err)
+		require.Len(tt, got, 1)
+		assert.Equal(tt, "list_active", got[0].Name)
 	})
 }
 

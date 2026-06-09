@@ -149,6 +149,7 @@ type (
 		DeleteAccount(ctx context.Context, accountID int64) error
 		RollBackDeletedAccount(ctx context.Context, accountID int64) error
 		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
+		GetAccountsWithFilter(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
 		// ListAccountsForTelemetry retrieves accounts with only the fields required for telemetry/bizops operations.
 		// This is an optimized query that selects only id, name, and state columns.
 		ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error)
