@@ -1,96 +1,78 @@
-# Reaching callgraph-level accuracy — process, not prompts
+# Reaching high accuracy WITHOUT a callgraph — AI is the decision layer
 
-A self-review of the current design and the concrete, mechanical changes that close the gap to
-callgraph-level precision. None of these are prompt tweaks; each is a verifiable process change.
+A function-level callgraph (CHA→VTA) was evaluated and **dropped**: too compute-heavy, and on this
+repo it degrades to `UNKNOWN` (no clean entrypoints / pervasive reflect-unsafe-cgo-plugin) — paying
+the cost for no answer. Accuracy is reached a different way: **cheap deterministic scoping to shrink
+the residue, then the AI layer to DECIDE it** — because deterministic alone is provably not enough
+(behavioral changes, cross-module attribution, removed-symbol judgment all need a reasoner).
 
-## Honest self-review: where accuracy actually leaks today
-1. **Reachability is import-level, used as a proxy for call-level.** `files_importing` /
-   `declared_break_reachability.reachability_kind == "import"` prove the *package* is imported,
-   never that the *changed symbol* is called. This is the #38 mechanism and the single biggest
-   precision ceiling. A function-level callgraph (`deep.go`, already in-repo) resolves it but is
-   **not triggered on the ambiguous residue** — so the system pays callgraph's accuracy nowhere.
-2. **Verdict text can disagree with the evidence object.** #38's `merge_risk.reason` asserts
-   "BREAK-reachable `Error.Code`" while `declared_break_reachability` is `null`. The prose won.
-   Provenance was never enforced: the human-readable reason is generated independently of the
-   structured evidence instead of *from* it.
-3. **No execution ground truth.** Behavioral changes (a changed default, error format, ordering)
-   are invisible to build, tests, api-diff AND callgraph. Only running code (a probe) resolves
-   them. The probe tier is designed (lite.py tier 3) but unbuilt — so the hardest class is decided
-   by inference, not proof.
-4. **The corpus is tiny (15 PRs) and the golden file is a "currently-correct" ratchet.** Accuracy
-   claims on 15 samples are noise, and a ratchet of conservative verdicts can lock in
-   over-flagging as a local optimum. There is no held-out set of *known breaks* to measure
-   false-green recall when the loop lowers flags. The loop can regress safety invisibly.
-5. **AI evidence was existence-checked, not relevance-checked.** A real-but-irrelevant `file:line`
-   (or the dependency manifest, which merely lists the package) passed. Closed in this change set
-   (`_cite_references_pkg`, manifest blocklist) — but it illustrates the discipline gap.
+## Self-review: where accuracy leaks
+1. Reachability is import-level used as a call-level proxy (`files_importing` proves the package is
+   imported, never that the changed symbol is called) — the #38 mechanism.
+2. Cross-module attribution bug: multi-module repo (root, `cicd`, `automations/tstctl`). #38 bumps
+   lib/pq in `automations/tstctl` but the tool counted `Error.Code` usages in the ROOT module.
+3. Verdict prose can out-claim its evidence (#38 reason asserts reachability; evidence object null).
+4. No reasoner on behavioral change: #23 (otel) is signature-identical; build/test/apidiff all pass.
+   Only an AI reasoner — or a probe — can judge relevance.
+5. AI evidence was existence-checked, not relevance-checked (fixed: `_cite_references_pkg` +
+   manifest blocklist in run_gate.py).
 
-## The accuracy stack (each tier narrower + more expensive; escalate, never skip)
-| Tier | Question | Mechanism | Runs on | Soundness |
-|------|----------|-----------|---------|-----------|
-| 0 Import | Is the package imported? | `files_importing` (have) | all PRs | cheap, weak |
-| 1 API-diff | Did a symbol we *could* touch change? | apidiff/semver (have) | all PRs | cheap |
-| 2 **Function callgraph** | Is the *changed symbol* reachable from our entrypoints? | **`deep.go` CHA→VTA, scoped to importing pkgs** | **residue only** | **sound (callgraph-level)** |
-| 3 **Probe** | Does behavior actually differ for *our* call? | synthesize harness, run old vs new in sandbox, diff output | behavioral residue, probe-safe only | **proof by execution** |
-| 4 AI adjudication | Judgment when 2/3 are inconclusive | citation- or probe-backed verdict | last resort | falsifiable or discarded |
+## The stack (no callgraph): cheap scope → AI decision → probe proof
+| Layer | Question | Mechanism | Cost | Runs on |
+|-------|----------|-----------|------|---------|
+| 0 Import | Package imported? | files_importing | ~0 | all |
+| 1 API-diff | A symbol we could touch changed? | apidiff/semver | ~0 | all |
+| 2 Module-scope filter | Are recorded usages even in the BUMPED module? | scope_check.py (path-prefix filter on deterministic.usages) | ~0 | residue |
+| 3 AI adjudication | Does the change reach+affect OUR call? | per-PR AI agent, grounded in repo, falsifiable citation | low | residue |
+| 4 AI-synth probe | Does behavior actually differ for our call? | AI writes harness, run old vs new in sandbox, diff output | medium | behavioral residue, probe-safe |
 
-Key cost insight (why this is NOT Endor-expensive): you never build a whole-program callgraph.
-Tier 2 is **demand-driven** — only for PRs that survive tiers 0/1 as ambiguous, only over the
-packages that import the bumped module, only querying the specific changed symbols. That is the
-same soundness as a full callgraph at a tiny fraction of the compute.
+Layer 2 is the cheap stand-in for the ATTRIBUTION part of a callgraph (kills #38 in microseconds:
+`Error.Code` usages are root-module, bump is automations/tstctl → not reachable). It is NOT a
+callgraph — it only filters evidence by module. Everything still ambiguous is handed to AI.
 
-## The four mechanical changes that get us there
-### A. Enforce evidence provenance (DONE in `run_gate.py`)
-`overclaims_function_reach`: if the verdict text asserts symbol/function reachability while the
-structured evidence is absent or import-only-and-unconfirmed (and the build did not actually
-fail), it is an OVERCLAIM → gate fails. This makes #38 un-shippable and *forces* escalation to
-tier 2. Next step in the pipeline itself: generate `merge_risk.reason` **from** the reachability
-object, so prose can never assert more than the evidence licenses.
+## Why AI is the decision layer (demonstrated on a live run)
+Three residue classes deterministic cannot close — each run through a real AI agent grounded in repo:
+- Behavioral change, no signature diff (#23 otel): AI read the changelog + our exporter setup at
+  utils/middleware/log/metric.go:72, kept REVIEW, and HONESTLY said it cannot prove no dropped-data
+  without a runtime probe → defers to layer 4. (Never downgrades a behavioral change to safe.)
+- Removed/deprecated symbol, no extracted usages (#10 go-jira): AI grepped cicd/cmd/jira, found we
+  never call the removed Search()/SearchWithContext() and discard the changed Response — recommended
+  safe with a cited call site. NOTE: verified corpus labels #10 true_review; the gate flagged the
+  AI downgrade as a disagreement (false_green) rather than trusting AI over ground truth. The
+  disagreement is the signal: reconcile the label or keep conservative. AI never overrides truth.
+- Cross-module hard-break (#38 lib/pq): AI confirmed automations/tstctl has no lib/pq call sites
+  (reachable=false) but could not cite a line for an ABSENCE → gate REJECTED the downgrade by design.
+  #38 is instead auto-cleared deterministically by layer 2.
 
-### B. Wire `deep.go` onto the residue (the callgraph-level lever — NOT yet wired)
-Trigger condition (deterministic): `declared_break_reachability.reachability_kind == "import"`
-AND `behavior_confirmed == false` AND symbol-level api-diff flagged a changed symbol we import.
-Run `deep.go` with the changed symbols as targets. Outcomes:
-- `not reachable` + no dynamic constructs → upgrade REVIEW→auto_clear (sound). Kills the
-  import-level false-blocks (the current 7) deterministically, no AI.
-- `reachable` → stays REVIEW, now with a *function-level* call path as evidence (not an import).
-- dynamic constructs present → `POTENTIALLY_REACHABLE`, honest REVIEW (deep.go's honesty rule
-  preserves zero false-green).
-This is the change that converts "import proxy" into real reachability and lifts auto_clear
-without touching false-green.
+AI is MEASURED, never trusted: schema-validated (validate_adjudication.py), then scored against the
+verified corpus by run_gate.py --ai. AI may downgrade REVIEW→SAFE only with reachable=false + a real
+SOURCE citation; never FIX, never clear a CVE; fail-open to REVIEW on malformed/unfalsifiable output.
 
-### C. Build the probe tier for behavioral changes (the true differentiator)
-For `CALL_OBSERVABLE` breaks (per `break_class_router.py`): synthesize a minimal harness that
-calls the changed symbol the way our repo does, run old-vs-new in `--network=none` read-only
-sandbox, diff observable output. Evidence = the stdout/return/error diff. `NOT_OBSERVABLE` breaks
-(state/load/timing) are never probed (a minimal probe false-greens) → honest REVIEW. This is the
-only mechanism that decides behavioral changes by *proof* instead of inference — and it answers a
-question callgraph cannot.
+## Gate invariants (deterministic, seconds)
+- false_green = 0 — never clear a real break.
+- invented_citations = 0 — claims reachability but files_importing empty / files absent.
+- overclaims = 0 — verdict text asserts symbol reachability while evidence is import-only/absent and
+  build did not fail → forces the decision to AI/probe, not prose.
+- AI citation must be a real SOURCE call site referencing the package — manifests and
+  real-but-irrelevant files rejected (AI_REJECTED).
 
-### D. Ground-truth flywheel + backtest (how we *prove* callgraph-level, statistically)
-- **Harvest outcomes automatically**: every merged dependency PR + its post-merge fate (later CI
-  break? revert? incident referencing it?) becomes a labeled example. The corpus grows from 15 to
-  thousands; accuracy claims become statistically real.
-- **Backtest on history**: replay historically known-breaking upgrades (mined from git reverts /
-  rollback commits) through the pipeline and measure detection rate. This is the held-out
-  *known-break* set that guards false-green recall — the counterweight the golden ratchet lacks.
-- **Calibrated abstention**: attach a confidence to each verdict; auto-clear only above a
-  threshold tuned so empirical false-green ≤ target (e.g. ≤0.5%) on the backtest set. "Accuracy"
-  becomes a tunable operating point, and abstaining on genuine uncertainty beats callgraph's
-  binary answer.
-- **Ensemble disagreement routing**: when tier 2 (callgraph), tier 3 (probe) and tier 4 (AI)
-  agree → high-confidence auto-decision; when they disagree → highest-value REVIEW *and* a labeled
-  training example. Disagreement is a signal, harvested by process.
+## Build the probe tier (layer 4 — turns "uncertain" into proof)
+For CALL_OBSERVABLE breaks (break_class_router.py): AI synthesizes a minimal harness calling the
+changed symbol the way our repo does, runs old-vs-new in a --network=none read-only sandbox, diffs
+observable output. Evidence = the stdout/return/error diff. NOT_OBSERVABLE breaks (state/load/timing)
+are never probed (a minimal probe false-greens) → honest REVIEW. This is the only mechanism that
+decides #23-class behavioral changes by proof, and needs no callgraph.
 
-## Where AI is the differentiator vs where determinism wins (do not blur these)
-- Tiers 0–2 are deterministic and carry the **bulk auto_clear lift**. Do not spend AI there.
-- AI earns cost on tier 3/4 residue: synthesizing the probe harness, and judging behavioral
-  relevance when even a callgraph path is inconclusive — always backed by a probe diff or a
-  symbol-referencing `file:line`, scored against the corpus by `run_gate.py`. AI is *measured*,
-  never trusted.
+## Ground-truth flywheel (prove accuracy statistically)
+- Harvest every merged dependency PR + post-merge fate (later CI break / revert / incident) as a
+  labeled example; corpus grows from 15 to thousands.
+- Backtest on historical known-breaking upgrades (mined from revert commits) — the held-out
+  known-break set that guards false-green recall (the golden ratchet alone cannot).
+- Calibrated abstention: attach confidence; auto-clear only above a tuned threshold so empirical
+  false-green ≤ target on the backtest. Abstaining on genuine uncertainty beats a forced binary.
 
-## Definition of done (callgraph-parity, measurable)
-On the backtest known-break set: false-green recall ≥ callgraph baseline at equal-or-higher
-auto_clear%, with every auto_clear backed by a tier-2 unreachable proof or a tier-3 no-diff proof.
-`run_gate.py` already reports the AI-on/off delta and hard-fails on false-green, invented
-citations, and overclaims — extend it to consume the backtest set as a second corpus.
+## Definition of done (measurable, callgraph-free)
+On the backtest known-break set: false-green recall at-or-above the dropped-callgraph baseline at
+equal-or-higher auto_clear%, every auto_clear backed by a layer-2 out-of-module proof, a layer-3 AI
+cited-absence, or a layer-4 no-diff probe. run_gate.py hard-fails on false-green, invented citations,
+and overclaims, and reports the AI-on vs AI-off delta.

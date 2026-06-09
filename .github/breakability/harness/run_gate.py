@@ -50,8 +50,9 @@ def overclaims_function_reach(pr):
     """#38 class, generalized: the verdict TEXT asserts symbol/function-level reachability,
     but the structured reachability evidence is absent or only import-level + unconfirmed.
     Import-level reachability proves the package is imported, NOT that the changed symbol is
-    called. Asserting 'BREAK-reachable <symbol>' off import evidence is an over-claim that
-    only a function-level callgraph (deep.go) may license."""
+    called. Asserting 'BREAK-reachable <symbol>' off import evidence is an over-claim. The cheap
+    remedy (NOT a callgraph) is a symbol-usage proof: grep the importing files for the changed
+    symbol token at a real call site, or a probe diff. Until that exists, it must stay REVIEW."""
     if not claims_reachability(pr):
         return False, ""
     # A failing build already PROVES the break by compilation — the reachability text is
@@ -64,7 +65,7 @@ def overclaims_function_reach(pr):
         return True, "verdict asserts symbol reachability with no declared_break_reachability evidence"
     if dbr.get("reachability_kind") == "import" and not dbr.get("behavior_confirmed"):
         return True, ("verdict asserts symbol/function reachability but evidence is import-level "
-                      "+ behavior_confirmed=false (needs function-level callgraph or probe)")
+                      "+ behavior_confirmed=false (needs symbol-usage proof or probe diff)")
     return False, ""
 
 

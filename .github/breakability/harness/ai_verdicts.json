@@ -1,20 +1,24 @@
 {
+  "_note": "Real AI-agent adjudications (general-purpose Sonnet, grounded in repo). Each is schema-validated by run_gate.py before any effect. #38 recommends safe but with empty citation (absence has no single line) -> the gate REJECTS the downgrade by design; #38 is instead auto-cleared deterministically by scope_check.py (out-of-module). #23 is a behavioral change AI honestly keeps at REVIEW and defers to a probe. #10 is downgraded with a real call-site citation.",
+  "38": {
+    "reachable": false,
+    "recommendation": "safe",
+    "citation": "",
+    "confidence": 0.95,
+    "evidence": "Bumped module automations/tstctl has github.com/lib/pq only in go.mod/go.sum and no .go call sites; the Error.Code usages are in the ROOT module (database/...), unaffected by this bump."
+  },
   "23": {
     "reachable": true,
     "recommendation": "review",
-    "citation": "utils/middleware/log/metric.go:22",
-    "evidence": "We call prometheus.New (otel exporter) at metric.go:22. The otel SDK bump changes exporter default behavior, so the declared change is behaviorally relevant to our call site. Stays REVIEW, now proof-backed instead of generic caution."
-  },
-  "27": {
-    "reachable": true,
-    "recommendation": "review",
-    "citation": "utils/middleware/log/metric.go:22",
-    "evidence": "Same otel exporter call site at metric.go:22 is on the changed API surface. REVIEW with citation."
+    "citation": "utils/middleware/log/metric.go:72",
+    "confidence": 0.78,
+    "evidence": "metric.go:72 installs the otel prometheus exporter as the MeterProvider reader, so our scrape path uses the changed translator; static reading cannot prove no dropped-data case -> needs a runtime probe."
   },
   "10": {
-    "reachable": true,
-    "recommendation": "review",
-    "citation": "cicd/cmd/jira/release.go:11",
-    "evidence": "go-jira is imported and used at cicd/cmd/jira/release.go:11. The bumped symbol is reachable from our CI tooling. REVIEW with citation rather than a generic 'medium risk' label."
+    "reachable": false,
+    "recommendation": "safe",
+    "citation": "cicd/cmd/jira/jira.go:97",
+    "confidence": 0.95,
+    "evidence": "Grep over the cicd module found no .Search(/.SearchWithContext(/jira.Response usage; go-jira is used only via the unaffected Issue.Get API at jira.go:97."
   }
 }
