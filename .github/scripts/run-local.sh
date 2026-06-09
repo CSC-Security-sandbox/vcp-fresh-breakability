@@ -79,6 +79,31 @@ hr() { printf '─%.0s' {1..78}; echo; }
 t0=$(date +%s)
 say() { echo; hr; echo "▶ $*"; hr; }
 
+# ── Preflight ─────────────────────────────────────────────────────────────────
+# (a) The self-hosted CI runner lives on this same machine and writes the SAME
+#     /tmp/build-results.json. Concurrent local + CI runs clobber each other.
+if command -v gh >/dev/null 2>&1; then
+  _ACTIVE_CI=$(gh run list --workflow=breakability-agent.yml --status in_progress \
+                 --json databaseId -q '.[].databaseId' 2>/dev/null | head -1 || true)
+  if [[ -n "${_ACTIVE_CI:-}" ]]; then
+    echo "⚠️  A breakability CI run ($_ACTIVE_CI) is IN PROGRESS on the self-hosted runner."
+    echo "    It shares /tmp/build-results.json with this machine and will corrupt local results."
+    echo "    Cancel it first:  gh run cancel $_ACTIVE_CI"
+    echo
+  fi
+fi
+# (b) The AI stage uses `agent -p` (print mode), which requires CURSOR_API_KEY even
+#     when you are interactively logged in (the keychain session is ignored headlessly).
+if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 ]]; then
+  if [[ -z "${CURSOR_API_KEY:-}" ]]; then
+    echo "⚠️  CURSOR_API_KEY is not set — agent -p (headless) cannot authenticate."
+    echo "    The AI stage will be SKIPPED (Tier-0 deterministic module-scope still runs)."
+    echo "    To enable the AI layer locally:  export CURSOR_API_KEY=<your key>  (same as the CI secret)"
+    echo
+    SKIP_AI=1
+  fi
+fi
+
 if [[ -n "$SEED" ]]; then
   cp "$SEED" "$RESULTS"
   echo "Seeded $RESULTS from $SEED"
