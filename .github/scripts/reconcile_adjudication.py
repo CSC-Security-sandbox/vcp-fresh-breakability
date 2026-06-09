@@ -82,26 +82,52 @@ def _has_declared_breaking_section(pr):
     return ("breaking change" in low) or ("### breaking" in low) or ("deprecat" in low)
 
 
+def _policy_decision(pr):
+    pol = pr.get("policy_lowering") or {}
+    dec = pol.get("decision") if isinstance(pol, dict) else None
+    return dec if isinstance(dec, dict) else {}
+
+
 def _current_verdict(pr):
+    # verdict_v2 is materialized late (by the comment poster's policy overlay). At reconcile
+    # time the authoritative verdict lives in policy_lowering.decision; fall back to it.
     v2 = pr.get("verdict_v2") or {}
-    return (v2.get("verdict") or "").upper()
+    v = (v2.get("verdict") or "").upper()
+    if v:
+        return v
+    return (_policy_decision(pr).get("verdict") or "").upper()
 
 
 def _reason_code(pr):
     v2 = pr.get("verdict_v2") or {}
-    return ((v2.get("residual") or {}).get("check") or v2.get("reason") or "")
+    r = (v2.get("residual") or {}).get("check") or v2.get("reason") or ""
+    if r:
+        return r
+    return _policy_decision(pr).get("reason_code") or ""
 
 
 def _apply_safe(pr, reason, evidence, citation, source):
-    """Downgrade this PR's verdict_v2 to SAFE. Never touches CVE/security state."""
+    """Downgrade this PR's verdict to SAFE. Never touches CVE/security state.
+
+    The ai_adjudication marker makes the comment poster's legacy policy overlay skip this PR,
+    so verdict_v2 must be fully self-sufficient (verdict/confidence/priority/severity) for the
+    renderer. We also flip policy_lowering.decision so any downstream consumer agrees."""
     v2 = pr.setdefault("verdict_v2", {})
     v2["verdict"] = "SAFE"
+    v2["confidence"] = "L4"
     v2["priority"] = "P3"
+    v2["severity"] = "low"
     es = v2.setdefault("evidenceState", {})
     es["api_diff"] = "NONE"
     es["usage"] = "NONE"
     v2["residual"] = {"summary": evidence, "check": reason}
     v2["reason"] = evidence
+    dec = _policy_decision(pr)
+    if dec:
+        dec["verdict"] = "SAFE"
+        dec["reason_code"] = reason
+        dec["severity"] = "low"
+        dec["display_reason"] = evidence
     pr["ai_adjudication"] = {
         "applied": "downgrade_to_safe",
         "source": source,
@@ -116,6 +142,9 @@ def _apply_needs_change(pr, evidence, citation, remediation, flaw, source):
     never a hard merge block — the AI may not FIX-gate)."""
     v2 = pr.setdefault("verdict_v2", {})
     v2["verdict"] = "REVIEW"
+    v2.setdefault("confidence", "L3")
+    v2.setdefault("priority", "P2")
+    v2.setdefault("severity", "medium")
     v2["residual"] = {"summary": evidence, "check": "review:ai-needs-change"}
     v2["reason"] = evidence
     pr["ai_adjudication"] = {

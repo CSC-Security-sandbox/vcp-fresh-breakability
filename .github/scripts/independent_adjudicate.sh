@@ -41,10 +41,13 @@ def imported(pr, mod):
     return any(rp.in_module(u.get("file", ""), mod) for u in us)
 for pid, pr in prs.items():
     v2 = pr.get("verdict_v2") or {}
-    reason = ((v2.get("residual") or {}).get("check") or v2.get("reason") or "")
+    pol = (pr.get("policy_lowering") or {}).get("decision") or {}
+    verdict = (v2.get("verdict") or pol.get("verdict") or "").upper()
+    reason = ((v2.get("residual") or {}).get("check") or v2.get("reason")
+              or pol.get("reason_code") or "")
     es = v2.get("evidenceState") or {}
     is_br = ("break-reachable" in reason) or (es.get("api_diff") == "POSITIVE")
-    if (v2.get("verdict", "").upper() == "REVIEW") and is_br and imported(pr, rp.module_dir(pr)):
+    if verdict == "REVIEW" and is_br and imported(pr, rp.module_dir(pr)):
         print(pid)
 PY
 )
