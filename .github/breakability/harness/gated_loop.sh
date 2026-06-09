@@ -25,12 +25,27 @@ WORKTREES_DIR="${WORKTREES_DIR:-/tmp/brk-worktrees}"
 COPILOT="${COPILOT:-copilot}"
 FIX_MODEL="${FIX_MODEL:-claude-haiku-4.5}"         # cheap; gate decides correctness, not the model
 REPO="${REPO:-CSC-Security-sandbox/vcp-vsa-breakability-test}"
+RAW_RESULTS="${RAW_RESULTS:-/tmp/build-results.raw.json}"  # raw per-PR build signals (from build-check.sh)
+
+# REGRADE_CMD re-derives $RESULTS from the RAW per-PR build signals by re-running ONLY the
+# fast classification layer (policy/reachability/merge logic) that the fix agent edits — no
+# 6-min rebuild. Defaults to the standalone post-processor available in this repo. Override to
+# chain merge-results.sh / break_class_router.py once those are made stdin/stdout separable.
+REGRADE_CMD="${REGRADE_CMD:-python3 \"$BASE_DIR/.github/scripts/policy_lowering.py\" \"$RAW_RESULTS\" --enrich -o \"$RESULTS\"}"
 
 log() { echo "$(date '+%H:%M:%S') [iter${ITER:-0}] $*"; }
 
 run_gate() {
   python3 "$HARNESS/run_gate.py" "$RESULTS" "$CORPUS" --repo "$BASE_DIR" --golden "$GOLDEN" 2>&1
 }
+
+regrade() {  # re-derive $RESULTS from raw signals using current (possibly edited) classifier
+  if [[ -f "$RAW_RESULTS" ]]; then eval "$REGRADE_CMD" >/dev/null 2>&1; return $?; fi
+  return 0  # no raw signals captured yet -> grade $RESULTS as-is
+}
+
+score_of() { echo "$1" | awk -F': ' '/^SCORE:/{print $2}'; }
+accepted_of() { echo "$1" | awk -F': ' '/^ACCEPTED:/{print $2}'; }
 
 mkdir -p "$WORKTREES_DIR"
 PREV_SCORE="-1"
@@ -93,18 +108,33 @@ RULES:
     break
   fi
 
-  # 4. RE-GRADE the candidate fix BEFORE accepting it. (Requires regenerating $RESULTS by
-  #    re-running the deterministic pipeline on the worktree — wire your build-check entrypoint here.)
-  #    Until that entrypoint is wired, a human regenerates $RESULTS, then re-runs this loop.
-  #    Guard: only merge if the new score strictly improves.
-  log "candidate committed on gate-iter${ITER}. Regenerate $RESULTS from the worktree, then:"
-  log "   NEW=\$(run_gate | awk -F': ' '/^SCORE:/{print \$2}')"
-  log "   merge iff NEW > $SCORE, else: git -C $BASE_DIR reset --hard $PRE_TAG"
+  # 4. RE-GRADE the candidate fix BEFORE accepting it. Fast: re-run the classification layer
+  #    over the cached raw build signals (no 6-min rebuild), then grade.
+  log "re-grading candidate from worktree ..."
+  ( cd "$WT" && BASE_DIR="$WT" RESULTS="$RESULTS" RAW_RESULTS="$RAW_RESULTS" \
+      bash -c "$(declare -f regrade); regrade" ) || true
+  # regrade() uses BASE_DIR-relative classifier; re-derive using the worktree's edited scripts:
+  if [[ -f "$RAW_RESULTS" ]]; then
+    python3 "$WT/.github/scripts/policy_lowering.py" "$RAW_RESULTS" --enrich -o "$RESULTS" >/dev/null 2>&1 || true
+  fi
+  NEW_OUT="$(python3 "$WT/.github/breakability/harness/run_gate.py" "$RESULTS" "$CORPUS" --repo "$WT" --golden "$GOLDEN" 2>&1)"
+  NEW_SCORE="$(score_of "$NEW_OUT")"; NEW_ACC="$(accepted_of "$NEW_OUT")"
+  log "candidate score=$NEW_SCORE accepted=$NEW_ACC (was $SCORE)"
 
-  # Conservative default: do NOT auto-merge until re-grade is wired. Keep branch for human review.
-  PREV_SCORE="$SCORE"
-  log "iteration paused for re-grade wiring (see TODO in loop). Branch gate-iter${ITER} left for inspection."
-  break
+  # 5. Merge iff strictly better (or newly accepted); else roll back.
+  better=$(awk -v a="$NEW_SCORE" -v b="$SCORE" 'BEGIN{print (a+0> b+0)?1:0}')
+  if [[ "$NEW_ACC" == "True" || "$better" == "1" ]]; then
+    log "improvement — merging gate-iter${ITER} back."
+    git -C "$BASE_DIR" merge --no-edit "gate-iter${ITER}" >/dev/null 2>&1 || {
+      log "merge conflict — rolling back to $PRE_TAG"; git -C "$BASE_DIR" reset --hard "$PRE_TAG" >/dev/null 2>&1; }
+    PREV_SCORE="$NEW_SCORE"
+  else
+    log "no improvement ($NEW_SCORE <= $SCORE) — discarding candidate, rolling back."
+    git -C "$BASE_DIR" reset --hard "$PRE_TAG" >/dev/null 2>&1
+  fi
+  git -C "$BASE_DIR" worktree remove --force "$WT" 2>/dev/null
+  git -C "$BASE_DIR" branch -D "gate-iter${ITER}" 2>/dev/null
 done
 
-log "loop exited. Inspect gate-result.json and gate_fix_iter*.md."
+log "loop exited after $((ITER)) iteration(s). Final: see gate-result.json"
+GATE_OUT="$(run_gate)"; echo "$GATE_OUT" | grep -E '^(SCORE|ACCEPTED|FALSE_GREEN|INVENTED_CITATIONS|FALSE_BLOCK|AUTO_CLEAR_PCT):'

@@ -11,7 +11,17 @@ deterministic number, not an LLM's mood.
 | `run_gate.py` | Grades a `build-results.json` vs corpus + golden. HARD gates: zero false-green, zero invented citations, no golden regression. Emits `SCORE`/`ACCEPTED`. |
 | `ai_adjudicator_prompt.md` | Narrow per-PR AI prompt (REVIEW bucket only). Replaces the dormant 2-hour mega-call. |
 | `validate_adjudication.py` | Schema + invented-citation guard for AI output. AI can downgrade REVIEW→SAFE only with a real citation; never FIX, never clear CVE. |
-| `gated_loop.sh` | Ralph-style loop graded by `run_gate.py` (seconds, local) instead of a 6-min CI + LLM score. |
+| `gated_loop.sh` | Closed-loop: grade → cheap fix-agent in worktree → fast re-grade (re-run classifier over cached raw signals, no rebuild) → merge **only if score strictly improves**, else auto-rollback. |
+
+## Closed-loop regrade
+The expensive `build-check.sh` (per-PR `go build/test`) runs once to produce raw signals
+(`/tmp/build-results.raw.json`). Each loop iteration only re-runs the **classification layer**
+(`policy_lowering.py` etc., seconds) over those cached signals — the layer where the gate
+failures actually live — so iterations are fast and deterministic. Override `REGRADE_CMD` to
+chain more post-processors as they're made stdin/stdout separable.
+
+`golden_predictions.json` is a **ratchet**: it pins the PRs the tool *already gets right* so a
+fix can never regress them. It is re-snapshotted on each ACCEPTED state.
 
 ## Run the gate (baseline on the current tool output)
 ```bash
