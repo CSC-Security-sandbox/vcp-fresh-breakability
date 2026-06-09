@@ -125,6 +125,29 @@ class LiveAndRecordTests(unittest.TestCase):
         finally:
             del os.environ["CURSOR_API_KEY"]
 
+    def test_build_argv_copilot_autocompletes_noninteractive(self):
+        be = ab.Backend(mode=ab.MODE_LIVE, model="claude-sonnet-4.5",
+                        cmd_template="copilot --model {model}",
+                        cassette_dir=self.dir)
+        argv = be.build_argv()
+        self.assertIn("--allow-all-tools", argv)
+        self.assertIn("--no-color", argv)
+        # -p must be the final token so the prompt (appended by _run_live) is its value.
+        self.assertEqual(argv[-1], "-p")
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-sonnet-4.5")
+        # No Cursor key leakage onto the copilot backend.
+        self.assertNotIn("--api-key", argv)
+
+    def test_build_argv_copilot_respects_explicit_flags(self):
+        be = ab.Backend(mode=ab.MODE_LIVE, model="m",
+                        cmd_template="copilot --allow-all --no-color --prompt",
+                        cassette_dir=self.dir)
+        argv = be.build_argv()
+        # Already-present flags are not duplicated.
+        self.assertEqual(argv.count("--no-color"), 1)
+        self.assertNotIn("--allow-all-tools", argv)
+        self.assertNotIn("-p", argv)
+
 
 class EnvResolutionTests(unittest.TestCase):
     def test_mode_defaults_to_live(self):

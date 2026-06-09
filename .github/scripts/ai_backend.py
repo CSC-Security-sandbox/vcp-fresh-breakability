@@ -19,6 +19,17 @@ local Copilot / Cursor-in-CI / replay:
   BRK_AGENT_MODEL  = model name (default ``claude-4-sonnet``)
   BRK_CASSETTE_DIR = cassette dir (default ``.github/breakability/harness/cassettes``)
 
+Local validation with GitHub Copilot CLI (same model class, no Cursor/key) -- the
+pipeline is model-agnostic, so only env changes:
+
+  BRK_AGENT_CMD="copilot --model {model}" BRK_AGENT_MODEL="claude-sonnet-4.5" \\
+    BRK_AGENT_MODE=record   # capture cassettes once, then replay offline forever
+
+``copilot`` is auto-completed to a non-interactive, clean-stdout invocation
+(``--allow-all-tools --no-color -p <prompt>``); ``-p`` is forced last so it never
+swallows another flag. Use ``record`` to bless cassettes, ``replay`` for the
+sub-second deterministic loop, ``live`` only when tuning prompts.
+
 Cassette identity: an explicit, stable ``key`` (preferred -- e.g. ``adj-10``) or,
 when absent, ``sha256(namespace + "\\x00" + prompt)``. One JSON file per key.
 
@@ -142,11 +153,28 @@ class Backend:
 
     def build_argv(self) -> list:
         argv = self.cmd_template.format(model=self.model).split()
-        # Append Cursor API key from env so CI auth never depends on a keychain/login.
-        api_key = os.environ.get("CURSOR_API_KEY", "").strip()
-        if api_key and argv and os.path.basename(argv[0]) in ("agent", "cursor-agent") \
-                and "--api-key" not in argv:
-            argv = argv + ["--api-key", api_key]
+        if not argv:
+            return argv
+        prog = os.path.basename(argv[0])
+
+        # Cursor: inject API key from env so CI auth never depends on a keychain/login.
+        if prog in ("agent", "cursor-agent"):
+            api_key = os.environ.get("CURSOR_API_KEY", "").strip()
+            if api_key and "--api-key" not in argv:
+                argv = argv + ["--api-key", api_key]
+
+        # GitHub Copilot CLI: same prompt-in / text-out contract as Cursor's agent,
+        # so it is a drop-in local backend for validating the pipeline with the same
+        # model class -- no Cursor/key required. Non-interactive mode needs
+        # --allow-all-tools; --no-color keeps stdout clean. The prompt is appended by
+        # _run_live, so -p/--prompt must be the LAST token in the template.
+        if prog == "copilot":
+            if "--allow-all-tools" not in argv and "--allow-all" not in argv:
+                argv = argv + ["--allow-all-tools"]
+            if "--no-color" not in argv:
+                argv = argv + ["--no-color"]
+            if "-p" not in argv and "--prompt" not in argv:
+                argv = argv + ["-p"]
         return argv
 
     def _run_live(self, prompt: str, cwd: Optional[str], env: Optional[dict]) -> str:
