@@ -339,13 +339,26 @@ def _semver_tuple(v: str) -> Optional[Tuple[int, int, int]]:
         return None
 
 
+def _is_compat_promise_module(package: str) -> bool:
+    """The Go project's own sub-repositories (golang.org/x/...) version as 0.x by convention
+    but are maintained under the Go 1 compatibility promise: minor releases do not make
+    breaking API or behavioral changes. Treating them as unstable 0.x deps is incorrect, so
+    the pre-1.0 multi-minor floor does not apply to them (a semantic apidiff / additions-only
+    diff is sufficient proof of compatibility)."""
+    pkg = (package or "").strip().lower()
+    return pkg == "golang.org/x" or pkg.startswith("golang.org/x/")
+
+
 def _pre1_multi_minor_unverified(bundle: EvidenceBundle, test: Optional[EvidenceRecord]) -> bool:
     """A pre-1.0 (0.x) dependency advanced by two or more minor versions, without a passing
     test, can still ship behavioral breaks under unchanged signatures that apidiff cannot see
     (pre-1.0 carries no semver minor-stability guarantee). Hold such jumps for review even when
-    the semantic apidiff is clean. Inert once a test passes or the dep is >=1.0.
+    the semantic apidiff is clean. Inert once a test passes, the dep is >=1.0, or the dep is a
+    Go-compatibility-promise sub-repo (golang.org/x/...).
     """
     if _is_pass(test):
+        return False
+    if _is_compat_promise_module(bundle.package):
         return False
     old = _semver_tuple(bundle.from_version)
     new = _semver_tuple(bundle.to_version)

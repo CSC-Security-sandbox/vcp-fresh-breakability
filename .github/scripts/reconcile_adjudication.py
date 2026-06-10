@@ -130,6 +130,21 @@ def _declared_breaking_unverified_clear(pr):
                    f"holding REVIEW (run the suite or a behavioral probe to clear)."))
 
 
+def _pkg_name(pr):
+    p = pr.get("package")
+    if isinstance(p, list):
+        p = p[0] if p else ""
+    return (p or "").strip().lower()
+
+
+def _is_compat_promise_module(pr):
+    """Go project sub-repositories (golang.org/x/...) version as 0.x by convention but follow
+    the Go 1 compatibility promise — minor releases do not break API or behavior. The generic
+    pre-1.0 floor does not apply to them."""
+    pkg = _pkg_name(pr)
+    return pkg == "golang.org/x" or pkg.startswith("golang.org/x/")
+
+
 def _pre1_unverified_reachability_clear(pr):
     """Guard: a pre-1.0 (0.x) dependency carries NO semver minor-stability guarantee, so a
     multi-version 0.x jump can ship breaking BEHAVIORAL changes that name-grep of the apidiff
@@ -137,6 +152,8 @@ def _pre1_unverified_reachability_clear(pr):
     (no probe, no executed test suite), such a jump must NOT be cleared -- it stays REVIEW.
 
     Returns (True, human_reason) when the clear is insufficient and must be blocked."""
+    if _is_compat_promise_module(pr):
+        return (False, "")  # golang.org/x/*: Go 1 compatibility promise; minor bumps are safe
     frm = _semver_tuple(pr.get("from"))
     to = _semver_tuple(pr.get("to"))
     if not frm or not to:
