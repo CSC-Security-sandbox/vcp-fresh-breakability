@@ -181,7 +181,18 @@ def _api_record(pr: Mapping[str, Any]) -> EvidenceRecord:
     tool = str(tool_raw or "")
     structural = tool_mode.startswith("structural")
     if changes == 0:
-        return _record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH)
+        status_str = str(tool_raw.get("status") or "") if isinstance(tool_raw, Mapping) else ""
+        # A SEMANTIC apidiff (module mode) reporting zero changes is HIGH-confidence proof of
+        # API backward-compatibility — it understands signatures/types. A structural go-doc
+        # fallback (or an absent tool) reporting zero is only weak corroboration: it cannot see
+        # signatures, so it passes at MEDIUM confidence and must NOT, on its own, trigger the
+        # test-independent API-compatibility clearance in decide().
+        semantic = status_str == "semantic" or tool_mode == "module"
+        return _record(
+            SignalName.API_DIFF,
+            SignalStatus.PASS,
+            confidence=Confidence.HIGH if semantic else Confidence.MEDIUM,
+        )
     if changes is not None and changes > 0:
         severity = SafetySeverity.HIGH if _has_breaking_api_change(details, structural=structural) else SafetySeverity.LOW
         status = SignalStatus.FAIL if severity == SafetySeverity.HIGH else SignalStatus.UNKNOWN

@@ -327,6 +327,35 @@ class VerdictDecision:
         }
 
 
+def _semver_tuple(v: str) -> Optional[Tuple[int, int, int]]:
+    raw = (v or "").strip().lstrip("vV").split("+", 1)[0].split("-", 1)[0]
+    parts = raw.split(".")
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        patch = int(parts[2]) if len(parts) > 2 else 0
+        return (major, minor, patch)
+    except (ValueError, IndexError):
+        return None
+
+
+def _pre1_multi_minor_unverified(bundle: EvidenceBundle, test: Optional[EvidenceRecord]) -> bool:
+    """A pre-1.0 (0.x) dependency advanced by two or more minor versions, without a passing
+    test, can still ship behavioral breaks under unchanged signatures that apidiff cannot see
+    (pre-1.0 carries no semver minor-stability guarantee). Hold such jumps for review even when
+    the semantic apidiff is clean. Inert once a test passes or the dep is >=1.0.
+    """
+    if _is_pass(test):
+        return False
+    old = _semver_tuple(bundle.from_version)
+    new = _semver_tuple(bundle.to_version)
+    if old is None or new is None:
+        return False
+    if old[0] != 0 or new[0] != 0:
+        return False
+    return (new[1] - old[1]) >= 2
+
+
 def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     """Return policy verdict from typed fields only.
 
@@ -415,6 +444,26 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     if _is_fail(release_notes) and release_notes is not None and release_notes.relevant is True and not _cleared:
         return _decision(VerdictAction.REVIEW, _at_least(_record_severity(release_notes), SafetySeverity.HIGH), Confidence.HIGH, "review:declared-breaking-release-notes")
 
+    # ── Test-independent API-compatibility clearance ────────────────────────────
+    # A compiling build plus a SEMANTIC apidiff (module mode) proving zero incompatible
+    # public-API changes means no API-level break can reach our code: the Go compiler already
+    # resolved every called signature, and apidiff verified the dependency's exported surface
+    # is backward-compatible. This clearance does NOT require the test oracle (frequently
+    # unavailable or unreliable in real repositories — e.g. integration suites needing live
+    # services). It still DEFERS to a declared-breaking changelog (handled just above) and to
+    # any reachable break (api_diff FAIL, handled at the top). A pre-1.0 multi-minor jump can
+    # ship behavioral breaks under unchanged signatures, so without a passing test it is held.
+    api_semantically_clean = (
+        _is_pass(build)
+        and api_diff is not None
+        and _is_pass(api_diff)
+        and api_diff.confidence == Confidence.HIGH
+        and not api_diff.tool_failure
+    )
+    if api_semantically_clean and not _pre1_multi_minor_unverified(bundle, test):
+        conf = Confidence.HIGH if _is_pass(test) else Confidence.MEDIUM
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, conf, "merge:api-compatible")
+
     if not core_clean:
         return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
 
@@ -451,6 +500,7 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "glance:clean-missing-release-notes": "build, tests, and API diff are clean; changelog is unavailable",
         "glance:tests-pass-soft-api-uncertain": "tests pass and API diff only found non-breaking uncertainty",
         "merge:not-reached": "changed dependency is not reached by production code",
+        "merge:api-compatible": "build compiles and a semantic apidiff proves the dependency's public API is backward-compatible (no incompatible changes); no API-level break can reach this code",
         "merge:hard-clean": "hard evidence is clean",
         "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",
     }.get(reason_code, reason_code)

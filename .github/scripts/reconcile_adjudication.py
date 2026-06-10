@@ -110,6 +110,26 @@ def _tests_executed(pr):
     return bool(t.get("ran")) and (t.get("exit") in (0, None) or t.get("main_test_exit") == 0)
 
 
+def _declared_breaking_unverified_clear(pr):
+    """Guard: when the dependency's OWN changelog/release notes declare a breaking change (or
+    deprecation), a name-grep / reachability-only AI clear is insufficient — the declared break
+    may manifest behaviorally (changed semantics under an unchanged signature) or in code paths
+    a static grep misjudges (e.g. generated code, reflection, build-time wiring). Such a PR must
+    NOT be cleared on reachability alone; it requires execution evidence (an actually-run test
+    suite or a behavioral probe). Otherwise it stays REVIEW.
+
+    Returns (True, human_reason) when the clear is insufficient and must be blocked."""
+    if not _has_declared_breaking_section(pr):
+        return (False, "")
+    if _tests_executed(pr):
+        return (False, "")  # execution evidence backs the clear
+    return (True, (f"Dependency `{pr.get('package')}` declares a BREAKING change in its release "
+                   f"notes for {pr.get('from')}->{pr.get('to')}, and the SAFE basis is "
+                   f"reachability/grep only with no executed test suite or behavioral probe. "
+                   f"A declared break can manifest behaviorally or via code paths grep misjudges; "
+                   f"holding REVIEW (run the suite or a behavioral probe to clear)."))
+
+
 def _pre1_unverified_reachability_clear(pr):
     """Guard: a pre-1.0 (0.x) dependency carries NO semver minor-stability guarantee, so a
     multi-version 0.x jump can ship breaking BEHAVIORAL changes that name-grep of the apidiff
@@ -221,13 +241,20 @@ def reconcile_pr(pr, verdict, repo):
     verdict_now = _current_verdict(pr)
     reason = _reason_code(pr)
 
-    # Only ever reconsider REVIEW verdicts driven by a (possibly cross-module) API-diff.
-    # Never touch FIX (build/security) or already-SAFE.
-    is_break_reachable = "break-reachable" in reason or (
-        (pr.get("verdict_v2", {}).get("evidenceState", {}) or {}).get("api_diff") == "POSITIVE"
-    )
-    if verdict_now != "REVIEW" or not is_break_reachable:
-        return ("kept", f"verdict={verdict_now or 'n/a'} (not a break-reachable review; untouched)")
+    # Only ever reconsider REVIEW verdicts driven by a breakability signal the AI can resolve
+    # by reading the consumer code: a (possibly cross-module) reachable API break, concrete
+    # apidiff changes, or a declared breaking changelog. NEVER touch FIX (build/security),
+    # already-SAFE, or a security/CVE hold (clearing a CVE is out of scope here — that is the
+    # safety floor that guarantees we never turn a vulnerability into a false green).
+    es = (pr.get("verdict_v2", {}).get("evidenceState", {}) or {})
+    det = pr.get("deterministic") or {}
+    is_break_reachable = "break-reachable" in reason or es.get("api_diff") == "POSITIVE"
+    has_api_changes = len(det.get("api_changes_detail") or []) > 0
+    is_declared_breaking = "declared-breaking" in reason
+    is_security_hold = "security" in reason or "cve" in reason or "vuln" in reason
+    adjudicable = (is_break_reachable or has_api_changes or is_declared_breaking) and not is_security_hold
+    if verdict_now != "REVIEW" or not adjudicable:
+        return ("kept", f"verdict={verdict_now or 'n/a'} (not an adjudicable breakability review; untouched)")
 
     # ── Tier 0: deterministic module-scope (no AI, no call graph) ──────────────
     if not _dep_imported_in_module(pr, mod):
@@ -262,6 +289,10 @@ def reconcile_pr(pr, verdict, repo):
         if blocked:
             _record_review(pr, why, cite, "pre1_reachability_floor", flaw)
             return ("kept", f"AI said SAFE but blocked: pre-1.0 unverified reachability clear -> REVIEW")
+        dbr_blocked, dbr_why = _declared_breaking_unverified_clear(pr)
+        if dbr_blocked:
+            _record_review(pr, dbr_why, cite, "declared_breaking_floor", flaw)
+            return ("kept", f"AI said SAFE but blocked: declared-breaking change not execution-verified -> REVIEW")
         reason = "safe:ai-resolved" + ("-audit-override" if flaw else "")
         _apply_safe(pr, reason, ev, cite, "ai_arbiter")
         tail = f" (override flaw: {flaw})" if flaw else ""

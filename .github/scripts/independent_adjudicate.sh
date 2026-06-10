@@ -56,8 +56,16 @@ for pid, pr in prs.items():
     reason = ((v2.get("residual") or {}).get("check") or v2.get("reason")
               or pol.get("reason_code") or "")
     es = v2.get("evidenceState") or {}
+    det = pr.get("deterministic") or {}
+    api_changes = len(det.get("api_changes_detail") or [])
     is_br = ("break-reachable" in reason) or (es.get("api_diff") == "POSITIVE")
-    if verdict == "REVIEW" and is_br and imported(pr, rp.module_dir(pr)):
+    is_declared_breaking = "declared-breaking" in reason
+    # Adjudicate any REVIEW whose hold is driven by a breakability signal the AI can resolve
+    # by reading the consumer code: a reachable break, real apidiff changes, or a declared
+    # breaking changelog. (Pure security/CVE holds are still surfaced to the AI for a
+    # reachability read, but reconcile never CLEARS them — that floor lives there.)
+    needs_ai = is_br or api_changes > 0 or is_declared_breaking
+    if verdict == "REVIEW" and needs_ai and imported(pr, rp.module_dir(pr)):
         print(pid)
 PY
 )
