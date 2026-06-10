@@ -193,6 +193,44 @@ func GetProxyRules() map[string]Rule {
 			},
 		},
 
+		// Storage LUNs - block thick provisioning (space-reserved LUNs).
+		// REST equivalent of CLI `lun create -space-reserve disabled` is space.guarantee.requested=false
+		// (true => space-reserved/thick, false => thin). The proxy rejects any explicit request for a
+		// space-reserved LUN and forces thin provisioning when the field is omitted. It also forces
+		// space.scsi_thin_provisioning_support_enabled=true so hosts can reclaim unmapped blocks.
+		"/api/storage/luns": {
+			GET: Allow{
+				Name: "Allow LUN listing",
+			},
+			POST: When{
+				Name:      "LUN creation validation",
+				Condition: IfPresentThenEquals("space.guarantee.requested", false),
+				IsTrue: Allow{
+					Name: "Allow LUN creation",
+					ModifyRequest: SetRequestFields{
+						Fields: map[string]interface{}{
+							"space.guarantee.requested":                    false,
+							"space.scsi_thin_provisioning_support_enabled": true,
+						},
+					},
+				},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
+
+		// Storage LUNs - specific LUN operations. Block re-enabling space reservation via modify.
+		"/api/storage/luns/{uuid}": {
+			GET:  Allow{Name: "Allow specific LUN details"},
+			POST: DenyAll{},
+			PATCH: When{
+				Name:      "LUN modification validation",
+				Condition: IfPresentThenEquals("space.guarantee.requested", false),
+				IsTrue:    Allow{Name: "Allow LUN modification"},
+			},
+			DELETE: Allow{Name: "Allow LUN deletion"},
+		},
+
 		// Storage FlexCache - list and create
 		"/api/storage/flexcache/flexcaches": {
 			GET: Allow{

@@ -400,20 +400,22 @@ var cliRules = []CLIRule{
 	{
 		Pattern:   "security certificate create",
 		Allow:     true,
-		Condition: CLIIfPresentThenValue("-type", "server", "client", "server-ca", "client-ca"),
+		Condition: CLIIfPresentThenValue("-type", "server", "client"),
 	},
 	{
 		Pattern:   "sec certificate create",
 		Allow:     true,
+		Condition: CLIIfPresentThenValue("-type", "server", "client"),
+	},
+	{
+		Pattern:   "security certificate install",
+		Allow:     true,
 		Condition: CLIIfPresentThenValue("-type", "server", "client", "server-ca", "client-ca"),
 	},
 	{
-		Pattern: "security certificate install",
-		Allow:   true,
-	},
-	{
-		Pattern: "sec certificate install",
-		Allow:   true,
+		Pattern:   "sec certificate install",
+		Allow:     true,
+		Condition: CLIIfPresentThenValue("-type", "server", "client", "server-ca", "client-ca"),
 	},
 	{
 		Pattern: "security certificate delete",
@@ -453,6 +455,26 @@ var cliRules = []CLIRule{
 			CLIHasArgs("-vserver", "-bucket", "-nas-path"),
 			CLIArgRequiredEquals("-type", "nas"),
 		),
+	},
+
+	// LUNs - block thick provisioning. -space-reserve must be disabled (non-space-reserved/thin).
+	// On create, force -space-reserve disabled when omitted and reject an explicit "enabled".
+	// Also force -space-allocation enabled (CLI equivalent of REST
+	// space.scsi_thin_provisioning_support_enabled) so hosts can reclaim unmapped blocks.
+	{
+		Pattern:   "lun create",
+		Allow:     true,
+		Condition: CLIIfPresentThenValue("-space-reserve", "disabled"),
+		InjectArguments: map[string]string{
+			"-space-reserve":    "disabled",
+			"-space-allocation": "enabled",
+		},
+	},
+	// On modify, reject re-enabling space reservation; other modifications pass through.
+	{
+		Pattern:   "lun modify",
+		Allow:     true,
+		Condition: CLIIfPresentThenValue("-space-reserve", "disabled"),
 	},
 
 	{

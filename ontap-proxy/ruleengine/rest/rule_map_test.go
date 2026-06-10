@@ -2,11 +2,13 @@ package rules_v2
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 )
 
 func TestGetProxyRules(t *testing.T) {
@@ -78,6 +80,26 @@ func TestGetProxyRules(t *testing.T) {
 		rule, ok := rules["/api/storage/volumes/{uuid}"]
 		assert.True(t, ok, "Should have rule for /api/storage/volumes/{uuid}")
 		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
+	t.Run("ShouldContainStorageLUNsRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/storage/luns"]
+		assert.True(t, ok, "Should have rule for /api/storage/luns")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
+	t.Run("ShouldContainStorageLUNsUUIDRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/storage/luns/{uuid}"]
+		assert.True(t, ok, "Should have rule for /api/storage/luns/{uuid}")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
 		assert.NotNil(t, rule.PATCH)
 		assert.NotNil(t, rule.DELETE)
 	})
@@ -1584,6 +1606,143 @@ func TestSVMInstanceRule(t *testing.T) {
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed)
 		assert.Contains(t, reason, "SVM deletion not allowed")
+	})
+}
+
+func TestStorageLUNsRule(t *testing.T) {
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		req := httptest.NewRequest(http.MethodGet, "/api/storage/luns", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for LUN listing")
+	})
+
+	t.Run("WhenPOSTWithoutSpaceReserve_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		body := bytes.NewBufferString(`{"name":"/vol/v1/lun1","space":{"size":1073741824}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/luns", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST without space.guarantee.requested should be allowed; reason: %s", reason)
+	})
+
+	t.Run("WhenPOSTWithThinProvisioning_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		body := bytes.NewBufferString(`{"name":"/vol/v1/lun1","space":{"guarantee":{"requested":false}}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/luns", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with space.guarantee.requested=false should be allowed; reason: %s", reason)
+	})
+
+	t.Run("WhenPOSTWithThickProvisioning_ShouldDeny", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		body := bytes.NewBufferString(`{"name":"/vol/v1/lun1","space":{"guarantee":{"requested":true}}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/luns", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with space.guarantee.requested=true (thick) should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTOmittingSpaceReserve_ShouldForceThinProvisioning", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		body := bytes.NewBufferString(`{"name":"/vol/v1/lun1","space":{"size":1073741824}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/luns", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		req = dsl.ParseRequestBody(req)
+		resolved, allowed, reason := dsl.ResolveAction(rule.GetAction(req), req)
+		assert.True(t, allowed, reason)
+
+		_, err := resolved.ProcessRequest(req, nil)
+		assert.NoError(t, err)
+
+		out, err := io.ReadAll(req.Body)
+		assert.NoError(t, err)
+		assert.Contains(t, string(out), `"requested":false`, "proxy should force thin provisioning when space-reserve is omitted")
+		assert.Contains(t, string(out), `"scsi_thin_provisioning_support_enabled":true`, "proxy should enable SCSI thin provisioning support on LUN creation")
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/luns", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH should be denied for LUN collection")
+	})
+}
+
+func TestStorageLUNsUUIDRule(t *testing.T) {
+	const lunPath = "/api/storage/luns/550e8400-e29b-41d4-a716-446655440000"
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns/{uuid}"]
+		req := httptest.NewRequest(http.MethodGet, lunPath, nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for specific LUN")
+	})
+
+	t.Run("WhenPATCHWithUnrelatedField_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns/{uuid}"]
+		body := bytes.NewBufferString(`{"space":{"size":2147483648}}`)
+		req := httptest.NewRequest(http.MethodPatch, lunPath, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH that does not touch space reservation should be allowed; reason: %s", reason)
+	})
+
+	t.Run("WhenPATCHReEnablingSpaceReserve_ShouldDeny", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns/{uuid}"]
+		body := bytes.NewBufferString(`{"space":{"guarantee":{"requested":true}}}`)
+		req := httptest.NewRequest(http.MethodPatch, lunPath, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH re-enabling space reservation (thick) should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldAllow", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns/{uuid}"]
+		req := httptest.NewRequest(http.MethodDelete, lunPath, nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "DELETE should be allowed for specific LUN")
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/luns/{uuid}"]
+		req := httptest.NewRequest(http.MethodPost, lunPath, nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST should be denied for specific LUN")
 	})
 }
 

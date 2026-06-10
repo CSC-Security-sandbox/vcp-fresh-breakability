@@ -1182,7 +1182,10 @@ func TestGetCLIRules(t *testing.T) {
 	}
 }
 
-func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
+// TestSecurityCertificateCreateRule_OnlyAllowsServerClient verifies that the
+// rule only permits -type server/client (or absent) and denies every CA type
+// (root-ca, server-ca, client-ca).
+func TestSecurityCertificateCreateRule_OnlyAllowsServerClient(t *testing.T) {
 	rule := findRule("security certificate create")
 	if rule == nil {
 		t.Fatal("security certificate create rule not found")
@@ -1233,7 +1236,7 @@ func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
 		}
 	})
 
-	t.Run("WhenTypeServerCA_ShouldAllow", func(t *testing.T) {
+	t.Run("WhenTypeServerCA_ShouldDeny", func(t *testing.T) {
 		cmd := &CLICommand{
 			FullCommand: "security certificate create",
 			Arguments: map[string]string{
@@ -1242,13 +1245,13 @@ func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
 				"-type":        "server-ca",
 			},
 		}
-		allowed, reason := EvaluateRule(rule, cmd)
-		if !allowed {
-			t.Errorf("Expected allowed for -type server-ca, got denied: %s", reason)
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -type server-ca (only server/client allowed)")
 		}
 	})
 
-	t.Run("WhenTypeClientCA_ShouldAllow", func(t *testing.T) {
+	t.Run("WhenTypeClientCA_ShouldDeny", func(t *testing.T) {
 		cmd := &CLICommand{
 			FullCommand: "security certificate create",
 			Arguments: map[string]string{
@@ -1257,9 +1260,9 @@ func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
 				"-type":        "client-ca",
 			},
 		}
-		allowed, reason := EvaluateRule(rule, cmd)
-		if !allowed {
-			t.Errorf("Expected allowed for -type client-ca, got denied: %s", reason)
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -type client-ca (only server/client allowed)")
 		}
 	})
 
@@ -2535,6 +2538,106 @@ func TestCLIOnlyAllowArgs(t *testing.T) {
 		ok, reason := cond(cmd)
 		if !ok {
 			t.Errorf("Expected allowed for empty args, got reason: %s", reason)
+		}
+	})
+}
+
+func TestLUNRules_BlockThickProvisioning(t *testing.T) {
+	t.Run("lun create allowed and forces space-reserve disabled when omitted", func(t *testing.T) {
+		rule := findRule("lun create")
+		if rule == nil {
+			t.Fatal("lun create rule not found")
+		}
+
+		cmd, err := ParseCLICommand("lun create -vserver vs1 -path /vol/v1/lun1 -size 100g")
+		if err != nil {
+			t.Fatalf("failed to parse command: %v", err)
+		}
+
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("expected lun create to be allowed, got denied: %s", reason)
+		}
+
+		result := ApplyInjectArguments(cmd, rule)
+		if !contains(result, "-space-reserve disabled") {
+			t.Errorf("expected -space-reserve disabled to be injected, got %q", result)
+		}
+		if !contains(result, "-space-allocation enabled") {
+			t.Errorf("expected -space-allocation enabled to be injected, got %q", result)
+		}
+	})
+
+	t.Run("lun create with space-reserve disabled allowed and not duplicated", func(t *testing.T) {
+		rule := findRule("lun create")
+		if rule == nil {
+			t.Fatal("lun create rule not found")
+		}
+
+		cmd, err := ParseCLICommand("lun create -vserver vs1 -path /vol/v1/lun1 -size 100g -space-reserve disabled")
+		if err != nil {
+			t.Fatalf("failed to parse command: %v", err)
+		}
+
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("expected lun create with -space-reserve disabled to be allowed, got: %s", reason)
+		}
+
+		result := ApplyInjectArguments(cmd, rule)
+		if countOccurrences(result, "-space-reserve") != 1 {
+			t.Errorf("expected -space-reserve to appear once, got %q", result)
+		}
+	})
+
+	t.Run("lun create with space-reserve enabled denied", func(t *testing.T) {
+		rule := findRule("lun create")
+		if rule == nil {
+			t.Fatal("lun create rule not found")
+		}
+
+		cmd, err := ParseCLICommand("lun create -vserver vs1 -path /vol/v1/lun1 -size 100g -space-reserve enabled")
+		if err != nil {
+			t.Fatalf("failed to parse command: %v", err)
+		}
+
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("expected lun create with -space-reserve enabled (thick) to be denied")
+		}
+	})
+
+	t.Run("lun modify re-enabling space-reserve denied", func(t *testing.T) {
+		rule := findRule("lun modify")
+		if rule == nil {
+			t.Fatal("lun modify rule not found")
+		}
+
+		cmd, err := ParseCLICommand("lun modify -vserver vs1 -path /vol/v1/lun1 -space-reserve enabled")
+		if err != nil {
+			t.Fatalf("failed to parse command: %v", err)
+		}
+
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("expected lun modify re-enabling space reservation to be denied")
+		}
+	})
+
+	t.Run("lun modify unrelated change allowed", func(t *testing.T) {
+		rule := findRule("lun modify")
+		if rule == nil {
+			t.Fatal("lun modify rule not found")
+		}
+
+		cmd, err := ParseCLICommand("lun modify -vserver vs1 -path /vol/v1/lun1 -comment updated")
+		if err != nil {
+			t.Fatalf("failed to parse command: %v", err)
+		}
+
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("expected lun modify without -space-reserve to be allowed, got: %s", reason)
 		}
 	})
 }
