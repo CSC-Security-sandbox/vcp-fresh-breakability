@@ -1,0 +1,19 @@
+# OCI environment overrides for vlm-worker.
+# Copy this file, fill in the <PLACEHOLDER> values for your environment,
+# then pass it to Helm:
+#   helm upgrade --install vlm-worker ./oci-vlm-worker -n <namespace> \
+#     -f values.yaml -f vlm-worker-overrides.yaml
+
+global:
+  primaryImageRegistry: "<OCIR_HOSTNAME>"          # e.g. iad.ocir.io
+  primaryImageRegistryPath: "<OCIR_TENANCY_NS>"    # e.g. "idqogasfjw45"
+
+workerConfig:
+  ociRegion: "<OCI_REGION>"                        # e.g. "us-ashburn-1"
+  vsaVlmEncryptionKey: "<VSA_VLM_ENCRYPTION_KEY>"  # 32-byte AES-256 key; MUST match vcp-worker
+
+ontapVersionVlmImageMappings:
+  - ontapVersion: "<ONTAP_VERSION>"                # e.g. "9.18.1" — from release-manifest.json .metadata.ontapVersions[]
+    vlmImageName: "vlm-worker"
+    vlmImageTag: "<VLM_IMAGE_TAG>"                 # from release-manifest.json: .vcpArtifacts.containerRegistry.images[] | select(.name=="vlm-worker") .tag
+    vlmImageDigest: ""

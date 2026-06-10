@@ -757,6 +757,21 @@ jobs:
             echo "Warning: No build context files found — buildContext will be null in manifest"
           fi
 
+          # --- OCI deployment guide (override templates + quick-start guide) ---
+          DEPLOY_KIT_DIR="doc/guides/oci-deploy-templates"
+          DEPLOY_KIT_FILES=("VCP_OCI_DEPLOY_GUIDE.md" "oci-proxy-overrides.yaml" "vcp-worker-overrides.yaml" "vlm-worker-overrides.yaml")
+          DEPLOY_KIT_COPIED=()
+          for f in "${DEPLOY_KIT_FILES[@]}"; do
+            if [ ! -f "${DEPLOY_KIT_DIR}/${f}" ]; then
+              echo "Error: OCI deployment guide file not found: ${DEPLOY_KIT_DIR}/${f}"
+              exit 1
+            fi
+            cp "${DEPLOY_KIT_DIR}/${f}" "artifacts/${f}"
+            DEPLOY_KIT_COPIED+=("${f}")
+            echo "Copied OCI deployment guide file: ${f}"
+          done
+          DEPLOY_KIT_JSON=$(printf '%s\n' "${DEPLOY_KIT_COPIED[@]}" | jq -R . | jq -s .)
+
           # --- Assemble manifest ---
           jq -n \
             --arg apiVersion "v1" \
@@ -773,6 +788,7 @@ jobs:
             --argjson helmCharts "$CHARTS_JSON" \
             --argjson dockerfiles "$DOCKERFILES_JSON" \
             --argjson buildContext "$BUILD_CONTEXT_JSON" \
+            --argjson deployKitFiles "$DEPLOY_KIT_JSON" \
             --arg minOntap "$MIN_ONTAP" \
             --arg maxOntap "$MAX_ONTAP" \
             '{
@@ -799,6 +815,10 @@ jobs:
                 "dockerfiles": $dockerfiles,
                 "buildContext": $buildContext
               },
+              "deploymentKit": {
+                "files": $deployKitFiles,
+                "description": "OCI deployment guide and Helm override templates bundled with this manifest"
+              },
               "compatibility": {
                 "minimumOntapVersion": $minOntap,
                 "maximumOntapVersion": $maxOntap
@@ -820,10 +840,24 @@ jobs:
             exit 1
           fi
           ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest:${IMAGES_TAG}"
-          echo "Pushing release manifest -> ${ARTIFACT_REF}"
+          echo "Pushing release manifest + OCI deployment guide -> ${ARTIFACT_REF}"
+
+          DEPLOY_KIT_LAYERS=()
+          MANIFEST_JSON="artifacts/release-manifest.json"
+          while IFS= read -r f; do
+            if [ -f "artifacts/${f}" ]; then
+              DEPLOY_KIT_LAYERS+=("artifacts/${f}:text/plain")
+              echo "  bundling OCI deployment guide layer: ${f}"
+            else
+              echo "Error: deployment guide file listed in manifest but not found: artifacts/${f}"
+              exit 1
+            fi
+          done < <(jq -r '.deploymentKit.files[]' "$MANIFEST_JSON")
+
           oras push "$ARTIFACT_REF" \
             --artifact-type "application/vnd.netapp.vcp.manifest.v1+json" \
-            "artifacts/release-manifest.json:application/json"
+            "artifacts/release-manifest.json:application/json" \
+            "${DEPLOY_KIT_LAYERS[@]}"
           echo "Pushed ${ARTIFACT_REF}"
 
           DIGEST=$(oras resolve "$ARTIFACT_REF")

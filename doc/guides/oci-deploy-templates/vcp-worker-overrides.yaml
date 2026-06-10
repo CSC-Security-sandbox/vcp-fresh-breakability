@@ -1,0 +1,28 @@
+# OCI environment overrides for vcp-worker.
+# Copy this file, fill in the <PLACEHOLDER> values for your environment,
+# then pass it to Helm:
+#   helm upgrade --install vcp-worker ./oci-vcp-worker-chart -n <namespace> \
+#     -f values.yaml -f vcp-worker-overrides.yaml
+
+global:
+  primaryImageRegistry: "<OCIR_HOSTNAME>"          # e.g. iad.ocir.io
+  primaryImageRegistryPath: "<OCIR_TENANCY_NS>"    # e.g. "idqogasfjw45"
+
+workerConfig:
+  localRegion: "<OCI_REGION>"                      # e.g. "us-ashburn-1"
+  database:
+    host: "<POSTGRES_HOST>"  # e.g. primary.xxx.postgresql.us-ashburn-1.oci.oraclecloud.com
+  vsaVlmEncryptionKey: "<VSA_VLM_ENCRYPTION_KEY>"  # 32-byte AES-256 key; MUST match vlm-worker
+  vsaMediatorImageName: "<VSA_MEDIATOR_IMAGE_OCID>"   # OCI compute image OCID for the VSA mediator
+  vsaImageName: "<VSA_IMAGE_OCID>"                    # OCI compute image OCID for the VSA node
+  secretUri: "<OCI_VAULT_SECRET_OCID>"                # OCI Vault secret OCID
+  ociVaultOcid: "<OCI_VAULT_OCID>"                    # OCI Vault OCID
+  ociMasterKeyOcid: "<OCI_MASTER_KEY_OCID>"           # OCI Vault master encryption key OCID
+  ociCompartmentOcid: "<OCI_COMPARTMENT_OCID>"        # Target compartment OCID
+
+# Image configuration (OCIR)
+images:
+  vcpWorker:
+    name: vcp-worker
+    tag: "<IMAGE_TAG>"     # from release-manifest.json: .vcpArtifacts.containerRegistry.images[] | select(.name=="vcp-worker") .tag
+    digest: ""

@@ -1,0 +1,22 @@
+# OCI environment overrides for oci-proxy.
+# Copy this file, fill in the <PLACEHOLDER> values for your environment,
+# then pass it to Helm:
+#   helm upgrade --install oci-proxy ./oci-proxy -n <namespace> \
+#     -f values.yaml -f oci-proxy-overrides.yaml
+
+# OCI region identifier (must match OCIR hostname prefix and DB host region).
+localRegion: "<OCI_REGION>"            # e.g. "us-ashburn-1"
+
+global:
+  primaryImageRegistry: "<OCIR_HOSTNAME>"          # e.g. iad.ocir.io
+  primaryImageRegistryPath: "<OCIR_TENANCY_NS>"    # e.g. "idqogasfjw45"
+
+# Shared OCI PostgreSQL (primary connection string host from OCI console).
+database:
+  host: "<POSTGRES_HOST>"  # e.g. primary.xxx.postgresql.us-ashburn-1.oci.oraclecloud.com
+
+images:
+  ociProxy:
+    name: oci-proxy
+    tag: "<IMAGE_TAG>"     # from release-manifest.json: .vcpArtifacts.containerRegistry.images[] | select(.name=="oci-proxy") .tag
+    digest: ""
