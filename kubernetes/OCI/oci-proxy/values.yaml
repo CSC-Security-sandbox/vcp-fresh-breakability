@@ -21,7 +21,7 @@ updatePoolWorkflowTimeoutMinutes: "150"
 waitForTemporalEnabled: false
 hyperScaler: "oci"
 ociOntapAdminPassword: ""
-vsaAuthType: 1  # 0 : username/password, 1: password-based auth, 2: instance principal (not supported for oci-proxy)
+vsaAuthType: 0  # 0: username/password, 1: username/password in OCI Vault (secret manager), 2: certificate authentication
 
 # Global for image registry (standalone chart)
 global:
