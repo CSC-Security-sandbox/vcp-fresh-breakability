@@ -26,7 +26,7 @@
 #
 # Flags:
 #   --prs LIST        comma-separated PR numbers (required unless --seed already has them)
-#   --from STAGE      start stage: deterministic|policy|ai|reconcile|comments  (default deterministic)
+#   --from STAGE      start stage: deterministic|probe|policy|ai|reconcile|comments  (default deterministic)
 #   --to STAGE        stop after stage (default summary)
 #   --model NAME      agent model for AI stage (default claude-4-sonnet)
 #   --skip-ai         do not call the agent; rely on Tier-0 deterministic module-scope only
@@ -67,7 +67,7 @@ done
 
 # Stage ordering so --from/--to can gate.
 stage_idx() { case "$1" in
-  deterministic) echo 1;; policy) echo 2;; ai) echo 3;; reconcile) echo 4;; comments) echo 5;; summary) echo 6;;
+  deterministic) echo 1;; probe) echo 2;; policy) echo 3;; ai) echo 4;; reconcile) echo 5;; comments) echo 6;; summary) echo 7;;
   *) echo 0;; esac; }
 FROM_I=$(stage_idx "$FROM"); TO_I=$(stage_idx "$TO")
 [[ "$FROM_I" == 0 ]] && { echo "bad --from $FROM" >&2; exit 2; }
@@ -109,7 +109,7 @@ fi
 #     EXCEPTION: replay mode (BRK_AGENT_MODE=replay) reads recorded cassettes and needs
 #     no key or network — never skip the AI stage in replay.
 _AGENT_PROG="$(basename "$(echo "${BRK_AGENT_CMD:-agent}" | awk '{print $1}')")"
-if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 && "${BRK_AGENT_MODE:-live}" != "replay" \
+if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 4 && "$TO_I" -ge 4 && "${BRK_AGENT_MODE:-live}" != "replay" \
       && ( "$_AGENT_PROG" == "agent" || "$_AGENT_PROG" == "cursor-agent" ) ]]; then
   if [[ -z "${CURSOR_API_KEY:-}" ]]; then
     echo "⚠️  CURSOR_API_KEY is not set — agent -p (headless) cannot authenticate."
@@ -129,7 +129,7 @@ fi
 
 # ── 1. Deterministic ──────────────────────────────────────────────────────────
 if run_stage deterministic; then
-  say "1/6 deterministic build analysis (PRs: ${PRS:-<all open>})"
+  say "1/7 deterministic build analysis (PRs: ${PRS:-<all open>})"
   [[ -z "$PRS" ]] && { echo "note: no --prs given; build-check will discover open PRs"; }
   st=$(date +%s)
   PR_FILTER="$PRS" BREAKABILITY_PR_NUMBERS="$PRS" \
@@ -144,9 +144,34 @@ fi
 # the pipeline scripts hardcode /tmp/build-results.json; keep them in sync
 [[ "$RESULTS" != "/tmp/build-results.json" ]] && cp "$RESULTS" /tmp/build-results.json
 
-# ── 2. Policy lowering ────────────────────────────────────────────────────────
+# ── 2. Behavioral differential probe (declared-break residuals only) ──────────
+# For PRs that are build/test/api-diff clean but whose changelog declares a
+# behavioral break that our prod code imports, build+RUN the dependency at the
+# from/to versions and map the change to OUR call site. Emits behavioral_grade
+# (none/low/medium/high) which policy lowering folds into the PROBE signal. The
+# driver self-selects residuals, is cost-bounded (DP_MAX_PRS), fail-open (any
+# failure -> Medium, never a false low), and sandboxed. No-op when no residuals.
+if run_stage probe; then
+  if [[ "$SKIP_AI" == 1 ]]; then
+    echo "skip-probe: no agent backend (SKIP_AI=1); residual PRs stay at deterministic verdict"
+  else
+    say "2/7 behavioral differential probe (model: $MODEL)"
+    st=$(date +%s)
+    # Reuse the same agent backend as the AI stage; differential-probe.py
+    # auto-completes copilot/cursor args and substitutes {model} from DP_AGENT_MODEL.
+    DP_AGENT_CMD="${BRK_AGENT_CMD:-agent -p --force --model claude-4-sonnet}" \
+    DP_AGENT_MODEL="$MODEL" \
+    DP_RESULTS=/tmp/build-results.json \
+    DP_REPO_ROOT="$REPO_ROOT" \
+      python3 .github/scripts/differential-probe.py \
+      && echo "behavioral probe done in $(( $(date +%s) - st ))s" \
+      || echo "[warn] behavioral probe failed; residuals stay at deterministic verdict"
+  fi
+fi
+
+# ── 3. Policy lowering ────────────────────────────────────────────────────────
 if run_stage policy; then
-  say "2/6 policy lowering (enrich verdicts)"
+  say "3/7 policy lowering (enrich verdicts)"
   # M8 changelog comprehension: enrich each PR with structured breaking_claims[]
   # (symbol/kind/old/new/severity) so reachability has named symbols to check, not
   # just a '### Breaking Changes' heading. Advisory + non-breaking: never changes a
@@ -169,7 +194,7 @@ fi
 
 # ── 3. Independent AI adjudication (per-PR) ───────────────────────────────────
 if run_stage ai; then
-  say "3/6 independent AI adjudication (model: $MODEL, skip_ai=$SKIP_AI)"
+  say "4/7 independent AI adjudication (model: $MODEL, skip_ai=$SKIP_AI)"
   if [[ "$SKIP_AI" == 1 ]]; then
     echo '{}' > "$VERDICTS"
     echo "skip-ai: empty verdicts (Tier-0 deterministic module-scope still applies in reconcile)"
@@ -182,7 +207,7 @@ fi
 
 # ── 4. Reconcile AI + deterministic ───────────────────────────────────────────
 if run_stage reconcile; then
-  say "4/6 reconcile AI + deterministic verdicts"
+  say "5/7 reconcile AI + deterministic verdicts"
   V=""
   [[ -f "$VERDICTS" ]] && V="--verdicts $VERDICTS"
   python3 .github/scripts/reconcile_adjudication.py /tmp/build-results.json $V --repo "$REPO_ROOT" --write
@@ -191,10 +216,10 @@ fi
 # ── 5. Comments (dry-run unless --post) ───────────────────────────────────────
 if run_stage comments; then
   if [[ "$POST" == 1 ]]; then
-    say "5/6 posting comments to GitHub (LIVE)"
+    say "6/7 posting comments to GitHub (LIVE)"
     DRY_RUN=0 bash .github/scripts/post-fallback-comments.sh
   else
-    say "5/6 rendering comments (DRY-RUN -> /tmp/breakability-local/comments)"
+    say "6/7 rendering comments (DRY-RUN -> /tmp/breakability-local/comments)"
     DRY_RUN=1 DRY_RUN_DIR=/tmp/breakability-local/comments bash .github/scripts/post-fallback-comments.sh
     echo "rendered comments:"; ls -1 /tmp/breakability-local/comments/ 2>/dev/null | sed 's/^/  /' || true
   fi
@@ -202,7 +227,7 @@ fi
 
 # ── 6. Summary table ──────────────────────────────────────────────────────────
 if run_stage summary; then
-  say "6/6 final verdicts"
+  say "7/7 final verdicts"
   python3 - /tmp/build-results.json <<'PY'
 import json, os, sys
 sys.path.insert(0, os.path.join(os.getcwd(), ".github", "scripts"))

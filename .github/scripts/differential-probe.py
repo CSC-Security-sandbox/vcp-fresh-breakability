@@ -45,6 +45,11 @@ PROMPT_FILE = os.environ.get("DP_PROMPT", ".github/differential-probe-prompt.md"
 REASON_PROMPT_FILE = os.environ.get("DP_REASON_PROMPT", ".github/differential-reasoning-prompt.md")
 REPO_ROOT = os.environ.get("DP_REPO_ROOT", ".")
 AGENT_CMD = os.environ.get("DP_AGENT_CMD", "agent -p --force --model claude-4-sonnet")
+# Substitute a {model} placeholder (consistent with ai_backend's template) so a
+# shared BRK/DP command template can be reused without fragile shell brace-escaping.
+_DP_MODEL = os.environ.get("DP_AGENT_MODEL", "").strip()
+if "{model}" in AGENT_CMD:
+    AGENT_CMD = AGENT_CMD.replace("{model}", _DP_MODEL or "claude-sonnet-4.5")
 MAX_PRS = int(os.environ.get("DP_MAX_PRS", "5"))
 MAX_REASON = int(os.environ.get("DP_MAX_REASON", "15"))
 MAX_BULLETS = int(os.environ.get("DP_MAX_BULLETS", "5"))
@@ -458,6 +463,12 @@ def scrub_env_for_agent(env, keep_api_key=True, work_gocache=None):
     # Allowlist: minimum vars needed for a normal shell/Go execution
     safe_prefixes = ("TERM", "LANG", "LC_", "USER", "LOGNAME", "SHELL", "TMPDIR")
     safe_exact = ("PATH", "HOME", "PWD")  # These will be set/verified separately
+    # Go module-resolution config (no secrets) needed for the probe to build/run.
+    go_passthrough = (
+        "GOPROXY", "GOFLAGS", "GOSUMDB", "GONOSUMCHECK", "GONOSUMDB",
+        "GOPRIVATE", "GONOSUM", "GOPATH", "GOMODCACHE", "GOTOOLCHAIN",
+        "GOOS", "GOARCH", "GOROOT", "GOINSECURE",
+    )
     
     # Credential/secret patterns to remove (case-insensitive key checks)
     dangerous_patterns = (
@@ -471,10 +482,22 @@ def scrub_env_for_agent(env, keep_api_key=True, work_gocache=None):
     for k, v in env.items():
         ku = k.upper()
         
-        # Skip special handling for CURSOR_API_KEY if requested
-        if ku == "CURSOR_API_KEY":
+        # Skip special handling for model-access keys if requested.
+        # CURSOR_API_KEY (cursor-agent) and COPILOT_GITHUB_TOKEN (copilot
+        # backend) are model-access credentials -- the agent needs one to reach
+        # its model. They are kept symmetrically; no broad GH_TOKEN/GITHUB_TOKEN
+        # is ever passed through (those stay scrubbed to prevent repo-cred leak).
+        if ku in ("CURSOR_API_KEY", "COPILOT_GITHUB_TOKEN"):
             if keep_api_key and v:
                 out[k] = v
+            continue
+
+        # Explicit safe allowlist, checked BEFORE the dangerous-pattern strip so
+        # legitimately-named vars survive (e.g. GOPRIVATE contains "PRIVATE").
+        # - go_passthrough: Go module-resolution config, carries no secrets.
+        # - BREAKDEP_/BRK_PROBE_: execution-proof sentinel dir paths (test + prod).
+        if k in go_passthrough or ku.startswith("BREAKDEP_") or ku.startswith("BRK_PROBE_"):
+            out[k] = v
             continue
         
         # Remove any var with dangerous patterns
@@ -585,9 +608,22 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
     # Pass the secret on the command line so the real Cursor CLI authenticates from it
     # directly (not from a stored login / keychain). Skip for stub agents used in tests.
     cmd = AGENT_CMD.split()
+    prog = os.path.basename(cmd[0]) if cmd else ""
     api_key = os.environ.get("CURSOR_API_KEY", "").strip()
-    if api_key and cmd and os.path.basename(cmd[0]) in ("agent", "cursor-agent") and "--api-key" not in cmd:
+    if api_key and cmd and prog in ("agent", "cursor-agent") and "--api-key" not in cmd:
         cmd = cmd + ["--api-key", api_key]
+    # Copilot CLI arg-completion (mirrors ai_backend.build_argv): needs agentic
+    # tool access, clean stdout, and the prompt passed via -p (which must come
+    # LAST so the prompt becomes its value rather than swallowing a later flag).
+    if prog == "copilot":
+        if "--allow-all-tools" not in cmd and "--allow-all" not in cmd:
+            cmd = cmd + ["--allow-all-tools"]
+        if "--no-color" not in cmd:
+            cmd = cmd + ["--no-color"]
+        if "-p" in cmd:
+            cmd = [c for c in cmd if c != "-p"]
+        if "--prompt" not in cmd:
+            cmd = cmd + ["-p"]
     
     before = repo_porcelain()
     try:

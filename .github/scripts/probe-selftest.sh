@@ -252,8 +252,8 @@ elif "," not in oto or "," in ofrom:
 if g1.get("cached") is True:
     fail.append("9001 cached=true -- the agent did not actually run this time")
 model = str(g1.get("model",""))
-if os.path.basename(model.split()[0]) not in ("agent", "cursor-agent") if model.split() else True:
-    fail.append(f"9001 model={model!r} -- not the real cursor agent (stub?)")
+if os.path.basename(model.split()[0]) not in ("agent", "cursor-agent", "copilot") if model.split() else True:
+    fail.append(f"9001 model={model!r} -- not a real agent backend (stub?)")
 
 # (C) NEGATIVE CONTROL 9002 -> our usage avoids the change -> LOW/NONE (not HIGH).
 g2 = prs["9002"].get("behavioral_grade") or {}

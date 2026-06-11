@@ -356,8 +356,11 @@ def _probe_record_from_behavioral_grade(bg: Mapping[str, Any]) -> Optional[Evide
     if changed is None:
         changed = bg.get("changed_behavior")
     changed_bool = changed is True or str(changed).strip().lower() == "true"
+    exposed = bg.get("our_usage_exposed")
+    exposed_bool = exposed is True or str(exposed).strip().lower() == "true"
 
-    if grade == "high" or changed_bool:
+    # We are demonstrably hit, or the probe graded the break high -> FAIL.
+    if grade == "high" or exposed_bool:
         return _record(
             SignalName.PROBE,
             SignalStatus.FAIL,
@@ -368,6 +371,10 @@ def _probe_record_from_behavioral_grade(bg: Mapping[str, Any]) -> Optional[Evide
             confidence=_confidence_from_behavioral_grade(bg),
             rationale=f"behavioral grade {grade or 'unknown'} from {source or 'unknown'}",
         )
+    # An executed probe that graded none/low and proved our usage is NOT exposed
+    # clears, even when the dependency's behaviour changed globally -- the whole
+    # point of the differential probe is to map the change to our call site. The
+    # driver only emits none/low with executed proof of non-exposure (else medium).
     if source == "probe" and grade in {"none", "low"}:
         return _record(
             SignalName.PROBE,
@@ -375,7 +382,19 @@ def _probe_record_from_behavioral_grade(bg: Mapping[str, Any]) -> Optional[Evide
             same_behavior=True,
             relevant=False,
             confidence=_confidence_from_behavioral_grade(bg),
-            rationale=f"probe grade {grade}",
+            rationale=f"probe grade {grade}; our usage not exposed",
+        )
+    # No clearing probe grade, but a behavioural change is asserted -> FAIL.
+    if changed_bool:
+        return _record(
+            SignalName.PROBE,
+            SignalStatus.FAIL,
+            same_behavior=False,
+            relevant=True,
+            severity=SafetySeverity.MEDIUM,
+            residual_risk=SafetySeverity.MEDIUM,
+            confidence=_confidence_from_behavioral_grade(bg),
+            rationale=f"behavioral grade {grade or 'unknown'} from {source or 'unknown'}",
         )
     if source == "probe" and grade == "medium":
         return _record(

@@ -245,6 +245,53 @@ class PolicyLoweringTests(unittest.TestCase):
         self.assertEqual(out["bundle"]["signals"]["probe"]["status"], "pass")
         self.assertEqual(out["decision"]["verdict"], "MERGE")
 
+    def test_behavioral_grade_low_clears_when_global_change_not_exposed(self):
+        # The differential probe's core case: dependency behaviour changed
+        # GLOBALLY (behavior_changed=True) but the probe proved OUR usage is not
+        # exposed (our_usage_exposed=False) and graded low. This must clear.
+        out = decision_for_pr(base_pr(
+            deterministic={
+                "api_changes": 0,
+                "changelogSignal": {
+                    "bullets": ["BREAKING CHANGE: output format changed"],
+                },
+                "changelogText": "Breaking change: output format changed.",
+            },
+            declared_break_reachability={"checked": False},
+            behavioral_grade={
+                "grade": "low",
+                "source": "probe",
+                "behavior_changed": True,
+                "our_usage_exposed": False,
+                "confidence": "high",
+            },
+        ))
+        self.assertEqual(out["bundle"]["signals"]["probe"]["status"], "pass")
+        self.assertEqual(out["bundle"]["signals"]["probe"]["same_behavior"], True)
+        self.assertEqual(out["decision"]["verdict"], "MERGE")
+
+    def test_behavioral_grade_low_but_exposed_blocks(self):
+        # Contradictory/over-eager grade: low but our_usage_exposed=True -> FAIL,
+        # never clear. Exposure dominates the grade.
+        out = decision_for_pr(base_pr(
+            deterministic={
+                "api_changes": 0,
+                "changelogSignal": {
+                    "bullets": ["BREAKING CHANGE: output format changed"],
+                },
+                "changelogText": "Breaking change: output format changed.",
+            },
+            declared_break_reachability={"checked": False},
+            behavioral_grade={
+                "grade": "low",
+                "source": "probe",
+                "behavior_changed": True,
+                "our_usage_exposed": True,
+            },
+        ))
+        self.assertEqual(out["bundle"]["signals"]["probe"]["status"], "fail")
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+
     def test_probe_failure_dominates_behavioral_low(self):
         out = decision_for_pr(base_pr(
             deterministic={
