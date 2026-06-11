@@ -57,6 +57,10 @@ const (
 	ZiZsComputeInstanceKey string = "compute_instance"
 	ZiZsComputeDiskKey     string = "compute_disk"
 
+	ZoneSwitchActionSwitch      string = "switch"
+	ZoneSwitchActionRevert      string = "revert"
+	ZoneSwitchActionRevertForce string = "revert_force"
+
 	// Create a single placement policy for SPREAD with a separate AD active, passive and mediator VM sets
 	GCPPlacementPolicySpreadSingle string = "spread_single"
 	// Zonal Cluster only: Create a single placement policy for all VMs, to be implemented later
