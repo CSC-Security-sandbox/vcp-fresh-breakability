@@ -271,7 +271,14 @@ def _build_go_adapter() -> EcosystemAdapter:
 
 
 def _build_npm_adapter() -> EcosystemAdapter:
-    """Build the npm ecosystem adapter (placeholder - not implemented yet)."""
+    """Build the npm/Node.js ecosystem adapter.
+
+    Commands mirror what build-check.sh runs for npm PRs: a dependency install
+    (with --ignore-scripts for safety), a TypeScript type-check as the "build"
+    signal (the npm analogue of `go build`), the package test script, and eslint
+    for static analysis. API_DIFF is supported via the standalone TypeScript
+    type-surface diff (npm_apidiff.mjs); release notes stay framework-level.
+    """
     return EcosystemAdapter(
         name="npm",
         display_name="npm",
@@ -279,36 +286,70 @@ def _build_npm_adapter() -> EcosystemAdapter:
         capabilities=(
             EcosystemCapability(
                 capability=CapabilityType.INSTALL,
-                supported=False,
-                reason="npm adapter not yet implemented",
+                supported=True,
+                commands=(
+                    CommandSpec(
+                        cmd="npm",
+                        args=("ci", "--ignore-scripts"),
+                        timeout_sec=300,
+                        description="Install dependencies from lockfile (scripts disabled)",
+                    ),
+                ),
             ),
             EcosystemCapability(
                 capability=CapabilityType.BUILD,
-                supported=False,
-                reason="npm adapter not yet implemented",
+                supported=True,
+                commands=(
+                    CommandSpec(
+                        cmd="npx",
+                        args=("tsc", "--noEmit"),
+                        timeout_sec=300,
+                        description="TypeScript type-check (npm analogue of go build)",
+                    ),
+                ),
             ),
             EcosystemCapability(
                 capability=CapabilityType.TEST,
-                supported=False,
-                reason="npm adapter not yet implemented",
+                supported=True,
+                commands=(
+                    CommandSpec(
+                        cmd="npm",
+                        args=("test", "--", "--ci"),
+                        timeout_sec=300,
+                        description="Run the package test script",
+                    ),
+                ),
             ),
             EcosystemCapability(
                 capability=CapabilityType.VET,
-                supported=False,
-                reason="npm adapter not yet implemented",
+                supported=True,
+                commands=(
+                    CommandSpec(
+                        cmd="npx",
+                        args=("eslint", "."),
+                        description="Run eslint static analysis",
+                    ),
+                ),
             ),
             EcosystemCapability(
                 capability=CapabilityType.API_DIFF,
-                supported=False,
-                reason="npm adapter not yet implemented",
+                supported=True,
+                commands=(
+                    CommandSpec(
+                        cmd="node",
+                        args=(".github/scripts/npm_apidiff.mjs",),
+                        timeout_sec=240,
+                        description="TypeScript type-surface diff of the dependency's .d.ts (from/to)",
+                    ),
+                ),
             ),
             EcosystemCapability(
                 capability=CapabilityType.RELEASE_NOTE,
                 supported=False,
-                reason="npm adapter not yet implemented",
+                reason="npm release notes extracted from GitHub releases/CHANGELOG.md (framework-level)",
             ),
         ),
-        file_patterns=("package.json", "package-lock.json", "yarn.lock"),
+        file_patterns=("package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"),
         metadata={"version_file": "package.json", "version_format": "semantic"},
     )
 

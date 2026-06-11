@@ -140,14 +140,27 @@ class EcosystemAdapterTests(unittest.TestCase):
         self.assertGreater(len(cap.commands), 0)
         self.assertEqual(cap.commands[0].cmd, "go")
 
-    def test_npm_adapter_placeholder(self):
+    def test_npm_adapter_capabilities(self):
         adapter = _build_npm_adapter()
         self.assertEqual(adapter.name, "npm")
         self.assertEqual(adapter.display_name, "npm")
-        # All capabilities should be unsupported with placeholder message
-        for cap in adapter.capabilities:
-            self.assertFalse(cap.supported)
-            self.assertIn("not yet implemented", cap.reason)
+        # Real adapter: install/build/test/vet/api_diff supported; release_note framework-level.
+        for cap_type in (
+            CapabilityType.INSTALL,
+            CapabilityType.BUILD,
+            CapabilityType.TEST,
+            CapabilityType.VET,
+            CapabilityType.API_DIFF,
+        ):
+            self.assertTrue(
+                adapter.has_capability(cap_type), f"npm should support {cap_type}"
+            )
+        self.assertFalse(adapter.has_capability(CapabilityType.RELEASE_NOTE))
+        # BUILD runs the TypeScript type-check (npm analogue of `go build`).
+        build = adapter.get_capability(CapabilityType.BUILD)
+        self.assertTrue(build.commands)
+        self.assertEqual(build.commands[0].cmd, "npx")
+        self.assertEqual(build.commands[0].args[0], "tsc")
 
     def test_adapter_to_dict(self):
         adapter = _build_go_adapter()
@@ -234,12 +247,17 @@ class EcosystemRegistryTests(unittest.TestCase):
         self.assertIsNotNone(adapter)
         self.assertEqual(adapter.name, "pip")
 
-    def test_default_registry_npm_all_unsupported(self):
-        """npm adapter should ABSTAIN from all capabilities (not yet implemented)."""
+    def test_default_registry_npm_supported(self):
+        """npm adapter should now expose concrete build/install/test commands."""
         reg = get_default_registry()
-        for cap_type in CapabilityType:
+        for cap_type in (
+            CapabilityType.INSTALL,
+            CapabilityType.BUILD,
+            CapabilityType.TEST,
+            CapabilityType.API_DIFF,
+        ):
             cmds = reg.get_commands("npm", cap_type)
-            self.assertEqual(len(cmds), 0, f"npm should not support {cap_type}")
+            self.assertGreater(len(cmds), 0, f"npm should support {cap_type}")
 
     def test_default_registry_go_build_commands(self):
         """Go adapter should have concrete build commands."""
@@ -278,13 +296,13 @@ class FailClosedBehaviorTests(unittest.TestCase):
         with self.assertRaises(UnknownEcosystem):
             reg.get_or_fail("rust")
 
-    def test_npm_build_unsupported(self):
-        """npm build capability should be unsupported (framework should ABSTAIN)."""
+    def test_npm_build_supported(self):
+        """npm build capability is now supported (TypeScript type-check)."""
         reg = get_default_registry()
         npm = reg.get("npm")
         cap = npm.get_capability(CapabilityType.BUILD)
-        self.assertFalse(cap.supported)
-        self.assertIn("not yet implemented", cap.reason)
+        self.assertTrue(cap.supported)
+        self.assertEqual(cap.commands[0].args[0], "tsc")
 
     def test_go_api_diff_unsupported(self):
         """Go API_DIFF is unsupported (framework should ABSTAIN)."""

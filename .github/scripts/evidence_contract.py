@@ -349,6 +349,28 @@ def _is_compat_promise_module(package: str) -> bool:
     return pkg == "golang.org/x" or pkg.startswith("golang.org/x/")
 
 
+def _major_apidiff_unverified(
+    bundle: EvidenceBundle,
+    test: Optional[EvidenceRecord],
+    release_notes: Optional[EvidenceRecord],
+) -> bool:
+    """A semver-MAJOR bump cleared ONLY by a semantic apidiff (no passing test, no
+    changelog confirming the absence of breaks) must be held for review. Major releases
+    routinely change runtime behavior under unchanged exported signatures, and barrel /
+    re-export packages (e.g. @nestjs/common, whose index merely re-exports submodules)
+    defeat type-surface diffing — a shallow ``compatible=true`` cannot prove a major is
+    safe. Inert once a real test passes OR the changelog is clean-and-irrelevant
+    (relevant is False), which corroborates that no consumer-visible contract changed.
+    """
+    if _is_pass(test):
+        return False
+    if not bundle.is_major:
+        return False
+    if release_notes is not None and _is_pass(release_notes) and release_notes.relevant is False:
+        return False
+    return True
+
+
 def _pre1_multi_minor_unverified(bundle: EvidenceBundle, test: Optional[EvidenceRecord]) -> bool:
     """A pre-1.0 (0.x) dependency advanced by two or more minor versions, without a passing
     test, can still ship behavioral breaks under unchanged signatures that apidiff cannot see
@@ -473,7 +495,7 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
         and api_diff.confidence == Confidence.HIGH
         and not api_diff.tool_failure
     )
-    if api_semantically_clean and not _pre1_multi_minor_unverified(bundle, test):
+    if api_semantically_clean and not _pre1_multi_minor_unverified(bundle, test) and not _major_apidiff_unverified(bundle, test, release_notes):
         conf = Confidence.HIGH if _is_pass(test) else Confidence.MEDIUM
         return _decision(VerdictAction.MERGE, SafetySeverity.NONE, conf, _merge_reason("merge:api-compatible", bundle))
 
@@ -606,7 +628,7 @@ def _breakability_provably_safe(bundle: EvidenceBundle) -> bool:
         and api_diff.confidence == Confidence.HIGH
         and not api_diff.tool_failure
     )
-    return bool(api_clean and not _pre1_multi_minor_unverified(bundle, test))
+    return bool(api_clean and not _pre1_multi_minor_unverified(bundle, test) and not _major_apidiff_unverified(bundle, test, release_notes))
 
 
 def _merge_reason(base: str, bundle: EvidenceBundle) -> str:

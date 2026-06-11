@@ -69,6 +69,21 @@ def _dep_imported_in_module(pr, mod):
     return bool(_files_importing_in_module(pr, mod)) or bool(_changed_symbol_usages_in_module(pr, mod))
 
 
+def _usage_scan_conclusive(pr):
+    """The Tier-0 module-scope clear ("dep not imported in the bumped module -> SAFE")
+    trusts the dependency-usage scan. For Go that scan is integral and reliable, so an
+    empty result is proof of non-use. For npm it can UNDER-report — the import specifier
+    often differs from the package name (e.g. a PR bumping ``react-router`` whose code
+    imports ``react-router-dom``), private-registry workspaces may be unbuilt, and
+    multi-package bumps confuse the matcher — so an empty result is absence of evidence,
+    NOT evidence of absence. Require positive proof the scanner saw this dependency
+    somewhere in the repo before trusting an in-module absence; otherwise the scan is
+    inconclusive and the PR must stay REVIEW (never a false green)."""
+    if (pr.get("ecosystem") or "").lower() != "npm":
+        return True
+    return bool(pr.get("files_importing"))
+
+
 def _has_declared_breaking_section(pr):
     det = pr.get("deterministic") or {}
     sig = det.get("changelogSignal")
@@ -274,13 +289,15 @@ def reconcile_pr(pr, verdict, repo):
         return ("kept", f"verdict={verdict_now or 'n/a'} (not an adjudicable breakability review; untouched)")
 
     # ── Tier 0: deterministic module-scope (no AI, no call graph) ──────────────
-    if not _dep_imported_in_module(pr, mod):
-        manifest = (mod + "/go.mod") if mod else "go.mod"
+    if not _dep_imported_in_module(pr, mod) and _usage_scan_conclusive(pr):
+        is_npm = (pr.get("ecosystem") or "").lower() == "npm"
+        manifest_name = "package.json" if is_npm else "go.mod"
+        manifest = (mod + "/" + manifest_name) if mod else manifest_name
         if not os.path.exists(os.path.join(repo, manifest)):
             manifest = ""  # still safe; manifest path just unavailable for citation
         ev = (f"Dependency `{pr.get('package')}` is not imported in the bumped module "
               f"`{mod or 'root'}`; a breaking API change in it cannot reach this module. "
-              f"The flagged usages, if any, live in a different go.mod.")
+              f"The flagged usages, if any, live in a different module.")
         _apply_safe(pr, "safe:not-imported-in-bumped-module", ev, manifest, "deterministic_module_scope")
         return ("downgraded_safe", f"Tier0: dep not imported in '{mod or 'root'}' -> SAFE")
 

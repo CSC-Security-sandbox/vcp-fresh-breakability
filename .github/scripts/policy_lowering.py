@@ -270,6 +270,18 @@ def _security_record(pr: Mapping[str, Any]) -> EvidenceRecord:
         return _record(SignalName.SECURITY, SignalStatus.NOT_APPLICABLE, confidence=Confidence.MEDIUM)
     if status in {"ok", "ok_preexisting", "clean", "pass", "passed", "no_findings", "no_new_findings"}:
         return _record(SignalName.SECURITY, SignalStatus.PASS, confidence=Confidence.MEDIUM)
+    # npm: `npm audit` ran (baseline vs PR). When the audit completed and the upgrade
+    # introduced no NEW findings, the security axis is clean for breakability purposes
+    # even if pre-existing repo vulns remain (those are not caused by this PR). This is
+    # ecosystem-neutral: non-npm results carry no npm_audit key and fall through.
+    npm_audit = pr.get("npm_audit")
+    if isinstance(npm_audit, Mapping) and not (isinstance(new_findings, list) and new_findings):
+        return _record(
+            SignalName.SECURITY,
+            SignalStatus.PASS,
+            confidence=Confidence.MEDIUM,
+            rationale="npm audit ran; upgrade introduces no new advisories",
+        )
     return _record(
         SignalName.SECURITY,
         SignalStatus.UNAVAILABLE,

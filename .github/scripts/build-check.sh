@@ -1940,11 +1940,15 @@ SKIPEOF
   TO_VER=""
   ADDITIONAL_PACKAGES=""
 
-  if [[ "$PR_TITLE" =~ Bump[[:space:]]+(.+)[[:space:]]+from[[:space:]]+([^ ]+)[[:space:]]+to[[:space:]]+([^ ]+) ]]; then
+  # Dependabot uses two title styles: legacy "Bump X from A to B" and the
+  # conventional-commits "build(deps): bump X from A to B" (lowercase, prefixed).
+  # Match [Bb]ump unanchored so both styles — and scoped names like @nestjs/common
+  # — are captured. ("build" contains no "bump" substring, so this is unambiguous.)
+  if [[ "$PR_TITLE" =~ [Bb]ump[[:space:]]+(.+)[[:space:]]+from[[:space:]]+([^ ]+)[[:space:]]+to[[:space:]]+([^ ]+) ]]; then
     PKG="${BASH_REMATCH[1]}"
     FROM_VER="${BASH_REMATCH[2]}"
     TO_VER="${BASH_REMATCH[3]}"
-  elif [[ "$PR_TITLE" =~ Bump[[:space:]]+(.+)[[:space:]]+and[[:space:]]+(.*) ]]; then
+  elif [[ "$PR_TITLE" =~ [Bb]ump[[:space:]]+(.+)[[:space:]]+and[[:space:]]+(.*) ]]; then
     # Multi-package PR — take the first package name, record others
     PKG="${BASH_REMATCH[1]}"
     ADDITIONAL_PACKAGES="${BASH_REMATCH[2]}"
@@ -2267,6 +2271,72 @@ print(json.dumps(result))
     rm -f "$CLI_OUTPUT_FILE" "$CLI_JSON_FILE" "$CLI_ERR_FILE"
   else
     echo "  pipeline: skipped ($ECOSYSTEM)"
+  fi
+
+  # ── npm semantic API/type-surface diff (mirrors Go apidiff) ───────────────────
+  # The bundled TS CLI does not compare the dependency's exported type surface, so
+  # for npm we run a standalone TypeScript-compiler diff of the package's .d.ts at
+  # the from/to versions (downloaded from the public registry). Results are merged
+  # into the deterministic block as the api_diff signal. Fails safe: compatible=null
+  # (UNAVAILABLE) whenever either version ships no types or extraction fails — never
+  # a false "compatible". A clean compatible result only clears patch/minor bumps;
+  # the evidence contract still gates major bumps on semver + changelog.
+  if [[ "$ECOSYSTEM" == "npm" && -n "$PKG" && -n "$FROM_VER" && -n "$TO_VER" ]]; then
+    APIDIFF_SCRIPT="$REPO_ROOT/.github/scripts/npm_apidiff.mjs"
+    if [[ -f "$APIDIFF_SCRIPT" ]] && command -v node >/dev/null 2>&1; then
+      echo "  npm api-diff: $PKG $FROM_VER -> $TO_VER ..."
+      APIDIFF_JSON=$(timeout -k 15 240 node "$APIDIFF_SCRIPT" "$PKG" "$FROM_VER" "$TO_VER" 2>/dev/null | tail -1 || echo "")
+      if [[ -n "$APIDIFF_JSON" ]]; then
+        DETERMINISTIC=$(DET_IN="${DETERMINISTIC:-{}}" AD_IN="$APIDIFF_JSON" python3 -c "
+import json, os
+try:
+    det = json.loads(os.environ.get('DET_IN') or '{}')
+except Exception:
+    det = {}
+if not isinstance(det, dict):
+    det = {}
+try:
+    ad = json.loads(os.environ['AD_IN'])
+except Exception:
+    ad = {}
+compatible = ad.get('compatible', None)
+removed = ad.get('removed', []) or []
+changed = ad.get('changed', []) or []
+# Structured detail so policy_lowering._has_breaking_api_change classifies removals/
+# signature changes as hard breaks (changeType in its hard set), while a clean diff
+# (compatible) carries an empty detail list.
+detail = [{'name': n, 'changeType': 'removed'} for n in removed]
+detail += [
+    {'name': (c.get('name') if isinstance(c, dict) else c), 'changeType': 'signature_changed'}
+    for c in changed
+]
+det['api_changes'] = int(ad.get('apiChanges', 0) or 0)
+det['api_changes_detail'] = detail
+# Mark as a SEMANTIC, module-mode tool: ts-apidiff compares exported type
+# signatures via the TypeScript compiler (the npm analogue of Go's apidiff), so a
+# zero-change result is HIGH-confidence proof of API backward-compatibility.
+# UNAVAILABLE (compatible is None) must NOT look like a clean module diff — set
+# api_changes None and omit module mode so the api_diff signal is UNAVAILABLE
+# (never a false "compatible"), e.g. a major bump whose old version shipped no types.
+if compatible is None:
+    det['api_changes'] = None
+    det['api_changes_detail'] = []
+    det['api_diff_tool'] = {'name': 'ts-apidiff', 'status': 'unavailable'}
+else:
+    det['api_diff_tool'] = {'name': 'ts-apidiff', 'mode': 'module', 'status': 'semantic'}
+ver = det.get('verification') or {}
+if not isinstance(ver, dict):
+    ver = {}
+ver['compatible'] = compatible
+ver['api_diff_unavailable_reason'] = ad.get('reason', '') if compatible is None else ''
+det['verification'] = ver
+print(json.dumps(det))
+" 2>/dev/null || echo "$DETERMINISTIC")
+        echo "  npm api-diff: compatible=$(echo "$APIDIFF_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('compatible'))" 2>/dev/null || echo '?') api_changes=$(echo "$APIDIFF_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('apiChanges'))" 2>/dev/null || echo '?')"
+      else
+        echo "  npm api-diff: no output (unavailable)"
+      fi
+    fi
   fi
 
   # ── Build check on PR branch ───────────────────────────────────
