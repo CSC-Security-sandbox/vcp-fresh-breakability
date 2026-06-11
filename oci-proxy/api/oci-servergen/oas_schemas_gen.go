@@ -1138,23 +1138,31 @@ func (s *Health) SetStatus(val OptString) {
 
 func (*Health) getHealthRes() {}
 
+// Capacity target for one VM (endpoint) in the pool. Used in `UpdatePoolRequest.nodeCapacities`
+// to resize existing nodes; there is no pool-level `sizeInGiB` on the update request.
 // Ref: #/components/schemas/NodeCapacity
 type NodeCapacity struct {
-	// Node name.
-	Name OptString `json:"name"`
-	// UUID of the corresponding node.
-	NodeUUID OptString `json:"nodeUUID"`
-	// Capacity for this node in GiB.
+	// Display name of the VM in the pool, matching the node name returned at pool
+	// create (for example from work-request metadata).
+	Name string `json:"name"`
+	// UUID of the node to update. Must be unique within the request and must
+	// match an existing node in the pool.
+	NodeUUID string `json:"nodeUUID"`
+	// Target capacity for this node in GiB. Both VMs in the same HA pair must
+	// request the same value (intra-pair homogeneity); the pair shares one
+	// mirrored aggregate. Different HA pairs may use different values
+	// (inter-pair heterogeneity). Post-update pool capacity equals the sum of
+	// per-HA-pair sizes (one size per pair), not the sum of all node entries.
 	SizeInGiB int64 `json:"sizeInGiB"`
 }
 
 // GetName returns the value of Name.
-func (s *NodeCapacity) GetName() OptString {
+func (s *NodeCapacity) GetName() string {
 	return s.Name
 }
 
 // GetNodeUUID returns the value of NodeUUID.
-func (s *NodeCapacity) GetNodeUUID() OptString {
+func (s *NodeCapacity) GetNodeUUID() string {
 	return s.NodeUUID
 }
 
@@ -1164,12 +1172,12 @@ func (s *NodeCapacity) GetSizeInGiB() int64 {
 }
 
 // SetName sets the value of Name.
-func (s *NodeCapacity) SetName(val OptString) {
+func (s *NodeCapacity) SetName(val string) {
 	s.Name = val
 }
 
 // SetNodeUUID sets the value of NodeUUID.
-func (s *NodeCapacity) SetNodeUUID(val OptString) {
+func (s *NodeCapacity) SetNodeUUID(val string) {
 	s.NodeUUID = val
 }
 
@@ -1211,14 +1219,7 @@ type OCICreatePoolWorkflowMetadata struct {
 	// RBAC LIF IP for the cluster.
 	ClusterIP OptString `json:"clusterIP"`
 	// VM metadata for OCI pool nodes.
-	Vms []OCICreatePoolWorkflowVM `json:"vms"`
-	// Pool-level Storage Pool (SP) policy values sourced from the VLM
-	// config's `spconfig` block. Distinct from per-VM `vms[*]` aggregates:
-	// these track SP-policy updates (capacity / IOPS / throughput) and
-	// reflect the latest applied policy, while per-VM fields describe the
-	// underlying physical data-disk hardware specs stamped at pool create
-	// time. Omitted when the pool has no `spconfig` values populated.
-	SpPolicy    OptOCICreatePoolWorkflowSPPolicy `json:"spPolicy"`
+	Vms         []OCICreatePoolWorkflowVM        `json:"vms"`
 	Credentials OCICreatePoolWorkflowCredentials `json:"credentials"`
 }
 
@@ -1235,11 +1236,6 @@ func (s *OCICreatePoolWorkflowMetadata) GetClusterIP() OptString {
 // GetVms returns the value of Vms.
 func (s *OCICreatePoolWorkflowMetadata) GetVms() []OCICreatePoolWorkflowVM {
 	return s.Vms
-}
-
-// GetSpPolicy returns the value of SpPolicy.
-func (s *OCICreatePoolWorkflowMetadata) GetSpPolicy() OptOCICreatePoolWorkflowSPPolicy {
-	return s.SpPolicy
 }
 
 // GetCredentials returns the value of Credentials.
@@ -1262,61 +1258,9 @@ func (s *OCICreatePoolWorkflowMetadata) SetVms(val []OCICreatePoolWorkflowVM) {
 	s.Vms = val
 }
 
-// SetSpPolicy sets the value of SpPolicy.
-func (s *OCICreatePoolWorkflowMetadata) SetSpPolicy(val OptOCICreatePoolWorkflowSPPolicy) {
-	s.SpPolicy = val
-}
-
 // SetCredentials sets the value of Credentials.
 func (s *OCICreatePoolWorkflowMetadata) SetCredentials(val OCICreatePoolWorkflowCredentials) {
 	s.Credentials = val
-}
-
-// Pool-level SP-policy (QoS / capacity) values applied to the pool, as
-// reported by VLM `spconfig`. Updated by SP-policy update workflows;
-// independent of per-VM `data_disks` hardware metadata.
-// Ref: #/components/schemas/OCICreatePoolWorkflowSPPolicy
-type OCICreatePoolWorkflowSPPolicy struct {
-	// Pool-level capacity in GiB, parsed from `spconfig.size` (e.g.
-	// `"400Gi"` -> 400). Bare digit strings are interpreted as GiB.
-	SizeInGiB OptInt64 `json:"sizeInGiB"`
-	// Pool-level IOPS from `spconfig.iops`. Always pool-level (also in
-	// heterogeneous mode where only per-node size diverges).
-	Iops OptInt64 `json:"iops"`
-	// Pool-level throughput in GBps, converted from the VLM
-	// `spconfig.tput` value which is reported in MiBps
-	// (`MiBps / 953.67431640625`).
-	ThroughputGBps OptFloat64 `json:"throughputGBps"`
-}
-
-// GetSizeInGiB returns the value of SizeInGiB.
-func (s *OCICreatePoolWorkflowSPPolicy) GetSizeInGiB() OptInt64 {
-	return s.SizeInGiB
-}
-
-// GetIops returns the value of Iops.
-func (s *OCICreatePoolWorkflowSPPolicy) GetIops() OptInt64 {
-	return s.Iops
-}
-
-// GetThroughputGBps returns the value of ThroughputGBps.
-func (s *OCICreatePoolWorkflowSPPolicy) GetThroughputGBps() OptFloat64 {
-	return s.ThroughputGBps
-}
-
-// SetSizeInGiB sets the value of SizeInGiB.
-func (s *OCICreatePoolWorkflowSPPolicy) SetSizeInGiB(val OptInt64) {
-	s.SizeInGiB = val
-}
-
-// SetIops sets the value of Iops.
-func (s *OCICreatePoolWorkflowSPPolicy) SetIops(val OptInt64) {
-	s.Iops = val
-}
-
-// SetThroughputGBps sets the value of ThroughputGBps.
-func (s *OCICreatePoolWorkflowSPPolicy) SetThroughputGBps(val OptFloat64) {
-	s.ThroughputGBps = val
 }
 
 // Ref: #/components/schemas/OCICreatePoolWorkflowVM
@@ -1731,52 +1675,6 @@ func (o OptOCICreatePoolWorkflowMetadata) Get() (v OCICreatePoolWorkflowMetadata
 
 // Or returns value if set, or given parameter if does not.
 func (o OptOCICreatePoolWorkflowMetadata) Or(d OCICreatePoolWorkflowMetadata) OCICreatePoolWorkflowMetadata {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptOCICreatePoolWorkflowSPPolicy returns new OptOCICreatePoolWorkflowSPPolicy with value set to v.
-func NewOptOCICreatePoolWorkflowSPPolicy(v OCICreatePoolWorkflowSPPolicy) OptOCICreatePoolWorkflowSPPolicy {
-	return OptOCICreatePoolWorkflowSPPolicy{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptOCICreatePoolWorkflowSPPolicy is optional OCICreatePoolWorkflowSPPolicy.
-type OptOCICreatePoolWorkflowSPPolicy struct {
-	Value OCICreatePoolWorkflowSPPolicy
-	Set   bool
-}
-
-// IsSet returns true if OptOCICreatePoolWorkflowSPPolicy was set.
-func (o OptOCICreatePoolWorkflowSPPolicy) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptOCICreatePoolWorkflowSPPolicy) Reset() {
-	var v OCICreatePoolWorkflowSPPolicy
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptOCICreatePoolWorkflowSPPolicy) SetTo(v OCICreatePoolWorkflowSPPolicy) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptOCICreatePoolWorkflowSPPolicy) Get() (v OCICreatePoolWorkflowSPPolicy, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptOCICreatePoolWorkflowSPPolicy) Or(d OCICreatePoolWorkflowSPPolicy) OCICreatePoolWorkflowSPPolicy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2963,23 +2861,21 @@ type UpdatePoolNotFound PoolOperationErrorResponseHeaders
 
 func (*UpdatePoolNotFound) updatePoolRes() {}
 
-// Update pool request body. Exactly one of nodeCapacities or dataEndpointCount
-// must be provided. All other fields are optional.
+// Update pool request body. All fields are optional; include only the fields
+// you intend to change. Metadata-only updates (for example kmsKeyId, nsgIds,
+// or securityAttributes) are supported without resizing or changing throughput.
+// When provided, nodeCapacities and dataEndpointCount are mutually exclusive.
 // Ref: #/components/schemas/UpdatePoolRequest
 type UpdatePoolRequest struct {
-	// Total target throughput for the pool in GBps. Must be > 0.
+	// Optional total target throughput for the pool in GBps. When provided, must be > 0.
 	ThroughputGBps OptFloat64 `json:"throughputGBps"`
 	// Absolute number of endpoints that should exist in the cluster. Must be >= 2 and even.
 	// Mutually exclusive with nodeCapacities. Allowed only for Single AD clusters.
 	DataEndpointCount OptInt64 `json:"dataEndpointCount"`
-	// Per-endpoint capacity configuration. Mutually exclusive with dataEndpointCount.
-	// Each entry's `sizeInGiB` is the per-node capacity. The two nodes in an HA pair
-	// must request the same `sizeInGiB` (intra-pair homogeneity is enforced — both
-	// nodes share a single mirrored aggregate); different pairs may carry different
-	// sizes (inter-pair heterogeneity is supported). The post-update pool capacity
-	// equals the SUM of per-HA-pair sizes (one aggregate per pair, mirrored across
-	// the pair's two VMs) — NOT the sum of per-node sizes, which would double-count
-	// the mirror. There is no pool-level `sizeInGiB` on this request.
+	// Per-node capacity targets for the update. Mutually exclusive with
+	// `dataEndpointCount`. Each element identifies one VM and its desired
+	// `sizeInGiB`; see `#/components/schemas/NodeCapacity` for field semantics
+	// and capacity accounting rules.
 	NodeCapacities []NodeCapacity `json:"nodeCapacities"`
 	// OCI secret reference for admin password.
 	OciAdminPassword OptOCIOCIDVersionRef `json:"ociAdminPassword"`

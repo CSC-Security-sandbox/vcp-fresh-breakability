@@ -278,6 +278,16 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 
 	pool := database.ConvertPoolViewToPool(poolView)
 
+	if params.HAPairs > 0 && pool.PoolAttributes != nil && pool.PoolAttributes.IsRegionalHA {
+		logger.Error("Rejecting dataEndpointCount update for non-shared HA pool", "poolExternalIdentifier", params.PoolExternalIdentifier)
+		return nil, "", customerrors.NewBadRequestErr("dataEndpointCount cannot be updated for non-shared HA pools")
+	}
+
+	if err = validateUpdatePoolDataEndpointCount(ctx, se, pool, params); err != nil {
+		logger.Error("Invalid dataEndpointCount update", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
+		return nil, "", err
+	}
+
 	if err = validateUpdatePoolThroughput(params); err != nil {
 		logger.Error("Invalid pool throughput", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
 		return nil, "", err
@@ -363,28 +373,45 @@ func validateNoActiveClusterUpgrade(ctx context.Context, se database.Storage, cl
 	return nil
 }
 
-// validateUpdatePoolThroughput enforces the per-pool throughput contract for UpdatePool.
-// The check is two-part:
-//
-//  1. params.TotalThroughputMibps must be non-zero. The endpoint layer already rejects a
-//     ThroughputGBps <= 0 in the request (errMsgThroughputGBpsNotPositive); reaching this
-//     function with a zero internal MiBps therefore means the caller did not include the
-//     throughput field at all, which UpdatePool currently treats as a required field.
-//  2. params.TotalThroughputMibps must be strictly less than the configured cap, sourced from
-//     OCI_THROUGHPUT_THRESHOLD_GBPS (default 5 GBps). The cap is held in GBps to match the
-//     public API contract; we convert to MiBps once here using workflowquery.MiBpsPerGBps so
-//     the comparison happens in the same unit as the persisted/orchestrator field.
-//
-// Returns customerrors.NewBadRequestErr (mapped to HTTP 400 by the endpoint layer) on
-// violation, or nil when the throughput is acceptable.
 func validateUpdatePoolThroughput(params *commonparams.UpdatePoolParams) error {
+	if !params.CustomPerformanceEnabled {
+		return nil
+	}
 	if params.TotalThroughputMibps == 0 {
-		return customerrors.NewBadRequestErr("throughputGBps must be non-zero")
+		return customerrors.NewBadRequestErr("throughputGBps must be non-zero when provided")
 	}
 	capMibps := int64(float64(ociThroughputThresholdGBps) * workflowquery.MiBpsPerGBps)
 	if params.TotalThroughputMibps >= capMibps {
 		return customerrors.NewBadRequestErr(
 			fmt.Sprintf("throughputGBps must be less than %d GBps", ociThroughputThresholdGBps))
+	}
+	return nil
+}
+
+func validateUpdatePoolDataEndpointCount(
+	ctx context.Context,
+	se database.Storage,
+	pool *datamodel.Pool,
+	params *commonparams.UpdatePoolParams,
+) error {
+	if params.HAPairs == 0 {
+		return nil
+	}
+	if pool == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("validateUpdatePoolDataEndpointCount: pool is nil"))
+	}
+
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError,
+			fmt.Errorf("validateUpdatePoolDataEndpointCount: list nodes for pool %q (id=%d): %w", pool.UUID, pool.ID, err))
+	}
+
+	currentHAPairs := uint64(len(nodes) / 2)
+	if params.HAPairs <= currentHAPairs {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("dataEndpointCount cannot shrink pool %q: current dataEndpointCount=%d, requested dataEndpointCount=%d; dataEndpointCount can only be increased",
+				pool.PoolExternalIdentifier, currentHAPairs*2, params.HAPairs*2))
 	}
 	return nil
 }
@@ -453,6 +480,10 @@ func validateUpdatePoolNodeCapacities(
 				pool.PoolExternalIdentifier, len(nodeByUUID), len(params.NodeCapacities)))
 	}
 
+	if err := validateNodeCapacityPerNodeRules(pool, params, nodes); err != nil {
+		return err
+	}
+
 	var requestedPoolGiB int64
 	if pool.PoolAttributes != nil && pool.PoolAttributes.IsRegionalHA {
 		requestedPoolGiB = totalInputGiB / 2
@@ -464,6 +495,51 @@ func validateUpdatePoolNodeCapacities(
 		return customerrors.NewUserInputValidationErr(
 			fmt.Sprintf("nodeCapacities cannot shrink pool %q: current size=%d GiB, requested size=%d GiB",
 				pool.PoolExternalIdentifier, currentPoolGiB, requestedPoolGiB))
+	}
+	return nil
+}
+
+func validateNodeCapacityPerNodeRules(
+	pool *datamodel.Pool,
+	params *commonparams.UpdatePoolParams,
+	nodes []*datamodel.Node,
+) error {
+	sizeByUUID := make(map[string]int64, len(nodes))
+	for _, n := range nodes {
+		if n != nil && n.UUID != "" && n.NodeAttributes != nil {
+			sizeByUUID[n.UUID] = n.NodeAttributes.SizeInGiB
+		}
+	}
+
+	// TODO: heterogeneous (per-HA-pair) updates will require validating that the
+	// two nodes of each HA pair request the same sizeInGiB. We cannot pair by DB
+	// node ordering: there is no HA-pair identifier on the node and adjacency is
+	// not guaranteed. When that flow lands, derive the pairs from the stored VLM
+	// config (pool.VLMConfig -> vlm.VLMConfig.Cloud.HAPairs[i].VM1/VM2), which is
+	// the consistent source of HA-pair grouping, mapping VMConfig.HostName to
+	// Node.Name. Until then the pool is homogeneous-only, so we enforce a single
+	// global rule: every node must request the same sizeInGiB.
+	var firstUUID string
+	var firstSize int64
+	var firstSet bool
+	for _, nc := range params.NodeCapacities {
+		uuid := strings.TrimSpace(nc.NodeUUID)
+		if cur := sizeByUUID[uuid]; cur > 0 && nc.SizeInGiB < cur {
+			return customerrors.NewUserInputValidationErr(
+				fmt.Sprintf("nodeCapacities cannot shrink node %q in pool %q: current size=%d GiB, requested size=%d GiB",
+					nc.NodeUUID, pool.PoolExternalIdentifier, cur, nc.SizeInGiB))
+		}
+		if !firstSet {
+			firstUUID = uuid
+			firstSize = nc.SizeInGiB
+			firstSet = true
+			continue
+		}
+		if nc.SizeInGiB != firstSize {
+			return customerrors.NewUserInputValidationErr(
+				fmt.Sprintf("nodeCapacities must request the same sizeInGiB for every node in pool %q until heterogeneous updates are supported: node %q=%d GiB, node %q=%d GiB",
+					pool.PoolExternalIdentifier, firstUUID, firstSize, uuid, nc.SizeInGiB))
+		}
 	}
 	return nil
 }

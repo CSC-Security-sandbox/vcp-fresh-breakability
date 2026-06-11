@@ -746,18 +746,12 @@ func validateUpdatePoolUnitConversionInputs(req *ociserver.UpdatePoolRequest) st
 	return ""
 }
 
-// validateUpdatePoolNodeCapacityRequiredFields enforces that when the caller supplies a
-// nodeCapacities array, every entry has the three identifying keys populated: name, nodeUUID,
-// and sizeInGiB. The OAS schema only marks sizeInGiB as required; name and nodeUUID arrive as
-// optional strings, so this validator closes that gap. sizeInGiB > 0 is covered by
-// validateUpdatePoolUnitConversionInputs and is intentionally not duplicated here.
-// Returns an empty string when valid, or an error message identifying the offending index/field.
 func validateUpdatePoolNodeCapacityRequiredFields(req *ociserver.UpdatePoolRequest) string {
 	for i, nc := range req.NodeCapacities {
-		if !nc.Name.Set || strings.TrimSpace(nc.Name.Value) == "" {
+		if strings.TrimSpace(nc.Name) == "" {
 			return fmt.Sprintf(errMsgNodeCapacityNameRequired, i)
 		}
-		if !nc.NodeUUID.Set || strings.TrimSpace(nc.NodeUUID.Value) == "" {
+		if strings.TrimSpace(nc.NodeUUID) == "" {
 			return fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, i)
 		}
 	}
@@ -768,8 +762,6 @@ func validateUpdatePoolRequest(req *ociserver.UpdatePoolRequest, hasNodeCapaciti
 	switch {
 	case hasNodeCapacities && hasDataEndpointCount:
 		return errMsgBothNodeCapacitiesAndDEC
-	case !hasNodeCapacities && !hasDataEndpointCount:
-		return errMsgNeitherNodeCapacitiesNorDEC
 	case validateUpdatePoolUnitConversionInputs(req) != "":
 		return errMsgInvalidUnitConversionInput
 	case validateUpdatePoolNodeCapacityRequiredFields(req) != "":
@@ -787,10 +779,7 @@ func validateUpdatePoolNodeCapacityUniqueness(req *ociserver.UpdatePoolRequest) 
 	}
 	seen := make(map[string]struct{}, len(req.NodeCapacities))
 	for i, nc := range req.NodeCapacities {
-		if !nc.NodeUUID.Set {
-			continue
-		}
-		u := strings.TrimSpace(nc.NodeUUID.Value)
+		u := strings.TrimSpace(nc.NodeUUID)
 		if u == "" {
 			continue
 		}
@@ -820,7 +809,10 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 	hasDataEndpointCount := req.DataEndpointCount.Set
 
 	if errMsg := validateUpdatePoolRequest(req, hasNodeCapacities, hasDataEndpointCount); errMsg != "" {
-		logger.Error("error", errMsg)
+		logger.Error("UpdatePool request validation failed",
+			"poolOCID", poolExternalIdentifier,
+			"error", errMsg,
+		)
 		return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsg), nil
 	}
 
@@ -837,11 +829,14 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 		updateParams.NodeCapacities = make([]commonparams.NodeCapacity, 0, len(req.NodeCapacities))
 		for _, nc := range req.NodeCapacities {
 			updateParams.NodeCapacities = append(updateParams.NodeCapacities, commonparams.NodeCapacity{
-				Name:      nc.Name.Value,
-				NodeUUID:  nc.NodeUUID.Value,
+				Name:      nc.Name,
+				NodeUUID:  nc.NodeUUID,
 				SizeInGiB: nc.SizeInGiB,
 			})
 		}
+	}
+	if hasDataEndpointCount {
+		updateParams.HAPairs = uint64(req.DataEndpointCount.Value / 2)
 	}
 	if req.OciAdminPassword.Set {
 		version, parseErr := strconv.ParseInt(req.OciAdminPassword.Value.Version, 10, 64)
@@ -859,13 +854,31 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 		}
 	}
 	if req.KmsKeyId.Set {
-		updateParams.KmsKeyId = req.KmsKeyId.Value
+		kmsKeyId := strings.TrimSpace(req.KmsKeyId.Value)
+		if kmsKeyId == "" {
+			return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsgEmptyKmsKeyId), nil
+		}
+		if !isValidOCID(kmsKeyId) {
+			return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsgInvalidKmsKeyId), nil
+		}
+		updateParams.KmsKeyId = kmsKeyId
 	}
-	if len(req.NsgIds) > 0 {
-		updateParams.NsgIds = append([]string(nil), req.NsgIds...)
+	if req.NsgIds != nil {
+		nsgIds := make([]string, len(req.NsgIds))
+		for i, nsgID := range req.NsgIds {
+			nsgID = strings.TrimSpace(nsgID)
+			if nsgID == "" {
+				return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, fmt.Sprintf(errMsgEmptyNsgID, i)), nil
+			}
+			if !isValidOCID(nsgID) {
+				return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, fmt.Sprintf(errMsgInvalidNsgID, i)), nil
+			}
+			nsgIds[i] = nsgID
+		}
+		updateParams.NsgIds = nsgIds
 	}
 	if req.SecurityAttributes.Set {
-		updateParams.SecurityAttributes = toCustomerSecurityAttributes(req.SecurityAttributes.Value)
+		updateParams.SecurityAttributes = toUpdateCustomerSecurityAttributes(req.SecurityAttributes.Value)
 	}
 
 	_, workflowID, err := h.Orchestrator.UpdatePool(ctx, updateParams)
@@ -979,4 +992,15 @@ func toCustomerSecurityAttributes(in ociserver.SecurityAttributes) map[string]ma
 		out[ns] = inner
 	}
 	return out
+}
+
+func toUpdateCustomerSecurityAttributes(in ociserver.SecurityAttributes) map[string]map[string]interface{} {
+	if len(in) == 0 {
+		return map[string]map[string]interface{}{}
+	}
+	attrs := toCustomerSecurityAttributes(in)
+	if attrs == nil {
+		return map[string]map[string]interface{}{}
+	}
+	return attrs
 }

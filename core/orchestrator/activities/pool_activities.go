@@ -570,24 +570,57 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 	return updatedPool, nil
 }
 
-func (j *PoolActivity) UpdatePoolVLMConfigField(ctx context.Context, poolUUID string, vlmConfig vlm.VLMConfig) error {
-	activity.RecordHeartbeat(ctx, "Starting UpdatePoolVLMConfigField activity")
-	se := j.SE
+func buildOCINodeAttributeUpdates(vlmConfig vlm.VLMConfig) map[string]datamodel.NodeDetails {
+	updates := make(map[string]datamodel.NodeDetails)
+	instanceType := vlmConfig.Deployment.VSAInstanceType
+	for _, haPair := range vlmConfig.Cloud.HAPairs {
+		for _, vmConfig := range []vlm.VMConfig{haPair.VM1, haPair.VM2} {
+			if vmConfig.HostName == "" {
+				continue
+			}
+			var sizeInGiB int64
+			for _, disk := range vmConfig.DataDisks {
+				sizeInGiB += int64(disk.Size)
+			}
+			updates[vmConfig.HostName] = datamodel.NodeDetails{
+				InstanceType: instanceType,
+				SizeInGiB:    sizeInGiB,
+			}
+		}
+	}
+	return updates
+}
 
-	marshalledVlmConfig, err := json.Marshal(vlmConfig)
-	if err != nil {
-		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			fmt.Errorf("marshal VLM config for pool %s: %w", poolUUID, err))
+func (j *PoolActivity) RestoreOCINodesPreUpdateFields(ctx context.Context, poolID int64, snapshotByNodeName map[string]datamodel.NodeDetails) error {
+	activity.RecordHeartbeat(ctx, "Starting RestoreOCINodesPreUpdateFields activity")
+	if len(snapshotByNodeName) == 0 {
+		return nil
+	}
+	if err := j.SE.UpdateNodesSizeAndInstanceType(ctx, poolID, snapshotByNodeName); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	activity.RecordHeartbeat(ctx, "Finished RestoreOCINodesPreUpdateFields activity")
+	return nil
+}
+
+func (j *PoolActivity) UpdateOCINodesFromVLMConfig(ctx context.Context, poolID int64, vlmConfig vlm.VLMConfig) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateOCINodesFromVLMConfig activity")
+
+	updates := buildOCINodeAttributeUpdates(vlmConfig)
+	if len(updates) == 0 {
+		logger.Infof("No node attribute updates derived from VLM config for pool ID %d; skipping", poolID)
+		return nil
 	}
 
-	activity.RecordHeartbeat(ctx, "Persisting per-batch VLM config to pool")
-	if err := se.UpdatePoolFields(ctx, poolUUID, map[string]interface{}{
-		"vlm_config": string(marshalledVlmConfig),
-	}); err != nil {
+	if err := se.UpdateNodesSizeAndInstanceType(ctx, poolID, updates); err != nil {
+		logger.Errorf("Failed to update node size and instance type for pool ID %d: %v", poolID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	activity.RecordHeartbeat(ctx, "Finished UpdatePoolVLMConfigField activity")
+	logger.Infof("Successfully updated size and instance type for %d nodes in pool ID %d", len(updates), poolID)
+	activity.RecordHeartbeat(ctx, "Finished UpdateOCINodesFromVLMConfig activity")
 	return nil
 }
 
@@ -2330,15 +2363,23 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 	if err != nil {
 		return nil, err
 	}
+	var nodeSizeInGiB int64
+	for _, disk := range vmConfig.DataDisks {
+		nodeSizeInGiB += int64(disk.Size)
+	}
 	rec := &datamodel.Node{
 		Name:            node.Name,
 		EndpointAddress: node.EndpointAddress,
 		PoolID:          pool.ID,
-		State:           datamodel.LifeCycleStateAvailable,
-		StateDetails:    datamodel.LifeCycleStateAvailableDetails,
-		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
-		AccountID:       pool.AccountID,
-		ZoneName:        node.Zone,
+		State:        datamodel.LifeCycleStateAvailable,
+		StateDetails: datamodel.LifeCycleStateAvailableDetails,
+		NodeAttributes: &datamodel.NodeDetails{
+			ExternalUUID: vsaNode.ExternalUUID,
+			InstanceType: node.InstanceType,
+			SizeInGiB:    nodeSizeInGiB,
+		},
+		AccountID: pool.AccountID,
+		ZoneName:  node.Zone,
 	}
 	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
 		rec.HostDNSName = hostMap[node.EndpointAddress]
@@ -3512,8 +3553,9 @@ type UpdatePoolComplianceActivityOutput struct {
 
 // CalculateBatchPlanActivityInput represents input for calculating batch plan
 type CalculateBatchPlanActivityInput struct {
-	NumHAPairs                  int `json:"num_ha_pairs"`
-	ParallelNumberOfNodesForITC int `json:"parallel_number_of_nodes_for_itc"`
+	NumHAPairs                  int   `json:"num_ha_pairs"`
+	HAPairIndices               []int `json:"ha_pair_indices,omitempty"` // 1-based; empty means all pairs in the cluster
+	ParallelNumberOfNodesForITC int   `json:"parallel_number_of_nodes_for_itc"`
 }
 
 // CalculateBatchPlanActivityOutput represents output for batch plan calculation
@@ -3522,6 +3564,58 @@ type CalculateBatchPlanActivityOutput struct {
 	BatchSize        int     `json:"batch_size"`
 	NumWorkflowCalls int     `json:"num_workflow_calls"`
 	BatchIndices     [][]int `json:"batch_indices"` // Each inner slice contains HA pair indices for that batch
+}
+
+// normalizeHAPairIndicesForBatchPlan returns sorted unique 1-based HA pair indices to include in
+// the batch plan. An empty requested slice means all pairs in the cluster.
+func normalizeHAPairIndicesForBatchPlan(requested []int, clusterHAPairCount int) ([]int, error) {
+	if clusterHAPairCount <= 0 {
+		return nil, fmt.Errorf("invalid cluster HA pair count: %d", clusterHAPairCount)
+	}
+	if len(requested) == 0 {
+		out := make([]int, clusterHAPairCount)
+		for i := range out {
+			out[i] = i + 1
+		}
+		return out, nil
+	}
+	seen := make(map[int]struct{}, len(requested))
+	out := make([]int, 0, len(requested))
+	for _, idx := range requested {
+		if idx < 1 || idx > clusterHAPairCount {
+			return nil, fmt.Errorf("HA pair index %d out of range [1,%d]", idx, clusterHAPairCount)
+		}
+		if _, ok := seen[idx]; ok {
+			continue
+		}
+		seen[idx] = struct{}{}
+		out = append(out, idx)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// GetNodeUUIDToNameForPool maps node UUID to node name for a pool.
+func (j *PoolActivity) GetNodeUUIDToNameForPool(ctx context.Context, poolID int64) (map[string]string, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetNodeUUIDToNameForPool activity")
+	nodes, err := j.SE.GetNodesByPoolID(ctx, poolID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	uuidToName := make(map[string]string, len(nodes))
+	for _, node := range nodes {
+		if node == nil || node.UUID == "" {
+			continue
+		}
+		if node.Name == "" {
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState,
+					fmt.Errorf("node %q has empty name", node.UUID)))
+		}
+		uuidToName[node.UUID] = node.Name
+	}
+	activity.RecordHeartbeat(ctx, "Finished GetNodeUUIDToNameForPool activity")
+	return uuidToName, nil
 }
 
 // CalculateBatchPlanForUpdate calculates the batch plan for HA pair updates
@@ -3534,7 +3628,20 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("invalid number of HA pairs: %d", input.NumHAPairs))
 	}
 
-	numHAPairs := input.NumHAPairs
+	pairIndices, err := normalizeHAPairIndicesForBatchPlan(input.HAPairIndices, input.NumHAPairs)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if len(pairIndices) == 0 {
+		return &CalculateBatchPlanActivityOutput{
+			NumHAPairs:       0,
+			BatchSize:        0,
+			NumWorkflowCalls: 0,
+			BatchIndices:     nil,
+		}, nil
+	}
+
+	numHAPairs := len(pairIndices)
 	parallelNumberOfNodesForITC := input.ParallelNumberOfNodesForITC
 
 	if parallelNumberOfNodesForITC <= 0 {
@@ -3555,16 +3662,10 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 		if endIdx > numHAPairs {
 			endIdx = numHAPairs
 		}
-
-		// Generate HAPairIndices for this batch (1-indexed)
-		indices := make([]int, endIdx-startIdx)
-		for i := 0; i < endIdx-startIdx; i++ {
-			indices[i] = startIdx + i + 1
-		}
-		batchIndices = append(batchIndices, indices)
+		batchIndices = append(batchIndices, slices.Clone(pairIndices[startIdx:endIdx]))
 	}
 
-	logger.Info("Batch plan calculated", "numHAPairs", numHAPairs, "batchSize", batchSize, "numWorkflowCalls", numWorkflowCalls)
+	logger.Info("Batch plan calculated", "numHAPairs", numHAPairs, "batchSize", batchSize, "numWorkflowCalls", numWorkflowCalls, "haPairIndices", pairIndices)
 	activity.RecordHeartbeat(ctx, "Finished CalculateBatchPlanForUpdate activity")
 
 	return &CalculateBatchPlanActivityOutput{
@@ -3575,10 +3676,6 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 	}, nil
 }
 
-// RestorePoolPreUpdatePoolLevelFields reverts pool-level columns from a pre-update snapshot
-// without touching vlm_config. Used as OCI Update Pool DB compensation after per-batch
-// UpdatePoolVLMConfigField writes so the DB keeps the cluster-accurate VLM config while
-// pool-level size / throughput / tiering metadata roll back to the pre-update values.
 func (j *PoolActivity) RestorePoolPreUpdatePoolLevelFields(ctx context.Context, poolUUID string, snapshot *datamodel.Pool) error {
 	activity.RecordHeartbeat(ctx, "Starting RestorePoolPreUpdatePoolLevelFields activity")
 	if snapshot == nil {
@@ -3590,6 +3687,7 @@ func (j *PoolActivity) RestorePoolPreUpdatePoolLevelFields(ctx context.Context, 
 		"size_in_bytes":      snapshot.SizeInBytes,
 		"description":        snapshot.Description,
 		"allow_auto_tiering": snapshot.AllowAutoTiering,
+		"vlm_config":         snapshot.VLMConfig,
 	}
 	if snapshot.PoolAttributes != nil {
 		updates["pool_attributes"] = snapshot.PoolAttributes
@@ -3599,7 +3697,7 @@ func (j *PoolActivity) RestorePoolPreUpdatePoolLevelFields(ctx context.Context, 
 	}
 
 	se := j.SE
-	activity.RecordHeartbeat(ctx, "Restoring pool-level fields from pre-update snapshot")
+	activity.RecordHeartbeat(ctx, "Restoring pre-update pool snapshot fields")
 	if err := se.UpdatePoolFields(ctx, poolUUID, updates); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

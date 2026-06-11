@@ -67,6 +67,15 @@ func setTestOCIImageEnv(t *testing.T) {
 	withOCIOntapVersionDetails(t, testOCIOntapVersion)
 }
 
+func registerOCIUpdatePoolNodePersistMocks(env *testsuite.TestWorkflowEnvironment, nodes []*datamodel.Node) {
+	if nodes == nil {
+		nodes = []*datamodel.Node{}
+	}
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity("UpdateOCINodesFromVLMConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("RestoreOCINodesPreUpdateFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+}
+
 // setOCIExpertModePassword overrides the package-level ociExpertModePassword
 // so the workflow skips the GetExpertModeCredentialsForOCI activity and
 // uses the preset password directly. The original value is restored via t.Cleanup.
@@ -2011,7 +2020,7 @@ func TestDeriveUpdateTargetSPConfig_BasicFieldMapping(t *testing.T) {
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 	}
 
-	sp, err := deriveUpdateTargetSPConfig(params, pool, vlm.VLMConfig{})
+	sp, err := deriveUpdateTargetSPConfig(params, pool)
 	require.NoError(t, err)
 
 	assert.Equal(t, "2048Gi", sp.Size,
@@ -2037,7 +2046,7 @@ func TestDeriveUpdateTargetSPConfig_FallsBackToPoolDefaults(t *testing.T) {
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 	}
 
-	sp, err := deriveUpdateTargetSPConfig(params, pool, vlm.VLMConfig{})
+	sp, err := deriveUpdateTargetSPConfig(params, pool)
 	require.NoError(t, err)
 	assert.Equal(t, "1024Gi", sp.Size)
 	assert.Equal(t, int64(128), sp.Throughput)
@@ -2056,7 +2065,7 @@ func TestDeriveUpdateTargetSPConfig_NilPoolAttributes(t *testing.T) {
 		PoolAttributes: nil,
 	}
 
-	sp, err := deriveUpdateTargetSPConfig(params, pool, vlm.VLMConfig{})
+	sp, err := deriveUpdateTargetSPConfig(params, pool)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), sp.Throughput,
 		"Throughput must default to 0 when neither params nor pool.PoolAttributes provides it")
@@ -2128,7 +2137,7 @@ func TestDeriveUpdateTargetSPConfig_NeverPopulatesHAPairConfigs(t *testing.T) {
 			localParams := *params
 			localParams.NodeCapacities = tc.nodeCapacities
 
-			sp, err := deriveUpdateTargetSPConfig(&localParams, pool, tc.currentVlmConfig)
+			sp, err := deriveUpdateTargetSPConfig(&localParams, pool)
 			require.NoError(tt, err)
 			assert.Equal(tt, "1200Gi", sp.Size, "pool-level Size must still be emitted")
 			assert.Equal(tt, int64(3814), sp.Throughput, "pool-level Throughput must still be emitted")
@@ -2169,7 +2178,7 @@ func TestDeriveUpdateTargetSPConfig_DoesNotMutateCurrentVlmConfig(t *testing.T) 
 		TotalThroughputMibps: 3814,
 		NodeCapacities:       []common.NodeCapacity{{SizeInGiB: 500}},
 	}
-	_, err = deriveUpdateTargetSPConfig(params, pool, currentVlmConfig)
+	_, err = deriveUpdateTargetSPConfig(params, pool)
 	require.NoError(t, err)
 
 	after, err := json.Marshal(currentVlmConfig)
@@ -2190,6 +2199,21 @@ func storedVLMConfigWithHAPairs(n int) *vlm.VLMConfig {
 		Deployment: vlm.DeploymentConfig{NumHAPair: n},
 		Cloud:      vlm.CloudConfig{HAPairs: haPairs},
 	}
+}
+
+func ociUpdateNodes(n int, sizes ...int64) []*datamodel.Node {
+	nodes := make([]*datamodel.Node, 0, 2*n)
+	for i := 0; i < 2*n; i++ {
+		var size int64
+		if i < len(sizes) {
+			size = sizes[i]
+		}
+		nodes = append(nodes, &datamodel.Node{
+			BaseModel:      datamodel.BaseModel{UUID: fmt.Sprintf("uuid-node-%d", i)},
+			NodeAttributes: &datamodel.NodeDetails{SizeInGiB: size},
+		})
+	}
+	return nodes
 }
 
 // storedVLMConfigEmptyCloud matches DB rows where deployment.num_ha_pair is set but cloud.ha_pair was never persisted (JSON null).
@@ -2272,10 +2296,129 @@ func TestOCIUpdatePoolWorkflow_NilPoolCredentialsRejected(t *testing.T) {
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
+	// With credential resolution delegated to the GetOnTapCredentialsForOCI activity,
+	// a nil PoolCredentials is rejected inside that activity (fetchOnTapCredentialsForOCI)
+	// rather than by an in-workflow helper. The workflow must still fail and run the
+	// ErroredPool compensation.
 	assert.True(t, env.IsWorkflowCompleted())
-	err := env.GetWorkflowError()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "pool credentials are required")
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestOCIUpdatePoolWorkflow_FetchCredentialsFails asserts that when the
+// GetOnTapCredentialsForOCI activity fails (e.g. OCI Vault unreachable), the
+// update workflow aborts before any VLM call and runs the ErroredPool
+// compensation. The pre-update snapshot restore is not yet registered at the
+// credential-fetch step, so ErroredPool is the only compensation expected.
+func TestOCIUpdatePoolWorkflow_FetchCredentialsFails(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-upd"},
+		Name:                   "p",
+		DeploymentName:         "dep-upd",
+		PoolExternalIdentifier: "ocid1.pool.oc1..upd",
+		SizeInBytes:            1024 * 1024 * 1024 * 1024,
+		Network:                "subnet-1",
+		Account:                &datamodel.Account{Name: "test-account"},
+		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
+		PoolCredentials:        &datamodel.PoolCredentials{AuthType: envs.USERNAME_PWD_SEC_MGR},
+	}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return((*vlm.OntapCredentials)(nil), assert.AnError)
+
+	// VLM must never be invoked if credentials cannot be resolved.
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVlm.AssertNotCalled(t, "UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertExpectations(t)
+}
+
+// TestOCIUpdatePoolWorkflow_UsesFetchedCredentials pins the contract that the
+// update flow forwards the credentials returned by GetOnTapCredentialsForOCI
+// (e.g. a password resolved from OCI Vault) to VLM, rather than reading
+// pool.PoolCredentials.Password directly. The pool uses secret-manager auth
+// with an empty Password, so the only way AdminPassword can reach VLM is via
+// the activity result.
+func TestOCIUpdatePoolWorkflow_UsesFetchedCredentials(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-upd"},
+		Name:                   "p",
+		DeploymentName:         "dep-upd",
+		PoolExternalIdentifier: "ocid1.pool.oc1..upd",
+		SizeInBytes:            1024 * 1024 * 1024 * 1024,
+		Network:                "subnet-1",
+		Account:                &datamodel.Account{Name: "test-account"},
+		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
+		PoolCredentials:        &datamodel.PoolCredentials{AuthType: envs.USERNAME_PWD_SEC_MGR},
+	}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "vault-generated-pw"}, nil)
+
+	var capturedReq *vlm.UpdateVSAClusterDeploymentRequest
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			capturedReq = args.Get(1).(*vlm.UpdateVSAClusterDeploymentRequest)
+		}).
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
+
+	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	require.NotNil(t, capturedReq, "VLM update request must have been captured")
+	assert.Equal(t, "vault-generated-pw", capturedReq.OntapCredentials.AdminPassword,
+		"OntapCredentials.AdminPassword must come from the GetOnTapCredentialsForOCI activity, not pool.PoolCredentials.Password")
+	mockVlm.AssertExpectations(t)
 	env.AssertExpectations(t)
 }
 
@@ -2320,8 +2463,8 @@ func TestOCIUpdatePoolWorkflow_VLMRequestFields(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
@@ -2335,6 +2478,71 @@ func TestOCIUpdatePoolWorkflow_VLMRequestFields(t *testing.T) {
 		"NumHAPair must come from stored VLM config")
 	assert.Equal(t, []int{1}, capturedReq.HAPairIndices,
 		"HAPairIndices must contain [1] for single HA pair (VLM contract is 1-based)")
+	mockVlm.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+func TestOCIUpdatePoolWorkflow_ScaleOutSetsTargetNumHAPair(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
+		HAPairs:              4,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-scale"},
+		Name:                   "p-scale",
+		DeploymentName:         "dep-scale",
+		PoolExternalIdentifier: "ocid1.pool.oc1..scale",
+		SizeInBytes:            1024 * 1024 * 1024 * 1024,
+		Network:                "subnet-1",
+		Account:                &datamodel.Account{Name: "test-account"},
+		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
+		PoolCredentials:        &datamodel.PoolCredentials{Password: "pw"},
+	}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
+
+	var capturedReqs []*vlm.UpdateVSAClusterDeploymentRequest
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			req := args.Get(1).(*vlm.UpdateVSAClusterDeploymentRequest)
+			cp := *req
+			capturedReqs = append(capturedReqs, &cp)
+		}).
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
+
+	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	require.NotEmpty(t, capturedReqs, "VLM update must have been called")
+	seen := map[int]struct{}{}
+	for _, r := range capturedReqs {
+		assert.Equal(t, 4, r.NumHAPair, "scale-out (dataEndpointCount=8) must send target NumHAPair=4 on every batch")
+		for _, idx := range r.HAPairIndices {
+			seen[idx] = struct{}{}
+		}
+	}
+	assert.Equal(t, map[int]struct{}{1: {}, 2: {}, 3: {}, 4: {}}, seen, "all 4 target HA pairs must be batched")
 	mockVlm.AssertExpectations(t)
 	env.AssertExpectations(t)
 }
@@ -2380,8 +2588,8 @@ func TestOCIUpdatePoolWorkflow_VLMRequestFieldsFromStoredConfig(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
@@ -2459,7 +2667,6 @@ func TestOCIUpdatePoolWorkflow_VLMConfigIsPristineOnTheWire(t *testing.T) {
 	}
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVlmConfig, nil)
-
 	var captured *vlm.UpdateVSAClusterDeploymentRequest
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
@@ -2473,8 +2680,8 @@ func TestOCIUpdatePoolWorkflow_VLMConfigIsPristineOnTheWire(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
@@ -2516,9 +2723,9 @@ func TestOCIUpdatePoolWorkflow_VLMConfigIsPristineOnTheWire(t *testing.T) {
 
 // TestOCIUpdatePoolWorkflow_UpdateStatusPartialFailureRejected asserts that a 200 OK
 // response from VLM carrying a non-empty UpdateStatus (e.g. SPUpdateFail) is treated as
-// a partial-update failure: the workflow must (a) persist resp.VLMConfig so the DB
-// reflects the partial cluster state, (b) NOT advance to subsequent batches, and (c)
-// fail with ErrIncorrectVSAClusterState surfacing the failed sub-operations.
+// a partial-update failure: the workflow must NOT persist vlm_config, NOT advance to
+// subsequent batches, and fail with ErrIncorrectVSAClusterState surfacing the failed
+// sub-operations (rollback only restores pool-level fields).
 func TestOCIUpdatePoolWorkflow_UpdateStatusPartialFailureRejected(t *testing.T) {
 	setTestOCIImageEnv(t)
 
@@ -2553,14 +2760,6 @@ func TestOCIUpdatePoolWorkflow_UpdateStatusPartialFailureRejected(t *testing.T) 
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("RestorePoolPreUpdatePoolLevelFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	// Capture persist calls so we can prove resp.VLMConfig is written to DB BEFORE the
-	// workflow returns the partial-failure error (so the DB reflects what landed on the
-	// cluster for triage).
-	var persistCalls int
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { persistCalls++ }).
-		Return(nil)
-
 	// Track how many times VLM is invoked: must be exactly 1 (the failing batch); the
 	// remaining 2 batches must NOT be issued.
 	var vlmCalls int
@@ -2594,10 +2793,9 @@ func TestOCIUpdatePoolWorkflow_UpdateStatusPartialFailureRejected(t *testing.T) 
 
 	assert.Equal(t, 1, vlmCalls,
 		"only the first (failing) batch must be issued to VLM; the workflow must NOT advance to subsequent batches after a partial-failure UpdateStatus")
-	assert.Equal(t, 1, persistCalls,
-		"resp.VLMConfig from the failing batch must be persisted exactly once before the workflow errors out, so the DB reflects the partial cluster state for triage")
 
 	mockVlm.AssertExpectations(t)
+	env.AssertNotCalled(t, "UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestUpdateStatusFailureFlags pins the unit-level mapping from DeploymentUpdateStatus
@@ -2636,76 +2834,6 @@ func TestUpdateStatusFailureFlags(t *testing.T) {
 // than absolute values to remain robust against parallel/preceding tests.
 func stageCounter(stage, result string) float64 {
 	return testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stage, result))
-}
-
-// TestOCIUpdatePoolWorkflow_PerBatchDBPersistFailure_EmitsStageDBPersist pins the
-// H5 fix: when the per-batch persist of resp.VLMConfig fails, the workflow must
-// emit stageDBPersistPerBatch=failure, NOT stageVLMUpdate=failure. The earlier behavior
-// rolled every error coming out of executeOCIUpdatePoolVLMInBatches up to a
-// generic stageVLMUpdate=failure, mis-attributing DB-side failures to the VLM
-// stage and skewing SLO dashboards.
-func TestOCIUpdatePoolWorkflow_PerBatchDBPersistFailure_EmitsStageDBPersist(t *testing.T) {
-	setTestOCIImageEnv(t)
-
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-
-	mockStorage := database.NewMockStorage(t)
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
-
-	params := &common.UpdatePoolParams{
-		AccountName:          "test-account",
-		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps: 256,
-	}
-	pool := &datamodel.Pool{
-		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-h5-dbpersist"},
-		Name:                   "p-h5-dbpersist",
-		DeploymentName:         "dep-h5-dbpersist",
-		PoolExternalIdentifier: "ocid1.pool.oc1..h5-dbpersist",
-		SizeInBytes:            1024 * 1024 * 1024 * 1024,
-		Network:                "subnet-1",
-		Account:                &datamodel.Account{Name: "test-account"},
-		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
-		PoolCredentials:        &datamodel.PoolCredentials{Password: "pw"},
-	}
-
-	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
-	env.OnActivity("RestorePoolPreUpdatePoolLevelFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
-
-	// VLM batch succeeds; the per-batch DB persist injected below fails.
-	mockVlm := vlm.NewMockVlmWorkflowClient(t)
-	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
-		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
-	orig := workflows.GetNewVSAClientWorkflowManager
-	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
-	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
-
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).
-		Return(errors.New("simulated per-batch DB persist failure"))
-
-	dbPersistBefore := stageCounter(stageDBPersistPerBatch, resultFailure)
-	vlmUpdateBefore := stageCounter(stageVLMUpdate, resultFailure)
-	vlmUpdateSuccessBefore := stageCounter(stageVLMUpdate, resultSuccess)
-
-	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
-
-	require.True(t, env.IsWorkflowCompleted())
-	require.Error(t, env.GetWorkflowError(), "per-batch persist failure must surface as a workflow error")
-
-	dbPersistAfter := stageCounter(stageDBPersistPerBatch, resultFailure)
-	vlmUpdateAfter := stageCounter(stageVLMUpdate, resultFailure)
-	vlmUpdateSuccessAfter := stageCounter(stageVLMUpdate, resultSuccess)
-
-	assert.InDelta(t, 1.0, dbPersistAfter-dbPersistBefore, 0,
-		"per-batch DB persist failure must emit stage=db_persist_per_batch,result=failure exactly once")
-	assert.InDelta(t, 0.0, vlmUpdateAfter-vlmUpdateBefore, 0,
-		"per-batch DB persist failure must NOT be mis-attributed to stage=vlm_update,result=failure (H5 regression)")
-	assert.InDelta(t, 0.0, vlmUpdateSuccessAfter-vlmUpdateSuccessBefore, 0,
-		"vlm_update success must NOT be emitted when the batched loop returned an error")
 }
 
 // TestOCIUpdatePoolWorkflow_PerBatchVLMFailure_EmitsStageVLMUpdate is the partner
@@ -2752,7 +2880,6 @@ func TestOCIUpdatePoolWorkflow_PerBatchVLMFailure_EmitsStageVLMUpdate(t *testing
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	dbPersistBefore := stageCounter(stageDBPersistPerBatch, resultFailure)
 	vlmUpdateBefore := stageCounter(stageVLMUpdate, resultFailure)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
@@ -2760,13 +2887,11 @@ func TestOCIUpdatePoolWorkflow_PerBatchVLMFailure_EmitsStageVLMUpdate(t *testing
 	require.True(t, env.IsWorkflowCompleted())
 	require.Error(t, env.GetWorkflowError(), "per-batch VLM failure must surface as a workflow error")
 
-	dbPersistAfter := stageCounter(stageDBPersistPerBatch, resultFailure)
 	vlmUpdateAfter := stageCounter(stageVLMUpdate, resultFailure)
 
 	assert.InDelta(t, 1.0, vlmUpdateAfter-vlmUpdateBefore, 0,
 		"per-batch VLM call failure must emit stage=vlm_update,result=failure exactly once (from the inner emit site, no double-count)")
-	assert.InDelta(t, 0.0, dbPersistAfter-dbPersistBefore, 0,
-		"per-batch VLM call failure must NOT emit stage=db_persist_per_batch,result=failure: the DB persist was never reached")
+	env.AssertNotCalled(t, "UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestOCIUpdatePoolWorkflow_Success(t *testing.T) {
@@ -2806,14 +2931,154 @@ func TestOCIUpdatePoolWorkflow_Success(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestOCIUpdatePoolWorkflow_PersistsNodeSizeAndInstanceType(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-node-persist", ID: 77},
+		Name:                   "p",
+		DeploymentName:         "dep-node-persist",
+		PoolExternalIdentifier: "ocid1.pool.oc1..node",
+		SizeInBytes:            1024 * 1024 * 1024 * 1024,
+		Network:                "subnet-1",
+		Account:                &datamodel.Account{Name: "test-account"},
+		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
+		PoolCredentials:        &datamodel.PoolCredentials{Password: "test-ontap-password"},
+	}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
+
+	respConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{
+			{
+				VM1: vlm.VMConfig{HostName: "vm-01", DataDisks: []vlm.DiskConfig{{Size: 1000}, {Size: 1000}}},
+				VM2: vlm.VMConfig{HostName: "vm-02", DataDisks: []vlm.DiskConfig{{Size: 1500}, {Size: 1500}}},
+			},
+		}},
+	}
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: respConfig}, nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{Name: "vm-01", NodeAttributes: &datamodel.NodeDetails{SizeInGiB: 1000, InstanceType: "old-type"}},
+		{Name: "vm-02", NodeAttributes: &datamodel.NodeDetails{SizeInGiB: 1500, InstanceType: "old-type"}},
+	}, nil)
+	env.OnActivity("RestoreOCINodesPreUpdateFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	var captured map[string]datamodel.NodeDetails
+	mockStorage.On("UpdateNodesSizeAndInstanceType", mock.Anything, int64(77), mock.Anything).
+		Run(func(args mock.Arguments) {
+			captured = args.Get(2).(map[string]datamodel.NodeDetails)
+		}).Return(nil)
+
+	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	assert.Equal(t, datamodel.NodeDetails{InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 2000}, captured["vm-01"])
+	assert.Equal(t, datamodel.NodeDetails{InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 3000}, captured["vm-02"])
+	mockStorage.AssertExpectations(t)
+}
+
+func TestOCIUpdatePoolWorkflow_NodeSizePersistFails(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-node-persist-fail", ID: 88},
+		Name:                   "p",
+		DeploymentName:         "dep-node-persist-fail",
+		PoolExternalIdentifier: "ocid1.pool.oc1..nodefail",
+		SizeInBytes:            1024 * 1024 * 1024 * 1024,
+		Network:                "subnet-1",
+		Account:                &datamodel.Account{Name: "test-account"},
+		PoolAttributes:         &datamodel.PoolAttributes{ThroughputMibps: 128},
+		PoolCredentials:        &datamodel.PoolCredentials{Password: "test-ontap-password"},
+	}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHAPairs(1), nil)
+
+	respConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{
+			{
+				VM1: vlm.VMConfig{HostName: "vm-01", DataDisks: []vlm.DiskConfig{{Size: 1000}}},
+				VM2: vlm.VMConfig{HostName: "vm-02", DataDisks: []vlm.DiskConfig{{Size: 1000}}},
+			},
+		}},
+	}
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: respConfig}, nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	snapshotNodes := []*datamodel.Node{
+		{Name: "vm-01", NodeAttributes: &datamodel.NodeDetails{SizeInGiB: 1000, InstanceType: "old-type"}},
+		{Name: "vm-02", NodeAttributes: &datamodel.NodeDetails{SizeInGiB: 1000, InstanceType: "old-type"}},
+	}
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(snapshotNodes, nil)
+	var restoreNodeSnapshot map[string]datamodel.NodeDetails
+	env.OnActivity("UpdateOCINodesFromVLMConfig", mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	env.OnActivity("RestoreOCINodesPreUpdateFields", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			restoreNodeSnapshot = args.Get(2).(map[string]datamodel.NodeDetails)
+		}).
+		Return(nil)
+
+	env.OnActivity("RestorePoolPreUpdatePoolLevelFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Equal(t, datamodel.NodeDetails{SizeInGiB: 1000, InstanceType: "old-type"}, restoreNodeSnapshot["vm-01"])
 }
 
 func TestOCIUpdatePoolWorkflow_VLMUpdateFails(t *testing.T) {
@@ -2901,7 +3166,6 @@ func TestOCIUpdatePoolWorkflow_PersistFails(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Pool)(nil), assert.AnError)
 	// When the final pool-level persist fails after VLM succeeded, the rollback chain
 	// must run RestorePoolPreUpdatePoolLevelFields before ErroredPool stamps the final state.
@@ -2915,12 +3179,10 @@ func TestOCIUpdatePoolWorkflow_PersistFails(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-// TestOCIUpdatePoolWorkflow_PerBatchVLMConfigPersist asserts that after each
-// successful VLM batch the workflow persists THAT batch's `resp.VLMConfig` to the
-// pool row (per the sequence-diagram step 29, "currentVlmConfig = resp.VLMConfig"
-// rolled forward into the DB). Each batch must persist the value returned by that
-// specific batch's UpdateVSAClusterDeployment response, not the initial config.
-func TestOCIUpdatePoolWorkflow_PerBatchVLMConfigPersist(t *testing.T) {
+// TestOCIUpdatePoolWorkflow_FinalPersistUsesLastBatchVLMConfig asserts that vlm_config
+// is written only once at the end via UpdatedPoolWithVLMConfig, using the last batch's
+// resp.VLMConfig after every batch succeeds.
+func TestOCIUpdatePoolWorkflow_FinalPersistUsesLastBatchVLMConfig(t *testing.T) {
 	setTestOCIImageEnv(t)
 
 	var ts testsuite.WorkflowTestSuite
@@ -2970,42 +3232,27 @@ func TestOCIUpdatePoolWorkflow_PerBatchVLMConfigPersist(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	// Capture each per-batch persist call so we can confirm the workflow walked
-	// resp.VLMConfig from batch 1 → 2 → 3 in order and persisted each one to the same pool UUID.
-	type persistedCall struct {
-		poolUUID  string
-		vlmConfig vlm.VLMConfig
-	}
-	var persistedCalls []persistedCall
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).
+	var finalVLMConfig vlm.VLMConfig
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			persistedCalls = append(persistedCalls, persistedCall{
-				poolUUID:  args.Get(1).(string),
-				vlmConfig: args.Get(2).(vlm.VLMConfig),
-			})
+			finalVLMConfig = args.Get(2).(vlm.VLMConfig)
 		}).
-		Return(nil)
-	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+		Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
-	require.Len(t, persistedCalls, 3, "must persist once per successful VLM batch")
-	for i, c := range persistedCalls {
-		assert.Equal(t, "pool-uuid-batched", c.poolUUID, "every per-batch persist must target the same pool UUID")
-		assert.Equal(t, batchVLMConfigs[i].Deployment.DeploymentID, c.vlmConfig.Deployment.DeploymentID,
-			"batch %d must persist its OWN UpdateVSAClusterDeployment response, not a stale config", i+1)
-	}
+	assert.Equal(t, batchVLMConfigs[2].Deployment.DeploymentID, finalVLMConfig.Deployment.DeploymentID,
+		"final persist must use the last batch's VLMConfig, not an intermediate batch")
 	env.AssertExpectations(t)
 }
 
-// TestOCIUpdatePoolWorkflow_BatchFailureKeepsPriorBatchPersisted asserts the
-// per-HA-pair DB rollback semantics: when batch N fails, prior successful
-// batches' VLMConfig writes remain in the DB (we do NOT undo them), the failing
-// batch's response is dropped, the final pool-level UpdatedPoolWithVLMConfig is
-// never called, and the rollback chain RestorePoolPreUpdatePoolLevelFields → ErroredPool runs.
-func TestOCIUpdatePoolWorkflow_BatchFailureKeepsPriorBatchPersisted(t *testing.T) {
+// TestOCIUpdatePoolWorkflow_BatchFailureLeavesVLMConfigUnchanged asserts that when
+// batch N fails, vlm_config is never written (no per-batch persist), the final
+// UpdatedPoolWithVLMConfig is never called, and rollback restores only pool-level fields.
+func TestOCIUpdatePoolWorkflow_BatchFailureLeavesVLMConfigUnchanged(t *testing.T) {
 	setTestOCIImageEnv(t)
 
 	var ts testsuite.WorkflowTestSuite
@@ -3059,10 +3306,6 @@ func TestOCIUpdatePoolWorkflow_BatchFailureKeepsPriorBatchPersisted(t *testing.T
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	var persistCount int32
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(_ mock.Arguments) { persistCount++ }).
-		Return(nil)
 	// Compensation chain: must run RestorePoolPreUpdatePoolLevelFields then ErroredPool.
 	env.OnActivity("RestorePoolPreUpdatePoolLevelFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
@@ -3075,14 +3318,14 @@ func TestOCIUpdatePoolWorkflow_BatchFailureKeepsPriorBatchPersisted(t *testing.T
 	assert.True(t, env.IsWorkflowCompleted())
 	require.Error(t, env.GetWorkflowError())
 	assert.Equal(t, int32(2), batchCall, "VLM should have been attempted for batch 1 (success) and batch 2 (failure); batch 3 must NOT be attempted")
-	assert.Equal(t, int32(1), persistCount, "only batch 1's response must be persisted; batch 2 (failed) and batch 3 (skipped) must not produce DB writes")
 	env.AssertExpectations(t)
+	env.AssertNotCalled(t, "UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestOCIUpdatePoolWorkflow_DBPersistFailureCompensates asserts that when the
 // final pool-level UpdatedPoolWithVLMConfig fails after every VLM batch has
-// succeeded, the rollback compensation runs RestorePoolPreUpdatePoolLevelFields to rewind pool-level
-// fields without overwriting per-batch vlm_config writes, then ErroredPool stamps the final error.
+// succeeded, rollback runs RestorePoolPreUpdatePoolLevelFields to rewind the pre-update
+// snapshot (pool-level fields and vlm_config), then ErroredPool stamps the final error.
 // (The cluster is intentionally NOT rolled back — mid-flight shrink is unsafe.)
 func TestOCIUpdatePoolWorkflow_DBPersistFailureCompensates(t *testing.T) {
 	setTestOCIImageEnv(t)
@@ -3121,7 +3364,6 @@ func TestOCIUpdatePoolWorkflow_DBPersistFailureCompensates(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return((*datamodel.Pool)(nil), assert.AnError)
 
@@ -3203,7 +3445,6 @@ func TestOCIUpdatePoolWorkflow_HomogeneousNodeCapacities_FlatSPConfig(t *testing
 	}
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(storedVLMConfigWithHostNamedHAPairs(1), nil)
-
 	var captured *vlm.UpdateVSAClusterDeploymentRequest
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
@@ -3217,8 +3458,8 @@ func TestOCIUpdatePoolWorkflow_HomogeneousNodeCapacities_FlatSPConfig(t *testing
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.OnActivity("UpdatePoolVLMConfigField", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	registerOCIUpdatePoolNodePersistMocks(env, nil)
 
 	env.ExecuteWorkflow(OCIUpdatePoolWorkflow, params, pool)
 
@@ -4130,6 +4371,54 @@ func TestComputeOCIVMRSInputForUpdate_HappyPath_AA(t *testing.T) {
 		"AA per-VM throughput = totalThroughputGBs / (2 * numHAPairs); must match the CREATE-flow happy path")
 }
 
+func TestComputeOCIVMRSInputForUpdate_ScaleOutUsesTargetHAPairCount(t *testing.T) {
+	origDDC := dataDiskCount
+	dataDiskCount = 2
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	params := &common.UpdatePoolParams{
+		SizeInBytes:          4 * 1_000_000_000_000,
+		TotalThroughputMibps: 1024,
+		HAPairs:              4,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false},
+	}
+	cfg := vlmConfigForVMRSUpdate(2)
+
+	perVMCap, perVMThru, err := computeOCIVMRSInputForUpdate(params, pool, cfg)
+	require.NoError(t, err)
+	assert.InDelta(t, 0.5, perVMCap, 1e-9,
+		"target HAPairs=4 must drive per-VM capacity = totalCapacityTB / (2 * 4), half the 2-pair value")
+	assert.InDelta(t, 0.134217728, perVMThru, 1e-9,
+		"target HAPairs=4 must drive per-VM throughput = totalThroughputGBs / (2 * 4)")
+}
+
+func TestComputeOCIVMRSInputForUpdate_HAPairsNotGreaterThanCurrentIgnored(t *testing.T) {
+	origDDC := dataDiskCount
+	dataDiskCount = 2
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	params := &common.UpdatePoolParams{
+		SizeInBytes:          4 * 1_000_000_000_000,
+		TotalThroughputMibps: 1024,
+		HAPairs:              2,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false},
+	}
+	cfg := vlmConfigForVMRSUpdate(2)
+
+	perVMCap, perVMThru, err := computeOCIVMRSInputForUpdate(params, pool, cfg)
+	require.NoError(t, err)
+	assert.InDelta(t, 1.0, perVMCap, 1e-9,
+		"HAPairs equal to current count must not change sizing (stays at 2 pairs)")
+	assert.InDelta(t, 0.268435456, perVMThru, 1e-9,
+		"HAPairs equal to current count must not change throughput slicing")
+}
+
 // TestComputeOCIVMRSInputForUpdate_HappyPath_AP anchors the
 // Active-Passive slicing path: only the primary VM in each pair serves
 // I/O, so totalActiveVMs = numHAPairs (not 2 * numHAPairs). Per-VM
@@ -4298,7 +4587,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilDecisionLeavesOverridesU
 	target := vlm.SPConfig{Size: "100Gi", IOps: 5000, Throughput: 128}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil)
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{})
 
 	// VLMConfig is passed through near-pristine; only
 	// Deployment.SPConfig.HAPairConfigs is stripped on the wire (see fn
@@ -4352,7 +4641,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_DecisionPopulatesAllFourFie
 		IOPS:      786600,
 	}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, decision)
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, decision, &common.UpdatePoolParams{})
 
 	assert.Equal(t, "VM.DenseIO.Custom.Flex", req.NewInstanceType,
 		"VMRS shape must land on NewInstanceType so VLM swaps the running VM")
@@ -4388,24 +4677,10 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_DecisionPopulatesAllFourFie
 		"SPConfig.IOps must be overridden by decision.IOPS so VLM uses the catalogue-listed IOPS for the chosen (throughput-tier × VPU) cell instead of the validator-derived value on target.IOps")
 }
 
-// TestPrepareOCIUpdateVSAClusterDeploymentRequest_StripsStoredHAPairConfigs
-// pins down the per-pair config strip: VLM's update validator rejects
-// requests where req.SPConfig.HAPairConfigs and
-// req.VLMConfig.Deployment.SPConfig.HAPairConfigs disagree in per-pair
-// shape — concretely ("INVALID_CONFIGURATION: HA pair 0: requested has 1
-// AggrConfigs but current has 0; counts must match"). VCP's homogeneous-only
-// input contract leaves req.SPConfig.HAPairConfigs nil; VLM's create/update
-// RESPONSE persists a non-empty per-pair slice into the stored VLMConfig
-// blob. Sending that back unmodified trips the count check on every
-// subsequent update. We zero it out on the local request copy.
-//
-// The test also asserts the strip is LOCAL: the caller's stored VLMConfig
-// must not have its HAPairConfigs mutated, otherwise rollback compensation
-// (which uses the pre-update snapshot) would silently drop them.
-func TestPrepareOCIUpdateVSAClusterDeploymentRequest_StripsStoredHAPairConfigs(t *testing.T) {
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PreservesStoredHAPairConfigs(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	storedHAPairs := []vlm.SPHAPairConfig{
-		{InstanceType: "VM.DenseIO.E5.Flex"},
+		{InstanceType: "VM.DenseIO.E5.Flex", AggrConfigs: []vlm.AggrConfig{{Size: "600Gi", IOps: 15248, Throughput: 954, AggrName: "aggr1"}}},
 	}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
@@ -4421,24 +4696,220 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_StripsStoredHAPairConfigs(t
 	target := vlm.SPConfig{Size: "1000Gi", IOps: 25000, Throughput: 2000}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil)
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
 
-	assert.Nil(t, req.VLMConfig.Deployment.SPConfig.HAPairConfigs,
-		"req.VLMConfig.Deployment.SPConfig.HAPairConfigs must be stripped so VLM's per-pair count check matches req.SPConfig.HAPairConfigs (also nil)")
+	assert.Equal(t, storedHAPairs, req.VLMConfig.Deployment.SPConfig.HAPairConfigs,
+		"req.VLMConfig must carry the stored sp_ha_pair_config verbatim (current cluster state)")
 	assert.Nil(t, req.SPConfig.HAPairConfigs,
-		"req.SPConfig.HAPairConfigs must stay nil (homogeneous-only input contract)")
+		"req.SPConfig.HAPairConfigs stays nil for a homogeneous update; the update rides on Size/IOps/Throughput")
 
-	// Pristine pass-through of every OTHER field on Deployment.SPConfig.
 	assert.Equal(t, "600Gi", req.VLMConfig.Deployment.SPConfig.Size)
 	assert.Equal(t, int64(15248), req.VLMConfig.Deployment.SPConfig.IOps)
 	assert.Equal(t, int64(954), req.VLMConfig.Deployment.SPConfig.Throughput)
 
-	// Strip must be local: caller's stored config keeps its HAPairConfigs so
-	// rollback / per-batch re-reads still see the authoritative blob.
-	require.Len(t, current.Deployment.SPConfig.HAPairConfigs, 1,
-		"strip must not mutate the caller's VLMConfig — slice header is copied, so nil'ing on req leaves the caller's copy intact")
+	assert.Equal(t, "1000Gi", req.SPConfig.Size)
+	assert.Equal(t, int64(25000), req.SPConfig.IOps)
+	assert.Equal(t, int64(2000), req.SPConfig.Throughput)
+
 	assert.Equal(t, storedHAPairs, current.Deployment.SPConfig.HAPairConfigs,
-		"caller's HAPairConfigs slice must be byte-identical to the input")
+		"caller's stored config must remain unchanged")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_HeterogeneousTargetRidesOnSPConfig(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	storedHAPairs := []vlm.SPHAPairConfig{
+		{InstanceType: "VM.DenseIO.E5.Flex", AggrConfigs: []vlm.AggrConfig{{Size: "600Gi"}}},
+	}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			SPConfig: vlm.SPConfig{
+				Size:          "600Gi",
+				HAPairConfigs: storedHAPairs,
+			},
+		},
+	}
+	targetHAPairs := []vlm.SPHAPairConfig{
+		{InstanceType: "VM.DenseIO.E5.Flex", AggrConfigs: []vlm.AggrConfig{{Size: "4096Gi"}}},
+		{InstanceType: "VM.DenseIO.E5.Flex", AggrConfigs: []vlm.AggrConfig{{Size: "8192Gi"}}},
+	}
+	target := vlm.SPConfig{
+		Size:            "12288Gi",
+		IsHeterogeneous: true,
+		HAPairConfigs:   targetHAPairs,
+	}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{})
+
+	assert.True(t, req.SPConfig.IsHeterogeneous)
+	assert.Equal(t, targetHAPairs, req.SPConfig.HAPairConfigs,
+		"heterogeneous target HAPairConfigs ride on req.SPConfig")
+	assert.Equal(t, storedHAPairs, req.VLMConfig.Deployment.SPConfig.HAPairConfigs,
+		"req.VLMConfig keeps the stored current state verbatim")
+	assert.Equal(t, storedHAPairs, current.Deployment.SPConfig.HAPairConfigs,
+		"caller stored config must remain unchanged")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesCmekOcidAndOciConfig(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	savedOCIConfig := vlm.OCIConfig{
+		CompartmentID:   "ocid1.compartment.oc1..saved",
+		SubnetID:        "ocid1.subnet.oc1.iad.saved",
+		DataNICSubnetID: "ocid1.subnet.oc1.iad.saved-data",
+		CmekOcid:        "ocid1.key.oc1.iad.stored-cmek",
+	}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			VSAInstanceType: "VM.DenseIO.E5.Flex",
+			OCIConfig:       savedOCIConfig,
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi", IOps: 5000, Throughput: 128}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+	const newCmek = "ocid1.key.oc1.iad.new-cmek"
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{KmsKeyId: newCmek})
+
+	assert.Equal(t, newCmek, req.CmekOcid,
+		"kmsKeyId (UpdatePoolParams.KmsKeyId) must land on req.CmekOcid — the field VLM consumes to update the CMEK key")
+	assert.Equal(t, savedOCIConfig, req.OciConfig,
+		"the saved OCI config from the stored VLM config must be carried verbatim on req.OciConfig as reference data")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptyKmsKeyIdYieldsEmptyCmekOcid(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	savedOCIConfig := vlm.OCIConfig{CompartmentID: "ocid1.compartment.oc1..saved"}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{OCIConfig: savedOCIConfig},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+
+	assert.Empty(t, req.CmekOcid,
+		"empty kmsKeyId must leave req.CmekOcid empty; the workflow does not silently inject a default key")
+	assert.Equal(t, savedOCIConfig, req.OciConfig,
+		"the saved OCI config must still be carried on req.OciConfig even when no CMEK key is supplied")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesNsgIdsOntoOciConfig(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			OCIConfig: vlm.OCIConfig{
+				CustomerNSGs: []string{"ocid1.networksecuritygroup.oc1.iad.stored"},
+			},
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+	newNsgs := []string{
+		"ocid1.networksecuritygroup.oc1.iad.nsg-A",
+		"ocid1.networksecuritygroup.oc1.iad.nsg-B",
+	}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: newNsgs})
+
+	assert.Equal(t, newNsgs, req.OciConfig.CustomerNSGs,
+		"UpdatePoolParams.NsgIds must overwrite req.OciConfig.CustomerNSGs (order and values) so VLM applies the requested NSGs")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilNsgIdsPreservesStoredOciConfigNSGs(t *testing.T) {
+	stored := []string{"ocid1.networksecuritygroup.oc1.iad.stored"}
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			OCIConfig: vlm.OCIConfig{
+				CustomerNSGs: stored,
+			},
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+
+	assert.Equal(t, stored, req.OciConfig.CustomerNSGs,
+		"nil NsgIds on params must leave stored CustomerNSGs unchanged for VLM")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptyNsgIdsClearsOciConfigNSGs(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			OCIConfig: vlm.OCIConfig{
+				CustomerNSGs: []string{"ocid1.networksecuritygroup.oc1.iad.stored"},
+			},
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: []string{}})
+
+	assert.Empty(t, req.OciConfig.CustomerNSGs,
+		"explicit empty NsgIds must clear CustomerNSGs on the VLM request")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesSecurityAttributesOntoOciConfig(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{OCIConfig: vlm.OCIConfig{}},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+	attrs := map[string]map[string]interface{}{
+		"ns1": {
+			"app": map[string]string{"value": "app1", "mode": "enforce"},
+		},
+	}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{SecurityAttributes: attrs})
+
+	assert.Equal(t, attrs, req.OciConfig.CustomerSecurityAttributes,
+		"UpdatePoolParams.SecurityAttributes must land on req.OciConfig.CustomerSecurityAttributes verbatim; the workflow is a pass-through to VLM")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilSecurityAttributesPreservesStored(t *testing.T) {
+	stored := map[string]map[string]interface{}{
+		"ns1": {"app": map[string]string{"value": "stored", "mode": "enforce"}},
+	}
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			OCIConfig: vlm.OCIConfig{CustomerSecurityAttributes: stored},
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+
+	assert.Equal(t, stored, req.OciConfig.CustomerSecurityAttributes,
+		"nil SecurityAttributes on params must leave stored CustomerSecurityAttributes unchanged for VLM")
+}
+
+func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptySecurityAttributesClearsStored(t *testing.T) {
+	req := &vlm.UpdateVSAClusterDeploymentRequest{}
+	current := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			OCIConfig: vlm.OCIConfig{
+				CustomerSecurityAttributes: map[string]map[string]interface{}{
+					"ns1": {"app": map[string]string{"value": "stored", "mode": "enforce"}},
+				},
+			},
+		},
+	}
+	target := vlm.SPConfig{Size: "100Gi"}
+	creds := vlm.OntapCredentials{AdminPassword: "pw"}
+
+	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{
+		SecurityAttributes: map[string]map[string]interface{}{},
+	})
+
+	assert.Empty(t, req.OciConfig.CustomerSecurityAttributes,
+		"explicit empty SecurityAttributes must clear CustomerSecurityAttributes on the VLM request")
 }
 
 func validPrepareVLMConfigInputs() (*common.CreatePoolParams, *datamodel.Pool) {

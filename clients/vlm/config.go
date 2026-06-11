@@ -574,6 +574,9 @@ type UpdateVSAClusterDeploymentRequest struct {
 	BucketName               string             `json:"bucket_name"`                      // GCP Bucket Name
 	AutoTierThreshold        int64              `json:"auto_tier_threshold"`              // Auto tiering threshold percentage (0-100)
 	AllowHAPairLimitOverride bool               `json:"allow_ha_pair_limit_override"`     // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
+	AutoTierThresholdFlag    bool               `json:"auto_tier_threshold_flag"`         // Auto tiering threshold flag
+	OciConfig                OCIConfig          `json:"oci_config"`                       // OCI configuration
+	CmekOcid                 string             `json:"cmek_ocid"`                        // Update the CMEK encryption key
 }
 
 type UpdateMediatorRequest struct {

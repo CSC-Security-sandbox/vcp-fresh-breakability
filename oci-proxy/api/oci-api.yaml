@@ -209,6 +209,23 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdatePoolRequest'
+            examples:
+              homogeneousNodeCapacities:
+                summary: Resize capacity for a single HA pair
+                value:
+                  throughputGBps: 1
+                  nodeCapacities:
+                    - name: FsnIdocnv-4d550dafef2c8648-vm-01
+                      nodeUUID: 550e8400-e29b-41d4-a716-446655440001
+                      sizeInGiB: 2048
+                    - name: FsnIdocnv-4d550dafef2c8648-vm-02
+                      nodeUUID: 550e8400-e29b-41d4-a716-446655440002
+                      sizeInGiB: 2048
+              dataEndpointCount:
+                summary: Scale endpoint count (single AD clusters only)
+                value:
+                  dataEndpointCount: 4
+                  throughputGBps: 1.5
       responses:
         "202":
           description: Accepted. Pool update in progress.
@@ -912,15 +929,17 @@ components:
     UpdatePoolRequest:
       type: object
       description: |
-        Update pool request body. Exactly one of nodeCapacities or dataEndpointCount
-        must be provided. All other fields are optional.
+        Update pool request body. All fields are optional; include only the fields
+        you intend to change. Metadata-only updates (for example kmsKeyId, nsgIds,
+        or securityAttributes) are supported without resizing or changing throughput.
+        When provided, nodeCapacities and dataEndpointCount are mutually exclusive.
       properties:
         throughputGBps:
           type: number
           format: double
           minimum: 0
           exclusiveMinimum: true
-          description: Total target throughput for the pool in GBps. Must be > 0.
+          description: Optional total target throughput for the pool in GBps. When provided, must be > 0.
         dataEndpointCount:
           type: integer
           format: int64
@@ -932,16 +951,20 @@ components:
         nodeCapacities:
           type: array
           description: |
-            Per-endpoint capacity configuration. Mutually exclusive with dataEndpointCount.
-            Each entry's `sizeInGiB` is the per-node capacity. The two nodes in an HA pair
-            must request the same `sizeInGiB` (intra-pair homogeneity is enforced — both
-            nodes share a single mirrored aggregate); different pairs may carry different
-            sizes (inter-pair heterogeneity is supported). The post-update pool capacity
-            equals the SUM of per-HA-pair sizes (one aggregate per pair, mirrored across
-            the pair's two VMs) — NOT the sum of per-node sizes, which would double-count
-            the mirror. There is no pool-level `sizeInGiB` on this request.
+            Per-node capacity targets for the update. Mutually exclusive with
+            `dataEndpointCount`. Each element identifies one VM and its desired
+            `sizeInGiB`; see `#/components/schemas/NodeCapacity` for field semantics
+            and capacity accounting rules.
+          minItems: 2
           items:
             $ref: '#/components/schemas/NodeCapacity'
+          example:
+            - name: FsnIdocnv-4d550dafef2c8648-vm-01
+              nodeUUID: 550e8400-e29b-41d4-a716-446655440001
+              sizeInGiB: 4096
+            - name: FsnIdocnv-4d550dafef2c8648-vm-02
+              nodeUUID: 550e8400-e29b-41d4-a716-446655440002
+              sizeInGiB: 4096
         ociAdminPassword:
           $ref: '#/components/schemas/OCIOCIDVersionRef'
           description: OCI secret reference for admin password.
@@ -996,19 +1019,37 @@ components:
 
     NodeCapacity:
       type: object
+      description: |
+        Capacity target for one VM (endpoint) in the pool. Used in `UpdatePoolRequest.nodeCapacities`
+        to resize existing nodes; there is no pool-level `sizeInGiB` on the update request.
       required:
+        - name
+        - nodeUUID
         - sizeInGiB
       properties:
         name:
           type: string
-          description: Node name.
+          description: |
+            Display name of the VM in the pool, matching the node name returned at pool
+            create (for example from work-request metadata).
+          example: FsnIdocnv-4d550dafef2c8648-vm-01
         nodeUUID:
           type: string
-          description: UUID of the corresponding node.
+          description: |
+            UUID of the node to update. Must be unique within the request and must
+            match an existing node in the pool.
+          example: 550e8400-e29b-41d4-a716-446655440001
         sizeInGiB:
           type: integer
           format: int64
-          description: Capacity for this node in GiB.
+          minimum: 1
+          description: |
+            Target capacity for this node in GiB. Both VMs in the same HA pair must
+            request the same value (intra-pair homogeneity); the pair shares one
+            mirrored aggregate. Different HA pairs may use different values
+            (inter-pair heterogeneity). Post-update pool capacity equals the sum of
+            per-HA-pair sizes (one size per pair), not the sum of all node entries.
+          example: 4096
 
     UpdatePoolAcceptedResponse:
       type: object
@@ -1503,44 +1544,8 @@ components:
           description: VM metadata for OCI pool nodes.
           items:
             $ref: '#/components/schemas/OCICreatePoolWorkflowVM'
-        spPolicy:
-          $ref: '#/components/schemas/OCICreatePoolWorkflowSPPolicy'
-          description: |
-            Pool-level Storage Pool (SP) policy values sourced from the VLM
-            config's `spconfig` block. Distinct from per-VM `vms[*]` aggregates:
-            these track SP-policy updates (capacity / IOPS / throughput) and
-            reflect the latest applied policy, while per-VM fields describe the
-            underlying physical data-disk hardware specs stamped at pool create
-            time. Omitted when the pool has no `spconfig` values populated.
         credentials:
           $ref: '#/components/schemas/OCICreatePoolWorkflowCredentials'
-
-    OCICreatePoolWorkflowSPPolicy:
-      type: object
-      description: |
-        Pool-level SP-policy (QoS / capacity) values applied to the pool, as
-        reported by VLM `spconfig`. Updated by SP-policy update workflows;
-        independent of per-VM `data_disks` hardware metadata.
-      properties:
-        sizeInGiB:
-          type: integer
-          format: int64
-          description: |
-            Pool-level capacity in GiB, parsed from `spconfig.size` (e.g.
-            `"400Gi"` -> 400). Bare digit strings are interpreted as GiB.
-        iops:
-          type: integer
-          format: int64
-          description: |
-            Pool-level IOPS from `spconfig.iops`. Always pool-level (also in
-            heterogeneous mode where only per-node size diverges).
-        throughputGBps:
-          type: number
-          format: double
-          description: |
-            Pool-level throughput in GBps, converted from the VLM
-            `spconfig.tput` value which is reported in MiBps
-            (`MiBps / 953.67431640625`).
 
     OCICreatePoolWorkflowCredentials:
       type: object

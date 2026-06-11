@@ -174,3 +174,50 @@ func (d *DataStoreRepository) UpdateNodesInstanceType(ctx context.Context, poolI
 	logger.Infof("Successfully updated instance type to %s for %d nodes in pool %d", newInstanceType, len(nodes), poolID)
 	return nil
 }
+
+func (d *DataStoreRepository) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	nodes, err := getNodesByPoolID(tx, poolID)
+	if err != nil {
+		return err
+	}
+
+	if len(nodes) == 0 {
+		logger.Warnf("No nodes found for pool ID %d", poolID)
+		return nil
+	}
+
+	updatedCount := 0
+	for _, node := range nodes {
+		update, ok := updatesByNodeName[node.Name]
+		if !ok {
+			continue
+		}
+		if node.NodeAttributes == nil {
+			node.NodeAttributes = &datamodel.NodeDetails{}
+		}
+		node.NodeAttributes.InstanceType = update.InstanceType
+		node.NodeAttributes.SizeInGiB = update.SizeInGiB
+		node.UpdatedAt = time.Now()
+
+		err = tx.Model(&datamodel.Node{}).Where("id = ?", node.ID).Updates(map[string]interface{}{
+			"node_attributes": node.NodeAttributes,
+			"updated_at":      node.UpdatedAt,
+		}).Error
+		if err != nil {
+			logger.Errorf("Failed to update size and instance type for node %s: %v", node.UUID, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+		updatedCount++
+	}
+
+	logger.Infof("Successfully updated size and instance type for %d nodes in pool %d", updatedCount, poolID)
+	return nil
+}

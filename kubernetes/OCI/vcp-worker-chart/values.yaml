@@ -78,7 +78,7 @@ workerConfig:
   
   ociNodeCapacityMaxTib: 425
   ociThroughputThresholdGbps: 5
-  ociVsaUseSecondaryIpsForLifs: false
+  ociVsaUseSecondaryIpsForLifs: true
 
   # ONTAP Image Version Match Configuration
   skipOntapImageVersionMatch: false

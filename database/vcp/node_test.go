@@ -521,3 +521,135 @@ func TestUpdateNodesInstanceType(t *testing.T) {
 		assert.Error(tt, err, "Expected error when database is closed")
 	})
 }
+
+func TestUpdateNodesSizeAndInstanceType(t *testing.T) {
+	t.Run("Success_UpdatesMatchingNodesAndPreservesOthers", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		poolID := int64(400)
+		nodes := []*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "node-1"},
+				Name:           "node-1",
+				PoolID:         poolID,
+				AccountID:      1,
+				NodeAttributes: &datamodel.NodeDetails{ExternalUUID: "ext-1", InstanceType: "old-type", SizeInGiB: 500},
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "node-2"},
+				Name:           "node-2",
+				PoolID:         poolID,
+				AccountID:      1,
+				NodeAttributes: &datamodel.NodeDetails{ExternalUUID: "ext-2", InstanceType: "old-type", SizeInGiB: 500},
+			},
+		}
+		for _, node := range nodes {
+			assert.NoError(tt, store.db.Create(node).Error())
+		}
+
+		updates := map[string]datamodel.NodeDetails{
+			"node-1": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 2000},
+		}
+		err = store.UpdateNodesSizeAndInstanceType(context.Background(), poolID, updates)
+		assert.NoError(tt, err)
+
+		updatedNodes, err := store.GetNodesByPoolID(context.Background(), poolID)
+		assert.NoError(tt, err)
+		byName := make(map[string]*datamodel.Node)
+		for _, node := range updatedNodes {
+			byName[node.Name] = node
+		}
+
+		assert.Equal(tt, "VM.DenseIO.E5.Flex", byName["node-1"].NodeAttributes.InstanceType)
+		assert.Equal(tt, int64(2000), byName["node-1"].NodeAttributes.SizeInGiB)
+		assert.Equal(tt, "ext-1", byName["node-1"].NodeAttributes.ExternalUUID)
+
+		assert.Equal(tt, "old-type", byName["node-2"].NodeAttributes.InstanceType)
+		assert.Equal(tt, int64(500), byName["node-2"].NodeAttributes.SizeInGiB)
+	})
+
+	t.Run("Success_HandlesNilNodeAttributes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		poolID := int64(401)
+		node := &datamodel.Node{
+			BaseModel:      datamodel.BaseModel{UUID: "node-nil"},
+			Name:           "node-nil",
+			PoolID:         poolID,
+			AccountID:      1,
+			NodeAttributes: nil,
+		}
+		assert.NoError(tt, store.db.Create(node).Error())
+
+		updates := map[string]datamodel.NodeDetails{
+			"node-nil": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 1000},
+		}
+		err = store.UpdateNodesSizeAndInstanceType(context.Background(), poolID, updates)
+		assert.NoError(tt, err)
+
+		updatedNodes, err := store.GetNodesByPoolID(context.Background(), poolID)
+		assert.NoError(tt, err)
+		assert.Len(tt, updatedNodes, 1)
+		assert.NotNil(tt, updatedNodes[0].NodeAttributes)
+		assert.Equal(tt, "VM.DenseIO.E5.Flex", updatedNodes[0].NodeAttributes.InstanceType)
+		assert.Equal(tt, int64(1000), updatedNodes[0].NodeAttributes.SizeInGiB)
+	})
+
+	t.Run("Success_NoNodesInPool", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		err = store.UpdateNodesSizeAndInstanceType(context.Background(), 999, map[string]datamodel.NodeDetails{
+			"absent": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 1000},
+		})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Error_FetchNodesFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		assert.NoError(tt, store.db.GORM().Migrator().DropTable(&datamodel.Node{}))
+
+		err = store.UpdateNodesSizeAndInstanceType(context.Background(), 403, map[string]datamodel.NodeDetails{
+			"node-x": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 2000},
+		})
+		assert.Error(tt, err)
+	})
+
+	t.Run("Error_DatabaseClosed", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		poolID := int64(402)
+		node := &datamodel.Node{
+			BaseModel:      datamodel.BaseModel{UUID: "node-err"},
+			Name:           "node-err",
+			PoolID:         poolID,
+			AccountID:      1,
+			NodeAttributes: &datamodel.NodeDetails{InstanceType: "old-type", SizeInGiB: 500},
+		}
+		assert.NoError(tt, store.db.Create(node).Error())
+
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		assert.NoError(tt, sqlDB.Close())
+
+		err = store.UpdateNodesSizeAndInstanceType(context.Background(), poolID, map[string]datamodel.NodeDetails{
+			"node-err": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 2000},
+		})
+		assert.Error(tt, err)
+	})
+}

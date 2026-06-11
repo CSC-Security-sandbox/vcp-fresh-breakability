@@ -23,9 +23,8 @@ const (
 	stageMarkReady       = "mark_ready"
 	stageVLMDelete       = "vlm_delete"
 	stageDBCleanup       = "db_cleanup"
-	stageVLMUpdate           = "vlm_update"
-	stageDBPersistPerBatch   = "db_persist_per_batch"
-	stageDBPersistFinal      = "db_persist_final"
+	stageVLMUpdate       = "vlm_update"
+	stageDBPersistFinal  = "db_persist_final"
 
 	// SVM workflow stages (workflow label disambiguates shared stage names).
 	stageParseVlmConfig    = "parse_vlm_config"

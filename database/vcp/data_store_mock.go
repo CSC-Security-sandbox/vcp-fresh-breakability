@@ -21183,6 +21183,48 @@ func (_c *MockDataStore_UpdateNodesInstanceType_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+func (_m *MockDataStore) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
+	ret := _m.Called(ctx, poolID, updatesByNodeName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateNodesSizeAndInstanceType")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, map[string]datamodel.NodeDetails) error); ok {
+		r0 = rf(ctx, poolID, updatesByNodeName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+type MockDataStore_UpdateNodesSizeAndInstanceType_Call struct {
+	*mock.Call
+}
+
+func (_e *MockDataStore_Expecter) UpdateNodesSizeAndInstanceType(ctx interface{}, poolID interface{}, updatesByNodeName interface{}) *MockDataStore_UpdateNodesSizeAndInstanceType_Call {
+	return &MockDataStore_UpdateNodesSizeAndInstanceType_Call{Call: _e.mock.On("UpdateNodesSizeAndInstanceType", ctx, poolID, updatesByNodeName)}
+}
+
+func (_c *MockDataStore_UpdateNodesSizeAndInstanceType_Call) Run(run func(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails)) *MockDataStore_UpdateNodesSizeAndInstanceType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(map[string]datamodel.NodeDetails))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateNodesSizeAndInstanceType_Call) Return(_a0 error) *MockDataStore_UpdateNodesSizeAndInstanceType_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateNodesSizeAndInstanceType_Call) RunAndReturn(run func(context.Context, int64, map[string]datamodel.NodeDetails) error) *MockDataStore_UpdateNodesSizeAndInstanceType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdatePendingResourceDeletion provides a mock function with given fields: ctx, resourceID, isDeletion, errorMessage
 func (_m *MockDataStore) UpdatePendingResourceDeletion(ctx context.Context, resourceID int64, isDeletion bool, errorMessage string) (*datamodel.PendingResourceDeletions, error) {
 	ret := _m.Called(ctx, resourceID, isDeletion, errorMessage)

@@ -415,18 +415,6 @@ func TestOCICreatePoolWorkflowMetadata_EncodeDecode(t *testing.T) {
 	var typ2 OCICreatePoolWorkflowMetadata
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestOCICreatePoolWorkflowSPPolicy_EncodeDecode(t *testing.T) {
-	var typ OCICreatePoolWorkflowSPPolicy
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 OCICreatePoolWorkflowSPPolicy
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestOCICreatePoolWorkflowVM_EncodeDecode(t *testing.T) {
 	var typ OCICreatePoolWorkflowVM
 	typ.SetFake()
@@ -709,6 +697,36 @@ func TestUpdatePoolRequest_EncodeDecode(t *testing.T) {
 
 	var typ2 UpdatePoolRequest
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestUpdatePoolRequest_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"dataEndpointCount\":4,\"throughputGBps\":1.5}"},
+		{Input: "{\"nodeCapacities\":[{\"name\":\"FsnIdocnv-4d550dafef2c8648-vm-01\",\"nodeUUID\":\"550e8400-e29b-41d4-a716-446655440001\",\"sizeInGiB\":2048},{\"name\":\"FsnIdocnv-4d550dafef2c8648-vm-02\",\"nodeUUID\":\"550e8400-e29b-41d4-a716-446655440002\",\"sizeInGiB\":2048}],\"throughputGBps\":1}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ UpdatePoolRequest
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 UpdatePoolRequest
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestUpgradePoolAcceptedResponse_EncodeDecode(t *testing.T) {
 	var typ UpgradePoolAcceptedResponse

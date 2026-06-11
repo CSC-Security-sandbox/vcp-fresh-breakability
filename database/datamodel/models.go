@@ -833,6 +833,7 @@ func (nd LifDetails) Value() (driver.Value, error) {
 type NodeDetails struct {
 	ExternalUUID string `json:"external_uuid"`
 	InstanceType string `json:"instance_type"`
+	SizeInGiB    int64  `json:"size_in_gib,omitempty"`
 }
 
 type VolumeReplication struct {

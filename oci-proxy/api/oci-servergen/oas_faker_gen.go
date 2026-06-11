@@ -283,12 +283,12 @@ func (s *Health) SetFake() {
 func (s *NodeCapacity) SetFake() {
 	{
 		{
-			s.Name.SetFake()
+			s.Name = "string"
 		}
 	}
 	{
 		{
-			s.NodeUUID.SetFake()
+			s.NodeUUID = "string"
 		}
 	}
 	{
@@ -338,31 +338,7 @@ func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	}
 	{
 		{
-			s.SpPolicy.SetFake()
-		}
-	}
-	{
-		{
 			s.Credentials.SetFake()
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *OCICreatePoolWorkflowSPPolicy) SetFake() {
-	{
-		{
-			s.SizeInGiB.SetFake()
-		}
-	}
-	{
-		{
-			s.Iops.SetFake()
-		}
-	}
-	{
-		{
-			s.ThroughputGBps.SetFake()
 		}
 	}
 }
@@ -495,15 +471,6 @@ func (s *OptInt64) SetFake() {
 // SetFake set fake values.
 func (s *OptOCICreatePoolWorkflowMetadata) SetFake() {
 	var elem OCICreatePoolWorkflowMetadata
-	{
-		elem.SetFake()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
-func (s *OptOCICreatePoolWorkflowSPPolicy) SetFake() {
-	var elem OCICreatePoolWorkflowSPPolicy
 	{
 		elem.SetFake()
 	}
@@ -784,7 +751,7 @@ func (s *UpdatePoolRequest) SetFake() {
 	{
 		{
 			s.NodeCapacities = nil
-			for i := 0; i < 0; i++ {
+			for i := 0; i < 2; i++ {
 				var elem NodeCapacity
 				{
 					elem.SetFake()

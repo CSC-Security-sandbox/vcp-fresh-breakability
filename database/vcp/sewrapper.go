@@ -2381,6 +2381,21 @@ func (re *retryEngine) UpdateNodesInstanceType(ctx context.Context, poolID int64
 	return err
 }
 
+func (re *retryEngine) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateNodesSizeAndInstanceType(ctx, poolID, updatesByNodeName)
+		if err != nil {
+			re.logError("UpdateNodesSizeAndInstanceType", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

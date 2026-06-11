@@ -865,6 +865,10 @@ func (s *PersistenceStore) UpdateNodesInstanceType(ctx context.Context, poolID i
 	return s.dataStore.UpdateNodesInstanceType(ctx, poolID, newInstanceType)
 }
 
+func (s *PersistenceStore) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
+	return s.dataStore.UpdateNodesSizeAndInstanceType(ctx, poolID, updatesByNodeName)
+}
+
 func (s *PersistenceStore) GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	return s.dataStore.GetLifForNode(ctx, nodeID, accountID)
 }

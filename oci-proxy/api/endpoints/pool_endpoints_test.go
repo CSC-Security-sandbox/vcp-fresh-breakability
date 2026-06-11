@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -15,11 +16,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	ocifactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/oci"
+	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	ociserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/api/oci-servergen"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/workflowquery"
+	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 )
 
@@ -1298,6 +1304,158 @@ func TestUpdatePool(t *testing.T) {
 		assert.Equal(tt, poolOCID, headers.Response.PoolOCID)
 	})
 
+	t.Run("returns 202 and forwards trimmed valid kmsKeyId", func(tt *testing.T) {
+		const kmsKey = "ocid1.key.oc1.iad.update-cmek"
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.KmsKeyId == kmsKey
+		})).Return(&models.Pool{}, "wf-kms", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			KmsKeyId:          ociserver.OptString{Value: "  " + kmsKey + "  ", Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+		assert.Equal(tt, "wf-kms", headers.Response.WorkflowId)
+	})
+
+	t.Run("returns 400 when kmsKeyId is set but empty", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			KmsKeyId:          ociserver.OptString{Value: "   ", Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, defaultTestOPC, bad.OpcRequestID)
+		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
+		assert.Equal(tt, errMsgEmptyKmsKeyId, bad.Response.ErrorMessage)
+	})
+
+	t.Run("returns 400 when kmsKeyId is not a valid OCID", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			KmsKeyId:          ociserver.OptString{Value: "not-an-ocid", Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, errMsgInvalidKmsKeyId, bad.Response.ErrorMessage)
+	})
+
+	t.Run("returns 202 and forwards trimmed valid nsgIds", func(tt *testing.T) {
+		nsgA := "ocid1.networksecuritygroup.oc1.iad.nsg-a"
+		nsgB := "ocid1.networksecuritygroup.oc1.iad.nsg-b"
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && len(p.NsgIds) == 2 && p.NsgIds[0] == nsgA && p.NsgIds[1] == nsgB
+		})).Return(&models.Pool{}, "wf-nsg", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			NsgIds:            []string{"  " + nsgA + "  ", nsgB},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+		assert.Equal(tt, "wf-nsg", headers.Response.WorkflowId)
+	})
+
+	t.Run("returns 400 when an nsgId is empty", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			NsgIds:            []string{"ocid1.networksecuritygroup.oc1.iad.nsg-a", "   "},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, defaultTestOPC, bad.OpcRequestID)
+		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
+		assert.Equal(tt, fmt.Sprintf(errMsgEmptyNsgID, 1), bad.Response.ErrorMessage)
+	})
+
+	t.Run("returns 400 when an nsgId is not a valid OCID", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			NsgIds:            []string{"not-an-ocid"},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, fmt.Sprintf(errMsgInvalidNsgID, 0), bad.Response.ErrorMessage)
+	})
+
+	t.Run("omitted nsgIds leaves UpdatePoolParams.NsgIds nil", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.NsgIds == nil
+		})).Return(&models.Pool{}, "wf-nsg-omit", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+	})
+
+	t.Run("empty nsgIds forwards non-nil empty slice", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.NsgIds != nil && len(p.NsgIds) == 0
+		})).Return(&models.Pool{}, "wf-nsg-clear", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			NsgIds:            []string{},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+	})
+
 	t.Run("returns 400 when orchestrator returns validation error", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewUserInputValidationErr("size too small"))
@@ -1442,8 +1600,9 @@ func TestUpdatePool(t *testing.T) {
 		assert.Equal(tt, poolOCID, headers.Response.PoolOCID)
 	})
 
-	t.Run("returns 400 verifies full response body when neither nodeCapacities nor dataEndpointCount provided", func(tt *testing.T) {
+	t.Run("returns 202 when neither nodeCapacities nor dataEndpointCount provided", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{}, "wf-empty", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1451,12 +1610,74 @@ func TestUpdatePool(t *testing.T) {
 		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
 
 		assert.NoError(tt, err)
-		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
 		assert.True(tt, ok)
-		assert.Equal(tt, defaultTestOPC, bad.OpcRequestID)
-		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
-		assert.Equal(tt, "failed", bad.Response.Status)
-		assert.Equal(tt, errMsgNeitherNodeCapacitiesNorDEC, bad.Response.ErrorMessage)
+		assert.Equal(tt, defaultTestOPC, headers.OpcRequestID)
+		assert.Equal(tt, poolOCID, headers.Response.PoolOCID)
+		assert.Equal(tt, "wf-empty", headers.Response.WorkflowId)
+	})
+
+	t.Run("metadata-only kmsKeyId reaches OCI update pool workflow without throughput", func(tt *testing.T) {
+		ctx := contextWithOpcRequestID(context.Background(), defaultTestOPC)
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+
+		mockStorage := database.NewMockStorage(tt)
+		acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: tenancy}
+		mockStorage.EXPECT().GetAccount(mock.Anything, tenancy).Return(acc, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-meta"},
+				Name:           "p-meta",
+				State:          datamodel.LifeCycleStateREADY,
+				SizeInBytes:    1024 * 1024 * 1024 * 1024,
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, IsRegionalHA: false},
+			},
+		}, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid-meta").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-meta"},
+			Name:           "p-meta",
+			SizeInBytes:    1024 * 1024 * 1024 * 1024,
+			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
+		}
+		mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(pool, nil)
+
+		kmsKey := "ocid1.key.oc1..kkk"
+		var capturedWorkflow interface{}
+		var capturedParams *commonparams.UpdatePoolParams
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		mockTemporal.EXPECT().
+			ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(_ context.Context, _ client.StartWorkflowOptions, workflow interface{}, args ...interface{}) {
+				capturedWorkflow = workflow
+				if len(args) > 0 {
+					if p, ok := args[0].(*commonparams.UpdatePoolParams); ok {
+						capturedParams = p
+					}
+				}
+			}).
+			Return(nil, nil)
+
+		h := Handler{Orchestrator: ocifactory.NewOCIOrchestrator(mockStorage, mockTemporal)}
+		req := &ociserver.UpdatePoolRequest{
+			KmsKeyId: ociserver.OptString{Value: kmsKey, Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(ctx, req, params)
+
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+		assert.NotEmpty(tt, headers.Response.WorkflowId)
+		require.Equal(tt,
+			reflect.ValueOf(ociworkflows.OCIUpdatePoolWorkflow).Pointer(),
+			reflect.ValueOf(capturedWorkflow).Pointer(),
+		)
+		require.NotNil(tt, capturedParams)
+		assert.Equal(tt, kmsKey, capturedParams.KmsKeyId)
+		assert.False(tt, capturedParams.CustomPerformanceEnabled)
+		assert.Equal(tt, int64(0), capturedParams.TotalThroughputMibps)
 	})
 
 	t.Run("returns 404 verifies full response body", func(tt *testing.T) {
@@ -1576,8 +1797,13 @@ func TestUpdatePool(t *testing.T) {
 		assert.Equal(tt, errMsgBothNodeCapacitiesAndDEC, bad.Response.ErrorMessage)
 	})
 
-	t.Run("returns 400 when neither nodeCapacities nor dataEndpointCount provided", func(tt *testing.T) {
+	t.Run("returns 202 when only throughputGBps provided without nodeCapacities or dataEndpointCount", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil &&
+				p.TotalThroughputMibps == gbpsToMibps(2) &&
+				p.CustomPerformanceEnabled
+		})).Return(&models.Pool{}, "wf-throughput-only-no-dec", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			ThroughputGBps: ociserver.OptFloat64{Value: 2, Set: true},
@@ -1587,9 +1813,9 @@ func TestUpdatePool(t *testing.T) {
 		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
 
 		assert.NoError(tt, err)
-		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
 		assert.True(tt, ok)
-		assert.Equal(tt, errMsgNeitherNodeCapacitiesNorDEC, bad.Response.ErrorMessage)
+		assert.Equal(tt, "wf-throughput-only-no-dec", headers.Response.WorkflowId)
 	})
 
 	t.Run("maps nodeCapacities to UpdatePoolParams", func(tt *testing.T) {
@@ -1607,16 +1833,8 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-a", Set: true},
-					SizeInGiB: 100,
-				},
-				{
-					Name:      ociserver.OptString{Value: "node-b", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-b", Set: true},
-					SizeInGiB: 200,
-				},
+				{Name: "node-a", NodeUUID: "uuid-a", SizeInGiB: 100},
+				{Name: "node-b", NodeUUID: "uuid-b", SizeInGiB: 200},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1648,17 +1866,19 @@ func TestUpdatePool(t *testing.T) {
 	})
 
 	t.Run("maps nsgIds to UpdatePoolParams", func(tt *testing.T) {
+		nsg1 := "ocid1.networksecuritygroup.oc1.iad.nsg-1"
+		nsg2 := "ocid1.networksecuritygroup.oc1.iad.nsg-2"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
 			return p != nil &&
 				len(p.NsgIds) == 2 &&
-				p.NsgIds[0] == "nsg-1" &&
-				p.NsgIds[1] == "nsg-2"
+				p.NsgIds[0] == nsg1 &&
+				p.NsgIds[1] == nsg2
 		})).Return(&models.Pool{}, "wf-nsg", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
-			NsgIds:            []string{"nsg-1", "nsg-2"},
+			NsgIds:            []string{nsg1, nsg2},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
 
@@ -1698,6 +1918,46 @@ func TestUpdatePool(t *testing.T) {
 					},
 				},
 				Set: true,
+			},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+	})
+
+	t.Run("omitted securityAttributes leaves UpdatePoolParams.SecurityAttributes nil", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.SecurityAttributes == nil
+		})).Return(&models.Pool{}, "wf-sa-omit", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
+	})
+
+	t.Run("empty securityAttributes forwards non-nil empty map", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.SecurityAttributes != nil && len(p.SecurityAttributes) == 0
+		})).Return(&models.Pool{}, "wf-sa-clear", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
+			SecurityAttributes: ociserver.OptSecurityAttributes{
+				Value: ociserver.SecurityAttributes{},
+				Set:   true,
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1847,8 +2107,8 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{Name: ociserver.OptString{Value: "n1", Set: true}, SizeInGiB: 1024},
-				{Name: ociserver.OptString{Value: "n2", Set: true}, SizeInGiB: 0},
+				{Name: "n1", NodeUUID: "uuid-1", SizeInGiB: 1024},
+				{Name: "n2", NodeUUID: "uuid-2", SizeInGiB: 0},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1866,7 +2126,7 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{Name: ociserver.OptString{Value: "n1", Set: true}, SizeInGiB: -10},
+				{Name: "n1", NodeUUID: "uuid-1", SizeInGiB: -10},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1884,10 +2144,7 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					NodeUUID:  ociserver.OptString{Value: "uuid-a", Set: true},
-					SizeInGiB: 100,
-				},
+				{NodeUUID: "uuid-a", SizeInGiB: 100},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1905,11 +2162,7 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "   ", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-a", Set: true},
-					SizeInGiB: 100,
-				},
+				{Name: "   ", NodeUUID: "uuid-a", SizeInGiB: 100},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1927,10 +2180,7 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					SizeInGiB: 100,
-				},
+				{Name: "node-a", SizeInGiB: 100},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1948,11 +2198,7 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "", Set: true},
-					SizeInGiB: 100,
-				},
+				{Name: "node-a", NodeUUID: "", SizeInGiB: 100},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1970,15 +2216,8 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-a", Set: true},
-					SizeInGiB: 100,
-				},
-				{
-					Name:      ociserver.OptString{Value: "node-b", Set: true},
-					SizeInGiB: 200,
-				},
+				{Name: "node-a", NodeUUID: "uuid-a", SizeInGiB: 100},
+				{Name: "node-b", SizeInGiB: 200},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1996,16 +2235,8 @@ func TestUpdatePool(t *testing.T) {
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-dup", Set: true},
-					SizeInGiB: 100,
-				},
-				{
-					Name:      ociserver.OptString{Value: "node-b", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-dup", Set: true},
-					SizeInGiB: 200,
-				},
+				{Name: "node-a", NodeUUID: "uuid-dup", SizeInGiB: 100},
+				{Name: "node-b", NodeUUID: "uuid-dup", SizeInGiB: 200},
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -2088,14 +2319,12 @@ func TestValidateUpdatePoolUnitConversionInputs(t *testing.T) {
 	})
 }
 
+func testNodeCapacity(name, nodeUUID string, sizeInGiB int64) ociserver.NodeCapacity {
+	return ociserver.NodeCapacity{Name: name, NodeUUID: nodeUUID, SizeInGiB: sizeInGiB}
+}
+
 func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
-	full := func(name, uuid string, size int64) ociserver.NodeCapacity {
-		return ociserver.NodeCapacity{
-			Name:      ociserver.OptString{Value: name, Set: true},
-			NodeUUID:  ociserver.OptString{Value: uuid, Set: true},
-			SizeInGiB: size,
-		}
-	}
+	full := testNodeCapacity
 
 	t.Run("accepts an empty nodeCapacities array", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{}
@@ -2115,7 +2344,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 	t.Run("rejects when name is not set", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{NodeUUID: ociserver.OptString{Value: "uuid-a", Set: true}, SizeInGiB: 512},
+				{NodeUUID: "uuid-a", SizeInGiB: 512},
 			},
 		}
 		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNameRequired, 0),
@@ -2125,11 +2354,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 	t.Run("rejects when name is set but empty/whitespace", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "  \t  ", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "uuid-a", Set: true},
-					SizeInGiB: 512,
-				},
+				{Name: "  \t  ", NodeUUID: "uuid-a", SizeInGiB: 512},
 			},
 		}
 		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNameRequired, 0),
@@ -2139,7 +2364,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 	t.Run("rejects when nodeUUID is not set", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{Name: ociserver.OptString{Value: "node-a", Set: true}, SizeInGiB: 512},
+				{Name: "node-a", SizeInGiB: 512},
 			},
 		}
 		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 0),
@@ -2149,11 +2374,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 	t.Run("rejects when nodeUUID is set but empty", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
-				{
-					Name:      ociserver.OptString{Value: "node-a", Set: true},
-					NodeUUID:  ociserver.OptString{Value: "", Set: true},
-					SizeInGiB: 512,
-				},
+				{Name: "node-a", NodeUUID: "", SizeInGiB: 512},
 			},
 		}
 		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 0),
@@ -2165,7 +2386,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 			NodeCapacities: []ociserver.NodeCapacity{
 				full("node-a", "uuid-a", 512),
 				full("node-b", "uuid-b", 1024),
-				{Name: ociserver.OptString{Value: "node-c", Set: true}, SizeInGiB: 256},
+				{Name: "node-c", SizeInGiB: 256},
 			},
 		}
 		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 2),
@@ -2184,13 +2405,7 @@ func TestValidateUpdatePoolNodeCapacityRequiredFields(t *testing.T) {
 }
 
 func TestValidateUpdatePoolNodeCapacityUniqueness(t *testing.T) {
-	entry := func(name, uuid string, size int64) ociserver.NodeCapacity {
-		return ociserver.NodeCapacity{
-			Name:      ociserver.OptString{Value: name, Set: true},
-			NodeUUID:  ociserver.OptString{Value: uuid, Set: true},
-			SizeInGiB: size,
-		}
-	}
+	entry := testNodeCapacity
 
 	t.Run("accepts empty nodeCapacities", func(tt *testing.T) {
 		req := &ociserver.UpdatePoolRequest{}
@@ -2241,9 +2456,8 @@ func TestValidateUpdatePoolNodeCapacityUniqueness(t *testing.T) {
 		req := &ociserver.UpdatePoolRequest{
 			NodeCapacities: []ociserver.NodeCapacity{
 				entry("n1", "uuid-1", 100),
-				{Name: ociserver.OptString{Value: "n2", Set: true}, SizeInGiB: 200},
-				{Name: ociserver.OptString{Value: "n3", Set: true},
-					NodeUUID: ociserver.OptString{Value: "   ", Set: true}, SizeInGiB: 300},
+				{Name: "n2", SizeInGiB: 200},
+				{Name: "n3", NodeUUID: "   ", SizeInGiB: 300},
 			},
 		}
 		assert.Equal(tt, "", validateUpdatePoolNodeCapacityUniqueness(req))

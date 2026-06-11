@@ -7059,6 +7059,7 @@ func TestRestorePoolPreUpdatePoolLevelFields_Success(t *testing.T) {
 		SizeInBytes:       2048,
 		Description:       "before update",
 		AllowAutoTiering:  true,
+		VLMConfig:         `{"deployment":{"deployment_id":"pre-update"}}`,
 		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 1000},
 		AutoTieringConfig: &datamodel.AutoTieringConfig{HotTierSizeInBytes: 512},
 	}
@@ -7079,9 +7080,9 @@ func TestRestorePoolPreUpdatePoolLevelFields_Success(t *testing.T) {
 	assert.Equal(t, snapshot.AllowAutoTiering, capturedUpdates["allow_auto_tiering"])
 	assert.Equal(t, snapshot.PoolAttributes, capturedUpdates["pool_attributes"])
 	assert.Equal(t, snapshot.AutoTieringConfig, capturedUpdates["auto_tiering_config"])
-	assert.NotContains(t, capturedUpdates, "vlm_config",
-		"rollback must restore pool-level fields only and leave per-batch vlm_config writes intact")
-	assert.Len(t, capturedUpdates, 5, "unexpected extra columns in rollback update map")
+	assert.Equal(t, snapshot.VLMConfig, capturedUpdates["vlm_config"],
+		"rollback must restore pre-update vlm_config so the row stays consistent after partial VLM or failed final persist")
+	assert.Len(t, capturedUpdates, 6, "unexpected extra columns in rollback update map")
 
 	mockSE.AssertExpectations(t)
 }
@@ -17829,4 +17830,212 @@ func TestPoolActivity_IdentifyOCIResources_DecideFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "NoFeasibleSelectionError")
 	assert.Contains(t, err.Error(), "no tier fits")
 	assertTemporalApplicationError(t, err, "NoFeasibleSelectionError", "CustomError", true)
+}
+
+func TestUpdateOCINodesFromVLMConfig_Success(t *testing.T) {
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.PoolActivity{SE: mockStorage}
+	tEnv.RegisterActivity(act.UpdateOCINodesFromVLMConfig)
+
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
+				{
+					VM1: vlm.VMConfig{HostName: "node-1", DataDisks: []vlm.DiskConfig{{Size: 1000}, {Size: 1000}}},
+					VM2: vlm.VMConfig{HostName: "node-2", DataDisks: []vlm.DiskConfig{{Size: 1500}, {Size: 1500}}},
+				},
+			},
+		},
+	}
+
+	var captured map[string]datamodel.NodeDetails
+	mockStorage.On("UpdateNodesSizeAndInstanceType", mock.Anything, int64(42), mock.Anything).
+		Run(func(args mock.Arguments) {
+			captured = args.Get(2).(map[string]datamodel.NodeDetails)
+		}).Return(nil)
+
+	_, err := tEnv.ExecuteActivity(act.UpdateOCINodesFromVLMConfig, int64(42), vlmConfig)
+	require.NoError(t, err)
+
+	assert.Len(t, captured, 2)
+	assert.Equal(t, datamodel.NodeDetails{InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 2000}, captured["node-1"])
+	assert.Equal(t, datamodel.NodeDetails{InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 3000}, captured["node-2"])
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateOCINodesFromVLMConfig_NoHAPairs_SkipsStoreWrite(t *testing.T) {
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.PoolActivity{SE: mockStorage}
+	tEnv.RegisterActivity(act.UpdateOCINodesFromVLMConfig)
+
+	_, err := tEnv.ExecuteActivity(act.UpdateOCINodesFromVLMConfig, int64(7), vlm.VLMConfig{})
+	require.NoError(t, err)
+
+	mockStorage.AssertNotCalled(t, "UpdateNodesSizeAndInstanceType", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateOCINodesFromVLMConfig_StoreError(t *testing.T) {
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.PoolActivity{SE: mockStorage}
+	tEnv.RegisterActivity(act.UpdateOCINodesFromVLMConfig)
+
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
+				{VM1: vlm.VMConfig{HostName: "node-1", DataDisks: []vlm.DiskConfig{{Size: 1000}}}},
+			},
+		},
+	}
+
+	mockStorage.On("UpdateNodesSizeAndInstanceType", mock.Anything, int64(9), mock.Anything).
+		Return(errors.New("db write failed"))
+
+	_, err := tEnv.ExecuteActivity(act.UpdateOCINodesFromVLMConfig, int64(9), vlmConfig)
+	require.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_SaveNodeDetails_SumsDataDiskSizes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1, PoolCredentials: &datamodel.PoolCredentials{
+		SecretID:      "secretID",
+		CertificateID: "certID",
+		Password:      "password",
+	}}
+	vmConfig := vlm.VMConfig{
+		HostName: "test-node",
+		SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+			vlm.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
+		},
+		Zone:      "test-zone",
+		DataDisks: []vlm.DiskConfig{{Size: 1000}, {Size: 1500}, {Size: 500}},
+	}
+	deploymentConfig := vlm.DeploymentConfig{VSAInstanceType: "n1-standard-4"}
+
+	mockProvider.On("GetNodeByName", mock.Anything).Return(&vsa.Node{}, nil)
+	mockStorage.On("CreateNode", ctx, mock.Anything).Return(&datamodel.Node{}, nil)
+
+	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, pool, "clusterName", map[string]string{})
+
+	assert.NoError(t, err)
+	require.NotNil(t, node)
+	require.NotNil(t, node.NodeAttributes)
+	assert.Equal(t, int64(3000), node.NodeAttributes.SizeInGiB)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetNodeUUIDToNameForPool_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.GetNodeUUIDToNameForPool)
+
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "node-1"},
+		nil,
+		{BaseModel: datamodel.BaseModel{UUID: ""}, Name: "skip-empty-uuid"},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "node-2"},
+	}
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(5)).Return(nodes, nil)
+
+	encoded, err := env.ExecuteActivity(activity.GetNodeUUIDToNameForPool, int64(5))
+	assert.NoError(t, err)
+
+	var result map[string]string
+	assert.NoError(t, encoded.Get(&result))
+	assert.Equal(t, map[string]string{"uuid-1": "node-1", "uuid-2": "node-2"}, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetNodeUUIDToNameForPool_DBError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.GetNodeUUIDToNameForPool)
+
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(8)).Return(nil, errors.New("db down"))
+
+	_, err := env.ExecuteActivity(activity.GetNodeUUIDToNameForPool, int64(8))
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetNodeUUIDToNameForPool_EmptyNameFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.GetNodeUUIDToNameForPool)
+
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: ""},
+	}
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(11)).Return(nodes, nil)
+
+	_, err := env.ExecuteActivity(activity.GetNodeUUIDToNameForPool, int64(11))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty name")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCalculateBatchPlan_WithHAPairIndices_DedupAndSort(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  5,
+		HAPairIndices:               []int{3, 1, 3, 2},
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	encoded, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+
+	var result *activities.CalculateBatchPlanActivityOutput
+	assert.NoError(t, encoded.Get(&result))
+	require.NotNil(t, result)
+	assert.Equal(t, 3, result.NumHAPairs)
+	assert.Equal(t, [][]int{{1}, {2}, {3}}, result.BatchIndices)
+}
+
+func TestCalculateBatchPlan_WithHAPairIndices_OutOfRange(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  3,
+		HAPairIndices:               []int{5},
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	_, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
 }

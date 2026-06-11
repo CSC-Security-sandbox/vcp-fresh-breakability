@@ -698,6 +698,9 @@ func computeOCIVMRSInputForUpdate(
 		throughputMibps = pool.PoolAttributes.ThroughputMibps
 	}
 	numHAPairs := len(currentVlmConfig.Cloud.HAPairs)
+	if int(params.HAPairs) > numHAPairs {
+		numHAPairs = int(params.HAPairs)
+	}
 
 	if err := validateOCIVMRSInputForUpdate(numHAPairs, sizeInBytes, throughputMibps); err != nil {
 		return 0, 0, err
@@ -1045,6 +1048,7 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		"requestedSizeBytes", params.SizeInBytes,
 		"requestedThroughputMibps", params.TotalThroughputMibps,
 		"nodeCapacitiesCount", len(params.NodeCapacities),
+		"kmsKeyId", params.KmsKeyId,
 	)
 
 	ao, err := buildOCIUpdatePoolActivityOptions()
@@ -1081,14 +1085,35 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	numHAPairs := len(currentVlmConfig.Cloud.HAPairs)
+	if len(currentVlmConfig.Cloud.HAPairs) == 0 {
+		logger.Error("Stored VLM config has empty cloud.ha_pair for OCI pool update",
+			"pool", pool.Name,
+			"poolUUID", pool.UUID,
+		)
+		err = utilserrors.NewUserInputValidationErr(
+			fmt.Sprintf("stored VLM config for pool %q has empty cloud.ha_pair; cannot proceed with OCI pool update", pool.UUID))
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	currentNumHAPairs := len(currentVlmConfig.Cloud.HAPairs)
+	targetNumHAPairs := currentNumHAPairs
+	if int(params.HAPairs) > currentNumHAPairs {
+		targetNumHAPairs = int(params.HAPairs)
+	}
+	if targetNumHAPairs != currentNumHAPairs {
+		logger.Info("OCI pool update: HA pair scale requested",
+			"pool", pool.Name,
+			"poolUUID", pool.UUID,
+			"currentHAPairs", currentNumHAPairs,
+			"targetHAPairs", targetNumHAPairs,
+		)
+	}
 
 	ociDecision, err := runOCIVMRSForUpdate(ctx, poolActivity, params, pool, currentVlmConfig)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	targetSPConfig, err := deriveUpdateTargetSPConfig(params, pool, currentVlmConfig)
+	targetSPConfig, err := deriveUpdateTargetSPConfig(params, pool)
 	if err != nil {
 		logger.Error("Failed to derive target SPConfig for OCI pool update", "error", err)
 		return nil, workflows.ConvertToVSAError(err)
@@ -1098,30 +1123,33 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		"targetSize", targetSPConfig.Size,
 		"targetThroughput", targetSPConfig.Throughput,
 		"targetIOps", targetSPConfig.IOps,
-		"targetNumHAPairs", numHAPairs,
+		"targetNumHAPairs", targetNumHAPairs,
 	)
-
-	if err = validateStoredVLMConfigForUpdate(pool, currentVlmConfig); err != nil {
+	
+	credConfig := &vlm.OntapCredentials{}
+	credCtx := workflow.WithActivityOptions(ctx, ao)
+	if err = workflow.ExecuteActivity(credCtx, poolActivity.GetOnTapCredentialsForOCI, pool).Get(credCtx, credConfig); err != nil {
+		logger.Error("Failed to fetch ONTAP credentials from OCI Vault", "error", err, "pool", pool.Name)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	credConfig, err := buildOCIOntapCredentials(pool)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	logger.Info("OCI pool update: updating all HA pairs with pool-level SPConfig",
+	// TODO: The batch planner iterates every HA pair, including pairs whose target
+	// size already equals their current size, which can produce wasted no-op VLM
+	// calls. A future optimization can diff params.NodeCapacities against the
+	// current node state and batch only the pairs that actually change. For now we
+	// intentionally pass all HA pairs to VLM. This will be taken care of post GA.
+	logger.Info("OCI pool update: batching all HA pairs with pool-level SPConfig",
 		"pool", pool.Name,
-		"totalPairsInCluster", numHAPairs,
+		"totalPairsInCluster", targetNumHAPairs,
 		"nodeCapacitiesCount", len(params.NodeCapacities),
 	)
 
-	batchPlan, err := calculateOCIUpdatePoolBatchPlan(dbHbCtx, poolActivity, pool, numHAPairs)
+	batchPlan, err := calculateOCIUpdatePoolBatchPlan(dbHbCtx, poolActivity, pool, targetNumHAPairs, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(poolActivity.RestorePoolPreUpdatePoolLevelFields, pool.UUID, preUpdateSnapshot)
-	logger.Info("Registered DB compensation for pool pre-update pool-level fields",
+	logger.Info("Registered DB compensation for pre-update pool snapshot (pool-level fields and vlm_config)",
 		"pool", pool.Name,
 		"poolUUID", pool.UUID,
 	)
@@ -1134,10 +1162,11 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		"numWorkflowCalls", batchPlan.NumWorkflowCalls,
 	)
 	updateResp, err := executeOCIUpdatePoolVLMInBatches(
-		ctx, dbHbCtx, pool, poolActivity, batchPlan,
-		currentVlmConfig, targetSPConfig, numHAPairs,
-		credConfig, ontapVersion, vsaClientWorkflowManager,
+		ctx, pool, batchPlan,
+		currentVlmConfig, targetSPConfig, targetNumHAPairs,
+		*credConfig, ontapVersion, vsaClientWorkflowManager,
 		ociDecision,
+		params,
 	)
 	if err != nil {
 		logger.Error("Batched OCI pool update failed", "error", err, "pool", pool.Name)
@@ -1155,6 +1184,20 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfUpdatePool, queueCustomer, stageDBPersistFinal, resultSuccess)
+
+	commonActivity := &activities.CommonActivities{}
+	var preUpdateNodes []*datamodel.Node
+	if err = workflow.ExecuteActivity(dbHbCtx, commonActivity.GetNode, pool.ID).Get(dbHbCtx, &preUpdateNodes); err != nil {
+		logger.Error("Failed to fetch nodes for OCI pool update node rollback snapshot", "error", err, "pool", pool.Name)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	preUpdateNodeSnapshot := buildOCINodeAttributesSnapshot(preUpdateNodes)
+	rollbackManager.AddActivity(poolActivity.RestoreOCINodesPreUpdateFields, pool.ID, preUpdateNodeSnapshot)
+
+	if err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdateOCINodesFromVLMConfig, pool.ID, updateResp.VLMConfig).Get(dbHbCtx, nil); err != nil {
+		logger.Error("Failed to persist node size and instance type after OCI pool update", "error", err, "pool", pool.Name)
+		return nil, workflows.ConvertToVSAError(err)
+	}
 
 	logger.Info("OCI Update Pool Workflow completed successfully",
 		"pool", pool.Name,
@@ -1313,10 +1356,12 @@ func calculateOCIUpdatePoolBatchPlan(
 	poolActivity *activities.PoolActivity,
 	pool *datamodel.Pool,
 	numHAPairs int,
+	haPairIndices []int,
 ) (*activities.CalculateBatchPlanActivityOutput, error) {
 	logger := util.GetLogger(ctx)
 	in := &activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  numHAPairs,
+		HAPairIndices:               haPairIndices,
 		ParallelNumberOfNodesForITC: parallelNumberOfNodesForITCOCI,
 	}
 	var out *activities.CalculateBatchPlanActivityOutput
@@ -1333,6 +1378,21 @@ func calculateOCIUpdatePoolBatchPlan(
 		"parallelNumberOfNodesForITC", parallelNumberOfNodesForITCOCI,
 	)
 	return out, nil
+}
+
+func buildOCINodeAttributesSnapshot(nodes []*datamodel.Node) map[string]datamodel.NodeDetails {
+	snapshot := make(map[string]datamodel.NodeDetails, len(nodes))
+	for _, node := range nodes {
+		if node == nil || node.Name == "" {
+			continue
+		}
+		if node.NodeAttributes != nil {
+			snapshot[node.Name] = *node.NodeAttributes
+			continue
+		}
+		snapshot[node.Name] = datamodel.NodeDetails{}
+	}
+	return snapshot
 }
 
 func persistOCIPoolUpdate(
@@ -1381,15 +1441,23 @@ func prepareOCIUpdateVSAClusterDeploymentRequest(
 	targetNumHAPair int,
 	credentials vlm.OntapCredentials,
 	decision *vmrs_oci.Decision,
+	params *common.UpdatePoolParams,
 ) {
 	req.VLMConfig = currentVlmConfig
-	req.VLMConfig.Deployment.SPConfig.HAPairConfigs = nil
 	req.NumHAPair = targetNumHAPair
 	req.SPConfig = targetSPConfig
 	req.OntapCredentials = credentials
 	req.BucketName = ""
 	// Match GCP sentinel: skip auto-tier threshold update when no bucket/object store path applies.
 	req.AutoTierThreshold = -1
+	req.OciConfig = currentVlmConfig.Deployment.OCIConfig
+	if params.NsgIds != nil {
+		req.OciConfig.CustomerNSGs = params.NsgIds
+	}
+	if params.SecurityAttributes != nil {
+		req.OciConfig.CustomerSecurityAttributes = params.SecurityAttributes
+	}
+	req.CmekOcid = params.KmsKeyId
 
 	if decision != nil {
 		req.NewInstanceType = decision.VMShape
@@ -1405,9 +1473,7 @@ func prepareOCIUpdateVSAClusterDeploymentRequest(
 
 func executeOCIUpdatePoolVLMInBatches(
 	ctx workflow.Context,
-	dbHbCtx workflow.Context,
 	pool *datamodel.Pool,
-	poolActivity *activities.PoolActivity,
 	batchPlan *activities.CalculateBatchPlanActivityOutput,
 	initialVlmConfig vlm.VLMConfig,
 	targetSPConfig vlm.SPConfig,
@@ -1416,6 +1482,7 @@ func executeOCIUpdatePoolVLMInBatches(
 	ontapVersion string,
 	vsaClientWorkflowManager vlm.VlmWorkflowClient,
 	decision *vmrs_oci.Decision,
+	params *common.UpdatePoolParams,
 ) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
 	hyperscalerCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
@@ -1424,13 +1491,8 @@ func executeOCIUpdatePoolVLMInBatches(
 		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
 	})
 
-	// current is the pristine VLM config we ship as req.VLMConfig: it starts as the
-	// DB-parsed config and rolls forward to each prior batch's resp.VLMConfig. VCP
-	// never mutates it; overrides ride exclusively on targetSPConfig / targetNumHAPair.
 	current := initialVlmConfig
 	var lastResp *vlm.UpdateVSAClusterDeploymentResponse
-
-	// Track completed batches for the mixed-version-state diagnostic on partial failure.
 	completedBatches := make([]int, 0, batchPlan.NumWorkflowCalls)
 
 	logger.Info("executeOCIUpdatePoolVLMInBatches starting batch loop",
@@ -1443,12 +1505,9 @@ func executeOCIUpdatePoolVLMInBatches(
 	)
 
 	for batchNum := 0; batchNum < batchPlan.NumWorkflowCalls; batchNum++ {
-		// VLM's OCI ha_pair_indices contract is 1-based, matching what
-		// CalculateBatchPlanForUpdate already emits — pass the indices straight
-		// through with no conversion.
 		batchIndices := batchPlan.BatchIndices[batchNum]
 		updateReq := &vlm.UpdateVSAClusterDeploymentRequest{}
-		prepareOCIUpdateVSAClusterDeploymentRequest(updateReq, current, targetSPConfig, targetNumHAPair, credConfig, decision)
+		prepareOCIUpdateVSAClusterDeploymentRequest(updateReq, current, targetSPConfig, targetNumHAPair, credConfig, decision, params)
 		updateReq.HAPairIndices = batchIndices
 
 		logger.Info("OCI update pool VLM batch",
@@ -1461,8 +1520,6 @@ func executeOCIUpdatePoolVLMInBatches(
 
 		resp, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(hyperscalerCtx, updateReq, ontapVersion)
 		if err != nil {
-			// Match GCP's mixed-version-state diagnostic: enumerate what landed and what didn't
-			// so the operator knows the cluster is partially upgraded.
 			remainingBatches := make([]int, 0, batchPlan.NumWorkflowCalls-batchNum-1)
 			for i := batchNum + 1; i < batchPlan.NumWorkflowCalls; i++ {
 				remainingBatches = append(remainingBatches, i+1)
@@ -1480,30 +1537,6 @@ func executeOCIUpdatePoolVLMInBatches(
 			emitStage(ctx, wfUpdatePool, queueCustomer, stageVLMUpdate, resultFailure)
 			return nil, err
 		}
-
-		if persistErr := workflow.ExecuteActivity(
-			dbHbCtx, poolActivity.UpdatePoolVLMConfigField, pool.UUID, resp.VLMConfig,
-		).Get(dbHbCtx, nil); persistErr != nil {
-			logger.Error("OCI pool update VLM batch succeeded but per-batch DB persist failed; DB will be restored to pre-update snapshot by rollback",
-				"pool", pool.Name,
-				"poolUUID", pool.UUID,
-				"batchNumber", batchNum+1,
-				"totalBatches", batchPlan.NumWorkflowCalls,
-				"haPairIndices", batchIndices,
-				"error", persistErr,
-			)
-			emitStage(ctx, wfUpdatePool, queueCustomer, stageDBPersistPerBatch, resultFailure)
-			return nil, persistErr
-		}
-
-		// VLM can return HTTP 200 with a non-empty UpdateStatus carrying sub-failure flags
-		// (DetachFail / SPUpdateFail / AttachFail / LifDownFail / AggrDownFail / AggrUpFail /
-		// LifUpFail). Treat any sub-failure as a partial cluster update: resp.VLMConfig has
-		// already been persisted above (so the DB reflects the partial cluster state for
-		// triage), but we must NOT advance to the next batch.
-		//
-		// Stamped stageVLMUpdate=failure: the failure originated in VLM (it reported partial
-		// success on its own sub-operations); the persist above succeeded.
 		if failedOps := updateStatusFailureFlags(resp.UpdateStatus); len(failedOps) > 0 {
 			remainingBatches := make([]int, 0, batchPlan.NumWorkflowCalls-batchNum-1)
 			for i := batchNum + 1; i < batchPlan.NumWorkflowCalls; i++ {
@@ -1581,7 +1614,6 @@ func updateStatusFailureFlags(status vlm.DeploymentUpdateStatus) []string {
 func deriveUpdateTargetSPConfig(
 	params *common.UpdatePoolParams,
 	pool *datamodel.Pool,
-	_ vlm.VLMConfig,
 ) (vlm.SPConfig, error) {
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	if sizeInGB == 0 {

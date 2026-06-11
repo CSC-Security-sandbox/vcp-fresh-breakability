@@ -191,6 +191,19 @@ func TestUpdatePool_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUpdateNodesSizeAndInstanceType_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	err = store.UpdateNodesSizeAndInstanceType(ctx, 987654, map[string]datamodel.NodeDetails{
+		"absent": {InstanceType: "VM.DenseIO.E5.Flex", SizeInGiB: 100},
+	})
+	assert.NoError(t, err)
+}
+
 func TestErroredResource_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, err := SetupStorageForTest(logger)
