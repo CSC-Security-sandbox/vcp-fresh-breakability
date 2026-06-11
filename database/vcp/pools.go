@@ -773,7 +773,10 @@ func (d *DataStoreRepository) ListPoolUUIDs(ctx context.Context, filter *utils2.
 	return results, nil
 }
 
-// ListPoolUUIDsPaginated retrieves pool identifiers with pagination support
+// ListPoolUUIDsPaginated retrieves pool identifiers with pagination support, ordered by uuid.
+// The explicit ORDER BY is what makes LIMIT/OFFSET pagination correct: without a deterministic
+// order the database may return rows in different orders across calls, so pages can overlap
+// (duplicate rows) or skip rows entirely.
 func (d *DataStoreRepository) ListPoolUUIDsPaginated(ctx context.Context, filter *utils2.Filter, offset, limit int) ([]*PoolIdentifier, error) {
 	var db *gorm.DB
 
@@ -796,7 +799,7 @@ func (d *DataStoreRepository) ListPoolUUIDsPaginated(ctx context.Context, filter
 	}
 
 	var results []*PoolIdentifier
-	err := db.Model(&datamodel.Pool{}).Select("uuid, vendor_id, name, account_id").Find(&results).Error
+	err := db.Model(&datamodel.Pool{}).Select("uuid, vendor_id, name, account_id").Order("uuid").Find(&results).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

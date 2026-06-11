@@ -538,6 +538,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.SnapshotAndPlanWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupEmptyLeasesWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.TrialAccountSyncWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.ExpertModeVolumeSyncParentWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncExpertModeVolumesForPoolBatchWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -546,6 +548,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeRefreshActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.SyncExpertModeVolumesActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ResourceDeleteActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&activities.ADCActivity{SE: conn})

@@ -35,6 +35,7 @@ const (
 	BackupSizeJob                   = "BACKUP_SIZE_JOB"
 	PollerRebalanceJob              = "POLLER_REBALANCE_JOB"
 	TrialAccountSync                = "TRIAL_ACCOUNT_SYNC"
+	SyncExpertModeVolumes           = "SYNC_EXPERT_MODE_VOLUMES"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -59,6 +60,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	BackupSizeJob:                   backgroundworkflows.BackupSizeDetailsWorkflow,
 	PollerRebalanceJob:              backgroundworkflows.PollerRebalanceWorkflow,
 	TrialAccountSync:                backgroundworkflows.TrialAccountSyncWorkflow,
+	SyncExpertModeVolumes:           backgroundworkflows.ExpertModeVolumeSyncParentWorkflow,
 }
 
 type JobManagerActivity struct {
