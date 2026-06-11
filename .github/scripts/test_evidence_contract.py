@@ -238,6 +238,32 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)
         self.assertEqual(decision.reason_code, "review:security-sensitive")
 
+    def test_security_sensitive_clears_when_breakability_provably_safe(self):
+        # Security axis separated from breakability: a security-relevant dep whose
+        # public API is semantically backward-compatible auto-clears on breakability
+        # with a security note (not a hard review).
+        api = record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH)
+        decision = decide(bundle(security_sensitive=True, signals={SignalName.API_DIFF: api}))
+        self.assertEqual(decision.verdict, VerdictAction.MERGE)
+        self.assertEqual(decision.reason_code, "merge:api-compatible-security-relevant")
+
+    def test_security_sensitive_blocks_when_api_not_provably_safe(self):
+        # Semantic apidiff unavailable (e.g. a CI cred action with no Go API) ->
+        # breakability not provably safe -> security axis still reviews.
+        api = record(SignalName.API_DIFF, SignalStatus.UNAVAILABLE)
+        decision = decide(bundle(security_sensitive=True, signals={SignalName.API_DIFF: api}))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.reason_code, "review:security-sensitive")
+
+    def test_security_sensitive_blocks_when_declared_breaking(self):
+        # Even with a clean semantic apidiff, a declared (unreached/unprobed)
+        # behavioral break means breakability is not provably safe -> review.
+        api = record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH)
+        rn = record(SignalName.RELEASE_NOTES, SignalStatus.FAIL, relevant=True)
+        decision = decide(bundle(security_sensitive=True,
+                                 signals={SignalName.API_DIFF: api, SignalName.RELEASE_NOTES: rn}))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+
     def test_abstain_for_tool_failure(self):
         build = record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True)
         decision = decide(bundle(signals={SignalName.BUILD: build}))

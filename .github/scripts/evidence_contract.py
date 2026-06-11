@@ -425,7 +425,7 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     if abstain != AbstainReason.NONE:
         return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
 
-    if _is_security_sensitive(bundle):
+    if _is_security_sensitive(bundle) and not _breakability_provably_safe(bundle):
         return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:security-sensitive")
 
     release_unavailable = release_notes is not None and release_notes.status == SignalStatus.UNAVAILABLE
@@ -475,19 +475,19 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     )
     if api_semantically_clean and not _pre1_multi_minor_unverified(bundle, test):
         conf = Confidence.HIGH if _is_pass(test) else Confidence.MEDIUM
-        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, conf, "merge:api-compatible")
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, conf, _merge_reason("merge:api-compatible", bundle))
 
     if not core_clean:
         return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
 
     reachability = bundle.signal(SignalName.REACHABILITY)
     if _is_not_relevant_pass(reachability):
-        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, "merge:not-reached")
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, _merge_reason("merge:not-reached", bundle))
 
     release_clean = release_notes is not None and _is_pass(release_notes) and release_notes.relevant is False
     probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
     if release_clean or probe_same:
-        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, "merge:hard-clean")
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, _merge_reason("merge:hard-clean", bundle))
 
     return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:residual-or-uncertain")
 
@@ -514,6 +514,9 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "glance:tests-pass-soft-api-uncertain": "tests pass and API diff only found non-breaking uncertainty",
         "merge:not-reached": "changed dependency is not reached by production code",
         "merge:api-compatible": "build compiles and a semantic apidiff proves the dependency's public API is backward-compatible (no incompatible changes); no API-level break can reach this code",
+        "merge:api-compatible-security-relevant": "breakability-safe: build compiles and a semantic apidiff proves the dependency's public API is backward-compatible. This is a security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent (e.g. it applies an intended fix)",
+        "merge:not-reached-security-relevant": "breakability-safe: the changed dependency is not reached by production code. Security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent",
+        "merge:hard-clean-security-relevant": "breakability-safe: hard evidence is clean. Security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent",
         "merge:hard-clean": "hard evidence is clean",
         "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",
     }.get(reason_code, reason_code)
@@ -564,6 +567,53 @@ def _severity_le(left: SafetySeverity, right: SafetySeverity) -> bool:
 
 def _is_security_sensitive(bundle: EvidenceBundle) -> bool:
     return bundle.security_sensitive or any(r.sensitive for r in bundle.signals.values())
+
+
+def _breakability_provably_safe(bundle: EvidenceBundle) -> bool:
+    """True when the BREAKABILITY axis is positively proven safe, independent of
+    security-sensitivity. Mirrors the MERGE clearances in decide(): the changed
+    dependency is unreached by prod code, a behavioral probe confirms identical
+    behavior, or the build compiles AND a semantic apidiff proves the public API
+    is backward-compatible (with the pre-1.0 multi-minor guard). A declared
+    breaking changelog that is NOT cleared (unreached / probe-same) means the
+    behavioral contract may have changed -> not provably safe.
+    """
+    build = bundle.signal(SignalName.BUILD)
+    api_diff = bundle.signal(SignalName.API_DIFF)
+    probe = bundle.signal(SignalName.PROBE)
+    reach = bundle.signal(SignalName.REACHABILITY)
+    test = bundle.signal(SignalName.TEST)
+    release_notes = bundle.signal(SignalName.RELEASE_NOTES)
+
+    not_reached = _is_not_relevant_pass(reach)
+    probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
+
+    # A declared breaking change that is not positively cleared blocks the safe axis.
+    declared_breaking = (
+        _is_fail(release_notes)
+        and release_notes is not None
+        and release_notes.relevant is True
+    )
+    if declared_breaking and not (not_reached or probe_same):
+        return False
+
+    if not_reached or probe_same:
+        return True
+    api_clean = (
+        _is_pass(build)
+        and api_diff is not None
+        and _is_pass(api_diff)
+        and api_diff.confidence == Confidence.HIGH
+        and not api_diff.tool_failure
+    )
+    return bool(api_clean and not _pre1_multi_minor_unverified(bundle, test))
+
+
+def _merge_reason(base: str, bundle: EvidenceBundle) -> str:
+    """Annotate a MERGE clearance reason when the dependency is security-relevant
+    but breakability is proven safe: the verdict auto-clears on the breakability
+    axis while surfacing the security relevance as a note (not a hard review)."""
+    return base + "-security-relevant" if _is_security_sensitive(bundle) else base
 
 
 def _coerce_enum(enum_type: Type[E], value: Any, field_name: str) -> E:
