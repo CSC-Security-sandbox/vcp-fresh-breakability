@@ -43,10 +43,10 @@ type backupChainHistoryParams struct {
 }
 
 type BackupMetricsData struct {
-	UUID          string                    `gorm:"column:uuid"`
-	VolumeUUID    string                    `gorm:"column:volume_uuid"`
+	UUID          string                      `gorm:"column:uuid"`
+	VolumeUUID    string                      `gorm:"column:volume_uuid"`
 	Attributes    *datamodel.BackupAttributes `gorm:"column:attributes;type:jsonb"`
-	BackupVaultID int64                     `gorm:"column:backup_vault_id"`
+	BackupVaultID int64                       `gorm:"column:backup_vault_id"`
 	// BackupVault fields (from JOIN)
 	VaultAccountID        int64   `gorm:"column:vault_account_id"`
 	VaultName             string  `gorm:"column:vault_name"`
@@ -261,16 +261,8 @@ func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup,
 		logger.Warnf("shouldSkipBackupChainHistory called with nil backup or config, skipping chain history to avoid invalid billing records")
 		return true
 	}
-	// Cross-region backups when cross-region billing is disabled
-	if !config.EnableCrossRegionBackupBillingMetrics {
-		if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == datamodel.BackupVaultTypeCrossRegion {
-			logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
-			return true
-		}
-	}
 	// Cross-region backups where region is nil or matches current region (even when billing enabled)
-	if config.EnableCrossRegionBackupBillingMetrics &&
-		backup.BackupVault != nil &&
+	if backup.BackupVault != nil &&
 		backup.BackupVault.BackupVaultType == datamodel.BackupVaultTypeCrossRegion {
 		if backup.BackupVault.BackupRegionName == nil {
 			logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName is nil", backup.UUID, backup.VolumeUUID)
@@ -280,32 +272,6 @@ func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup,
 			logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName %s matches current region", backup.UUID, backup.VolumeUUID, *backup.BackupVault.BackupRegionName)
 			return true
 		}
-	}
-	// CMEK backups when CMEK billing is disabled
-	if !config.EnableCmekBackupBilling {
-		if backup.BackupVault != nil &&
-			backup.BackupVault.CmekAttributes != nil &&
-			backup.BackupVault.CmekAttributes.KmsConfigResourcePath != nil &&
-			*backup.BackupVault.CmekAttributes.KmsConfigResourcePath != "" {
-			logger.Debug("Skipping BackupLogicalSize billing metric for CMEK backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
-			return true
-		}
-	}
-	// Cross-project (GCBDR) backups when GCBDR billing is disabled
-	if !config.EnableGcbdrBackupBilling {
-		if backup.BackupVault != nil && backup.BackupVault.ServiceType == datamodel.ServiceTypeCrossProject {
-			logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
-			return true
-		}
-	}
-	// Expert mode backups when expert mode billing is disabled
-	if !config.EnableExpertModeBackupBilling && backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
-		logger.Debug("Skipping BackupLogicalSize billing metric for expert mode backup", "backupUUID", backup.UUID)
-		return true
-	}
-	// Skip if neither files backup billing is enabled nor SAN protocol
-	if !config.EnableFilesBackupBilling && (backup.Attributes == nil || !utils.IsSanProtocols(backup.Attributes.Protocols)) {
-		return true
 	}
 	return false
 }
