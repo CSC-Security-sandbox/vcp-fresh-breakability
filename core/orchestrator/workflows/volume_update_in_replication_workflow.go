@@ -97,9 +97,9 @@ func (wf *updateVolumeInReplication) Run(ctx workflow.Context, args ...interface
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateError, datamodel.LifeCycleStateUpdateErrorDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Get(ctx, nil)
 			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				log.Errorf("Failed to update volume state in DB to READY: %v", err2)
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)

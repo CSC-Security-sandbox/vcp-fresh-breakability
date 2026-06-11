@@ -1,10 +1,12 @@
 package workflows
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -17,58 +19,203 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-func TestUpdateVolumeV2Workflow(t *testing.T) {
-	t.Run("TestUpdateVolumeV2Workflow", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		mockStorage := database.NewMockStorage(tt)
-		updateActivity := &activities.UpdateVolumeInReplicationActivity{}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-		env.RegisterActivity(updateActivity.GetReplicationFromDBVolume)
-		env.RegisterActivity(updateActivity.GetLocalBasePathVolume)
-		env.RegisterActivity(updateActivity.GetRemoteBasePathVolume)
-		env.RegisterActivity(updateActivity.GetSignedLocalTokenVolume)
-		env.RegisterActivity(updateActivity.GetSignedRemoteTokenVolume)
-		env.RegisterActivity(updateActivity.GetReplicationMirrorState)
-		env.RegisterActivity(updateActivity.GetRemotePoolDetailsVolume)
-		env.RegisterActivity(updateActivity.ValidateRemoteVolumeUpdate)
-		env.RegisterActivity(updateActivity.UpdateRemoteVolume)
-		env.RegisterActivity(updateActivity.DescribeRemoteJobVolumeUpdate)
-		env.RegisterActivity(updateActivity.CreateJobForChildWorkflow)
-		env.RegisterWorkflow(UpdateVolumeWorkflow)
+type UpdateVolumeInReplicationTestSuite struct {
+	suite.Suite
+	testsuite.WorkflowTestSuite
 
-		params := &common.UpdateVolumeParams{}
-		volume := &datamodel.Volume{}
+	env *testsuite.TestWorkflowEnvironment
+}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetReplicationFromDBVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetLocalBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetRemoteBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetSignedLocalTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetSignedRemoteTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetReplicationMirrorState", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetRemotePoolDetailsVolume", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("ValidateRemoteVolumeUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateRemoteVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DescribeRemoteJobVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateJobForChildWorkflow", mock.Anything, mock.Anything).Return(nil)
-		env.OnWorkflow("UpdateVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+func (s *UpdateVolumeInReplicationTestSuite) SetupTest() {
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	s.env.SetHeader(mockHeader)
+}
 
-		env.ExecuteWorkflow(UpdateVolumeInReplicationWorkflow, params, volume)
-		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
-		assert.Nil(tt, err)
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
-		mockStorage.AssertExpectations(tt)
-	})
+func TestUpdateVolumeInReplicationSuite(t *testing.T) {
+	suite.Run(t, new(UpdateVolumeInReplicationTestSuite))
+}
+
+func (s *UpdateVolumeInReplicationTestSuite) Test_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	updateActivity := &activities.UpdateVolumeInReplicationActivity{}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(updateActivity.GetReplicationFromDBVolume)
+	s.env.RegisterActivity(updateActivity.GetLocalBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetRemoteBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedLocalTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedRemoteTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetReplicationMirrorState)
+	s.env.RegisterActivity(updateActivity.GetRemotePoolDetailsVolume)
+	s.env.RegisterActivity(updateActivity.ValidateRemoteVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.UpdateRemoteVolume)
+	s.env.RegisterActivity(updateActivity.DescribeRemoteJobVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.CreateJobForChildWorkflow)
+	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+
+	params := &common.UpdateVolumeParams{}
+	volume := &datamodel.Volume{}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("GetReplicationFromDBVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetLocalBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetRemoteBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetSignedLocalTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetSignedRemoteTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetReplicationMirrorState", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetRemotePoolDetailsVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("ValidateRemoteVolumeUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("UpdateRemoteVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("DescribeRemoteJobVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("CreateJobForChildWorkflow", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "child-workflow-id"}, nil)
+	s.env.OnWorkflow("UpdateVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(UpdateVolumeInReplicationWorkflow, params, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertExpectations(s.T())
+}
+
+func (s *UpdateVolumeInReplicationTestSuite) Test_Failure_SetsVolumeStateToReady() {
+	mockStorage := database.NewMockStorage(s.T())
+	updateActivity := &activities.UpdateVolumeInReplicationActivity{}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(updateActivity.GetReplicationFromDBVolume)
+	s.env.RegisterActivity(updateActivity.GetLocalBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetRemoteBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedLocalTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedRemoteTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetReplicationMirrorState)
+	s.env.RegisterActivity(updateActivity.GetRemotePoolDetailsVolume)
+	s.env.RegisterActivity(updateActivity.ValidateRemoteVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.UpdateRemoteVolume)
+	s.env.RegisterActivity(updateActivity.DescribeRemoteJobVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.CreateJobForChildWorkflow)
+	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+
+	params := &common.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+	}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// First activity fails, triggering the deferred error handler
+	s.env.OnActivity("GetReplicationFromDBVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("replication lookup failed"))
+
+	// Verify that the deferred handler sets state to READY (not Error)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
+
+	s.env.ExecuteWorkflow(UpdateVolumeInReplicationWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertExpectations(s.T())
+}
+
+func (s *UpdateVolumeInReplicationTestSuite) Test_Failure_ChildWorkflow_SetsVolumeStateToReady() {
+	mockStorage := database.NewMockStorage(s.T())
+	updateActivity := &activities.UpdateVolumeInReplicationActivity{}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(updateActivity.GetReplicationFromDBVolume)
+	s.env.RegisterActivity(updateActivity.GetLocalBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetRemoteBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedLocalTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedRemoteTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetReplicationMirrorState)
+	s.env.RegisterActivity(updateActivity.GetRemotePoolDetailsVolume)
+	s.env.RegisterActivity(updateActivity.ValidateRemoteVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.UpdateRemoteVolume)
+	s.env.RegisterActivity(updateActivity.DescribeRemoteJobVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.CreateJobForChildWorkflow)
+	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+
+	params := &common.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+	}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity("GetReplicationFromDBVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetLocalBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetRemoteBasePathVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetSignedLocalTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetSignedRemoteTokenVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("GetReplicationMirrorState", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity("CreateJobForChildWorkflow", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "child-workflow-id"}, nil)
+
+	// Child workflow fails
+	s.env.OnWorkflow("UpdateVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("child workflow failed"))
+
+	// Verify that the deferred handler sets state to READY
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(nil)
+
+	s.env.ExecuteWorkflow(UpdateVolumeInReplicationWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertExpectations(s.T())
+}
+
+func (s *UpdateVolumeInReplicationTestSuite) Test_Failure_UpdateVolumeStateInDB_Fails() {
+	mockStorage := database.NewMockStorage(s.T())
+	updateActivity := &activities.UpdateVolumeInReplicationActivity{}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(updateActivity.GetReplicationFromDBVolume)
+	s.env.RegisterActivity(updateActivity.GetLocalBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetRemoteBasePathVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedLocalTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetSignedRemoteTokenVolume)
+	s.env.RegisterActivity(updateActivity.GetReplicationMirrorState)
+	s.env.RegisterActivity(updateActivity.GetRemotePoolDetailsVolume)
+	s.env.RegisterActivity(updateActivity.ValidateRemoteVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.UpdateRemoteVolume)
+	s.env.RegisterActivity(updateActivity.DescribeRemoteJobVolumeUpdate)
+	s.env.RegisterActivity(updateActivity.CreateJobForChildWorkflow)
+	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+
+	params := &common.UpdateVolumeParams{}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+	}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Activity fails
+	s.env.OnActivity("GetReplicationFromDBVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("replication lookup failed"))
+
+	// UpdateVolumeStateInDB also fails — workflow should still complete with the original error
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "test-volume-uuid", datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails).Return(errors.New("db update failed"))
+
+	s.env.ExecuteWorkflow(UpdateVolumeInReplicationWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertExpectations(s.T())
 }
