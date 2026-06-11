@@ -378,7 +378,11 @@ func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
 	ctx := context.Background()
 
 	credBody, err := json.Marshal(map[string]interface{}{
-		"secret": map[string]interface{}{"name": "ontap-admin-secret", "version": 2},
+		"secret": map[string]interface{}{
+			"external_identifier": "ocid1.vaultsecret.oc1..ontapadmin",
+			"name":                "ontap-admin-secret",
+			"version":             2,
+		},
 	})
 	require.NoError(t, err)
 	childBody, err := json.Marshal(map[string]interface{}{
@@ -447,7 +451,7 @@ func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
 	require.Equal(t, "vm-1", poolMeta.Vms[0].Name)
 	require.NotNil(t, poolMeta.Credentials)
 	require.NotNil(t, poolMeta.Credentials.Secret)
-	require.Equal(t, "ontap-admin-secret", poolMeta.Credentials.Secret.Ocid)
+	require.Equal(t, "ocid1.vaultsecret.oc1..ontapadmin", poolMeta.Credentials.Secret.Ocid)
 	require.Equal(t, "2", poolMeta.Credentials.Secret.Version)
 }
 
@@ -855,4 +859,163 @@ func TestQueryWithClient_TimedOut(t *testing.T) {
 	require.Equal(t, "SomeWorkflow", res.WorkflowType)
 	require.NotNil(t, res.Error)
 	require.Contains(t, res.Error.Message, "timed out")
+}
+
+// TestGetCompletedWorkflowMetadata_CertificateAndSecretMapped exercises the
+// full query path with a USER_CERTIFICATE-auth pool: the
+// CreateOnTapCredentialsForOCI activity result carries BOTH secret and
+// certificate refs. Both must round-trip into OCICreatePoolMetadata.Credentials
+// without one shadowing the other.
+func TestGetCompletedWorkflowMetadata_CertificateAndSecretMapped(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	credBody, err := json.Marshal(map[string]interface{}{
+		"secret": map[string]interface{}{
+			"external_identifier": "ocid1.vaultsecret.oc1..ontapadmin",
+			"name":                "ontap-admin-secret",
+			"version":             4,
+		},
+		"certificate": map[string]interface{}{
+			"external_identifier": "ocid1.certificate.oc1..ontapcert",
+			"name":                "ontap-cert",
+			"version":             9,
+		},
+	})
+	require.NoError(t, err)
+
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventId:   5,
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskScheduledEventAttributes{
+				ActivityTaskScheduledEventAttributes: &historypb.ActivityTaskScheduledEventAttributes{
+					ActivityType: &commonpb.ActivityType{Name: "CreateOnTapCredentialsForOCI"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{
+				ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{
+					ScheduledEventId: 5,
+					Result:           &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: credBody}}},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, svmMeta)
+	require.NotNil(t, poolMeta)
+	require.NotNil(t, poolMeta.Credentials)
+	require.NotNil(t, poolMeta.Credentials.Secret)
+	require.Equal(t, "ocid1.vaultsecret.oc1..ontapadmin", poolMeta.Credentials.Secret.Ocid)
+	require.Equal(t, "4", poolMeta.Credentials.Secret.Version)
+	require.NotNil(t, poolMeta.Credentials.Certificate)
+	require.Equal(t, "ocid1.certificate.oc1..ontapcert", poolMeta.Credentials.Certificate.Ocid)
+	require.Equal(t, "9", poolMeta.Credentials.Certificate.Version)
+}
+
+// TestGetCompletedWorkflowMetadata_CertificateOnly verifies the certificate-only
+// payload shape (USER_CERTIFICATE-auth pool where the secret block is absent)
+// surfaces a Certificate but leaves Secret nil.
+func TestGetCompletedWorkflowMetadata_CertificateOnly(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	credBody, err := json.Marshal(map[string]interface{}{
+		"certificate": map[string]interface{}{
+			"external_identifier": "ocid1.certificate.oc1..onlycert",
+			"name":                "ontap-cert",
+			"version":             1,
+		},
+	})
+	require.NoError(t, err)
+
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventId:   5,
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskScheduledEventAttributes{
+				ActivityTaskScheduledEventAttributes: &historypb.ActivityTaskScheduledEventAttributes{
+					ActivityType: &commonpb.ActivityType{Name: "CreateOnTapCredentialsForOCI"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{
+				ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{
+					ScheduledEventId: 5,
+					Result:           &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: credBody}}},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, _ := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.NotNil(t, poolMeta)
+	require.NotNil(t, poolMeta.Credentials)
+	require.Nil(t, poolMeta.Credentials.Secret)
+	require.NotNil(t, poolMeta.Credentials.Certificate)
+	require.Equal(t, "ocid1.certificate.oc1..onlycert", poolMeta.Credentials.Certificate.Ocid)
+	require.Equal(t, "1", poolMeta.Credentials.Certificate.Version)
+}
+
+// TestOciCreatePoolCredentialsFromPayloads_CertificateOnlyOcidEmitsOcidNoVersion
+// pins behavior: when only the OCID is set (no version), the API surfaces the
+// OCID without a "0" version placeholder.
+func TestOciCreatePoolCredentialsFromPayloads_CertificateOnlyOcidEmitsOcidNoVersion(t *testing.T) {
+	t.Parallel()
+	body, err := json.Marshal(map[string]interface{}{
+		"certificate": map[string]interface{}{
+			"external_identifier": "ocid1.certificate.oc1..onlyocid",
+			"name":                "only-name",
+			"version":             0,
+		},
+	})
+	require.NoError(t, err)
+	got := ociCreatePoolCredentialsFromPayloads([]*commonpb.Payload{{Data: body}})
+	require.NotNil(t, got)
+	require.NotNil(t, got.Certificate)
+	require.Equal(t, "ocid1.certificate.oc1..onlyocid", got.Certificate.Ocid)
+	require.Equal(t, "", got.Certificate.Version)
+}
+
+// TestOciCreatePoolCredentialsFromPayloads_CertificateBase64Wrapped covers the
+// base64-wrapped JSON unwrap path for certificate-bearing payloads.
+func TestOciCreatePoolCredentialsFromPayloads_CertificateBase64Wrapped(t *testing.T) {
+	t.Parallel()
+	inner, err := json.Marshal(map[string]interface{}{
+		"certificate": map[string]interface{}{
+			"external_identifier": "ocid1.certificate.oc1..wrapped",
+			"name":                "wrapped-cert",
+			"version":             2,
+		},
+	})
+	require.NoError(t, err)
+	body := []byte(base64.StdEncoding.EncodeToString(inner))
+
+	got := ociCreatePoolCredentialsFromPayloads([]*commonpb.Payload{{Data: body}})
+	require.NotNil(t, got)
+	require.NotNil(t, got.Certificate)
+	require.Equal(t, "ocid1.certificate.oc1..wrapped", got.Certificate.Ocid)
+	require.Equal(t, "2", got.Certificate.Version)
 }

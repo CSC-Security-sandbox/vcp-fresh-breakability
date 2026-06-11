@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/oracle/oci-go-sdk/v65/certificates"
+	"github.com/oracle/oci-go-sdk/v65/certificatesmanagement"
+	"github.com/oracle/oci-go-sdk/v65/dns"
 	"github.com/oracle/oci-go-sdk/v65/objectstorage"
 	"github.com/oracle/oci-go-sdk/v65/secrets"
 	"github.com/oracle/oci-go-sdk/v65/vault"
@@ -57,10 +60,16 @@ func TestInitializeClients(t *testing.T) {
 	t.Run("successful initialisation", func(t *testing.T) {
 		origVault := initializeVaultClient
 		origSecrets := initializeSecretsClient
+		origCertMgmt := initializeCertManagementClient
+		origCertRead := initializeCertReadClient
+		origDns := initializeDnsClient
 		origObjStorage := initializeObjectStorageClient
 		defer func() {
 			initializeVaultClient = origVault
 			initializeSecretsClient = origSecrets
+			initializeCertManagementClient = origCertMgmt
+			initializeCertReadClient = origCertRead
+			initializeDnsClient = origDns
 			initializeObjectStorageClient = origObjStorage
 		}()
 
@@ -70,6 +79,18 @@ func TestInitializeClients(t *testing.T) {
 		}
 		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
 			cl := secrets.SecretsClient{}
+			return &cl, nil
+		}
+		initializeCertManagementClient = func() (*certificatesmanagement.CertificatesManagementClient, error) {
+			cl := certificatesmanagement.CertificatesManagementClient{}
+			return &cl, nil
+		}
+		initializeCertReadClient = func() (*certificates.CertificatesClient, error) {
+			cl := certificates.CertificatesClient{}
+			return &cl, nil
+		}
+		initializeDnsClient = func() (*dns.DnsClient, error) {
+			cl := dns.DnsClient{}
 			return &cl, nil
 		}
 		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
@@ -318,10 +339,16 @@ func TestNewOCIClients(t *testing.T) {
 	t.Run("both clients succeed — returns AdminOCIService", func(t *testing.T) {
 		origVault := initializeVaultClient
 		origSecrets := initializeSecretsClient
+		origCertMgmt := initializeCertManagementClient
+		origCertRead := initializeCertReadClient
+		origDns := initializeDnsClient
 		origObjStorage := initializeObjectStorageClient
 		defer func() {
 			initializeVaultClient = origVault
 			initializeSecretsClient = origSecrets
+			initializeCertManagementClient = origCertMgmt
+			initializeCertReadClient = origCertRead
+			initializeDnsClient = origDns
 			initializeObjectStorageClient = origObjStorage
 		}()
 
@@ -330,6 +357,15 @@ func TestNewOCIClients(t *testing.T) {
 		}
 		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
 			return &secrets.SecretsClient{}, nil
+		}
+		initializeCertManagementClient = func() (*certificatesmanagement.CertificatesManagementClient, error) {
+			return &certificatesmanagement.CertificatesManagementClient{}, nil
+		}
+		initializeCertReadClient = func() (*certificates.CertificatesClient, error) {
+			return &certificates.CertificatesClient{}, nil
+		}
+		initializeDnsClient = func() (*dns.DnsClient, error) {
+			return &dns.DnsClient{}, nil
 		}
 		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
 			return &objectstorage.ObjectStorageClient{}, nil
@@ -380,13 +416,19 @@ func TestNewOCIClients(t *testing.T) {
 		assert.Nil(t, admin)
 	})
 
-	t.Run("object storage client fails — returns error", func(t *testing.T) {
+	t.Run("dns client fails — returns error", func(t *testing.T) {
 		origVault := initializeVaultClient
 		origSecrets := initializeSecretsClient
+		origCertMgmt := initializeCertManagementClient
+		origCertRead := initializeCertReadClient
+		origDns := initializeDnsClient
 		origObjStorage := initializeObjectStorageClient
 		defer func() {
 			initializeVaultClient = origVault
 			initializeSecretsClient = origSecrets
+			initializeCertManagementClient = origCertMgmt
+			initializeCertReadClient = origCertRead
+			initializeDnsClient = origDns
 			initializeObjectStorageClient = origObjStorage
 		}()
 
@@ -395,6 +437,15 @@ func TestNewOCIClients(t *testing.T) {
 		}
 		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
 			return &secrets.SecretsClient{}, nil
+		}
+		initializeCertManagementClient = func() (*certificatesmanagement.CertificatesManagementClient, error) {
+			return &certificatesmanagement.CertificatesManagementClient{}, nil
+		}
+		initializeCertReadClient = func() (*certificates.CertificatesClient, error) {
+			return &certificates.CertificatesClient{}, nil
+		}
+		initializeDnsClient = func() (*dns.DnsClient, error) {
+			return nil, errors.New("dns failure")
 		}
 		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
 			return nil, errors.New("object storage failure")

@@ -65,6 +65,13 @@ type RESTClientParams struct {
 	InsecureSkipVerify          bool
 	CertificateBasedAuthEnabled bool
 	FastConnection              bool // When true, bypasses retries and uses shorter timeout for test connections
+	// ServerName, when non-empty, switches the connect loop into "SNI override"
+	// mode: dial Hosts by IP (keys) instead of by FQDN (values) and set
+	// tls.Config.ServerName to this value so hostname verification matches
+	// the cert's wildcard SAN without needing DNS resolution. Used by the
+	// OCI SNI-override path. Empty for GCP and password-auth (legacy
+	// behaviour preserved).
+	ServerName string
 	// Trace & Ctx fields are not serializable to JSON because of being an interface.
 	// Hence, explicitly including JSON tags to nullify the fields. This is to avoid
 	// JSON serialization error during temporal activity execution.
@@ -94,11 +101,27 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 	var lastErr error
 	var rClient *OntapRestClient
 
-	// domain
-	for _, host := range params.Hosts {
+	// Decide what to iterate over. Default (legacy) behaviour iterates
+	// the FQDN values from params.Hosts and lets Go derive SNI from the
+	// URL host. SNI-override mode (params.ServerName != "") iterates the
+	// IP keys instead and forces tls.Config.ServerName to the supplied
+	// SNI string so we can keep full mTLS without DNS resolution.
+	type hostAttempt struct{ host string }
+	var attempts []hostAttempt
+	if params.ServerName != "" {
+		for ip := range params.Hosts {
+			attempts = append(attempts, hostAttempt{host: ip})
+		}
+	} else {
+		for _, h := range params.Hosts {
+			attempts = append(attempts, hostAttempt{host: h})
+		}
+	}
+
+	for _, a := range attempts {
 		tryParams := params
 		// Set Host for this attempt
-		tryParams.Host = host
+		tryParams.Host = a.host
 
 		rt := newRuntimeClient(tryParams)
 		var httpRoundTripperTransport *http.Transport
@@ -107,30 +130,38 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			if err != nil {
 				return nil, err
 			}
+			tlsCfg := &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: params.InsecureSkipVerify,
+				RootCAs:            rootCA,
+				Certificates:       []tls.Certificate{clientCert},
+			}
+			if params.ServerName != "" {
+				tlsCfg.ServerName = params.ServerName
+			}
 			httpRoundTripperTransport = &http.Transport{
 				Proxy:                 http.ProxyFromEnvironment,
 				MaxIdleConns:          MaxIdleConns,
 				IdleConnTimeout:       IdleConnTimeout,
 				TLSHandshakeTimeout:   TLSHandshakeTimeout,
 				ExpectContinueTimeout: time.Second,
-				TLSClientConfig: &tls.Config{
-					MinVersion:         tls.VersionTLS12,
-					InsecureSkipVerify: params.InsecureSkipVerify,
-					RootCAs:            rootCA,
-					Certificates:       []tls.Certificate{clientCert},
-				},
+				TLSClientConfig:       tlsCfg,
 			}
 		} else {
+			tlsCfg := &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: params.InsecureSkipVerify,
+			}
+			if params.ServerName != "" {
+				tlsCfg.ServerName = params.ServerName
+			}
 			httpRoundTripperTransport = &http.Transport{
 				Proxy:                 http.ProxyFromEnvironment,
 				MaxIdleConns:          MaxIdleConns,
 				IdleConnTimeout:       IdleConnTimeout,
 				TLSHandshakeTimeout:   TLSHandshakeTimeout,
 				ExpectContinueTimeout: time.Second,
-				TLSClientConfig: &tls.Config{
-					MinVersion:         tls.VersionTLS12,
-					InsecureSkipVerify: params.InsecureSkipVerify,
-				},
+				TLSClientConfig:       tlsCfg,
 			}
 		}
 

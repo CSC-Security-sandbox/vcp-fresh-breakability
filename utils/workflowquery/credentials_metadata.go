@@ -35,23 +35,32 @@ func ociCreatePoolCredentialsFromPayloads(payloads []*commonpb.Payload) *OCICrea
 		return nil
 	}
 
-	out := &OCICreatePoolCredentialsMetadata{}
-	if result.Secret != nil {
-		ref := &OCICredentialRefMetadata{
-			Ocid:    result.Secret.Name,
-			Version: strconv.FormatInt(result.Secret.Version, 10),
-		}
-		// Skip emitting an empty version "0" when the activity has not set one.
-		if result.Secret.Version == 0 {
-			ref.Version = ""
-		}
-		if ref.Ocid == "" && ref.Version == "" {
-			return nil
-		}
-		out.Secret = ref
+	out := &OCICreatePoolCredentialsMetadata{
+		Secret:      externalCredRefToMetadata(result.Secret),
+		Certificate: externalCredRefToMetadata(result.Certificate),
 	}
-
 	if out.Secret == nil && out.Certificate == nil {
+		return nil
+	}
+	return out
+}
+
+// externalCredRefToMetadata converts the activity-side ExternalCredRef shape
+// into the API-shaped OCICredentialRefMetadata. It returns nil for missing
+// refs and for refs whose OCID and version are both empty so the caller can
+// suppress empty placeholder objects from the response.
+func externalCredRefToMetadata(ref *externalCredRefResult) *OCICredentialRefMetadata {
+	if ref == nil {
+		return nil
+	}
+	out := &OCICredentialRefMetadata{
+		Ocid: ref.ExternalIdentifier,
+	}
+	// Skip emitting an empty version "0" when the activity has not set one.
+	if ref.Version != 0 {
+		out.Version = strconv.FormatInt(ref.Version, 10)
+	}
+	if out.Ocid == "" && out.Version == "" {
 		return nil
 	}
 	return out

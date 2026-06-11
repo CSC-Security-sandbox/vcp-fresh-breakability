@@ -21,6 +21,12 @@ type ProviderDetails struct {
 	Certificate        *Certificate      `json:"certificate"`
 	AuthType           int               `json:"authType"`       // 0=password, 2=certificate
 	FastConnection     bool              `json:"fastConnection"` // When true, bypasses retries and uses shorter timeout for test connections
+	// ServerName, when non-empty, is used as the TLS SNI value AND for
+	// hostname verification of the server certificate. The REST client
+	// dials Hosts by IP (keys) instead of by FQDN (values) when this is
+	// set. Used by the OCI SNI-override path so we can keep full mTLS
+	// without registering Cloud DNS records per node.
+	ServerName string `json:"serverName,omitempty"`
 }
 
 type Certificate struct {

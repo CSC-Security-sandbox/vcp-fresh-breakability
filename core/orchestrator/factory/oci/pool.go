@@ -35,7 +35,8 @@ const (
 	// ociDeploymentHashLen is the number of hash characters used (prefix length + ociDeploymentHashLen ≤ VLM DeploymentID max length).
 	ociDeploymentHashLen = 16
 	// ociNameMaxLen is the OCI resource name max length.
-	ociNameMaxLen = 255
+	ociNameMaxLen            = 255
+	VCP_ADMIN_CERT_UN_SUFFIX = "_admin" // Suffix for VCP admin user certificate
 )
 
 var (
@@ -149,12 +150,13 @@ func preparePool(
 
 	switch env.AuthType {
 	case env.USER_CERTIFICATE:
+		userName := utils.GenerateUniqueUsername(poolObj.DeploymentName)
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
 			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
 			Password:      "",
 			AuthType:      env.USER_CERTIFICATE,
-			// Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
+			Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
 		}
 	case env.USERNAME_PWD_SEC_MGR:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{

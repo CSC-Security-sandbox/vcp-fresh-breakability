@@ -4709,6 +4709,238 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 	})
 }
 
+// ---------------------------------------------------------------------------
+// OCI DNS activities (OCICreateCloudDNSRecords / OCIDeleteCloudDNSRecords).
+// The activities are exact OCI counterparts of the GCP ones above; the tests
+// intentionally mirror their structure so any future cross-hyperscaler
+// regression is caught symmetrically. The DB-read step is shared with GCP
+// (GetCloudDNSRecords), so it is covered by TestPoolActivity_GetCloudDNSRecords.
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_OCICreateCloudDNSRecords(t *testing.T) {
+	const clusterName = "ocicluster"
+
+	origDns := env.VsaDeployedDnsName
+	defer func() { env.VsaDeployedDnsName = origDns }()
+	env.VsaDeployedDnsName = "vsa.netapp.internal"
+
+	origGet := vsa.GetOrCreateOCIDNSRecord
+	origGetOCI := hyperscaler2.GetOCIService
+	defer func() {
+		vsa.GetOrCreateOCIDNSRecord = origGet
+		hyperscaler2.GetOCIService = origGetOCI
+	}()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Logger: log.NewLogger()}, nil
+	}
+	vsa.GetOrCreateOCIDNSRecord = func(svc *oci.OciServices, recordName, ip string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+		return &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName, Data: ip}, nil
+	}
+
+	t.Run("success — two VMs per HA pair → IP→FQDN map populated", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+
+		vlmConfig := &vlm.VLMConfig{
+			Cloud: vlm.CloudConfig{
+				HAPairs: []vlm.HAPair{
+					{
+						VM1: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.1"}}},
+						VM2: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.2"}}},
+					},
+				},
+			},
+		}
+		val, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		assert.NoError(t, err)
+		var hostMap *map[string]string
+		assert.NoError(t, val.Get(&hostMap))
+		require.NotNil(t, hostMap)
+		assert.Len(t, *hostMap, 2)
+		assert.Equal(t, "dns-1.ocicluster.vsa.netapp.internal.", (*hostMap)["10.0.0.1"])
+		assert.Equal(t, "dns-2.ocicluster.vsa.netapp.internal.", (*hostMap)["10.0.0.2"])
+	})
+
+	t.Run("no HA pairs → error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+		vlmConfig := &vlm.VLMConfig{Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{}}}
+		_, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		assert.Error(t, err)
+	})
+
+	t.Run("no system LIFs → error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+		vlmConfig := &vlm.VLMConfig{
+			Cloud: vlm.CloudConfig{
+				HAPairs: []vlm.HAPair{
+					{VM1: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{}}, VM2: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{}}},
+				},
+			},
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		assert.Error(t, err)
+	})
+
+	t.Run("not USER_CERTIFICATE → empty map, no OCI calls", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+
+		// If GetOCIService is invoked when authType != USER_CERTIFICATE the
+		// activity is doing extra work the workflow doesn't need. Fail loudly.
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			t.Fatalf("GetOCIService must not be called when authType != USER_CERTIFICATE")
+			return nil, nil
+		}
+		defer func() {
+			hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+				return &oci.OciServices{Logger: log.NewLogger()}, nil
+			}
+		}()
+
+		vlmConfig := &vlm.VLMConfig{Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{{}}}}
+		val, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, vlmConfig, clusterName, env.USERNAME_PWD)
+		assert.NoError(t, err)
+		var hostMap *map[string]string
+		assert.NoError(t, val.Get(&hostMap))
+		require.NotNil(t, hostMap)
+		assert.Empty(t, *hostMap)
+	})
+
+	t.Run("underlying OCI DNS create fails → error propagates", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+
+		vsa.GetOrCreateOCIDNSRecord = func(svc *oci.OciServices, recordName, ip string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+			return nil, fmt.Errorf("oci dns boom")
+		}
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{Logger: log.NewLogger()}, nil
+		}
+
+		vlmConfig := &vlm.VLMConfig{
+			Cloud: vlm.CloudConfig{
+				HAPairs: []vlm.HAPair{
+					{
+						VM1: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.1"}}},
+						VM2: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.2"}}},
+					},
+				},
+			},
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		assert.Error(t, err)
+	})
+}
+
+func TestPoolActivity_OCIDeleteCloudDNSRecords(t *testing.T) {
+	hostMap := map[string]string{
+		"10.0.0.1": "dns-1.ocicluster.vsa.netapp.internal.",
+		"10.0.0.2": "dns-2.ocicluster.vsa.netapp.internal.",
+	}
+
+	origDel := vsa.DeleteOCIDNSRecord
+	origGetOCI := hyperscaler2.GetOCIService
+	defer func() {
+		vsa.DeleteOCIDNSRecord = origDel
+		hyperscaler2.GetOCIService = origGetOCI
+	}()
+
+	t.Run("success — every host deleted once", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCIDeleteCloudDNSRecords)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{Logger: log.NewLogger()}, nil
+		}
+		called := map[string]bool{}
+		vsa.DeleteOCIDNSRecord = func(svc *oci.OciServices, recordName string) error {
+			called[recordName] = true
+			return nil
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCIDeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
+		assert.NoError(t, err)
+		assert.Len(t, called, 2)
+		for _, fqdn := range hostMap {
+			assert.True(t, called[fqdn], "expected delete for %s", fqdn)
+		}
+	})
+
+	t.Run("GetOCIService fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCIDeleteCloudDNSRecords)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return nil, fmt.Errorf("oci client init failed")
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCIDeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "oci client init failed")
+	})
+
+	t.Run("DeleteOCIDNSRecord fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCIDeleteCloudDNSRecords)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{Logger: log.NewLogger()}, nil
+		}
+		vsa.DeleteOCIDNSRecord = func(svc *oci.OciServices, recordName string) error {
+			return fmt.Errorf("delete boom")
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCIDeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete boom")
+	})
+
+	t.Run("not USER_CERTIFICATE → no-op", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCIDeleteCloudDNSRecords)
+
+		// Same hardening pattern as OCICreate: short-circuit means no OCI
+		// touches.
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			t.Fatalf("GetOCIService must not be called when authType != USER_CERTIFICATE")
+			return nil, nil
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCIDeleteCloudDNSRecords, hostMap, env.USERNAME_PWD)
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty hostMap → no-op", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.OCIDeleteCloudDNSRecords)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			t.Fatalf("GetOCIService must not be called when hostMap is empty")
+			return nil, nil
+		}
+		_, err := testEnv.ExecuteActivity(pa.OCIDeleteCloudDNSRecords, map[string]string{}, env.USER_CERTIFICATE)
+		assert.NoError(t, err)
+	})
+}
+
 func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 	clusterName := "testcluster"
 	env.VsaDeployedDnsName = "example.com"
@@ -16669,7 +16901,7 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_NilPoolCredentials(t *testing
 
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		t.Fatalf("OCI Vault password generation must not be invoked when pool.PoolCredentials is nil")
 		return nil, nil
 	}
@@ -16702,7 +16934,7 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_DefaultPassword(t *testing.T)
 
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		t.Fatalf("OCI Vault password generation must not be invoked for the default (USERNAME_PWD) branch")
 		return nil, nil
 	}
@@ -16728,11 +16960,21 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_DefaultPassword(t *testing.T)
 	assert.Nil(t, creds.Certificate)
 }
 
-// TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop covers the
-// USER_CERTIFICATE branch which is intentionally a no-op today (the cert flow
-// will be implemented in a follow-up). It must still return successfully and
-// must not invoke the password generator.
-func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop(t *testing.T) {
+// TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificate_FallthroughPreservesCertificate
+// is the regression test for the data-loss bug where the USER_CERTIFICATE
+// branch fell through into USERNAME_PWD_SEC_MGR and the password assignment
+// (`credentials.OntapCredentials = vlm.OntapCredentials{AdminPassword: ...}`)
+// silently overwrote the entire OntapCredentials struct, wiping the cert
+// fields populated a few lines earlier by setPoolCredentials.
+//
+// It exercises the full happy path:
+//   - CreateCertificateForVSAClusterOCI is stubbed to return a cert response.
+//   - GeneratePasswordForVSAClusterOCI is stubbed to return a vault secret.
+//   - The activity must return credentials carrying BOTH the cert sub-struct
+//     (CommonName / Certificate / PrivateKey / InterMediateCertificate) AND
+//     the AdminPassword from the secret, plus both ExternalCredRefs
+//     (creds.Certificate from the OCI cert, creds.Secret from the vault).
+func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificate_FallthroughPreservesCertificate(t *testing.T) {
 	act := &activities.PoolActivity{}
 
 	origGetOCIService := hyperscaler2.GetOCIService
@@ -16741,11 +16983,41 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop(t *testin
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
+	origCreateCert := vsa.CreateCertificateForVSAClusterOCI
+	defer func() { vsa.CreateCertificateForVSAClusterOCI = origCreateCert }()
+	var capturedDeploymentName string
+	var capturedCertName string
+	vsa.CreateCertificateForVSAClusterOCI = func(_ *oci.OciServices, deploymentName string, certName string, _ *datamodel.PoolCredentials, _ bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		capturedDeploymentName = deploymentName
+		capturedCertName = certName
+		return &hyperscaler_models.CustomCertificateResponse{
+			Certificate: &hyperscaler_models.CustomCertificate{
+				Name:                "dep-1-cert",
+				CertificateID:       "ocid1.certificate.oc1..xyz",
+				VersionNumber:       3,
+				SubjectCommonName:   "admin",
+				PemCertificate:      "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----",
+				PemCertificateChain: []string{"-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----"},
+			},
+			Secret: &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{
+					Value: "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----",
+				},
+			},
+		}, nil
+	}
+
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
-		t.Fatalf("password generation must not be invoked for the certificate branch")
-		return nil, nil
+	var capturedSecretName string
+	vsa.GeneratePasswordForVSAClusterOCI = func(_ *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		capturedSecretName = secretName
+		return &oci.OCICustomSecret{
+			Ocid:    "ocid1.vaultsecret.oc1..pwd",
+			Name:    secretName,
+			Value:   "vault-generated-pw",
+			Version: 11,
+		}, nil
 	}
 
 	ts := &testsuite.WorkflowTestSuite{}
@@ -16759,16 +17031,105 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop(t *testin
 			AuthType:      env.USER_CERTIFICATE,
 			SecretID:      "dep-1-secret",
 			CertificateID: "dep-1-cert",
+			Username:      "admin",
 		},
 	}
 	encoded, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
 	require.NoError(t, err)
+
+	assert.Equal(t, "dep-1", capturedDeploymentName,
+		"deployment name must be forwarded to the OCI cert helper")
+	assert.Equal(t, "dep-1-cert", capturedCertName,
+		"deployment-derived cert name must be forwarded to the OCI cert helper")
+	assert.Equal(t, "dep-1-secret", capturedSecretName,
+		"fallthrough must invoke the vault secret generator with the deployment-derived name")
+
 	var creds *activities.OCICreatePoolCredentials
 	require.NoError(t, encoded.Get(&creds))
-	assert.Empty(t, creds.OntapCredentials.AdminPassword,
-		"USER_CERTIFICATE branch should not populate an admin password yet")
-	assert.Nil(t, creds.Secret)
-	assert.Nil(t, creds.Certificate)
+
+	// Bug 1 regression: certificate sub-fields must survive the fallthrough.
+	// If the password branch is reverted to assigning a fresh OntapCredentials
+	// literal, every one of these assertions fails.
+	assert.Equal(t, "admin", creds.OntapCredentials.Certificate.CommonName,
+		"USER_CERTIFICATE → fallthrough must preserve the cert CommonName populated by setPoolCredentials")
+	assert.Equal(t, "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----", creds.OntapCredentials.Certificate.Certificate,
+		"USER_CERTIFICATE → fallthrough must preserve the leaf PEM populated by setPoolCredentials")
+	assert.Equal(t, "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----", creds.OntapCredentials.Certificate.PrivateKey,
+		"USER_CERTIFICATE → fallthrough must preserve the private key populated by setPoolCredentials")
+	assert.Equal(t, []string{"-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----"}, creds.OntapCredentials.Certificate.InterMediateCertificate,
+		"USER_CERTIFICATE → fallthrough must preserve the intermediate chain populated by setPoolCredentials")
+
+	// And the password from the fallthrough must also be present.
+	assert.Equal(t, "vault-generated-pw", creds.OntapCredentials.AdminPassword,
+		"fallthrough must populate AdminPassword from the vault secret")
+
+	// Bug 2 regression: creds.Certificate ExternalCredRef must be persisted
+	// from the OCI cert response — symmetric with creds.Secret below.
+	require.NotNil(t, creds.Certificate, "USER_CERTIFICATE branch must persist creds.Certificate")
+	assert.Equal(t, "dep-1-cert", creds.Certificate.Name)
+	assert.Equal(t, int64(3), creds.Certificate.Version)
+	assert.Equal(t, "ocid1.certificate.oc1..xyz", creds.Certificate.ExternalIdentifier)
+
+	// Secret ExternalCredRef from the password generator (parity with the
+	// SecMgr-only test, but proving it also fires on the fallthrough path).
+	require.NotNil(t, creds.Secret)
+	assert.Equal(t, "dep-1-secret", creds.Secret.Name)
+	assert.Equal(t, int64(11), creds.Secret.Version)
+	assert.Equal(t, "ocid1.vaultsecret.oc1..pwd", creds.Secret.ExternalIdentifier)
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificate_NilCertGuard
+// is the regression test for the defensive nil-check on the cert helper's
+// return value. If CreateCertificateForVSAClusterOCI ever regresses to
+// returning (nil, nil) — or returns a partially-populated response missing
+// the inner Certificate / Secret pointers — the activity must surface a
+// typed Temporal application error instead of nil-deref'ing inside
+// setPoolCredentials. The password generator must not be invoked.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificate_NilCertGuard(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origCreateCert := vsa.CreateCertificateForVSAClusterOCI
+	defer func() { vsa.CreateCertificateForVSAClusterOCI = origCreateCert }()
+	vsa.CreateCertificateForVSAClusterOCI = func(_ *oci.OciServices, _ string, _ string, _ *datamodel.PoolCredentials, _ bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		return nil, nil
+	}
+
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(_ *oci.OciServices, _ string) (*oci.OCICustomSecret, error) {
+		t.Fatalf("password generator must not be invoked once the cert nil-guard fires")
+		return nil, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "dep-1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:      env.USER_CERTIFICATE,
+			CertificateID: "dep-1-cert",
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.Error(t, err)
+	// Temporal sanitizes ErrInternalServerError to "An internal error occurred."
+	// at the surface; dig past it via ExtractCustomError so the assertion is
+	// against the *typed* error from the nil-cert guard rather than the
+	// generic wrapper message (which would also match a panic-recover path).
+	custom := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, custom, "activity error must carry a CustomError")
+	require.NotNil(t, custom.OriginalErr, "CustomError must carry the underlying typed error")
+	assert.Contains(t, custom.OriginalErr.Error(), "incomplete certificate response",
+		"the typed nil-cert guard message must surface to the caller")
 }
 
 // TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrSuccess covers the happy
@@ -16787,7 +17148,7 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrSuccess(t *testing.T) {
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
 	var capturedSecretName string
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		capturedSecretName = secretName
 		return &oci.OCICustomSecret{
 			Ocid:    "ocid1.vaultsecret.oc1..abc",
@@ -16837,7 +17198,7 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrGenerateFails(t *testin
 
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		return nil, fmt.Errorf("vault: insufficient permissions")
 	}
 
@@ -16884,7 +17245,7 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrNilSecret(t *testing.T)
 	var generatorCalled bool
 	origGen := vsa.GeneratePasswordForVSAClusterOCI
 	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
-	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		generatorCalled = true
 		return nil, nil
 	}
@@ -16960,7 +17321,7 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials(t *testing
 
 	origDel := vsa.DeletePasswordForVSAClusterOCI
 	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
-	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService *oci.OciServices, poolCredentials *datamodel.PoolCredentials) error {
 		t.Fatalf("OCI Vault password deletion must not be invoked when pool.PoolCredentials is nil")
 		return nil
 	}
@@ -16980,10 +17341,11 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials(t *testing
 }
 
 // TestPoolActivity_DeleteOnTapCredentialsForOCI_Success exercises the happy
-// path: the deployment-scoped secret name is forwarded to the deletion helper
-// and the activity returns nil. It also defends the contract that the
-// deletion helper is invoked with the exact secret name produced by
-// ociOntapAdminSecretName so the two activities stay in sync.
+// path: the persisted ExternalSecret handle on pool.PoolCredentials is
+// forwarded to the deletion helper and the activity returns nil. It also
+// defends the contract that the helper is invoked with the same
+// PoolCredentials struct (and therefore the same OCID) that the create flow
+// persisted, so the two activities stay in sync.
 func TestPoolActivity_DeleteOnTapCredentialsForOCI_Success(t *testing.T) {
 	act := &activities.PoolActivity{}
 
@@ -16995,9 +17357,9 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_Success(t *testing.T) {
 
 	origDel := vsa.DeletePasswordForVSAClusterOCI
 	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
-	var capturedSecretName string
-	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
-		capturedSecretName = secretName
+	var capturedCreds *datamodel.PoolCredentials
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService *oci.OciServices, poolCredentials *datamodel.PoolCredentials) error {
+		capturedCreds = poolCredentials
 		return nil
 	}
 
@@ -17005,16 +17367,26 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_Success(t *testing.T) {
 	tEnv := ts.NewTestActivityEnvironment()
 	tEnv.RegisterActivity(act.DeleteOnTapCredentialsForOCI)
 
+	externalSecret := &datamodel.ExternalCredRef{
+		Name:               "ocnv-cafef00d-secret",
+		ExternalIdentifier: "ocid1.vaultsecret.oc1..pool-secret",
+		Version:            1,
+	}
 	pool := &datamodel.Pool{
 		Name:           "p1",
 		DeploymentName: "ocnv-cafef00d",
 		PoolCredentials: &datamodel.PoolCredentials{
-			AuthType: env.USERNAME_PWD_SEC_MGR,
+			AuthType:       env.USERNAME_PWD_SEC_MGR,
+			ExternalSecret: externalSecret,
 		},
 	}
 	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
 	require.NoError(t, err)
-	assert.Equal(t, "ocnv-cafef00d-secret", capturedSecretName)
+
+	require.NotNil(t, capturedCreds, "DeletePasswordForVSAClusterOCI must be invoked with non-nil PoolCredentials")
+	require.NotNil(t, capturedCreds.ExternalSecret, "PoolCredentials.ExternalSecret must be forwarded to the helper")
+	assert.Equal(t, externalSecret.ExternalIdentifier, capturedCreds.ExternalSecret.ExternalIdentifier)
+	assert.Equal(t, externalSecret.Name, capturedCreds.ExternalSecret.Name)
 }
 
 // TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails ensures helper
@@ -17031,7 +17403,7 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails(t *testing.T) {
 
 	origDel := vsa.DeletePasswordForVSAClusterOCI
 	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
-	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService *oci.OciServices, poolCredentials *datamodel.PoolCredentials) error {
 		return fmt.Errorf("vault: conflict")
 	}
 
@@ -17044,6 +17416,10 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails(t *testing.T) {
 		DeploymentName: "ocnv-cafef00d",
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD_SEC_MGR,
+			ExternalSecret: &datamodel.ExternalCredRef{
+				Name:               "ocnv-cafef00d-secret",
+				ExternalIdentifier: "ocid1.vaultsecret.oc1..pool-secret",
+			},
 		},
 	}
 	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
@@ -17179,17 +17555,33 @@ func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
 		assert.Equal(t, "fallback-pw", creds.AdminPassword)
 	})
 
-	t.Run("USER_CERTIFICATE falls through to vault fetch", func(t *testing.T) {
-		// USER_CERTIFICATE has no certificate-fetch logic for OCI yet and
-		// `fallthrough`s into the USERNAME_PWD_SEC_MGR branch. Cover that
-		// fallthrough explicitly so a future implementer can't drop it
-		// without a test failure.
+	t.Run("USER_CERTIFICATE populates cert and falls through to vault fetch", func(t *testing.T) {
+		// USER_CERTIFICATE fetches the cert from CAS (or the cert-auth cache)
+		// and `fallthrough`s into USERNAME_PWD_SEC_MGR so the SSH password is
+		// also pulled from OCI Vault. Cover both halves explicitly so a future
+		// implementer can't accidentally drop the cert fetch or the
+		// fallthrough without a test failure.
 		const expectedPW = "cert-fallthrough-pw"
-		var capturedRef *datamodel.ExternalCredRef
+		expectedCert := &coremodel.Certificate{
+			CommonName:               "test-cn.example.com",
+			SignedCertificate:        "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----",
+			PrivateKey:               "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+			InterMediateCertificates: []string{"-----BEGIN CERTIFICATE-----\nMIIA...\n-----END CERTIFICATE-----"},
+		}
+
+		var capturedCertRef *datamodel.ExternalCredRef
+		origGetCert := vsa.GetCertificateFromCacheOrCAS
+		defer func() { vsa.GetCertificateFromCacheOrCAS = origGetCert }()
+		vsa.GetCertificateFromCacheOrCAS = func(ctx context.Context, ref *datamodel.ExternalCredRef) (*coremodel.Certificate, error) {
+			capturedCertRef = ref
+			return expectedCert, nil
+		}
+
+		var capturedSecretRef *datamodel.ExternalCredRef
 		origGetPW := vsa.GetPasswordFromCacheOrOCIVault
 		defer func() { vsa.GetPasswordFromCacheOrOCIVault = origGetPW }()
 		vsa.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
-			capturedRef = ref
+			capturedSecretRef = ref
 			return expectedPW, nil
 		}
 
@@ -17197,13 +17589,19 @@ func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
 		testEnv := testSuite.NewTestActivityEnvironment()
 		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
 
-		ref := externalSecret("ocid1.vaultsecret.oc1..cert")
+		certRef := &datamodel.ExternalCredRef{
+			Name:               "admin-cert",
+			ExternalIdentifier: "ocid1.certificate.oc1..cert",
+			Version:            1,
+		}
+		secretRef := externalSecret("ocid1.vaultsecret.oc1..cert")
 		pool := &datamodel.Pool{
 			Name:           "test-pool",
 			DeploymentName: "test-deploy",
 			PoolCredentials: &datamodel.PoolCredentials{
-				AuthType:       env.USER_CERTIFICATE,
-				ExternalSecret: ref,
+				AuthType:            env.USER_CERTIFICATE,
+				ExternalCertificate: certRef,
+				ExternalSecret:      secretRef,
 			},
 		}
 
@@ -17212,10 +17610,58 @@ func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
 
 		var creds vlm.OntapCredentials
 		require.NoError(t, encodedValue.Get(&creds))
+
+		require.NotNil(t, capturedCertRef, "CAS helper must be invoked for USER_CERTIFICATE")
+		assert.Equal(t, certRef.ExternalIdentifier, capturedCertRef.ExternalIdentifier)
+		assert.Equal(t, certRef.Name, capturedCertRef.Name)
+		assert.Equal(t, expectedCert.CommonName, creds.Certificate.CommonName)
+		assert.Equal(t, expectedCert.SignedCertificate, creds.Certificate.Certificate)
+		assert.Equal(t, expectedCert.PrivateKey, creds.Certificate.PrivateKey)
+		assert.Equal(t, expectedCert.InterMediateCertificates, creds.Certificate.InterMediateCertificate)
+
 		assert.Equal(t, expectedPW, creds.AdminPassword)
-		require.NotNil(t, capturedRef, "vault helper must be invoked due to fallthrough")
-		assert.Equal(t, ref.ExternalIdentifier, capturedRef.ExternalIdentifier)
-		assert.Equal(t, ref.Name, capturedRef.Name)
+		require.NotNil(t, capturedSecretRef, "vault helper must be invoked due to fallthrough")
+		assert.Equal(t, secretRef.ExternalIdentifier, capturedSecretRef.ExternalIdentifier)
+		assert.Equal(t, secretRef.Name, capturedSecretRef.Name)
+	})
+
+	t.Run("USER_CERTIFICATE cert fetch failure surfaces error", func(t *testing.T) {
+		// On a CAS lookup failure the function must propagate the error
+		// without falling through to the vault fetch — otherwise we'd return
+		// half-initialised credentials with an empty Certificate.
+		origGetCert := vsa.GetCertificateFromCacheOrCAS
+		defer func() { vsa.GetCertificateFromCacheOrCAS = origGetCert }()
+		vsa.GetCertificateFromCacheOrCAS = func(ctx context.Context, ref *datamodel.ExternalCredRef) (*coremodel.Certificate, error) {
+			return nil, fmt.Errorf("OCI CAS fetch failed")
+		}
+
+		origGetPW := vsa.GetPasswordFromCacheOrOCIVault
+		defer func() { vsa.GetPasswordFromCacheOrOCIVault = origGetPW }()
+		vsa.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+			t.Fatalf("vault helper must not be invoked when cert fetch fails")
+			return "", nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USER_CERTIFICATE,
+				ExternalCertificate: &datamodel.ExternalCredRef{
+					Name:               "admin-cert",
+					ExternalIdentifier: "ocid1.certificate.oc1..cert",
+				},
+				ExternalSecret: externalSecret("ocid1.vaultsecret.oc1..cert"),
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "OCI CAS fetch failed")
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR nil ExternalSecret returns error", func(t *testing.T) {
@@ -17830,6 +18276,122 @@ func TestPoolActivity_IdentifyOCIResources_DecideFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "NoFeasibleSelectionError")
 	assert.Contains(t, err.Error(), "no tier fits")
 	assertTemporalApplicationError(t, err, "NoFeasibleSelectionError", "CustomError", true)
+}
+
+// ---------------------------------------------------------------------------
+// OCICreateCloudDNSRecords — nil vlmConfig guard.
+// Covers the explicit nil-vlmConfig branch in the activity that previously
+// had no direct test (the existing "no HA pairs" test exercised the empty
+// slice arm of the same `if` only).
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_OCICreateCloudDNSRecords_NilVlmConfig(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	pa := &activities.PoolActivity{}
+	testEnv.RegisterActivity(pa.OCICreateCloudDNSRecords)
+
+	origGetOCI := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCI }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		t.Fatalf("GetOCIService must not be called when vlmConfig is nil")
+		return nil, nil
+	}
+
+	_, err := testEnv.ExecuteActivity(pa.OCICreateCloudDNSRecords, (*vlm.VLMConfig)(nil), "clusterX", env.USER_CERTIFICATE)
+	require.Error(t, err)
+	assertTemporalApplicationError(t, err, "no cluster details provided", "CustomError", false)
+}
+
+// ---------------------------------------------------------------------------
+// WaitForNodeDNS — validation / short-circuit branches.
+// The actual DNS-polling loop is not exercised here (would require a fake
+// resolver hook); these tests cover every fast-return path so future
+// refactors can't silently swallow the validation guards.
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_WaitForNodeDNS(t *testing.T) {
+	const clusterName = "ocicluster"
+
+	origDns := env.VsaDeployedDnsName
+	defer func() { env.VsaDeployedDnsName = origDns }()
+	env.VsaDeployedDnsName = "vsa.netapp.internal"
+
+	newEnv := func() *testsuite.TestActivityEnvironment {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		te := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		te.RegisterActivity(pa.WaitForNodeDNS)
+		return te
+	}
+
+	t.Run("nil pool -> error", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, (*datamodel.Pool)(nil), &vlm.VLMConfig{}, clusterName)
+		require.Error(t, err)
+		assertTemporalApplicationError(t, err, "pool is nil", "CustomError", false)
+	})
+
+	t.Run("nil pool credentials -> no-op", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		pool := &datamodel.Pool{Name: "p", DeploymentName: "dep"}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, pool, &vlm.VLMConfig{}, clusterName)
+		assert.NoError(t, err)
+	})
+
+	t.Run("non-cert auth -> no-op", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		pool := &datamodel.Pool{
+			Name:            "p",
+			DeploymentName:  "dep",
+			PoolCredentials: &datamodel.PoolCredentials{AuthType: env.USERNAME_PWD},
+		}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, pool, &vlm.VLMConfig{}, clusterName)
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty deployment name -> error", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		pool := &datamodel.Pool{
+			Name:            "p",
+			DeploymentName:  "",
+			PoolCredentials: &datamodel.PoolCredentials{AuthType: env.USER_CERTIFICATE},
+		}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, pool, &vlm.VLMConfig{}, clusterName)
+		require.Error(t, err)
+		assertTemporalApplicationError(t, err, "deploymentName missing", "CustomError", false)
+	})
+
+	t.Run("nil vlmConfig -> error", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		pool := &datamodel.Pool{
+			Name:            "p",
+			DeploymentName:  "dep",
+			PoolCredentials: &datamodel.PoolCredentials{AuthType: env.USER_CERTIFICATE},
+		}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, pool, (*vlm.VLMConfig)(nil), clusterName)
+		require.Error(t, err)
+		assertTemporalApplicationError(t, err, "vlmConfig is nil", "CustomError", false)
+	})
+
+	t.Run("empty HA pairs -> error", func(t *testing.T) {
+		te := newEnv()
+		pa := &activities.PoolActivity{}
+		pool := &datamodel.Pool{
+			Name:            "p",
+			DeploymentName:  "dep",
+			PoolCredentials: &datamodel.PoolCredentials{AuthType: env.USER_CERTIFICATE},
+		}
+		vlmCfg := &vlm.VLMConfig{Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{}}}
+		_, err := te.ExecuteActivity(pa.WaitForNodeDNS, pool, vlmCfg, clusterName)
+		require.Error(t, err)
+		assertTemporalApplicationError(t, err, "no cluster details provided", "CustomError", false)
+	})
 }
 
 func TestUpdateOCINodesFromVLMConfig_Success(t *testing.T) {

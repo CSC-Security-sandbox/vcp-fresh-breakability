@@ -132,8 +132,9 @@ func TestPreparePool_UsernamePwdSecMgrBranch(t *testing.T) {
 
 // TestPreparePool_UserCertificateBranch verifies the env.USER_CERTIFICATE
 // branch: both SecretID and CertificateID are derived from the deployment
-// name, password/username are intentionally left empty (auth happens via the
-// client cert), and AuthType is propagated to the pool record.
+// name, Password is intentionally left empty (auth happens via the client
+// cert), Username is the deployment-derived unique hash suffixed with
+// VCP_ADMIN_CERT_UN_SUFFIX and AuthType is propagated to the pool record.
 func TestPreparePool_UserCertificateBranch(t *testing.T) {
 	withOCIOntapAdminCreds(t, "ignored-when-cert", "ignored-when-cert")
 	withAuthType(t, env.USER_CERTIFICATE)
@@ -151,7 +152,11 @@ func TestPreparePool_UserCertificateBranch(t *testing.T) {
 	assert.Equal(t, "ocnv-abc123-secret", pool.PoolCredentials.SecretID)
 	assert.Equal(t, "ocnv-abc123-cert", pool.PoolCredentials.CertificateID)
 	assert.Empty(t, pool.PoolCredentials.Password)
-	assert.Empty(t, pool.PoolCredentials.Username)
+	// Username format is <GenerateUniqueUsername(DeploymentName)><VCP_ADMIN_CERT_UN_SUFFIX>;
+	// GenerateUniqueUsername returns the first 8 chars of a sha256 of
+	// DeploymentName+timestamp, so we can't assert the exact prefix, only the
+	// shape and the suffix that the cert plumbing depends on.
+	assert.Regexp(t, `^[0-9a-f]{8}`+VCP_ADMIN_CERT_UN_SUFFIX+`$`, pool.PoolCredentials.Username)
 }
 
 func TestPreparePool_OntapAdminDefaultsWhenEnvUnset(t *testing.T) {

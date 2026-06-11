@@ -973,6 +973,126 @@ func TestOCIDeletePoolWorkflow_DBCleanupFailure(t *testing.T) {
 	assert.Error(t, env.GetWorkflowError())
 }
 
+// TestOCIDeletePoolWorkflow_CertAuth_CleansUpDNS verifies that deleting a
+// cert-auth pool on the legacy DNS-records path (OCIUseTLSSNIOverride=false)
+// fetches the persisted IP→FQDN map and deletes each record.
+//
+// For non-cert pools (USERNAME_PWD or unset) the DNS activities must NOT run
+// (already exercised by TestOCIDeletePoolWorkflow_Success above). The SNI-
+// override default is covered by TestOCIDeletePoolWorkflow_CertAuth_SNIOverride_StillCleansUpDNS.
+func TestOCIDeletePoolWorkflow_CertAuth_CleansUpDNS(t *testing.T) {
+	setTestOCIImageEnv(t)
+	withOCIUseTLSSNIOverride(t, false)
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.DeletePoolParams{
+		AccountName: "test-account",
+		PoolID:      "pool-uuid-del-cert",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 99, UUID: "pool-uuid-del-cert"},
+		Name:            "p-cert",
+		DeploymentName:  "dep-cert",
+		ClusterDetails:  datamodel.ClusterDetails{CompartmentOCID: "comp-ocid"},
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE},
+	}
+
+	env.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil)
+	expectedHostMap := map[string]string{
+		"10.0.0.1": "dns-1.dep-cert.vsa.netapp.internal.",
+		"10.0.0.2": "dns-2.dep-cert.vsa.netapp.internal.",
+	}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, pool.ID, envs.USER_CERTIFICATE).Return(&expectedHostMap, nil)
+	// MatchedBy lets us assert the map content we just returned propagates
+	// into the delete activity unchanged — this is the wiring guarantee we
+	// most care about.
+	env.OnActivity("OCIDeleteCloudDNSRecords",
+		mock.Anything,
+		mock.MatchedBy(func(m map[string]string) bool {
+			return len(m) == 2 && m["10.0.0.1"] == "dns-1.dep-cert.vsa.netapp.internal."
+		}),
+		envs.USER_CERTIFICATE,
+	).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.ExecuteWorkflow(OCIDeletePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestOCIDeletePoolWorkflow_CertAuth_SNIOverride_StillCleansUpDNS locks in the
+// delete-path behaviour when env.OCIUseTLSSNIOverride is on (the production
+// default): unlike the create path, pool teardown does NOT gate DNS cleanup on
+// the SNI flag. The delete workflow always runs GetCloudDNSRecords →
+// OCIDeleteCloudDNSRecords for cert-auth pools so that any OCI Private DNS
+// records that may exist (e.g. pools created before the SNI flag was flipped on,
+// or via the legacy fallback path) are cleaned up. GetCloudDNSRecords returns an
+// empty map when there is nothing to delete, and OCIDeleteCloudDNSRecords is a
+// no-op on an empty map. Failing this test means the SNI-flag gate has been
+// re-introduced on the delete path and would leak DNS records for such pools.
+func TestOCIDeletePoolWorkflow_CertAuth_SNIOverride_StillCleansUpDNS(t *testing.T) {
+	setTestOCIImageEnv(t)
+	withOCIUseTLSSNIOverride(t, true)
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.DeletePoolParams{
+		AccountName: "test-account",
+		PoolID:      "pool-uuid-del-cert-sni",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 101, UUID: "pool-uuid-del-cert-sni"},
+		Name:            "p-cert-sni",
+		DeploymentName:  "dep-cert-sni",
+		ClusterDetails:  datamodel.ClusterDetails{CompartmentOCID: "comp-ocid"},
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE},
+	}
+
+	env.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil)
+	// DNS cleanup runs regardless of the SNI flag on the delete path. Here the
+	// pool has no published records, so GetCloudDNSRecords returns an empty map
+	// and OCIDeleteCloudDNSRecords is invoked with it as a no-op.
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, pool.ID, envs.USER_CERTIFICATE).Return(&emptyHostMap, nil)
+	env.OnActivity("OCIDeleteCloudDNSRecords", mock.Anything, mock.Anything, envs.USER_CERTIFICATE).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.ExecuteWorkflow(OCIDeletePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
@@ -5028,4 +5148,254 @@ func TestPrepareVLMConfig_FabricPoolConfigNil_LeavesZeroValueFabricPool(t *testi
 	assert.Equal(t, vlm.FabricPoolConfig{}, got,
 		"nil FabricPoolConfig on params must leave vlm.OCIConfig.FabricPoolConfig as zero value (tiering disabled); "+
 			"the workflow guards the assignment with an explicit nil check")
+}
+
+// TestOCICreatePoolWorkflow_CertAuth_RegistersDNS verifies that for a
+// USER_CERTIFICATE-auth pool, OCICreatePoolWorkflow wires the DNS-bring-up
+// path end-to-end: OCICreateCloudDNSRecords runs, its hostMap flows into
+// both SaveVSANodeDetails (persistence) and WaitForNodeDNS (readiness probe),
+// and the workflow completes cleanly. The dual-call (Create then Wait) is
+// the regression guard we care about — dropping WaitForNodeDNS would race
+// VLM's DNS publish and break cluster_get probes downstream.
+//
+// This test exercises the legacy DNS-records branch, which is the path
+// selected when OCI_USE_TLS_SNI_OVERRIDE=false. The SNI-override path
+// (default for OCI) is covered by TestOCICreatePoolWorkflow_CertAuth_SNIOverride_SkipsDNS.
+func TestOCICreatePoolWorkflow_CertAuth_RegistersDNS(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIUseTLSSNIOverride(t, false)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	params := &common.CreatePoolParams{
+		Name:        "cert-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "cert-pool-uuid"},
+		Name:            "cert-pool",
+		DeploymentName:  "dep-cert",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE, Password: "x"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+		State:     string(datamodel.JobsStateNEW),
+	}, nil).Maybe()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	expectedHostMap := map[string]string{
+		"10.0.0.1": "dns-1.dep-cert.vsa.netapp.internal.",
+		"10.0.0.2": "dns-2.dep-cert.vsa.netapp.internal.",
+	}
+	// AuthType==USER_CERTIFICATE → OCICreateCloudDNSRecords must run.
+	env.OnActivity("OCICreateCloudDNSRecords", mock.Anything, mock.Anything, pool.DeploymentName, envs.USER_CERTIFICATE).
+		Return(&expectedHostMap, nil).Once()
+	// WaitForNodeDNS guards SaveVSANodeDetails against VLM publish race;
+	// we mock it because the real activity does live DNS lookups.
+	// Pool is mutated upstream (ExternalSecret), so match by anything.
+	env.OnActivity("WaitForNodeDNS", mock.Anything, mock.Anything, mock.Anything, pool.DeploymentName).
+		Return(nil).Once()
+	// SaveVSANodeDetails receives the same hostMap the create activity returned.
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, pool.DeploymentName,
+		mock.MatchedBy(func(m map[string]string) bool {
+			return m["10.0.0.1"] == expectedHostMap["10.0.0.1"] && m["10.0.0.2"] == expectedHostMap["10.0.0.2"]
+		}),
+	).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestOCICreatePoolWorkflow_CertAuth_DNSCreateFailsRollsBack verifies that
+// when OCICreateCloudDNSRecords fails for a cert-auth pool, the workflow
+// surfaces the error and triggers rollback of upstream-registered resources.
+// WaitForNodeDNS must NOT be invoked after the create activity fails. Like
+// TestOCICreatePoolWorkflow_CertAuth_RegistersDNS, this exercises the
+// legacy DNS-records branch and therefore explicitly turns the SNI flag off.
+func TestOCICreatePoolWorkflow_CertAuth_DNSCreateFailsRollsBack(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIUseTLSSNIOverride(t, false)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	params := &common.CreatePoolParams{
+		Name:        "cert-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "cert-pool-uuid-fail"},
+		Name:            "cert-pool",
+		DeploymentName:  "dep-cert",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE, Password: "x"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+		State:     string(datamodel.JobsStateNEW),
+	}, nil).Maybe()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("OCICreateCloudDNSRecords", mock.Anything, mock.Anything, pool.DeploymentName, envs.USER_CERTIFICATE).
+		Return((*map[string]string)(nil), errors.New("oci dns boom"))
+	// Rollback: ErroredPool runs after DNS create fails. SaveVSANodeDetails,
+	// CreatedPool, UpdatePoolFields, and WaitForNodeDNS must NOT be reached.
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// withOCIUseTLSSNIOverride flips the package-level env.OCIUseTLSSNIOverride
+// for the duration of the test. The flag is captured into a package-level
+// variable at process start, so tests must overwrite it directly. Original
+// value is restored via t.Cleanup.
+func withOCIUseTLSSNIOverride(t *testing.T, enabled bool) {
+	t.Helper()
+	orig := envs.OCIUseTLSSNIOverride
+	envs.OCIUseTLSSNIOverride = enabled
+	t.Cleanup(func() { envs.OCIUseTLSSNIOverride = orig })
+}
+
+// TestOCICreatePoolWorkflow_CertAuth_SNIOverride_SkipsDNS locks in the SNI-
+// override branch of the OCI pool-create workflow: when
+// env.OCIUseTLSSNIOverride is on, OCICreateCloudDNSRecords and WaitForNodeDNS
+// must NOT be scheduled for a cert-auth pool, SaveVSANodeDetails must still
+// run with an empty hostMap (so _saveNodeDetails synthesises the SNI), and
+// the workflow must complete cleanly. Failing this test means we are
+// re-introducing the OCI Private DNS round-trip on the SNI path.
+func TestOCICreatePoolWorkflow_CertAuth_SNIOverride_SkipsDNS(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIUseTLSSNIOverride(t, true)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	params := &common.CreatePoolParams{
+		Name:        "cert-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "cert-pool-uuid-sni"},
+		Name:            "cert-pool",
+		DeploymentName:  "dep-cert-sni",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE, Password: "x"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+		State:     string(datamodel.JobsStateNEW),
+	}, nil).Maybe()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	// Hard guard: if either DNS activity is invoked while the SNI flag is
+	// on, the workflow has regressed. We fail the test loudly from inside
+	// the activity rather than relying on AssertExpectations to surface a
+	// missing-but-allowed call, because Temporal's test env will happily
+	// fan out to "any activity" if no OnActivity matches.
+	env.OnActivity("OCICreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ mock.Arguments) {
+			t.Fatalf("OCICreateCloudDNSRecords must NOT run when OCI_USE_TLS_SNI_OVERRIDE=true")
+		}).
+		Return((*map[string]string)(nil), nil).Maybe()
+	env.OnActivity("WaitForNodeDNS", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ mock.Arguments) {
+			t.Fatalf("WaitForNodeDNS must NOT run when OCI_USE_TLS_SNI_OVERRIDE=true")
+		}).
+		Return(nil).Maybe()
+
+	// SaveVSANodeDetails receives an empty hostMap on the SNI path —
+	// _saveNodeDetails materialises the synthetic SNI itself.
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, pool.DeploymentName,
+		mock.MatchedBy(func(m map[string]string) bool { return len(m) == 0 }),
+	).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
 }

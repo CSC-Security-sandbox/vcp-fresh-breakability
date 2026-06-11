@@ -306,7 +306,6 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, err))
 	}
 	credConfig := &activities.OCICreatePoolCredentials{}
-	var ociSecret *datamodel.ExternalCredRef
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentialsForOCI, pool).Get(ctx, credConfig)
 	if err != nil {
 		logger.Errorf("Failed to create ONTAP credentials for OCI pool: %v", err)
@@ -315,14 +314,11 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	if !disableVsaCleanupOnVLMFailure {
 		rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentialsForOCI, pool)
 	}
+	if credConfig.Certificate != nil {
+		pool.PoolCredentials.ExternalCertificate = credConfig.Certificate
+	}
 	if credConfig.Secret != nil {
-		ociSecret = &datamodel.ExternalCredRef{
-			Name:               credConfig.Secret.Name,
-			Version:            credConfig.Secret.Version,
-			ExternalIdentifier: credConfig.Secret.ExternalIdentifier,
-		}
-		//   pool.PoolCredentials.ExternalCertificate = ociCertificate
-		pool.PoolCredentials.ExternalSecret = ociSecret
+		pool.PoolCredentials.ExternalSecret = credConfig.Secret
 	}
 
 	// Get VLM worker queue
@@ -406,12 +402,52 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	//   - env.OCIUseTLSSNIOverride == true (DEFAULT on OCI): skip
+	//     OCICreateCloudDNSRecords and WaitForNodeDNS for cert-auth pools
+	//     and use a synthetic SNI string at TLS handshake time (see
+	//     _saveNodeDetails + _getProviderByNode).
+	//   - env.OCIUseTLSSNIOverride == false (explicit opt-out / fallback):
+	//     run the legacy OCICreateCloudDNSRecords + WaitForNodeDNS path so
+	//     SaveVSANodeDetails sees a populated IP → FQDN hostMap and the
+	//     REST client can dial FQDNs whose DNS records have been
+	//     published.
+	hostMap := make(map[string]string)
+	if !env.OCIUseTLSSNIOverride {
+		err = workflow.ExecuteActivity(ctx, poolActivity.OCICreateCloudDNSRecords,
+			createVSAClusterDeploymentResponse.VLMConfig,
+			pool.DeploymentName,
+			pool.PoolCredentials.AuthType,
+		).Get(ctx, &hostMap)
+		if err != nil {
+			logger.Errorf("Failed to create OCI DNS records for cert-auth pool: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if !disableVsaCleanupOnVLMFailure && pool.PoolCredentials.AuthType == env.USER_CERTIFICATE && len(hostMap) > 0 {
+			rollbackManager.AddActivity(poolActivity.OCIDeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType)
+		}
+
+		// Block until OCI private DNS has published dns-N.<deployment>.<dnsSuffix>.
+		// Without this, SaveVSANodeDetails races VLM's DNS publish and frequently
+		// fails with "no such host" on the cluster_get probe.
+		err = workflow.ExecuteActivity(ctx, poolActivity.WaitForNodeDNS, pool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName).Get(ctx, nil)
+		if err != nil {
+			logger.Errorf("OCI node DNS is not ready: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+		// Only emit the bypass log for the path that actually changes
+		// behaviour. Password-auth pools never went through the DNS
+		// activities (they short-circuit inside both helpers), so logging
+		// a "skipping DNS" message for them would be misleading.
+		logger.Infof("OCI_USE_TLS_SNI_OVERRIDE enabled: skipping OCICreateCloudDNSRecords and WaitForNodeDNS for cert-auth pool %s", pool.UUID)
+	}
+
 	// Create database heartbeat context for long-running DB operations
 	// This inherits StartToCloseTimeout from parent context but uses shorter heartbeat timeout
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 
 	// Save VSA node details to database.
-	hostMap := make(map[string]string) // Empty hostMap for OCI (DNS handled differently than GCP)
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, pool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
 	if err != nil {
 		logger.Errorf("Failed to save VSA node details to database: %v", err)
@@ -420,7 +456,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	}
 	emitStage(ctx, wfCreatePool, queueCustomer, stageSaveNodeDetails, resultSuccess)
 
-	// Persist the OCI ExternalSecret / ExternalCertificate references
+	// Persist the OCI ExternalSecret / ExternalCertificate / ExpertModeSecret references
 	// onto the pool_credentials JSONB column
 	if pool.PoolCredentials.ExternalSecret != nil || pool.PoolCredentials.ExternalCertificate != nil || pool.PoolCredentials.ExpertModeSecret != nil {
 		if err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, pool.UUID, map[string]interface{}{
@@ -957,14 +993,21 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	}
 	emitStage(ctx, wfDeletePool, queueCustomer, stageVLMDelete, resultSuccess)
 
-	// Delete the ONTAP admin password secret from OCI Vault after the VSA cluster is gone.
-	// Secret name is derived from DeploymentName; the activity is idempotent if no secret exists
-	// (e.g. pools created with AuthType=USERNAME_PWD where no vault secret was ever provisioned).
-	// TODO(oci-cert): once OCI expert-mode certificates are introduced, the activity will
-	// additionally revoke the cert; the same compound guard then makes revocation skippable
-	// for debug sessions, matching GCP exactly.
 	if pool.DeploymentName != "" && (!disableVsaCleanupOnVLMFailure || pool.State != datamodel.LifeCycleStateError) {
 		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteOnTapCredentialsForOCI, pool).Get(hyperscalerCtx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	// Clean up DNS records for cert-auth pools in oci
+	if pool.PoolCredentials != nil && pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+		hostMap := make(map[string]string)
+		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.GetCloudDNSRecords, pool.ID, pool.PoolCredentials.AuthType).Get(hyperscalerCtx, &hostMap)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.OCIDeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType).Get(hyperscalerCtx, nil)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

@@ -7,8 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/oracle/oci-go-sdk/v65/certificates"
+	"github.com/oracle/oci-go-sdk/v65/certificatesmanagement"
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/common/auth"
+	"github.com/oracle/oci-go-sdk/v65/dns"
 	"github.com/oracle/oci-go-sdk/v65/objectstorage"
 	"github.com/oracle/oci-go-sdk/v65/secrets"
 	"github.com/oracle/oci-go-sdk/v65/vault"
@@ -28,30 +31,42 @@ type OciServices struct {
 	AdminOCIService *AdminOCIService
 }
 
-// AdminOCIService groups the OCI SDK clients needed for secret management
-// and object storage pre-authenticated request (PAR) generation.
+// AdminOCIService groups the OCI SDK clients needed for secret, certificate,
+// DNS management and object storage pre-authenticated request (PAR) generation.
 //
-// OCI splits secret operations across two services:
-//   - vault.VaultsClient  — CRUD on secret metadata + creating new versions (write API)
-//   - secrets.SecretsClient — reading secret content / bundles (read API)
+// OCI splits each domain into a write/management API and a read/retrieval API:
+//   - vault.VaultsClient                                   — secret CRUD (write)
+//   - secrets.SecretsClient                                — secret bundle retrieval (read)
+//   - certificatesmanagement.CertificatesManagementClient  — certificate CRUD (write)
+//   - certificates.CertificatesClient                      — certificate bundle retrieval (read)
+//   - dns.DnsClient                                        — DNS zones / RRSets (read + write)
 //
 // Object Storage exposes a single client used to mint PARs for the VSA image
 // hand-off to VLM, mirroring what GcpServices does with V4 signed URLs on GCS.
 //
 // Docs:
-//   - Vault (write):       https://docs.oracle.com/en-us/iaas/api/#/en/secretmgmt/20180608/
-//   - Secrets (read):      https://docs.oracle.com/en-us/iaas/api/#/en/secretretrieval/20190301/
+//   - Vault (write):                   https://docs.oracle.com/en-us/iaas/api/#/en/secretmgmt/20180608/
+//   - Secrets (read):                  https://docs.oracle.com/en-us/iaas/api/#/en/secretretrieval/20190301/
+//   - Certificates Management (write): https://docs.oracle.com/en-us/iaas/api/#/en/certificatesmanagement/20210224/
+//   - Certificates (read):             https://docs.oracle.com/en-us/iaas/api/#/en/certificates/20210224/
+//   - DNS:                             https://docs.oracle.com/en-us/iaas/api/#/en/dns/20180115/
 //   - Object Storage:      https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/
 type AdminOCIService struct {
-	vaultClient         vault.VaultsClient
-	secretsClient       secrets.SecretsClient
-	objectStorageClient objectstorage.ObjectStorageClient
+	vaultClient          vault.VaultsClient
+	secretsClient        secrets.SecretsClient
+	certManagementClient certificatesmanagement.CertificatesManagementClient
+	certReadClient       certificates.CertificatesClient
+	dnsClient            dns.DnsClient
+	objectStorageClient  objectstorage.ObjectStorageClient
 }
 
 var (
-	initializeVaultClient         = _initializeVaultClient
-	initializeSecretsClient       = _initializeSecretsClient
-	initializeObjectStorageClient = _initializeObjectStorageClient
+	initializeVaultClient          = _initializeVaultClient
+	initializeSecretsClient        = _initializeSecretsClient
+	initializeCertManagementClient = _initializeCertManagementClient
+	initializeCertReadClient       = _initializeCertReadClient
+	initializeDnsClient            = _initializeDnsClient
+	initializeObjectStorageClient  = _initializeObjectStorageClient
 )
 
 // InitializeClients Creates the OCI SDK clients using the auth method
@@ -105,6 +120,24 @@ func newOCIClients(ctx context.Context) (*AdminOCIService, error) {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
 	}
 
+	certMgmtCl, err := initializeCertManagementClient()
+	if err != nil {
+		log.Errorf("Error initializing OCI Certificates Management client: %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
+	}
+
+	certReadCl, err := initializeCertReadClient()
+	if err != nil {
+		log.Errorf("Error initializing OCI Certificates read client: %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
+	}
+
+	dnsCl, err := initializeDnsClient()
+	if err != nil {
+		log.Errorf("Error initializing OCI DNS client: %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
+	}
+
 	objectStorageCl, err := initializeObjectStorageClient()
 	if err != nil {
 		log.Errorf("Error initializing OCI Object Storage client: %s", err.Error())
@@ -112,9 +145,12 @@ func newOCIClients(ctx context.Context) (*AdminOCIService, error) {
 	}
 
 	return &AdminOCIService{
-		vaultClient:         *vaultCl,
-		secretsClient:       *secretsCl,
-		objectStorageClient: *objectStorageCl,
+		vaultClient:          *vaultCl,
+		secretsClient:        *secretsCl,
+		certManagementClient: *certMgmtCl,
+		certReadClient:       *certReadCl,
+		dnsClient:            *dnsCl,
+		objectStorageClient:  *objectStorageCl,
 	}, nil
 }
 
@@ -215,6 +251,20 @@ func _initializeSecretsClient() (*secrets.SecretsClient, error) {
 	return &client, nil
 }
 
+// _initializeCertManagementClient creates the Certificates Management (write) client.
+// Docs: https://docs.oracle.com/en-us/iaas/tools/go/latest/certificatesmanagement/index.html
+func _initializeCertManagementClient() (*certificatesmanagement.CertificatesManagementClient, error) {
+	configProvider, err := ociConfigProvider()
+	if err != nil {
+		return nil, fmt.Errorf("ociConfigProvider: %w", err)
+	}
+	client, err := certificatesmanagement.NewCertificatesManagementClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, fmt.Errorf("certificatesmanagement.NewCertificatesManagementClientWithConfigurationProvider: %w", err)
+	}
+	return &client, nil
+}
+
 // _initializeObjectStorageClient creates the Object Storage client used for
 // pre-authenticated request (PAR) generation and namespace lookup.
 // Docs: https://docs.oracle.com/en-us/iaas/tools/go/65.108.3/objectstorage/index.html
@@ -230,12 +280,81 @@ func _initializeObjectStorageClient() (*objectstorage.ObjectStorageClient, error
 	return &client, nil
 }
 
-// NewAdminOCIService creates an AdminOCIService from pre-built SDK clients.
-// This allows callers (including test code in other packages) to construct
-// an OciServices backed by controlled or mock-backed clients without going
-// through the full InitializeClients authentication flow.
+// _initializeCertReadClient creates the Certificates (read) client used to retrieve
+// certificate bundles (signed cert + chain + private key for internally-managed certs).
+// Docs: https://docs.oracle.com/en-us/iaas/tools/go/latest/certificates/index.html
+func _initializeCertReadClient() (*certificates.CertificatesClient, error) {
+	configProvider, err := ociConfigProvider()
+	if err != nil {
+		return nil, fmt.Errorf("ociConfigProvider: %w", err)
+	}
+	client, err := certificates.NewCertificatesClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, fmt.Errorf("certificates.NewCertificatesClientWithConfigurationProvider: %w", err)
+	}
+	return &client, nil
+}
+
+// _initializeDnsClient creates the DNS client used to manage per-node A records
+// for VSA cluster management LIFs. Records are written into the zone identified
+// by env.OCIVsaDnsZoneOCID so the certificate's wildcard SAN (issued for
+// `*.<deploymentName>.<env.VsaDeployedDnsName>`) covers them at TLS handshake.
+// Docs: https://docs.oracle.com/en-us/iaas/tools/go/latest/dns/index.html
+func _initializeDnsClient() (*dns.DnsClient, error) {
+	configProvider, err := ociConfigProvider()
+	if err != nil {
+		return nil, fmt.Errorf("ociConfigProvider: %w", err)
+	}
+	client, err := dns.NewDnsClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, fmt.Errorf("dns.NewDnsClientWithConfigurationProvider: %w", err)
+	}
+	return &client, nil
+}
+
+// NewAdminOCIService creates an AdminOCIService from the secret-management SDK
+// clients only. The certificate clients are left zero-valued so this constructor
+// stays backward-compatible with existing callers (e.g. ontap_provider_test.go).
+// Callers that need certificate APIs should use NewAdminOCIServiceWithCertClients.
 func NewAdminOCIService(vaultClient vault.VaultsClient, secretsClient secrets.SecretsClient) *AdminOCIService {
 	return &AdminOCIService{vaultClient: vaultClient, secretsClient: secretsClient}
+}
+
+// NewAdminOCIServiceWithCertClients creates an AdminOCIService from pre-built
+// SDK clients for both secret and certificate management. Use this constructor
+// in tests that exercise the certificate_management.go code paths.
+func NewAdminOCIServiceWithCertClients(
+	vaultClient vault.VaultsClient,
+	secretsClient secrets.SecretsClient,
+	certManagementClient certificatesmanagement.CertificatesManagementClient,
+	certReadClient certificates.CertificatesClient,
+) *AdminOCIService {
+	return &AdminOCIService{
+		vaultClient:          vaultClient,
+		secretsClient:        secretsClient,
+		certManagementClient: certManagementClient,
+		certReadClient:       certReadClient,
+	}
+}
+
+// NewAdminOCIServiceWithAllClients creates an AdminOCIService from pre-built
+// SDK clients for secret, certificate, and DNS management. Use this constructor
+// in tests that exercise the cloud_dns.go code paths (or any test that needs
+// all five SDK clients populated).
+func NewAdminOCIServiceWithAllClients(
+	vaultClient vault.VaultsClient,
+	secretsClient secrets.SecretsClient,
+	certManagementClient certificatesmanagement.CertificatesManagementClient,
+	certReadClient certificates.CertificatesClient,
+	dnsClient dns.DnsClient,
+) *AdminOCIService {
+	return &AdminOCIService{
+		vaultClient:          vaultClient,
+		secretsClient:        secretsClient,
+		certManagementClient: certManagementClient,
+		certReadClient:       certReadClient,
+		dnsClient:            dnsClient,
+	}
 }
 
 // ociResourceNotFoundCheck mirrors googleResourceNotFoundCheck: it returns nil

@@ -23,6 +23,11 @@ type CustomCertificate struct {
 	CaName                     string
 	CaGroupName                string
 	CertificateID              string
+	// VersionNumber is the certificate version on the issuing service.
+	// Populated for OCI (where certificates are explicitly versioned and the
+	// version is needed for revoke/rotate flows). On GCP it is left as 0 —
+	// CAS does not expose a per-cert version number through the same shape.
+	VersionNumber int64
 }
 
 // CustomCertificateParam is a struct that represents the parameters needed to create a certificate

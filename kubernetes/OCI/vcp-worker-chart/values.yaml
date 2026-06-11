@@ -75,7 +75,7 @@ workerConfig:
   ontapVersionDetails: "9.19.1"
   localCell: "00"
   ociVSASerialAllocationEnabled: true
-  
+
   ociNodeCapacityMaxTib: 425
   ociThroughputThresholdGbps: 5
   ociVsaUseSecondaryIpsForLifs: true
@@ -104,6 +104,10 @@ workerConfig:
   ociVaultOcid: ""
   ociMasterKeyOcid: ""
   ociCompartmentOcid: ""
+  ociIssuerCaOcid: ""
+  vsaDeployedDnsName: ""
+  ociVsaDnsZoneOcid: ""
+  ociUseTlsSniOverride: true
 
   metricsPort: "9090"
 

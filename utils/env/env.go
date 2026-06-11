@@ -471,6 +471,68 @@ var (
 	// pool-creation time on OCI. Captured once at process start so the
 	// orchestrator factory and the OCI pool workflow agree on a single value
 	OCIOntapAdminUsername = GetString("OCI_ONTAP_ADMIN_USERNAME", "admin")
+
+	// OCIIssuerCAOCID is the OCID of the OCI private Certificate Authority that
+	// signs internally-managed certificates created for VSA clusters. The OCI
+	// Certificates Service generates the key pair, builds the CSR, and signs
+	// the certificate against this CA in a single API call
+	OCIIssuerCAOCID = GetString("OCI_ISSUER_CA_OCID", "")
+
+	// OCICertificateValidityDays is the validity window for internally-managed
+	// certificates, expressed in days. Mirrors GCP's CERTIFICATE_LIFETIME
+	// (which is in seconds). Default is 1000 days, matching the GCP
+	// default of 94608000s.
+	OCICertificateValidityDays = GetInt("OCI_CERTIFICATE_VALIDITY_DAYS", 1000)
+
+	// OCICertificateDeletionRetentionDays controls how many days after scheduling
+	// a deletion the OCI certificate is permanently removed. OCI enforces a
+	// minimum of 1 day; the service default is 7 days.
+	OCICertificateDeletionRetentionDays = GetInt("OCI_CERTIFICATE_DELETION_RETENTION_DAYS", 7)
+
+	// OCIVsaDnsZoneOCID is the OCID of the OCI DNS zone in which per-node
+	// A records are registered for VSA cluster management LIFs. This zone's
+	// suffix MUST match VsaDeployedDnsName so the certificate's wildcard SAN
+	// (issued for `*.<deploymentName>.<VsaDeployedDnsName>` in
+	// _createCertificateForVSAClusterOCI) covers the FQDNs registered here.
+	//
+	// Using the zone OCID (not the zone name) means the OCI SDK does NOT
+	// require a separate ViewId even for PRIVATE zones — see
+	// dns.UpdateRRSetRequest.ViewId: "Required when accessing a private zone
+	// by name".
+	OCIVsaDnsZoneOCID = GetString("OCI_VSA_DNS_ZONE_OCID", "")
+
+	// OCIVsaDnsScope controls the scope query parameter on every OCI DNS
+	// request: "PRIVATE" (default — VSA management LIFs are private IPs
+	// resolvable only inside the VCN) or "GLOBAL" (public zone, useful for
+	// local-dev sandbox testing). Mirrors the GCP managed-zone visibility
+	// model, which is implicit in GCP's VSA_MANAGED_ZONE configuration.
+	OCIVsaDnsScope = strings.ToUpper(GetString("OCI_VSA_DNS_SCOPE", "PRIVATE"))
+
+	// OCIUseTLSSNIOverride selects which connect-by-cert strategy the OCI
+	// cert-auth pool path uses to bring up mTLS against the freshly-
+	// provisioned ONTAP cluster:
+	//
+	//   - true  (DEFAULT for OCI): "skip OCI Private DNS records, dial the
+	//     management LIF by IP, and override the TLS SNI to a synthetic
+	//     name (mgmt.<deploymentName>.<VsaDeployedDnsName>) that matches
+	//     the wildcard SAN baked into the cluster certificate". This is
+	//     the steady-state OCI behaviour: it removes the
+	//     OCICreateCloudDNSRecords + WaitForNodeDNS publish-race from the
+	//     pool-create critical path while keeping full mTLS.
+	//
+	//   - false (opt-out / fallback): "create per-node OCI Private DNS A
+	//     records and connect by FQDN". Flip the env var to this value
+	//     when an environment needs the legacy DNS-records path —
+	//     typically for debugging (nslookup-able node FQDNs) or as a
+	//     stop-gap if a regression on the SNI path is suspected. The
+	//     legacy path is preserved end-to-end in pool_workflows.go,
+	//     pool_activities.go, provider_factory.go and rest_client.go, so
+	//     turning the flag off is a clean revert with no schema change.
+	//
+	// Only consulted on the OCI hyperscaler (env.GetHyperscaler() ==
+	// commonparams.ProviderOCI). GCP code paths never read this flag and
+	// keep their existing CreateCloudDNSRecords + Cloud DNS behaviour.
+	OCIUseTLSSNIOverride = GetBool("OCI_USE_TLS_SNI_OVERRIDE", true)
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

@@ -48,6 +48,16 @@ const (
 	password                        = "password"
 )
 
+// Polling defaults for WaitForNodeDNS. Declared as `var` (not `const`) so unit
+// tests can shrink them to keep the suite fast without forcing a poll/deadline
+// parameter through the activity signature. Production code must never mutate
+// these — they are package-private and intended as a test seam only.
+// See pool_activities_internal_test.go for the override pattern.
+var (
+	waitForNodeDNSPollInterval       = 5 * time.Second  // WaitForNodeDNS poll interval
+	waitForNodeDNSPerAttemptDeadline = 10 * time.Minute // WaitForNodeDNS per attempt deadline, capped inside the activity; outer Temporal retry still applies.
+)
+
 var (
 	DeploymentsInsert                        = common.DeploymentsInsert
 	PrepareVlmConfig                         = _prepareVlmConfig
@@ -189,8 +199,22 @@ func (j *PoolActivity) ValidateZonesForMachineTypes(ctx context.Context, project
 	return nil
 }
 
+// DNSResolver is the narrow seam WaitForNodeDNS uses to look up node FQDNs.
+// *net.Resolver satisfies this naturally, so production code does not need to
+// inject anything explicit; tests inject a fake to drive the polling loop
+// (NXDOMAIN / timeout / non-DNS-error / deadline-exceeded) without hitting the
+// OS resolver. See pool_activities_internal_test.go.
+type DNSResolver interface {
+	LookupHost(ctx context.Context, host string) ([]string, error)
+}
+
 type PoolActivity struct {
 	SE database.Storage
+
+	// DNSResolver is used by WaitForNodeDNS. Leave nil in production — it
+	// falls back to &net.Resolver{PreferGo: true}. Tests inject a fake to
+	// control the polling loop deterministically.
+	DNSResolver DNSResolver
 }
 
 type InternalVSANetwork struct {
@@ -1094,8 +1118,9 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	return credentials, nil
 }
 
-// OCICreatePoolCredentials wraps the ONTAP credentials together with the OCI Vault
-// references for the secret (and, in the future, certificate) created during pool provisioning.
+// OCICreatePoolCredentials wraps the ONTAP credentials together with the OCI
+// Vault reference for the password secret and the OCI Certificates Service
+// reference for the cluster certificate created during pool provisioning.
 //
 // OntapCredentials is intentionally a value (not a pointer) so that callers can
 // safely access OntapCredentials.AdminPassword without a nil-check after
@@ -1124,11 +1149,29 @@ func (j *PoolActivity) CreateOnTapCredentialsForOCI(ctx context.Context, pool *d
 
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
-		// TODO: Implement in future prs
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating and creating certificate for ONTAP credentials - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+		certName := ociOntapCertificateName(pool)
+		certificate, err := vsa.CreateCertificateForVSAClusterOCI(ociService, pool.DeploymentName, certName, pool.PoolCredentials, EnableServerAuthInCSR)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if certificate == nil || certificate.Certificate == nil || certificate.Secret == nil || certificate.Secret.SecretVersion == nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError,
+					fmt.Errorf("OCI Certificates Service returned an incomplete certificate response for deployment %q", pool.DeploymentName)))
+		}
+		credentials.OntapCredentials = *setPoolCredentials(certificate)
+		credentials.Certificate = &datamodel.ExternalCredRef{
+			Name:               certificate.Certificate.Name,
+			Version:            certificate.Certificate.VersionNumber,
+			ExternalIdentifier: certificate.Certificate.CertificateID,
+		}
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Certificate generated and created successfully - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating password for ONTAP credentials in OCI Vault - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
 		secretName := ociOntapAdminSecretName(pool)
-		secret, err := vsa.GeneratePasswordForVSAClusterOCI(*ociService, secretName)
+		secret, err := vsa.GeneratePasswordForVSAClusterOCI(ociService, secretName)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1137,7 +1180,7 @@ func (j *PoolActivity) CreateOnTapCredentialsForOCI(ctx context.Context, pool *d
 				vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError,
 					fmt.Errorf("OCI Vault returned nil secret without error for secret %q", secretName)))
 		}
-		credentials.OntapCredentials = vlm.OntapCredentials{AdminPassword: secret.Value}
+		credentials.OntapCredentials.AdminPassword = secret.Value
 		credentials.Secret = &datamodel.ExternalCredRef{
 			Name:               secret.Name,
 			Version:            secret.Version,
@@ -1146,7 +1189,7 @@ func (j *PoolActivity) CreateOnTapCredentialsForOCI(ctx context.Context, pool *d
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Password generated successfully in OCI Vault - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
 	default:
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Using default password for ONTAP credentials, CreateOnTapCredentialsForOCI - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
-		credentials.OntapCredentials = vlm.OntapCredentials{AdminPassword: pool.PoolCredentials.Password}
+		credentials.OntapCredentials.AdminPassword = pool.PoolCredentials.Password
 	}
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished CreateOnTapCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
 	return credentials, nil
@@ -1168,10 +1211,16 @@ func (j *PoolActivity) DeleteOnTapCredentialsForOCI(ctx context.Context, pool *d
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
 	}
 	switch pool.PoolCredentials.AuthType {
+	case env.USER_CERTIFICATE:
+		activity.RecordHeartbeat(ctx, "Revoking certificate from OCI Certificates Service")
+		if err = vsa.RevokeCertificateFromCAS(ociService, pool.PoolCredentials); err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		activity.RecordHeartbeat(ctx, "Certificate revoked successfully")
+		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Vault")
-		secretName := ociOntapAdminSecretName(pool)
-		if err := vsa.DeletePasswordForVSAClusterOCI(*ociService, secretName); err != nil {
+		if err := vsa.DeletePasswordForVSAClusterOCI(ociService, pool.PoolCredentials); err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		activity.RecordHeartbeat(ctx, "Password deleted successfully from Vault")
@@ -2350,6 +2399,169 @@ func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, aut
 	return &hostMap, nil
 }
 
+// OCICreateCloudDNSRecords. For each VM in vlmConfig.Cloud.HAPairs
+// it registers an A record `dns-N.<clusterName>.<env.VsaDeployedDnsName>`
+// pointing at the VM's management LIF IP, and returns the IP→FQDN map
+// that SaveVSANodeDetails persists as node.HostDNSName.
+func (j *PoolActivity) OCICreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
+	activity.RecordHeartbeat(ctx, "Initializing OCICreateCloudDNSRecords activity")
+	hostMap := make(map[string]string)
+	if authType != env.USER_CERTIFICATE {
+		return &hostMap, nil
+	}
+
+	if vlmConfig == nil || len(vlmConfig.Cloud.HAPairs) == 0 {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState,
+				errors.New("no cluster details provided")))
+	}
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for i, details := range vlmConfig.Cloud.HAPairs {
+		if len(details.VM1.SystemLIFs) == 0 || len(details.VM2.SystemLIFs) == 0 {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState,
+					errors.New("no system LIFs provided for VMs")))
+		}
+
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating OCI DNS records for HA pair %d - cluster: %s", i+1, clusterName))
+
+		ipVM1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
+		nameVM1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, env.VsaDeployedDnsName)
+		rec1, err := vsa.GetOrCreateOCIDNSRecord(ociService, nameVM1, ipVM1)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceProvisionError, err))
+		}
+		hostMap[ipVM1] = rec1.RecordName
+
+		ipVM2 := details.VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
+		nameVM2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, env.VsaDeployedDnsName)
+		rec2, err := vsa.GetOrCreateOCIDNSRecord(ociService, nameVM2, ipVM2)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceProvisionError, err))
+		}
+		hostMap[ipVM2] = rec2.RecordName
+	}
+	return &hostMap, nil
+}
+
+// WaitForNodeDNS polls the OS resolver until every per-node management FQDN
+// for the given pool resolves to at least one address, or the deadline elapses.
+// It's an idempotent, side-effect-free probe that fits cleanly into Temporal's
+// activity retry semantics (heartbeats, cancellation).
+func (j *PoolActivity) WaitForNodeDNS(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, clusterName string) error {
+	activity.RecordHeartbeat(ctx, "Initializing WaitForNodeDNS activity")
+	if pool == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, errors.New("WaitForNodeDNS: pool is nil")))
+	}
+	if pool.PoolCredentials == nil || pool.PoolCredentials.AuthType != env.USER_CERTIFICATE {
+		activity.RecordHeartbeat(ctx, "WaitForNodeDNS activity completed - no-op for non-cert auth types")
+		return nil
+	}
+	if pool.DeploymentName == "" {
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, errors.New("WaitForNodeDNS: pool/deploymentName missing")))
+	}
+	if vlmConfig == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("WaitForNodeDNS: vlmConfig is nil")))
+	}
+	if len(vlmConfig.Cloud.HAPairs) == 0 {
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
+	}
+	logger := util.GetLogger(ctx)
+
+	fqdns := make([]string, 0, 2*len(vlmConfig.Cloud.HAPairs))
+	for i := range vlmConfig.Cloud.HAPairs {
+		fqdns = append(fqdns,
+			fmt.Sprintf("%s-%d.%s.%s", "dns", (2*i)+1, clusterName, env.VsaDeployedDnsName),
+			fmt.Sprintf("%s-%d.%s.%s", "dns", (2*i)+2, clusterName, env.VsaDeployedDnsName),
+		)
+	}
+
+	deadline := time.Now().Add(waitForNodeDNSPerAttemptDeadline)
+	// Resolver is injected via PoolActivity.DNSResolver in tests; production
+	// callers leave it nil and we fall back to the Go-pure resolver here so
+	// behaviour matches the previous inline construction byte-for-byte.
+	resolver := j.DNSResolver
+	if resolver == nil {
+		resolver = &net.Resolver{PreferGo: true}
+	}
+
+	for _, host := range fqdns {
+		logger.Infof("DNS lookup for %s started for cluster: %s", host, clusterName)
+		for {
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("WaitForNodeDNS: polling %s", host))
+			ips, err := resolver.LookupHost(ctx, host)
+			if err == nil && len(ips) > 0 {
+				logger.Infof("DNS ready for %s -> %v for cluster: %s", host, ips, clusterName)
+				break
+			}
+			// logger.Infof("DNS lookup for %s failed: %v", host, err)
+			// NXDOMAIN -> keep polling. Other errors -> propagate; not our problem.
+			var dnsErr *net.DNSError
+			if !(errors.As(err, &dnsErr) && (dnsErr.IsNotFound || dnsErr.IsTemporary || dnsErr.IsTimeout)) {
+				logger.Errorf("DNS lookup for %s failed: %v, for cluster: %s", host, err, clusterName)
+				return vsaerrors.WrapAsTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceFetchError, fmt.Errorf("DNS lookup for %s failed: %w", host, err)))
+			}
+
+			if time.Now().After(deadline) {
+				return vsaerrors.WrapAsTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceProvisionError, fmt.Errorf("timed out waiting for OCI DNS to publish %s", host)))
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(waitForNodeDNSPollInterval):
+			}
+		}
+	}
+	activity.RecordHeartbeat(ctx, "WaitForNodeDNS activity completed - all DNS records resolved")
+	return nil
+}
+
+// OCIDeleteCloudDNSRecords is the OCI counterpart to DeleteCloudDNSRecords.
+// Used by both the create-pool rollback path (where hostMap is fresh from
+// OCICreateCloudDNSRecords) and the delete-pool path (where hostMap is loaded
+// from the DB via GetCloudDNSRecords).
+//
+// Each underlying DeleteRRSet call is idempotent: OCI 404s are silenced inside
+// _deleteOCIDNSRecord so partial-create rollbacks don't fail on records that
+// never made it into the zone.
+func (j *PoolActivity) OCIDeleteCloudDNSRecords(ctx context.Context, hostMap map[string]string, authType int) error {
+	if authType != env.USER_CERTIFICATE {
+		return nil
+	}
+	if len(hostMap) == 0 {
+		util.GetLogger(ctx).Infof("No OCI DNS records to delete for pool")
+		return nil
+	}
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, host := range hostMap {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting OCI DNS record for host: %s", host))
+		if err = vsa.DeleteOCIDNSRecord(ociService, host); err != nil {
+			util.GetLogger(ctx).Errorf("Failed to delete OCI DNS record for host %s: %v", host, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+	return nil
+}
+
 func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, deploymentName string, hostMap map[string]string) (node1 *datamodel.Node, err error) {
 	activity.RecordHeartbeat(ctx, "Starting SaveVSANodeDetails activity")
 	if len(vlmConfig.Cloud.HAPairs) == 0 {
@@ -2379,9 +2591,31 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		caURI = pool.PoolCredentials.GetCaURIWithFallback()
 	}
 
+	endpointIP := vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
+
+	// OCI SNI override mode: skip Cloud DNS, dial the IP, override TLS SNI.
+	// Synthesise a stable SNI string from cluster identity that matches the
+	// wildcard SAN issued by _createCertificateForVSAClusterOCI
+	// (`*.<deploymentName>.<env.VsaDeployedDnsName>`). The same SNI is used
+	// for every node in the cluster. Re-purposes the existing HostDNSName
+	// column so no schema change is required; the value is never resolved
+	// in DNS, only used as tls.Config.ServerName at handshake time.
+	ociSNIMode := env.GetHyperscaler() == commonparams.ProviderOCI &&
+		env.OCIUseTLSSNIOverride &&
+		pool.PoolCredentials != nil &&
+		pool.PoolCredentials.AuthType == env.USER_CERTIFICATE
+	var ociSNI string
+	if ociSNIMode {
+		ociSNI = fmt.Sprintf("mgmt.%s.%s", deploymentName, env.VsaDeployedDnsName)
+		if hostMap == nil {
+			hostMap = make(map[string]string)
+		}
+		hostMap[endpointIP] = ociSNI
+	}
+
 	node := &models.Node{
 		Name:                           vmConfig.HostName,
-		EndpointAddress:                vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP,
+		EndpointAddress:                endpointIP,
 		Zone:                           vmConfig.Zone,
 		InstanceType:                   deploymentConfig.VSAInstanceType,
 		DeploymentName:                 deploymentName,
@@ -2427,9 +2661,14 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		AccountID: pool.AccountID,
 		ZoneName:  node.Zone,
 	}
-	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+	switch {
+	case ociSNIMode:
+		// Persist the synthetic SNI in HostDNSName so the read path
+		// (_createNodeForProvider) materialises the same IP → SNI map.
+		rec.HostDNSName = ociSNI
+	case pool.PoolCredentials.AuthType == env.USER_CERTIFICATE:
 		rec.HostDNSName = hostMap[node.EndpointAddress]
-	} else {
+	default:
 		rec.HostDNSName = node.EndpointAddress
 	}
 	if _, err = se.CreateNode(ctx, rec); err != nil && !utilErrors.IsConflictErr(err) {
@@ -3243,8 +3482,12 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 	return credentials, nil
 }
 
-// fetchOnTapCredentialsForOCI resolves the ONTAP admin password for an OCI pool
-// based on the configured auth type.
+// fetchOnTapCredentialsForOCI resolves the ONTAP admin credentials (cert and/or
+// password) for an OCI pool based on the configured auth type.
+// USER_CERTIFICATE falls through to USERNAME_PWD_SEC_MGR so the SSH password
+// is also fetched alongside the cert;
+// where cert-auth pools still require a vault-backed password for SSH while
+// the certificate is used for the ONTAP REST/TLS handshake.
 func fetchOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	if pool.PoolCredentials == nil {
 		return nil, fmt.Errorf("pool credentials are nil for pool %s", pool.Name)
@@ -3252,7 +3495,15 @@ func fetchOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*vl
 	credentials := &vlm.OntapCredentials{}
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
-		// TODO: add env.USER_CERTIFICATE case when certificate-based auth is supported for OCI
+		certificate, err := vsa.GetCertificateFromCacheOrCAS(ctx, pool.PoolCredentials.ExternalCertificate)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to get certificate for pool %s: %v", pool.Name, err)
+			return nil, err
+		}
+		credentials.Certificate.CommonName = certificate.CommonName
+		credentials.Certificate.Certificate = certificate.SignedCertificate
+		credentials.Certificate.PrivateKey = certificate.PrivateKey
+		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		secret, err := vsa.GetPasswordFromCacheOrOCIVault(ctx, pool.PoolCredentials.ExternalSecret)
@@ -4140,4 +4391,8 @@ func subnetCIDRWithinRange(subnetCIDR string, rangeCIDR string) bool {
 
 func ociOntapAdminSecretName(pool *datamodel.Pool) string {
 	return fmt.Sprintf("%s-secret", pool.DeploymentName)
+}
+
+func ociOntapCertificateName(pool *datamodel.Pool) string {
+	return fmt.Sprintf("%s-cert", pool.DeploymentName)
 }

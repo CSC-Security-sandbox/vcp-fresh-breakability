@@ -13,8 +13,12 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/oracle/oci-go-sdk/v65/certificates"
+	"github.com/oracle/oci-go-sdk/v65/certificatesmanagement"
 	ocicommon "github.com/oracle/oci-go-sdk/v65/common"
+	ocidns "github.com/oracle/oci-go-sdk/v65/dns"
 	"github.com/oracle/oci-go-sdk/v65/secrets"
 	"github.com/oracle/oci-go-sdk/v65/vault"
 	"github.com/stretchr/testify/assert"
@@ -2086,6 +2090,333 @@ func Test_validateOCIVaultConfig(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// _getCertificateFromCacheOrCAS
+// ---------------------------------------------------------------------------
+//
+// The OCI cert cache helper has three observable shapes: bad input, cache hit
+// (no OCI round-trip), and OCI-service init failure. The full CAS round-trip
+// path is exercised end-to-end via the provider tests above (which monkey-patch
+// GetCertificateFromCacheOrCAS), so we don't reach into ociService here.
+
+func Test_GetCertificateFromCacheOrCAS_NilRef(t *testing.T) {
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), nil)
+	assert.Nil(t, cert)
+	assert.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetCertificateFromCacheOrCAS_EmptyName(t *testing.T) {
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name:               "",
+		ExternalIdentifier: "ocid1.certificate.oc1..abc",
+	})
+	assert.Nil(t, cert)
+	assert.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetCertificateFromCacheOrCAS_EmptyExternalIdentifier(t *testing.T) {
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name:               "dep-cert",
+		ExternalIdentifier: "",
+	})
+	assert.Nil(t, cert)
+	assert.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetCertificateFromCacheOrCAS_CacheHit(t *testing.T) {
+	// Use a unique cache key to avoid collisions with other tests that share
+	// the process-scoped cert-auth cache.
+	const cacheKey = "test-getcertfromcache-hit-cert"
+
+	origGet := common.GetCertAuthCache
+	defer func() { common.GetCertAuthCache = origGet }()
+	common.GetCertAuthCache = func(key string) (*models.CertCache, bool) {
+		assert.Equal(t, cacheKey, key)
+		return &models.CertCache{Certificate: &models.Certificate{
+			CommonName:        "cached-cn",
+			SignedCertificate: "cached-cert",
+			PrivateKey:        "cached-key",
+		}}, true
+	}
+
+	// If the cache hit is honoured, GetOCIService must NOT be called.
+	origGetOCI := hyperscaler.GetOCIService
+	defer func() { hyperscaler.GetOCIService = origGetOCI }()
+	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		t.Fatalf("OCI service must not be initialised when cache contains a value")
+		return nil, nil
+	}
+
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name:               cacheKey,
+		ExternalIdentifier: "ocid1.certificate.oc1..abc",
+	})
+	assert.NoError(t, err)
+	if assert.NotNil(t, cert) {
+		assert.Equal(t, "cached-cn", cert.CommonName)
+		assert.Equal(t, "cached-cert", cert.SignedCertificate)
+		assert.Equal(t, "cached-key", cert.PrivateKey)
+	}
+}
+
+func Test_GetCertificateFromCacheOrCAS_GetOCIServiceFails(t *testing.T) {
+	const cacheKey = "test-getcertfromcache-svcfail-cert"
+
+	origGet := common.GetCertAuthCache
+	defer func() { common.GetCertAuthCache = origGet }()
+	// Cache miss so the function falls through to GetOCIService.
+	common.GetCertAuthCache = func(key string) (*models.CertCache, bool) {
+		return nil, false
+	}
+
+	origGetOCI := hyperscaler.GetOCIService
+	defer func() { hyperscaler.GetOCIService = origGetOCI }()
+	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return nil, fmt.Errorf("oci client init failed")
+	}
+
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name:               cacheKey,
+		ExternalIdentifier: "ocid1.certificate.oc1..abc",
+	})
+	assert.Nil(t, cert)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "oci client init failed")
+}
+
+// ---------------------------------------------------------------------------
+// _getOrCreateOCIDNSRecord and _deleteOCIDNSRecord
+// ---------------------------------------------------------------------------
+//
+// The helpers wrap the *OciServices DNS methods with the same get-then-create
+// / get-then-delete semantics as the GCP variants. Because the underlying SDK
+// methods are concrete (not vars), we exercise them by wiring an HTTP-level
+// dispatcher into a real DnsClient via NewAdminOCIServiceWithAllClients.
+
+// newTestOciServicesWithDNSForHyperscaler is the DNS-aware counterpart of
+// newTestOciServicesForHyperscaler. It returns an OciServices with only a
+// DNS client wired (vault/secrets/cert clients are deliberately zero-valued)
+// because the helpers under test never touch any of those.
+func newTestOciServicesWithDNSForHyperscaler(t *testing.T, dnsDispatcher *mockOCIHTTPDispatcher) *oci2.OciServices {
+	t.Helper()
+	ctx := context.Background()
+	pemKey := testOCIRSAPrivateKeyPEM(t)
+
+	configProvider := ocicommon.NewRawConfigurationProvider(
+		"ocid1.tenancy.oc1..test",
+		"ocid1.user.oc1..test",
+		"us-ashburn-1",
+		"aa:bb:cc:dd:ee:ff:00:11",
+		pemKey,
+		nil,
+	)
+
+	dnsCl, err := ocidns.NewDnsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if dnsDispatcher != nil {
+		dnsCl.HTTPClient = dnsDispatcher
+	}
+
+	return &oci2.OciServices{
+		Ctx:    ctx,
+		Logger: log.NewLogger(),
+		AdminOCIService: oci2.NewAdminOCIServiceWithAllClients(
+			vault.VaultsClient{},
+			secrets.SecretsClient{},
+			certificatesmanagement.CertificatesManagementClient{},
+			certificates.CertificatesClient{},
+			dnsCl,
+		),
+	}
+}
+
+func Test_GetOrCreateOCIDNSRecord_NilService(t *testing.T) {
+	rec, err := _getOrCreateOCIDNSRecord(nil, "dns-1.example.com.", "10.0.0.1")
+	assert.Nil(t, rec)
+	require.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetOrCreateOCIDNSRecord_RecordExists_ShortCircuitsCreate(t *testing.T) {
+	const (
+		zoneOCID   = "ocid1.dns-zone.oc1..testzone"
+		recordName = "dns-1.deployment-foo.vsa.netapp.internal."
+		ip         = "10.0.0.5"
+	)
+
+	origZone := env.OCIVsaDnsZoneOCID
+	defer func() { env.OCIVsaDnsZoneOCID = origZone }()
+	env.OCIVsaDnsZoneOCID = zoneOCID
+
+	// All Get calls succeed with a populated RRSet → Create must not be
+	// invoked. We assert that by failing the test if the dispatcher ever sees
+	// a non-GET method.
+	dispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if req.Method != http.MethodGet {
+				t.Fatalf("Create must not run when Get returns a record; got method %s", req.Method)
+			}
+			return mockOCIJSONResponse(http.StatusOK, fmt.Sprintf(`{
+				"items": [
+					{"domain": "%s", "rdata": "%s", "rtype": "A", "ttl": 300}
+				]
+			}`, recordName, ip)), nil
+		},
+	}
+
+	svc := newTestOciServicesWithDNSForHyperscaler(t, dispatcher)
+	rec, err := _getOrCreateOCIDNSRecord(svc, recordName, ip)
+	require.NoError(t, err)
+	require.NotNil(t, rec)
+	assert.Equal(t, recordName, rec.RecordName)
+	assert.Equal(t, ip, rec.Data)
+}
+
+func Test_GetOrCreateOCIDNSRecord_RecordMissing_FallsThroughToCreate(t *testing.T) {
+	const (
+		zoneOCID   = "ocid1.dns-zone.oc1..testzone"
+		recordName = "dns-1.deployment-foo.vsa.netapp.internal."
+		ip         = "10.0.0.5"
+	)
+
+	origZone := env.OCIVsaDnsZoneOCID
+	defer func() { env.OCIVsaDnsZoneOCID = origZone }()
+	env.OCIVsaDnsZoneOCID = zoneOCID
+
+	var sawGet, sawCreate bool
+	dispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if req.Method == http.MethodGet {
+				sawGet = true
+				// 404 → _getOrCreateOCIDNSRecord routes to create.
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotFound", message: "no such RRSet"}
+			}
+			// PUT/UpdateRRSet path.
+			sawCreate = true
+			return mockOCIJSONResponse(http.StatusOK, fmt.Sprintf(`{
+				"items": [
+					{"domain": "%s", "rdata": "%s", "rtype": "A", "ttl": 300}
+				]
+			}`, recordName, ip)), nil
+		},
+	}
+
+	svc := newTestOciServicesWithDNSForHyperscaler(t, dispatcher)
+	rec, err := _getOrCreateOCIDNSRecord(svc, recordName, ip)
+	require.NoError(t, err)
+	require.NotNil(t, rec)
+	assert.Equal(t, recordName, rec.RecordName)
+	assert.Equal(t, ip, rec.Data)
+	assert.True(t, sawGet, "Get must run first")
+	assert.True(t, sawCreate, "Create must run when Get returns 404")
+}
+
+func Test_GetOrCreateOCIDNSRecord_GetErrorPropagates(t *testing.T) {
+	origZone := env.OCIVsaDnsZoneOCID
+	defer func() { env.OCIVsaDnsZoneOCID = origZone }()
+	env.OCIVsaDnsZoneOCID = "ocid1.dns-zone.oc1..testzone"
+
+	dispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "denied"}
+		},
+	}
+
+	svc := newTestOciServicesWithDNSForHyperscaler(t, dispatcher)
+	rec, err := _getOrCreateOCIDNSRecord(svc, "dns-1.example.com.", "10.0.0.5")
+	assert.Nil(t, rec)
+	require.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+	}
+}
+
+func Test_DeleteOCIDNSRecord_NilService(t *testing.T) {
+	err := _deleteOCIDNSRecord(nil, "dns-1.example.com.")
+	require.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_DeleteOCIDNSRecord_AlreadyAbsent_NoOp(t *testing.T) {
+	origZone := env.OCIVsaDnsZoneOCID
+	defer func() { env.OCIVsaDnsZoneOCID = origZone }()
+	env.OCIVsaDnsZoneOCID = "ocid1.dns-zone.oc1..testzone"
+
+	// Get returns 404 → Delete must not run (helper short-circuits before
+	// the SDK Delete call).
+	dispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if req.Method != http.MethodGet {
+				t.Fatalf("DeleteRRSet must not run when Get returns 404; got method %s", req.Method)
+			}
+			return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotFound", message: "no such RRSet"}
+		},
+	}
+
+	svc := newTestOciServicesWithDNSForHyperscaler(t, dispatcher)
+	err := _deleteOCIDNSRecord(svc, "dns-1.example.com.")
+	assert.NoError(t, err)
+}
+
+func Test_DeleteOCIDNSRecord_RecordExists_DeletesRRSet(t *testing.T) {
+	const recordName = "dns-1.deployment-foo.vsa.netapp.internal."
+
+	origZone := env.OCIVsaDnsZoneOCID
+	defer func() { env.OCIVsaDnsZoneOCID = origZone }()
+	env.OCIVsaDnsZoneOCID = "ocid1.dns-zone.oc1..testzone"
+
+	var sawGet, sawDelete bool
+	dispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if req.Method == http.MethodGet {
+				sawGet = true
+				return mockOCIJSONResponse(http.StatusOK, fmt.Sprintf(`{
+					"items": [
+						{"domain": "%s", "rdata": "10.0.0.5", "rtype": "A", "ttl": 300}
+					]
+				}`, recordName)), nil
+			}
+			if req.Method == http.MethodDelete {
+				sawDelete = true
+				return mockOCIJSONResponse(http.StatusNoContent, ``), nil
+			}
+			t.Fatalf("unexpected method %s", req.Method)
+			return nil, nil
+		},
+	}
+
+	svc := newTestOciServicesWithDNSForHyperscaler(t, dispatcher)
+	err := _deleteOCIDNSRecord(svc, recordName)
+	assert.NoError(t, err)
+	assert.True(t, sawGet, "Get must run before Delete")
+	assert.True(t, sawDelete, "Delete must run when record exists")
+}
+
+// ---------------------------------------------------------------------------
 // _getPasswordFromCacheOrOCIVault
 // ---------------------------------------------------------------------------
 //
@@ -2219,7 +2550,7 @@ func testOCIRSAPrivateKeyPEM(t *testing.T) string {
 //     ScheduleSecretDeletion)
 //   - secretsDispatcher → intercepted by secrets.SecretsClient (GetSecretBundleByName,
 //     GetSecretBundle)
-func newTestOciServicesForHyperscaler(t *testing.T, vaultDispatcher, secretsDispatcher *mockOCIHTTPDispatcher) oci2.OciServices {
+func newTestOciServicesForHyperscaler(t *testing.T, vaultDispatcher, secretsDispatcher *mockOCIHTTPDispatcher) *oci2.OciServices {
 	t.Helper()
 	ctx := context.Background()
 	pemKey := testOCIRSAPrivateKeyPEM(t)
@@ -2245,7 +2576,7 @@ func newTestOciServicesForHyperscaler(t *testing.T, vaultDispatcher, secretsDisp
 		secretsCl.HTTPClient = secretsDispatcher
 	}
 
-	return oci2.OciServices{
+	return &oci2.OciServices{
 		Ctx:             ctx,
 		Logger:          log.NewLogger(),
 		AdminOCIService: oci2.NewAdminOCIService(vaultCl, secretsCl),
@@ -2433,81 +2764,65 @@ func Test_GeneratePasswordForVSAClusterOCI(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
-	origVault := env.OCIVaultOCID
-	defer func() { env.OCIVaultOCID = origVault }()
-
 	const secretOCID = "ocid1.vaultsecret.oc1..todelete"
 	const scheduleDeletionPath = "scheduleDeletion"
 
-	t.Run("config invalid — returns ErrOCIClientInitializationError before any OCI call", func(t *testing.T) {
-		env.OCIVaultOCID = ""
+	newPoolCreds := func(name, ocid string) *datamodel.PoolCredentials {
+		return &datamodel.PoolCredentials{
+			ExternalSecret: &datamodel.ExternalCredRef{
+				Name:               name,
+				ExternalIdentifier: ocid,
+			},
+		}
+	}
 
+	t.Run("nil PoolCredentials returns ErrInputValidationError before any OCI call", func(t *testing.T) {
 		svc := newTestOciServicesForHyperscaler(t, nil, nil)
-		err := _deletePasswordForVSAClusterOCI(svc, "any-secret")
+		err := _deletePasswordForVSAClusterOCI(svc, nil)
 		require.Error(t, err)
 
 		cerr, ok := err.(*coreerrors.CustomError)
 		if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
-			assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+			assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
 		}
 	})
 
-	t.Run("GetSecretByName fails — error propagated", func(t *testing.T) {
-		env.OCIVaultOCID = "ocid1.vault.oc1..test"
-
-		secretsDispatcher := &mockOCIHTTPDispatcher{
+	t.Run("nil ExternalSecret skips delete and returns nil", func(t *testing.T) {
+		// Vault dispatcher fails the test if invoked — proves no OCI call is made.
+		vaultDispatcher := &mockOCIHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
-				return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "access denied"}
+				t.Fatalf("OCI vault must not be called when ExternalSecret is nil; got %s %s", req.Method, req.URL.Path)
+				return nil, nil
 			},
 		}
-		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
-		err := _deletePasswordForVSAClusterOCI(svc, "any-secret")
-		assert.Error(t, err)
-	})
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
 
-	t.Run("secret not found — no-op, cache entry cleared", func(t *testing.T) {
-		env.OCIVaultOCID = "ocid1.vault.oc1..test"
-
-		const name = "test-delete-notfound-secret"
-		common.AddToUserAuthCache(name, "some-pw")
-
-		// 404 → GetSecretByName returns nil, nil → DeleteSecret not called
-		secretsDispatcher := &mockOCIHTTPDispatcher{
-			doFunc: func(req *http.Request) (*http.Response, error) {
-				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
-			},
-		}
-		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
-		err := _deletePasswordForVSAClusterOCI(svc, name)
+		err := _deletePasswordForVSAClusterOCI(svc, &datamodel.PoolCredentials{ExternalSecret: nil})
 		assert.NoError(t, err)
-
-		_, exists := common.GetFromUserAuthCache(name)
-		assert.False(t, exists, "cache entry should be removed even when secret is not in OCI Vault")
 	})
 
-	t.Run("DeleteSecret fails — error propagated", func(t *testing.T) {
-		env.OCIVaultOCID = "ocid1.vault.oc1..test"
-
-		const name = "test-delete-delfail-secret"
-		encodedPW := base64.StdEncoding.EncodeToString([]byte("pw"))
-
-		secretsDispatcher := &mockOCIHTTPDispatcher{
+	t.Run("empty ExternalIdentifier skips delete and returns nil", func(t *testing.T) {
+		vaultDispatcher := &mockOCIHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
-				return mockOCIJSONResponse(http.StatusOK, `{
-					"secretId":      "`+secretOCID+`",
-					"versionNumber": 1,
-					"secretBundleContent": {
-						"contentType": "BASE64",
-						"content":     "`+encodedPW+`"
-					}
-				}`), nil
+				t.Fatalf("OCI vault must not be called when ExternalIdentifier is empty; got %s %s", req.Method, req.URL.Path)
+				return nil, nil
 			},
 		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds("some-name", ""))
+		assert.NoError(t, err)
+	})
+
+	t.Run("DeleteSecret fails on ScheduleSecretDeletion — error propagated", func(t *testing.T) {
+		const name = "test-delete-delfail-secret"
+
 		vaultDispatcher := &mockOCIHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
 					return nil, &mockOCIServiceError{statusCode: http.StatusConflict, code: "Conflict", message: "deletion conflict"}
 				}
+				// GetSecret pre-flight inside DeleteSecret — return ACTIVE so we proceed to schedule.
 				return mockOCIJSONResponse(http.StatusOK, `{
 					"id":             "`+secretOCID+`",
 					"secretName":     "`+name+`",
@@ -2515,30 +2830,33 @@ func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
 				}`), nil
 			},
 		}
-		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
-		err := _deletePasswordForVSAClusterOCI(svc, name)
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds(name, secretOCID))
 		assert.Error(t, err)
 	})
 
-	t.Run("success — secret deleted, cache cleared", func(t *testing.T) {
-		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+	t.Run("secret already 404 — DeleteSecret absorbs, cache evicted", func(t *testing.T) {
+		const name = "test-delete-notfound-secret"
+		common.AddToUserAuthCache(name, "some-pw")
 
+		// GetSecret returns 404 — DeleteSecret treats this as "already gone" and returns nil.
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds(name, secretOCID))
+		assert.NoError(t, err)
+
+		_, exists := common.GetFromUserAuthCache(name)
+		assert.False(t, exists, "cache entry should be removed even when secret is not in OCI Vault")
+	})
+
+	t.Run("success — secret scheduled for deletion, cache cleared", func(t *testing.T) {
 		const name = "test-delete-success-secret"
 		common.AddToUserAuthCache(name, "cached-pw")
 
-		encodedPW := base64.StdEncoding.EncodeToString([]byte("cached-pw"))
-		secretsDispatcher := &mockOCIHTTPDispatcher{
-			doFunc: func(req *http.Request) (*http.Response, error) {
-				return mockOCIJSONResponse(http.StatusOK, `{
-					"secretId":      "`+secretOCID+`",
-					"versionNumber": 1,
-					"secretBundleContent": {
-						"contentType": "BASE64",
-						"content":     "`+encodedPW+`"
-					}
-				}`), nil
-			},
-		}
 		vaultDispatcher := &mockOCIHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
@@ -2551,8 +2869,8 @@ func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
 				}`), nil
 			},
 		}
-		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
-		err := _deletePasswordForVSAClusterOCI(svc, name)
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds(name, secretOCID))
 		assert.NoError(t, err)
 
 		_, exists := common.GetFromUserAuthCache(name)
@@ -2560,24 +2878,9 @@ func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
 	})
 
 	t.Run("success — cache miss is not an error", func(t *testing.T) {
-		env.OCIVaultOCID = "ocid1.vault.oc1..test"
-
 		const name = "test-delete-cachemiss-secret"
 		// No cache entry pre-populated — function should still return nil.
 
-		encodedPW := base64.StdEncoding.EncodeToString([]byte("pw"))
-		secretsDispatcher := &mockOCIHTTPDispatcher{
-			doFunc: func(req *http.Request) (*http.Response, error) {
-				return mockOCIJSONResponse(http.StatusOK, `{
-					"secretId":      "`+secretOCID+`",
-					"versionNumber": 1,
-					"secretBundleContent": {
-						"contentType": "BASE64",
-						"content":     "`+encodedPW+`"
-					}
-				}`), nil
-			},
-		}
 		vaultDispatcher := &mockOCIHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
@@ -2590,9 +2893,33 @@ func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
 				}`), nil
 			},
 		}
-		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
-		err := _deletePasswordForVSAClusterOCI(svc, name)
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds(name, secretOCID))
 		assert.NoError(t, err)
+	})
+
+	t.Run("success — empty Name only skips cache eviction, OCI delete still runs", func(t *testing.T) {
+		// ExternalIdentifier is sufficient to drive the OCI delete; Name is
+		// only used for cache eviction. An empty Name must not block the
+		// delete path.
+		var scheduledDeletion bool
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
+					scheduledDeletion = true
+					return mockOCIJSONResponse(http.StatusOK, `{}`), nil
+				}
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":             "`+secretOCID+`",
+					"secretName":     "any",
+					"lifecycleState": "ACTIVE"
+				}`), nil
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, newPoolCreds("", secretOCID))
+		assert.NoError(t, err)
+		assert.True(t, scheduledDeletion, "ScheduleSecretDeletion must still be invoked when Name is empty")
 	})
 }
 
@@ -2670,7 +2997,7 @@ func Test_GetPasswordFromCacheOrOCIVault_VaultFetchSuccess(t *testing.T) {
 	defer func() { hyperscaler.GetOCIService = origGetOCI }()
 	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
 		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
-		return &svc, nil
+		return svc, nil
 	}
 
 	origGetPW := GetPasswordForVSAClusterOCI
@@ -2763,7 +3090,7 @@ func Test_GetPasswordForVSAClusterOCI_VaultGetSecretFails(t *testing.T) {
 	defer func() { hyperscaler.GetOCIService = origGetOCI }()
 	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
 		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
-		return &svc, nil
+		return svc, nil
 	}
 
 	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
@@ -2793,7 +3120,7 @@ func Test_GetPasswordForVSAClusterOCI_SecretInDeletionState(t *testing.T) {
 	defer func() { hyperscaler.GetOCIService = origGetOCI }()
 	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
 		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
-		return &svc, nil
+		return svc, nil
 	}
 
 	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
@@ -2837,7 +3164,7 @@ func Test_GetPasswordForVSAClusterOCI_EmptySecretValue(t *testing.T) {
 	defer func() { hyperscaler.GetOCIService = origGetOCI }()
 	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
 		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
-		return &svc, nil
+		return svc, nil
 	}
 
 	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
@@ -2877,7 +3204,7 @@ func Test_GetPasswordForVSAClusterOCI_Success(t *testing.T) {
 	defer func() { hyperscaler.GetOCIService = origGetOCI }()
 	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
 		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
-		return &svc, nil
+		return svc, nil
 	}
 
 	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
@@ -2886,4 +3213,851 @@ func Test_GetPasswordForVSAClusterOCI_Success(t *testing.T) {
 	assert.Equal(t, expectedPW, secret.Value)
 	assert.Equal(t, int64(7), secret.Version)
 	assert.Equal(t, secretOCID, secret.Ocid)
+}
+
+// ---------------------------------------------------------------------------
+// _validateOCICertConfig
+// ---------------------------------------------------------------------------
+
+func Test_ValidateOCICertConfig(t *testing.T) {
+	origCompartment := env.OCICompartmentOCID
+	origIssuer := env.OCIIssuerCAOCID
+	origDns := env.VsaDeployedDnsName
+	defer func() {
+		env.OCICompartmentOCID = origCompartment
+		env.OCIIssuerCAOCID = origIssuer
+		env.VsaDeployedDnsName = origDns
+	}()
+
+	t.Run("all set — no error", func(t *testing.T) {
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIIssuerCAOCID = "ocid1.certauthority.oc1..test"
+		env.VsaDeployedDnsName = "vsa.example.internal"
+		assert.NoError(t, _validateOCICertConfig())
+	})
+
+	assertMissingVar := func(t *testing.T, err error, wantVars ...string) {
+		t.Helper()
+		require.Error(t, err)
+		cerr, ok := err.(*coreerrors.CustomError)
+		require.True(t, ok, "expected *CustomError, got %T", err)
+		assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+		require.NotNil(t, cerr.OriginalErr)
+		for _, v := range wantVars {
+			assert.Contains(t, cerr.OriginalErr.Error(), v)
+		}
+	}
+
+	t.Run("missing compartment", func(t *testing.T) {
+		env.OCICompartmentOCID = ""
+		env.OCIIssuerCAOCID = "ocid1.certauthority.oc1..test"
+		env.VsaDeployedDnsName = "vsa.example.internal"
+		assertMissingVar(t, _validateOCICertConfig(), "OCI_COMPARTMENT_OCID")
+	})
+
+	t.Run("missing issuer", func(t *testing.T) {
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIIssuerCAOCID = ""
+		env.VsaDeployedDnsName = "vsa.example.internal"
+		assertMissingVar(t, _validateOCICertConfig(), "OCI_ISSUER_CA_OCID")
+	})
+
+	t.Run("missing dns", func(t *testing.T) {
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIIssuerCAOCID = "ocid1.certauthority.oc1..test"
+		env.VsaDeployedDnsName = ""
+		assertMissingVar(t, _validateOCICertConfig(), "VSA_DEPLOYED_DNS_NAME")
+	})
+
+	t.Run("all missing — error lists every missing var", func(t *testing.T) {
+		env.OCICompartmentOCID = ""
+		env.OCIIssuerCAOCID = ""
+		env.VsaDeployedDnsName = ""
+		assertMissingVar(t, _validateOCICertConfig(), "OCI_COMPARTMENT_OCID", "OCI_ISSUER_CA_OCID", "VSA_DEPLOYED_DNS_NAME")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// ociPemChainToSlice
+// ---------------------------------------------------------------------------
+
+func Test_OCIPemChainToSlice(t *testing.T) {
+	// Valid base64 bodies so pem.Decode actually parses each block; the
+	// previous fixture used "ABC" which is invalid base64 and survived only
+	// via the malformed-input fallback. These exercise the real split path.
+	const (
+		blockA = "-----BEGIN CERTIFICATE-----\nQUFB\n-----END CERTIFICATE-----\n"
+		blockB = "-----BEGIN CERTIFICATE-----\nQkJC\n-----END CERTIFICATE-----\n"
+		blockC = "-----BEGIN CERTIFICATE-----\nQ0ND\n-----END CERTIFICATE-----\n"
+		keyBlk = "-----BEGIN PRIVATE KEY-----\nUEtZ\n-----END PRIVATE KEY-----\n"
+	)
+	// Re-encode through encoding/pem so test expectations match whatever
+	// canonical formatting EncodeToMemory produces, instead of pinning a
+	// specific byte sequence that would drift if the stdlib changed.
+	canonical := func(t *testing.T, raw string) string {
+		t.Helper()
+		block, _ := pem.Decode([]byte(raw))
+		require.NotNil(t, block, "fixture must decode as a PEM block")
+		return string(pem.EncodeToMemory(block))
+	}
+
+	t.Run("empty returns nil", func(t *testing.T) {
+		assert.Nil(t, ociPemChainToSlice(""))
+	})
+
+	t.Run("whitespace-only returns nil", func(t *testing.T) {
+		assert.Nil(t, ociPemChainToSlice("  \n\t\n  "))
+	})
+
+	t.Run("single valid block — one canonical element", func(t *testing.T) {
+		out := ociPemChainToSlice(blockA)
+		require.Len(t, out, 1)
+		assert.Equal(t, canonical(t, blockA), out[0])
+	})
+
+	t.Run("two concatenated blocks — split into two elements in order", func(t *testing.T) {
+		out := ociPemChainToSlice(blockA + blockB)
+		require.Len(t, out, 2)
+		assert.Equal(t, canonical(t, blockA), out[0])
+		assert.Equal(t, canonical(t, blockB), out[1])
+	})
+
+	t.Run("three concatenated blocks — split into three elements in order", func(t *testing.T) {
+		out := ociPemChainToSlice(blockA + blockB + blockC)
+		require.Len(t, out, 3)
+		assert.Equal(t, canonical(t, blockA), out[0])
+		assert.Equal(t, canonical(t, blockB), out[1])
+		assert.Equal(t, canonical(t, blockC), out[2])
+	})
+
+	t.Run("non-CERTIFICATE block is filtered out", func(t *testing.T) {
+		// A stray PRIVATE KEY between two CERTIFICATEs must not pollute the
+		// output — InterMediateCertificates is strictly a cert chain.
+		out := ociPemChainToSlice(blockA + keyBlk + blockB)
+		require.Len(t, out, 2)
+		assert.Equal(t, canonical(t, blockA), out[0])
+		assert.Equal(t, canonical(t, blockB), out[1])
+	})
+
+	t.Run("trailing garbage after last block is ignored", func(t *testing.T) {
+		out := ociPemChainToSlice(blockA + "\nnot pem content\n")
+		require.Len(t, out, 1)
+		assert.Equal(t, canonical(t, blockA), out[0])
+	})
+
+	t.Run("malformed input falls back to legacy single-element shape", func(t *testing.T) {
+		// Pins the "no decodable CERTIFICATE block" fallback so the
+		// downstream parser keeps producing its existing
+		// "Failed to parse certificate" error rather than a less precise one.
+		out := ociPemChainToSlice("not a pem chain")
+		require.Len(t, out, 1)
+		assert.Equal(t, "not a pem chain", out[0])
+	})
+}
+
+// ---------------------------------------------------------------------------
+// buildCustomCertificateResponseFromOCI
+// ---------------------------------------------------------------------------
+
+func Test_BuildCustomCertificateResponseFromOCI(t *testing.T) {
+	cert := &oci2.OCICustomCertificate{
+		Ocid:                "ocid1.certificate.oc1..abc",
+		Name:                "my-cert",
+		SubjectCommonName:   "admin",
+		SubjectOrganization: "Netapp",
+		PemCertificate:      "leaf-pem",
+		PemCertificateChain: "chain-pem",
+		PrivateKeyPem:       "private-key-pem",
+		SerialNumber:        "01:02",
+		IssuerCAOCID:        "ocid1.certauthority.oc1..ca",
+		CompartmentID:       "ocid1.compartment.oc1..c",
+		VersionNumber:       4,
+	}
+	resp := buildCustomCertificateResponseFromOCI(cert)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Certificate)
+	require.NotNil(t, resp.Secret)
+	require.NotNil(t, resp.Secret.SecretVersion)
+
+	assert.Equal(t, "my-cert", resp.Certificate.Name)
+	assert.Equal(t, "ocid1.certificate.oc1..abc", resp.Certificate.CertificateID)
+	assert.Equal(t, "admin", resp.Certificate.SubjectCommonName)
+	assert.Equal(t, "Netapp", resp.Certificate.SubjectOrganization)
+	assert.Equal(t, "leaf-pem", resp.Certificate.PemCertificate)
+	assert.Equal(t, []string{"chain-pem"}, resp.Certificate.PemCertificateChain)
+	assert.Equal(t, "01:02", resp.Certificate.SerialNumber)
+	assert.Equal(t, "ocid1.certauthority.oc1..ca", resp.Certificate.IssuerCertificateAuthority)
+	assert.Equal(t, "ocid1.compartment.oc1..c", resp.Certificate.CertOwningEntity)
+	assert.Equal(t, int64(4), resp.Certificate.VersionNumber)
+
+	assert.Equal(t, "my-cert", resp.Secret.Name)
+	assert.Equal(t, "ocid1.compartment.oc1..c", resp.Secret.SecretOwningEntity)
+	assert.Equal(t, "private-key-pem", resp.Secret.SecretVersion.Value)
+	assert.Equal(t, "ocid1.compartment.oc1..c", resp.Secret.SecretVersion.SecretOwningEntity)
+}
+
+func Test_BuildCustomCertificateResponseFromOCI_EmptyChainStaysNil(t *testing.T) {
+	cert := &oci2.OCICustomCertificate{
+		Ocid:                "ocid1.certificate.oc1..abc",
+		Name:                "cert-no-chain",
+		PemCertificate:      "leaf",
+		PrivateKeyPem:       "key",
+		PemCertificateChain: "",
+	}
+	resp := buildCustomCertificateResponseFromOCI(cert)
+	require.NotNil(t, resp)
+	assert.Nil(t, resp.Certificate.PemCertificateChain)
+}
+
+// ---------------------------------------------------------------------------
+// _revokeCertificateFromCAS
+// ---------------------------------------------------------------------------
+
+func Test_RevokeCertificateFromCAS_NilPoolCreds(t *testing.T) {
+	svc := newTestOciServicesForHyperscaler(t, nil, nil)
+	err := _revokeCertificateFromCAS(svc, nil)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_RevokeCertificateFromCAS_NilExternalCertificate_NoOp(t *testing.T) {
+	svc := newTestOciServicesForHyperscaler(t, nil, nil)
+	err := _revokeCertificateFromCAS(svc, &datamodel.PoolCredentials{})
+	assert.NoError(t, err)
+}
+
+func Test_RevokeCertificateFromCAS_EmptyExternalIdentifier_NoOp(t *testing.T) {
+	svc := newTestOciServicesForHyperscaler(t, nil, nil)
+	pc := &datamodel.PoolCredentials{
+		ExternalCertificate: &datamodel.ExternalCredRef{Name: "x", ExternalIdentifier: ""},
+	}
+	err := _revokeCertificateFromCAS(svc, pc)
+	assert.NoError(t, err)
+}
+
+func Test_RevokeCertificateFromCAS_Success_EvictsCache(t *testing.T) {
+	const certName = "test-revokecert-success"
+	const certOCID = "ocid1.certificate.oc1..revoke-ok"
+
+	common.AddToCertAuthCache(certName, &models.Certificate{CommonName: "x"})
+	defer common.RemoveFromCertAuthCache(certName)
+
+	// pre-flight Get returns ACTIVE, then schedule succeeds.
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "scheduleDeletion") {
+				return mockOCIJSONResponse(http.StatusOK, `{}`), nil
+			}
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"id": "`+certOCID+`", "name": "`+certName+`", "compartmentId":"c",
+				"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA"
+			}`), nil
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	pc := &datamodel.PoolCredentials{
+		ExternalCertificate: &datamodel.ExternalCredRef{Name: certName, ExternalIdentifier: certOCID},
+	}
+	err := _revokeCertificateFromCAS(svc, pc)
+	assert.NoError(t, err)
+	_, exists := common.GetCertAuthCache(certName)
+	assert.False(t, exists, "certificate entry should be evicted from cache")
+}
+
+func Test_RevokeCertificateFromCAS_DeleteFailsPropagates(t *testing.T) {
+	const certName = "test-revokecert-fail"
+	const certOCID = "ocid1.certificate.oc1..revoke-bad"
+
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "denied"}
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+	pc := &datamodel.PoolCredentials{
+		ExternalCertificate: &datamodel.ExternalCredRef{Name: certName, ExternalIdentifier: certOCID},
+	}
+	err := _revokeCertificateFromCAS(svc, pc)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// _createCertificateForVSAClusterOCI
+// ---------------------------------------------------------------------------
+
+// newTestOciServicesWithCertMgmtForHyperscaler returns an OciServices wired
+// with a CertificatesManagementClient backed by the supplied dispatcher and
+// a zero-valued read client. Tests stub oci2.GetCertificateBundleWithPrivateKey
+// to control the bundle fetch path.
+func newTestOciServicesWithCertMgmtForHyperscaler(t *testing.T, mgmtDispatcher *mockOCIHTTPDispatcher) *oci2.OciServices {
+	t.Helper()
+	ctx := context.Background()
+	pemKey := testOCIRSAPrivateKeyPEM(t)
+
+	configProvider := ocicommon.NewRawConfigurationProvider(
+		"ocid1.tenancy.oc1..test",
+		"ocid1.user.oc1..test",
+		"us-ashburn-1",
+		"aa:bb:cc:dd:ee:ff:00:11",
+		pemKey,
+		nil,
+	)
+
+	mgmtCl, err := certificatesmanagement.NewCertificatesManagementClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if mgmtDispatcher != nil {
+		mgmtCl.HTTPClient = mgmtDispatcher
+	}
+	readCl, err := certificates.NewCertificatesClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+
+	return &oci2.OciServices{
+		Ctx:    ctx,
+		Logger: log.NewLogger(),
+		AdminOCIService: oci2.NewAdminOCIServiceWithCertClients(
+			vault.VaultsClient{},
+			secrets.SecretsClient{},
+			mgmtCl,
+			readCl,
+		),
+	}
+}
+
+func setOCICertEnv(t *testing.T) {
+	t.Helper()
+	origCompartment := env.OCICompartmentOCID
+	origIssuer := env.OCIIssuerCAOCID
+	origDns := env.VsaDeployedDnsName
+	t.Cleanup(func() {
+		env.OCICompartmentOCID = origCompartment
+		env.OCIIssuerCAOCID = origIssuer
+		env.VsaDeployedDnsName = origDns
+	})
+	env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+	env.OCIIssuerCAOCID = "ocid1.certauthority.oc1..ca"
+	env.VsaDeployedDnsName = "vsa.example.internal"
+}
+
+func Test_CreateCertificateForVSAClusterOCI_ConfigInvalid(t *testing.T) {
+	origCompartment := env.OCICompartmentOCID
+	origIssuer := env.OCIIssuerCAOCID
+	origDns := env.VsaDeployedDnsName
+	defer func() {
+		env.OCICompartmentOCID = origCompartment
+		env.OCIIssuerCAOCID = origIssuer
+		env.VsaDeployedDnsName = origDns
+	}()
+	env.OCICompartmentOCID = ""
+	env.OCIIssuerCAOCID = ""
+	env.VsaDeployedDnsName = ""
+
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, nil)
+	resp, err := _createCertificateForVSAClusterOCI(svc, "cluster", "cert", &datamodel.PoolCredentials{}, false)
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+	}
+}
+
+func Test_CreateCertificateForVSAClusterOCI_InputValidation(t *testing.T) {
+	setOCICertEnv(t)
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, nil)
+
+	t.Run("nil poolCredentials", func(t *testing.T) {
+		resp, err := _createCertificateForVSAClusterOCI(svc, "cluster", "cert", nil, false)
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		cerr, ok := err.(*coreerrors.CustomError)
+		if assert.True(t, ok) {
+			assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+		}
+	})
+
+	t.Run("empty clusterName", func(t *testing.T) {
+		resp, err := _createCertificateForVSAClusterOCI(svc, "", "cert", &datamodel.PoolCredentials{Username: "admin"}, false)
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		cerr, ok := err.(*coreerrors.CustomError)
+		if assert.True(t, ok) {
+			assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+		}
+	})
+
+	t.Run("empty certName", func(t *testing.T) {
+		resp, err := _createCertificateForVSAClusterOCI(svc, "cluster", "", &datamodel.PoolCredentials{Username: "admin"}, false)
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		cerr, ok := err.(*coreerrors.CustomError)
+		if assert.True(t, ok) {
+			assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+		}
+	})
+}
+
+func Test_CreateCertificateForVSAClusterOCI_ReuseExistingActive(t *testing.T) {
+	setOCICertEnv(t)
+	const certName = "test-reuse-active-cert"
+	const certOCID = "ocid1.certificate.oc1..reuse-active"
+
+	defer common.RemoveFromCertAuthCache(certName)
+
+	// ListCertificates returns one ACTIVE entry, then GetCertificate returns
+	// metadata for that entry. The bundle fetch is stubbed via the test seam.
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "/certificates/") {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+certOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA",
+					"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca",
+					"subject":{"commonName":"admin","organization":"Netapp"},
+					"currentVersion":{"versionNumber":1,"serialNumber":"01"}
+				}`), nil
+			}
+			return mockOCIJSONResponse(http.StatusOK, `{"items":[{
+				"id":"`+certOCID+`","name":"`+certName+`","compartmentId":"c",
+				"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA",
+				"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca",
+				"subject":{"commonName":"admin","organization":"Netapp"},
+				"currentVersionSummary":{"versionNumber":1,"serialNumber":"01"}
+			}]}`), nil
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	origBundle := oci2.GetCertificateBundleWithPrivateKey
+	defer func() { oci2.GetCertificateBundleWithPrivateKey = origBundle }()
+	oci2.GetCertificateBundleWithPrivateKey = func(_ *oci2.OciServices, _ string) (*certificates.CertificateBundleWithPrivateKey, error) {
+		return &certificates.CertificateBundleWithPrivateKey{
+			CertificatePem: ocicommon.String("reused-leaf"),
+			PrivateKeyPem:  ocicommon.String("reused-key"),
+			CertChainPem:   ocicommon.String("reused-chain"),
+			SerialNumber:   ocicommon.String("01"),
+			VersionNumber:  ocicommon.Int64(1),
+			Validity: &certificates.Validity{
+				TimeOfValidityNotBefore: &ocicommon.SDKTime{Time: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				TimeOfValidityNotAfter:  &ocicommon.SDKTime{Time: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)},
+			},
+		}, nil
+	}
+
+	pc := &datamodel.PoolCredentials{Username: "admin"}
+	resp, err := _createCertificateForVSAClusterOCI(svc, "deployment-foo", certName, pc, false)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Certificate)
+	require.NotNil(t, resp.Secret)
+	assert.Equal(t, "reused-leaf", resp.Certificate.PemCertificate)
+	assert.Equal(t, "reused-key", resp.Secret.SecretVersion.Value)
+
+	cached, exists := common.GetCertAuthCache(certName)
+	require.True(t, exists)
+	assert.Equal(t, "reused-leaf", cached.Certificate.SignedCertificate)
+}
+
+func Test_CreateCertificateForVSAClusterOCI_GetByNameFails(t *testing.T) {
+	setOCICertEnv(t)
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "denied"}
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+	resp, err := _createCertificateForVSAClusterOCI(svc, "deployment-foo", "test-cert-fail", &datamodel.PoolCredentials{Username: "admin"}, false)
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+	}
+}
+
+func Test_CreateCertificateForVSAClusterOCI_CreateFreshSuccess(t *testing.T) {
+	setOCICertEnv(t)
+	const certName = "test-create-fresh-cert"
+	const newOCID = "ocid1.certificate.oc1..new"
+
+	defer common.RemoveFromCertAuthCache(certName)
+
+	// 1) ListCertificates → empty (cert does not exist yet)
+	// 2) POST /certificates → new cert in CREATING state
+	// 3) GetCertificate (poll) → ACTIVE
+	// 4) GetCertificate (final fetch) → ACTIVE metadata
+	var listSeen, createSeen, getSeen bool
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			path := req.URL.Path
+			if req.Method == http.MethodPost && strings.HasSuffix(path, "/certificates") {
+				createSeen = true
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+newOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"CREATING","configType":"ISSUED_BY_INTERNAL_CA",
+					"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca",
+					"subject":{"commonName":"admin","organization":"Netapp"}
+				}`), nil
+			}
+			if req.Method == http.MethodGet && strings.Contains(path, "/certificates/") {
+				getSeen = true
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+newOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA",
+					"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca",
+					"subject":{"commonName":"admin","organization":"Netapp"},
+					"currentVersion":{"versionNumber":1,"serialNumber":"01"}
+				}`), nil
+			}
+			// ListCertificates
+			listSeen = true
+			return mockOCIJSONResponse(http.StatusOK, `{"items":[]}`), nil
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	origBundle := oci2.GetCertificateBundleWithPrivateKey
+	defer func() { oci2.GetCertificateBundleWithPrivateKey = origBundle }()
+	oci2.GetCertificateBundleWithPrivateKey = func(_ *oci2.OciServices, _ string) (*certificates.CertificateBundleWithPrivateKey, error) {
+		return &certificates.CertificateBundleWithPrivateKey{
+			CertificatePem: ocicommon.String("new-leaf"),
+			PrivateKeyPem:  ocicommon.String("new-key"),
+			SerialNumber:   ocicommon.String("01"),
+			VersionNumber:  ocicommon.Int64(1),
+			Validity: &certificates.Validity{
+				TimeOfValidityNotBefore: &ocicommon.SDKTime{Time: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				TimeOfValidityNotAfter:  &ocicommon.SDKTime{Time: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)},
+			},
+		}, nil
+	}
+
+	resp, err := _createCertificateForVSAClusterOCI(svc, "deployment-foo", certName,
+		&datamodel.PoolCredentials{Username: "admin"}, true)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "new-leaf", resp.Certificate.PemCertificate)
+	assert.Equal(t, "new-key", resp.Secret.SecretVersion.Value)
+	assert.Equal(t, newOCID, resp.Certificate.CertificateID)
+
+	assert.True(t, listSeen, "ListCertificates should be the first call")
+	assert.True(t, createSeen, "POST /certificates should run after list returns empty")
+	assert.True(t, getSeen, "GET on the new cert should run after create")
+
+	cached, exists := common.GetCertAuthCache(certName)
+	require.True(t, exists)
+	assert.Equal(t, "new-leaf", cached.Certificate.SignedCertificate)
+}
+
+func Test_CreateCertificateForVSAClusterOCI_FailedStateTriggersRecreate(t *testing.T) {
+	setOCICertEnv(t)
+	const certName = "test-failed-recreate-cert"
+	const oldOCID = "ocid1.certificate.oc1..failed"
+	const newOCID = "ocid1.certificate.oc1..fresh"
+
+	defer common.RemoveFromCertAuthCache(certName)
+
+	var listSeen, scheduleSeen, createSeen bool
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			path := req.URL.Path
+			switch {
+			case strings.Contains(path, "scheduleDeletion"):
+				scheduleSeen = true
+				return mockOCIJSONResponse(http.StatusOK, `{}`), nil
+			case req.Method == http.MethodGet && strings.Contains(path, "/certificates/"+oldOCID):
+				// pre-flight Get for delete returns FAILED so schedule runs
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+oldOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"FAILED","configType":"ISSUED_BY_INTERNAL_CA"
+				}`), nil
+			case req.Method == http.MethodGet && strings.Contains(path, "/certificates/"+newOCID):
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+newOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA",
+					"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca",
+					"subject":{"commonName":"admin","organization":"Netapp"}
+				}`), nil
+			case req.Method == http.MethodPost && strings.HasSuffix(path, "/certificates"):
+				createSeen = true
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":"`+newOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"CREATING","configType":"ISSUED_BY_INTERNAL_CA",
+					"issuerCertificateAuthorityId":"ocid1.certauthority.oc1..ca"
+				}`), nil
+			default:
+				// ListCertificates returns the FAILED entry
+				listSeen = true
+				return mockOCIJSONResponse(http.StatusOK, `{"items":[{
+					"id":"`+oldOCID+`","name":"`+certName+`","compartmentId":"c",
+					"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"FAILED","configType":"ISSUED_BY_INTERNAL_CA"
+				}]}`), nil
+			}
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	origBundle := oci2.GetCertificateBundleWithPrivateKey
+	defer func() { oci2.GetCertificateBundleWithPrivateKey = origBundle }()
+	oci2.GetCertificateBundleWithPrivateKey = func(_ *oci2.OciServices, _ string) (*certificates.CertificateBundleWithPrivateKey, error) {
+		return &certificates.CertificateBundleWithPrivateKey{
+			CertificatePem: ocicommon.String("new-leaf-after-failed"),
+			PrivateKeyPem:  ocicommon.String("new-key-after-failed"),
+		}, nil
+	}
+
+	resp, err := _createCertificateForVSAClusterOCI(svc, "deployment-foo", certName,
+		&datamodel.PoolCredentials{Username: "admin"}, false)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, listSeen, "list must run first")
+	assert.True(t, scheduleSeen, "schedule deletion must run for FAILED cert")
+	assert.True(t, createSeen, "create must run after deleting FAILED cert")
+	assert.Equal(t, "new-leaf-after-failed", resp.Certificate.PemCertificate)
+}
+
+// ---------------------------------------------------------------------------
+// _getCertificateFromCacheOrCAS — additional branches
+// ---------------------------------------------------------------------------
+
+func Test_GetCertificateFromCacheOrCAS_NotFoundOnOCI(t *testing.T) {
+	const cacheKey = "test-getcertfromcache-oci-notfound"
+	const certOCID = "ocid1.certificate.oc1..notfound"
+
+	origGet := common.GetCertAuthCache
+	defer func() { common.GetCertAuthCache = origGet }()
+	common.GetCertAuthCache = func(key string) (*models.CertCache, bool) { return nil, false }
+
+	// OCI service GetCertificate returns (nil, nil) for 404. We simulate that
+	// by returning a 404 from the metadata Get inside the cert mgmt client.
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotFound", message: "no cert"}
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	origGetOCI := hyperscaler.GetOCIService
+	defer func() { hyperscaler.GetOCIService = origGetOCI }()
+	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return svc, nil
+	}
+
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name: cacheKey, ExternalIdentifier: certOCID,
+	})
+	assert.Nil(t, cert)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+		require.NotNil(t, cerr.OriginalErr)
+		assert.Contains(t, cerr.OriginalErr.Error(), "not found in OCI Certificates Service")
+	}
+}
+
+func Test_GetCertificateFromCacheOrCAS_MissingPemMaterial(t *testing.T) {
+	const cacheKey = "test-getcertfromcache-oci-missingpem"
+	const certOCID = "ocid1.certificate.oc1..missingpem"
+
+	origGet := common.GetCertAuthCache
+	defer func() { common.GetCertAuthCache = origGet }()
+	common.GetCertAuthCache = func(key string) (*models.CertCache, bool) { return nil, false }
+
+	mgmtDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"id":"`+certOCID+`","name":"`+cacheKey+`","compartmentId":"c",
+				"timeCreated":"2026-01-01T00:00:00Z","lifecycleState":"ACTIVE","configType":"ISSUED_BY_INTERNAL_CA"
+			}`), nil
+		},
+	}
+	svc := newTestOciServicesWithCertMgmtForHyperscaler(t, mgmtDispatcher)
+
+	origGetOCI := hyperscaler.GetOCIService
+	defer func() { hyperscaler.GetOCIService = origGetOCI }()
+	hyperscaler.GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) { return svc, nil }
+
+	origBundle := oci2.GetCertificateBundleWithPrivateKey
+	defer func() { oci2.GetCertificateBundleWithPrivateKey = origBundle }()
+	oci2.GetCertificateBundleWithPrivateKey = func(_ *oci2.OciServices, _ string) (*certificates.CertificateBundleWithPrivateKey, error) {
+		// Missing PemCertificate and PrivateKeyPem.
+		return &certificates.CertificateBundleWithPrivateKey{
+			SerialNumber:  ocicommon.String("01"),
+			VersionNumber: ocicommon.Int64(1),
+		}, nil
+	}
+
+	cert, err := _getCertificateFromCacheOrCAS(context.Background(), &datamodel.ExternalCredRef{
+		Name: cacheKey, ExternalIdentifier: certOCID,
+	})
+	assert.Nil(t, cert)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+		require.NotNil(t, cerr.OriginalErr)
+		assert.Contains(t, cerr.OriginalErr.Error(), "missing required PEM material")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// _getProviderByNode — OCI USER_CERTIFICATE branches
+// ---------------------------------------------------------------------------
+
+func Test_GetProviderByNode_OCI_UserCert_MissingExternalCertificate(t *testing.T) {
+	origH := env.Hyperscaler
+	defer func() { env.Hyperscaler = origH }()
+	env.Hyperscaler = "oci"
+
+	node := &models.Node{
+		Name:                           "node-oci-missing",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.1": "10.0.0.1"},
+		AuthType:                       env.USER_CERTIFICATE,
+		// ExternalCertificate intentionally nil
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrInputValidationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetProviderByNode_OCI_UserCert_NoEndpointAddresses(t *testing.T) {
+	origH := env.Hyperscaler
+	defer func() { env.Hyperscaler = origH }()
+	env.Hyperscaler = "oci"
+
+	node := &models.Node{
+		Name:                           "node-oci-no-ip",
+		EndpointAddressesToHostNameMap: map[string]string{},
+		AuthType:                       env.USER_CERTIFICATE,
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrVSAClusterNodeIPAddressNotFound, cerr.TrackingID)
+	}
+}
+
+func Test_GetProviderByNode_OCI_UserCert_Success(t *testing.T) {
+	origH := env.Hyperscaler
+	defer func() { env.Hyperscaler = origH }()
+	env.Hyperscaler = "oci"
+
+	node := &models.Node{
+		Name:                           "node-oci-cert-ok",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.2": "10.0.0.2"},
+		AuthType:                       env.USER_CERTIFICATE,
+		ExternalCertificate: &datamodel.ExternalCredRef{
+			Name:               "cluster-cert",
+			ExternalIdentifier: "ocid1.certificate.oc1..abc",
+		},
+		ExternalSecret: &datamodel.ExternalCredRef{
+			Name:               "cluster-admin-secret",
+			ExternalIdentifier: "ocid1.vaultsecret.oc1..pw",
+		},
+	}
+
+	origGetCert := GetCertificateFromCacheOrCAS
+	defer func() { GetCertificateFromCacheOrCAS = origGetCert }()
+	GetCertificateFromCacheOrCAS = func(ctx context.Context, ref *datamodel.ExternalCredRef) (*models.Certificate, error) {
+		assert.Equal(t, "cluster-cert", ref.Name)
+		return &models.Certificate{
+			CommonName:               "admin",
+			SignedCertificate:        "leaf",
+			PrivateKey:               "key",
+			InterMediateCertificates: []string{"chain"},
+		}, nil
+	}
+
+	origGetPwd := GetPasswordFromCacheOrOCIVault
+	defer func() { GetPasswordFromCacheOrOCIVault = origGetPwd }()
+	GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		return "vault-pw", nil
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	require.NoError(t, err)
+	assert.NotNil(t, provider)
+}
+
+func Test_GetProviderByNode_OCI_UserCert_CertFetchFails(t *testing.T) {
+	origH := env.Hyperscaler
+	defer func() { env.Hyperscaler = origH }()
+	env.Hyperscaler = "oci"
+
+	node := &models.Node{
+		Name:                           "node-oci-cert-fail",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.3": "10.0.0.3"},
+		AuthType:                       env.USER_CERTIFICATE,
+		ExternalCertificate: &datamodel.ExternalCredRef{
+			Name:               "cluster-cert",
+			ExternalIdentifier: "ocid1.certificate.oc1..abc",
+		},
+	}
+
+	origGetCert := GetCertificateFromCacheOrCAS
+	defer func() { GetCertificateFromCacheOrCAS = origGetCert }()
+	GetCertificateFromCacheOrCAS = func(ctx context.Context, ref *datamodel.ExternalCredRef) (*models.Certificate, error) {
+		return nil, fmt.Errorf("cas fetch failed")
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID)
+	}
+}
+
+func Test_GetProviderByNode_OCI_UserCert_PasswordFetchFailure_StillReturnsProvider(t *testing.T) {
+	origH := env.Hyperscaler
+	defer func() { env.Hyperscaler = origH }()
+	env.Hyperscaler = "oci"
+
+	node := &models.Node{
+		Name:                           "node-oci-cert-pwfail",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.4": "10.0.0.4"},
+		AuthType:                       env.USER_CERTIFICATE,
+		ExternalCertificate: &datamodel.ExternalCredRef{
+			Name:               "cluster-cert",
+			ExternalIdentifier: "ocid1.certificate.oc1..abc",
+		},
+		ExternalSecret: &datamodel.ExternalCredRef{
+			Name:               "cluster-admin-secret",
+			ExternalIdentifier: "ocid1.vaultsecret.oc1..pw",
+		},
+	}
+
+	origGetCert := GetCertificateFromCacheOrCAS
+	defer func() { GetCertificateFromCacheOrCAS = origGetCert }()
+	GetCertificateFromCacheOrCAS = func(ctx context.Context, ref *datamodel.ExternalCredRef) (*models.Certificate, error) {
+		return &models.Certificate{
+			CommonName: "admin", SignedCertificate: "leaf", PrivateKey: "key",
+		}, nil
+	}
+
+	origGetPwd := GetPasswordFromCacheOrOCIVault
+	defer func() { GetPasswordFromCacheOrOCIVault = origGetPwd }()
+	GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		return "", fmt.Errorf("vault outage")
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	require.NoError(t, err, "password failure must be tolerated for cert-auth path")
+	assert.NotNil(t, provider)
 }

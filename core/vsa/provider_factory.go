@@ -42,18 +42,6 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (Provider, error
 			util.GetLogger(ctx).Errorf("No endpoint addresses found in EndpointAddressesToHostNameMap for node %s", node.Name)
 			return nil, errors.NewVCPError(errors.ErrVSAClusterNodeIPAddressNotFound, fmt.Errorf("VSA cluster node IP address not found"))
 		}
-		// Create PoolCredentials from Node's CA URI for certificate retrieval
-		poolCredentials := &datamodel.PoolCredentials{
-			CaURI:         node.GetCaURIWithFallback(),
-			CertificateID: node.CertificateID,
-		}
-
-		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, poolCredentials)
-
-		if err != nil {
-			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
-			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
-		}
 
 		// Get the first IP address from the endpoint map for SSH connections
 		var ipAddress string
@@ -62,23 +50,89 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (Provider, error
 			break // Use the first available IP address
 		}
 
-		// For certificate-based auth, we still need password for SSH connections
-		// Use the node's password directly, or fetch from Secret Manager if SecretID is set
-		password := node.Password
-		if password == "" && node.SecretID != "" {
-			secret, GetPasswordFromCacheOrSecretManagerErr := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
-			if GetPasswordFromCacheOrSecretManagerErr != nil {
-				util.GetLogger(ctx).Debugf("Failed to get password from Secret Manager for SSH: %v", GetPasswordFromCacheOrSecretManagerErr)
-			} else if secret != "" {
-				password = secret
-				util.GetLogger(ctx).Debugf("Retrieved password from Secret Manager for SSH authentication")
-			} else {
-				util.GetLogger(ctx).Warnf("Password retrieved from Secret Manager for node %s is empty", node.Name)
+		var password string
+		var certificate *models.Certificate
+		var err error
+
+		switch env.GetHyperscaler() {
+		case common.ProviderOCI:
+			util.GetLogger(ctx).Infof("Using OCI Certificates Service and OCI Vault for cert-auth on node %s", node.Name)
+
+			if node.ExternalCertificate == nil ||
+				node.ExternalCertificate.Name == "" ||
+				node.ExternalCertificate.ExternalIdentifier == "" {
+				util.GetLogger(ctx).Errorf("OCI cert auth: node %s is missing ExternalCertificate handle", node.Name)
+				return nil, errors.NewVCPError(errors.ErrInputValidationError,
+					errors2.New("OCI cert auth requires node.ExternalCertificate.Name and ExternalIdentifier"))
 			}
+
+			certificate, err = GetCertificateFromCacheOrCAS(ctx, node.ExternalCertificate)
+			if err != nil {
+				util.GetLogger(ctx).Errorf("Failed to get OCI certificate for node %s: %v", node.Name, err)
+				return nil, errors.NewVCPError(errors.ErrOCIResourceFetchError, err)
+			}
+
+			password = node.Password
+			if password == "" && node.ExternalSecret != nil && node.ExternalSecret.Name != "" {
+				secret, sshErr := GetPasswordFromCacheOrOCIVault(ctx, node.ExternalSecret)
+				if sshErr != nil {
+					util.GetLogger(ctx).Debugf("OCI cert auth: SSH password fallback unavailable for node %s: %v", node.Name, sshErr)
+				} else if secret != "" {
+					password = secret
+					util.GetLogger(ctx).Debugf("Retrieved password from Vault for SSH authentication")
+				} else {
+					util.GetLogger(ctx).Warnf("Password retrieved from Vault for node %s is empty", node.Name)
+				}
+			}
+
+		case common.ProviderGCP:
+			poolCredentials := &datamodel.PoolCredentials{
+				CaURI:         node.GetCaURIWithFallback(),
+				CertificateID: node.CertificateID,
+			}
+
+			certificate, err = GetCertificateFromCacheOrSecretManager(ctx, poolCredentials)
+			if err != nil {
+				util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
+				return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
+			}
+
+			password = node.Password
+			if password == "" && node.SecretID != "" {
+				secret, GetPasswordFromCacheOrSecretManagerErr := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+				if GetPasswordFromCacheOrSecretManagerErr != nil {
+					util.GetLogger(ctx).Debugf("Failed to get password from Secret Manager for SSH: %v", GetPasswordFromCacheOrSecretManagerErr)
+				} else if secret != "" {
+					password = secret
+					util.GetLogger(ctx).Debugf("Retrieved password from Secret Manager for SSH authentication")
+				} else {
+					util.GetLogger(ctx).Warnf("Password retrieved from Secret Manager for node %s is empty", node.Name)
+				}
+			}
+
+		default:
+			return nil, errors.NewVCPError(errors.ErrInputValidationError, fmt.Errorf("invalid hyperscaler: %s", env.GetHyperscaler()))
 		}
+
 		if password == "" {
 			util.GetLogger(ctx).Debugf("No password available for SSH authentication with certificate-based auth")
 			// Continue without password - SSH will fail but REST API will work
+		}
+		if certificate == nil {
+			return nil, errors.NewVCPError(errors.ErrResourceNotFound, errors2.New("certificate is nil after provider lookup"))
+		}
+
+		// OCI SNI override: derive the synthetic SNI from cluster identity so
+		// the REST client can connect by IP and still pass hostname
+		// verification against the wildcard SAN baked into the cert. Mirrors
+		// the write-path synthesis in _saveNodeDetails. GCP and password-auth
+		// paths leave serverName empty and behave exactly as before.
+		var serverName string
+		if env.GetHyperscaler() == common.ProviderOCI &&
+			env.OCIUseTLSSNIOverride &&
+			node.DeploymentName != "" &&
+			env.VsaDeployedDnsName != "" {
+			serverName = fmt.Sprintf("mgmt.%s.%s", node.DeploymentName, env.VsaDeployedDnsName)
 		}
 
 		return NewProvider(ctx, ProviderDetails{
@@ -93,6 +147,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (Provider, error
 			},
 			InsecureSkipVerify: false,
 			AuthType:           node.AuthType, // Set authentication type
+			ServerName:         serverName,
 		}), nil
 	}
 
@@ -202,9 +257,20 @@ func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node
 
 var GetCertificateFromCacheOrSecretManager = _getCertificateFromCacheOrSecretManager
 
+// GetCertificateFromCacheOrCAS is the OCI counterpart to
+// GetCertificateFromCacheOrSecretManager: it serves the cert-auth path on OCI
+// by reading from the in-memory cert-auth cache first and falling back to OCI
+// Certificates Service on a miss. Exposed as a package var so tests can stub
+// it the same way the GCP variant is stubbed.
+var GetCertificateFromCacheOrCAS = _getCertificateFromCacheOrCAS
+
 var RevokeCertificateAndDeleteFromCacheAndSecretManager = _revokeCertificateAndDeleteFromCacheAndSecretManager
 
+var RevokeCertificateFromCAS = _revokeCertificateFromCAS
+
 var GenerateAndCreateCertificateForVSACluster = _generateAndCreateCertificateForVSACluster
+
+var CreateCertificateForVSAClusterOCI = _createCertificateForVSAClusterOCI
 
 var GeneratePasswordForVSACluster = _generatePasswordForVSACluster
 
@@ -227,6 +293,15 @@ var DeletePasswordFromCacheAndSecretManager = _deletePasswordFromSecretManagerAn
 var DeleteCloudDNSRecord = _deleteCloudDNSRecord
 
 var GetOrCreateCloudDNSRecord = _getOrCreateCloudDNSRecord
+
+// GetOrCreateOCIDNSRecord is the OCI counterpart to GetOrCreateCloudDNSRecord.
+// Exposed as a package-level var so the OCI pool activity tests can stub it
+// the same way the GCP variant is stubbed.
+var GetOrCreateOCIDNSRecord = _getOrCreateOCIDNSRecord
+
+// DeleteOCIDNSRecord is the OCI counterpart to DeleteCloudDNSRecord. Exposed
+// as a package-level var for the same test-stubbing reason.
+var DeleteOCIDNSRecord = _deleteOCIDNSRecord
 
 var GetCertificateAndPrivateKeyByID = _getCertificateAndPrivateKeyByID
 
@@ -294,6 +369,266 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 		Certificate: certificate,
 		Secret:      secret,
 	}, nil
+}
+
+// _createCertificateForVSAClusterOCI is the OCI counterpart to
+// _generateAndCreateCertificateForVSACluster. It uses OCI's internally-managed
+// certificate flow: OCI generates the RSA key pair, builds the CSR, and signs
+// the cert against env.OCIIssuerCAOCID — all in one call. The private key is
+// pulled back inline via GetCertificateBundle(WITH_PRIVATE_KEY).
+//
+// Idempotency:
+//
+//	On retry we first look up the cert by name (poolCredentials.CertificateID)
+//	in env.OCICompartmentOCID. If a usable certificate is already there we
+//	return its bundle without re-creating; if it's stuck in FAILED we schedule
+//	it for deletion and fall through to a fresh create. This makes the
+//	enclosing Temporal activity safe to retry.
+//
+// Return contract:
+//
+//	Returns *hyperscalermodels.CustomCertificateResponse with the OCI-managed
+//	private key wedged into Secret.SecretVersion.Value, so the existing
+//	setPoolCredentials consumer at pool_activities.go works unchanged.
+func _createCertificateForVSAClusterOCI(ociService *oci.OciServices, clusterName string, certName string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificateResponse, error) {
+	if ociService == nil {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_createCertificateForVSAClusterOCI: ociService must not be nil"))
+	}
+	logger := ociService.GetLogger()
+
+	if err := _validateOCICertConfig(); err != nil {
+		logger.Errorf("OCI certificate config invalid: %v", err)
+		return nil, err
+	}
+	if poolCredentials == nil {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_createCertificateForVSAClusterOCI: poolCredentials must not be nil"))
+	}
+	if clusterName == "" {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_createCertificateForVSAClusterOCI: clusterName is required"))
+	}
+	if certName == "" {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_createCertificateForVSAClusterOCI: certName is required"))
+	}
+
+	compartmentOCID := env.OCICompartmentOCID
+	issuerCAOCID := env.OCIIssuerCAOCID
+
+	existing, err := ociService.GetCertificateByName(certName, compartmentOCID)
+	if err != nil {
+		logger.Errorf("Failed to look up existing OCI certificate by name: %s, err: %v", certName, err)
+		return nil, err
+	}
+
+	if existing != nil {
+		switch existing.LifecycleState {
+		case oci.CertLifecycleStateActive, oci.CertLifecycleStateUpdating:
+			// Certificate is already usable, fall through to the bundle fetch below.
+		case oci.CertLifecycleStateCreating:
+			logger.Infof("OCI certificate %s exists in CREATING state — waiting for ACTIVE", certName)
+			if waitErr := ociService.WaitForCertificateActive(existing.Ocid, 0); waitErr != nil {
+				return nil, waitErr
+			}
+		case oci.CertLifecycleStateFailed:
+			logger.Warnf("OCI certificate %s found in FAILED state — scheduling deletion and creating a fresh one", certName)
+			if delErr := ociService.DeleteCertificate(existing.Ocid); delErr != nil {
+				logger.Errorf("Failed to delete failed OCI certificate %s before recreate: %v", certName, delErr)
+				return nil, delErr
+			}
+			existing = nil
+		default:
+			logger.Warnf("OCI certificate %s in unexpected state %s — treating as missing and creating fresh",
+				certName, existing.LifecycleState)
+			existing = nil
+		}
+	}
+
+	if existing != nil {
+		cert, getErr := ociService.GetCertificate(existing.Ocid)
+		if getErr != nil {
+			logger.Errorf("Failed to fetch bundle for existing OCI certificate %s (OCID: %s): %v",
+				certName, existing.Ocid, getErr)
+			return nil, getErr
+		}
+		if cert == nil {
+			logger.Warnf("OCI certificate %s vanished between lookup and bundle fetch — falling through to create",
+				certName)
+		} else {
+			response := buildCustomCertificateResponseFromOCI(cert)
+			common.AddToCertAuthCache(certName, &models.Certificate{
+				CommonName:               cert.SubjectCommonName,
+				SignedCertificate:        cert.PemCertificate,
+				PrivateKey:               cert.PrivateKeyPem,
+				InterMediateCertificates: ociPemChainToSlice(cert.PemCertificateChain),
+			})
+			logger.Debugf("Reusing existing OCI certificate %s (OCID: %s)", certName, cert.Ocid)
+			return response, nil
+		}
+	}
+
+	domains := []string{fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)}
+	logger.Debugf("Creating OCI certificate — certName: %s, commonName: %s, domains: %v, clusterName: %s",
+		certName, poolCredentials.Username, domains, clusterName)
+
+	created, err := ociService.CreateCertificate(
+		compartmentOCID,
+		issuerCAOCID,
+		certName,
+		poolCredentials.Username,
+		ontapCertSubjectOrganization,
+		domains,
+		isServerAuthEnabled,
+		env.OCICertificateValidityDays,
+	)
+	if err != nil {
+		logger.Errorf("Failed to create OCI certificate %s for cluster %s: %v", certName, clusterName, err)
+		return nil, err
+	}
+
+	if waitErr := ociService.WaitForCertificateActive(created.Ocid, 0); waitErr != nil {
+		logger.Errorf("OCI certificate %s (OCID: %s) did not become ACTIVE: %v", certName, created.Ocid, waitErr)
+		return nil, waitErr
+	}
+
+	cert, err := ociService.GetCertificate(created.Ocid)
+	if err != nil {
+		logger.Errorf("Failed to fetch bundle for newly-created OCI certificate %s (OCID: %s): %v",
+			certName, created.Ocid, err)
+		return nil, err
+	}
+	if cert == nil {
+		return nil, errors.NewVCPError(errors.ErrOCIResourceFetchError,
+			fmt.Errorf("OCI certificate %s reached ACTIVE but bundle is unavailable", certName))
+	}
+
+	common.AddToCertAuthCache(certName, &models.Certificate{
+		CommonName:               cert.SubjectCommonName,
+		SignedCertificate:        cert.PemCertificate,
+		PrivateKey:               cert.PrivateKeyPem,
+		InterMediateCertificates: ociPemChainToSlice(cert.PemCertificateChain),
+	})
+	logger.Debugf("Created OCI certificate %s (OCID: %s) for cluster %s", certName, cert.Ocid, clusterName)
+
+	return buildCustomCertificateResponseFromOCI(cert), nil
+}
+
+// _validateOCICertConfig returns a typed configuration error if any of the
+// environment values required for OCI certificate provisioning are unset.
+// Mirrors _validateOCIVaultConfig — fail fast at the entry point rather than
+// deep inside the SDK with an opaque "required field is empty" error.
+func _validateOCICertConfig() error {
+	var missing []string
+	if env.OCICompartmentOCID == "" {
+		missing = append(missing, "OCI_COMPARTMENT_OCID")
+	}
+	if env.OCIIssuerCAOCID == "" {
+		missing = append(missing, "OCI_ISSUER_CA_OCID")
+	}
+	if env.VsaDeployedDnsName == "" {
+		missing = append(missing, "VSA_DEPLOYED_DNS_NAME")
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return errors.NewVCPError(
+		errors.ErrOCIClientInitializationError,
+		fmt.Errorf("OCI certificate configuration incomplete; missing env var(s): %s", strings.Join(missing, ", ")),
+	)
+}
+
+// ociPemChainToSlice converts OCI's concatenated-PEM chain string into the
+// []string shape expected by hyperscaler/models and core/models, producing
+// one PEM block per slice element to match the GCP convention.
+//
+// Behavior:
+//   - Empty or whitespace-only input returns nil so the field stays
+//     zero-valued instead of `[]string{""}`.
+//   - Each decoded CERTIFICATE block is re-encoded canonically so callers
+//     get well-formed PEM regardless of input formatting.
+//   - Non-CERTIFICATE blocks (e.g. a stray PRIVATE KEY) are skipped — the
+//     downstream consumer is strictly a cert chain.
+//   - Non-empty input that decodes to zero CERTIFICATE blocks falls back to
+//     the original single-element shape so the downstream parser raises the
+//     same "Failed to parse certificate" error it does today rather than a
+//     less precise empty-input error.
+func ociPemChainToSlice(pemChain string) []string {
+	if strings.TrimSpace(pemChain) == "" {
+		return nil
+	}
+
+	var out []string
+	rest := []byte(pemChain)
+	for {
+		block, remainder := pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		rest = remainder
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		out = append(out, string(pem.EncodeToMemory(block)))
+	}
+
+	if len(out) == 0 {
+		return []string{pemChain}
+	}
+	return out
+}
+
+// Functional fields (read by code downstream):
+//   - Certificate.SubjectCommonName        → setPoolCredentials → vlm Certificate.CommonName
+//   - Certificate.PemCertificate           → setPoolCredentials → vlm Certificate.Certificate
+//   - Certificate.PemCertificateChain      → setPoolCredentials → vlm Certificate.InterMediateCertificate
+//   - Secret.SecretVersion.Value           → setPoolCredentials → vlm Certificate.PrivateKey
+//     (this is where the OCI-managed private key is wedged so the
+//     GCP-shaped consumer keeps working unchanged — on OCI there is
+//     no separate Vault entry for the key)
+//
+// Identity field used by OCI-side cleanup / rotation flows:
+//
+//   - Certificate.CertificateID            → OCI cert OCID. Set to cert.Ocid (not
+//     cert.Name) because OCI requires the OCID for every subsequent operation
+//     (GetCertificate, DeleteCertificate). Any future OCI revoke/rotate path
+//     can pull the handle straight from here without a second
+//     GetCertificateByName lookup.
+//
+// GCP-shape filler (not read by anyone on the OCI side; preserved so JSON
+// dumps and logs still carry a readable identifier rather than ""):
+//
+//   - Certificate.Name, Certificate.SubjectOrganization,
+//     Certificate.SerialNumber, Certificate.IssuerCertificateAuthority,
+//     Certificate.CertOwningEntity, Certificate.CreateTime
+//   - Secret.Name, Secret.SecretOwningEntity,
+//     SecretVersion.Name, SecretVersion.SecretOwningEntity
+func buildCustomCertificateResponseFromOCI(cert *oci.OCICustomCertificate) *hyperscalermodels.CustomCertificateResponse {
+	return &hyperscalermodels.CustomCertificateResponse{
+		Certificate: &hyperscalermodels.CustomCertificate{
+			Name:                       cert.Name,
+			CertificateID:              cert.Ocid,
+			SubjectCommonName:          cert.SubjectCommonName,
+			SubjectOrganization:        cert.SubjectOrganization,
+			PemCertificate:             cert.PemCertificate,
+			PemCertificateChain:        ociPemChainToSlice(cert.PemCertificateChain),
+			SerialNumber:               cert.SerialNumber,
+			IssuerCertificateAuthority: cert.IssuerCAOCID,
+			CertOwningEntity:           cert.CompartmentID,
+			CreateTime:                 cert.TimeCreated,
+			VersionNumber:              cert.VersionNumber,
+		},
+		Secret: &hyperscalermodels.CustomSecret{
+			Name:               cert.Name,
+			SecretOwningEntity: cert.CompartmentID,
+			SecretVersion: &hyperscalermodels.CustomSecretVersion{
+				Name:               cert.Name,
+				Value:              cert.PrivateKeyPem,
+				SecretOwningEntity: cert.CompartmentID,
+			},
+		},
+	}
 }
 
 func _deleteCertificateAndSecret(gcpService hyperscaler.GoogleServices, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret, poolCredentials *datamodel.PoolCredentials) error {
@@ -485,14 +820,6 @@ func _generatePasswordForVSACluster(gcpService hyperscaler.GoogleServices, secre
 
 // _validateOCIVaultConfig returns a typed configuration error if any of the OCI
 // vault identifiers required for password create/lookup/delete are empty.
-//
-// requireWriteConfig=true additionally validates compartment and master key
-// OCIDs, which are only needed when creating new secrets (CreateSecret). The
-// delete and lookup paths only need OCI_VAULT_OCID.
-//
-// Failing fast here surfaces operator misconfiguration as
-// ErrOCIClientInitializationError instead of an opaque OCI HTTP 400
-// ("VaultId must be provided") emitted from deep inside the SDK.
 func _validateOCIVaultConfig(requireWriteConfig bool) error {
 	var missing []string
 	if env.OCIVaultOCID == "" {
@@ -521,7 +848,11 @@ func _validateOCIVaultConfig(requireWriteConfig bool) error {
 //
 // Requires OCI_COMPARTMENT_OCID, OCI_VAULT_OCID, and OCI_MASTER_KEY_OCID to be set; missing config
 // is surfaced as ErrOCIClientInitializationError before any OCI API call is made.
-func _generatePasswordForVSAClusterOCI(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+func _generatePasswordForVSAClusterOCI(ociService *oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	if ociService == nil {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_generatePasswordForVSAClusterOCI: ociService must not be nil"))
+	}
 	logger := ociService.GetLogger()
 
 	if err := _validateOCIVaultConfig(true); err != nil {
@@ -555,39 +886,38 @@ func _generatePasswordForVSAClusterOCI(ociService oci.OciServices, secretName st
 	return ociSecret, nil
 }
 
-// _deletePasswordForVSAClusterOCI deletes the ONTAP admin password secret from OCI Vault.
-// It looks up the secret by name first — if it does not exist the call is a no-op (idempotent).
-// DeleteSecret itself is idempotent w.r.t. lifecycle state: secrets already in
-// PENDING_DELETION / DELETED are skipped at the OCI client layer, so retries are safe.
-//
-// Requires OCI_VAULT_OCID to be set; missing config is surfaced as
-// ErrOCIClientInitializationError before any OCI API call is made.
-func _deletePasswordForVSAClusterOCI(ociService oci.OciServices, secretName string) error {
+// _deletePasswordForVSAClusterOCI deletes the ONTAP admin password secret from OCI Vault
+func _deletePasswordForVSAClusterOCI(ociService *oci.OciServices, poolCredentials *datamodel.PoolCredentials) error {
+	if ociService == nil {
+		return errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_deletePasswordForVSAClusterOCI: ociService must not be nil"))
+	}
 	logger := ociService.GetLogger()
 
-	if err := _validateOCIVaultConfig(false); err != nil {
-		logger.Errorf("OCI vault config invalid for secretName %s: %v", secretName, err)
+	if poolCredentials == nil {
+		return errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_deletePasswordForVSAClusterOCI: poolCredentials must not be nil"))
+	}
+
+	if poolCredentials.ExternalSecret == nil ||
+		poolCredentials.ExternalSecret.ExternalIdentifier == "" {
+		logger.Infof("DeletePasswordForVSAClusterOCI: no persisted OCI vault secret handle on poolCredentials — skipping delete")
+		return nil
+	}
+
+	secretOCID := poolCredentials.ExternalSecret.ExternalIdentifier
+	secretName := poolCredentials.ExternalSecret.Name
+
+	if err := ociService.DeleteSecret(secretOCID); err != nil {
+		logger.Errorf("Failed to schedule OCI vault secret deletion — secretName: %s, secretOCID: %s, err: %v",
+			secretName, secretOCID, err)
 		return err
 	}
 
-	secret, err := ociService.GetSecretByName(secretName, env.OCIVaultOCID)
-	if err != nil {
-		logger.Errorf("failed to look up secret %s for deletion: %v", secretName, err)
-		return err
-	}
-
-	if secret != nil {
-		err = ociService.DeleteSecret(secret.Ocid)
-		if err != nil {
-			logger.Errorf("failed to delete secret %s (OCID: %s): %v", secretName, secret.Ocid, err)
-			return err
+	if secretName != "" {
+		if !common.RemoveFromUserAuthCache(secretName) {
+			logger.Debugf("DeletePasswordForVSAClusterOCI: secret %s not present in user-auth cache, nothing to evict", secretName)
 		}
-	}
-	// Cache miss is expected when the pool was created with AuthType=USERNAME_PWD (no vault
-	// secret created), when the cache was evicted, or when this worker never populated the
-	// cache for this pool. None of those is an error condition.
-	if !common.RemoveFromUserAuthCache(secretName) {
-		logger.Debugf("no cached password to remove for secretName: %s", secretName)
 	}
 	return nil
 }
@@ -718,6 +1048,66 @@ func _getCertificateFromCacheOrSecretManager(ctx context.Context, poolCredential
 	return certCache.Certificate, nil
 }
 
+// _getCertificateFromCacheOrCAS retrieves an OCI-managed certificate (signed
+// cert, private key, chain) from the in-memory cert-auth cache, falling back
+// to an OCI Certificates Service round-trip on a miss.
+//
+// Cache key: ref.Name. _createCertificateForVSAClusterOCI populates the same
+// key (= ociOntapCertificateName(pool), e.g. "<deploymentName>-cert") when the
+// cert is first minted, so warm-path callers (every ONTAP REST request after
+// pool create) hit the cache and never call OCI.
+//
+// Lookup-by-OCID: ref.ExternalIdentifier holds the OCI-assigned cert OCID,
+// which OCI requires for every read (GetCertificate accepts OCID, not name).
+//
+// Returns the same *models.Certificate shape as the GCP variant
+// (_getCertificateFromCacheOrSecretManager) so the cert-auth code paths stay
+// unified across hyperscalers.
+func _getCertificateFromCacheOrCAS(ctx context.Context, ref *datamodel.ExternalCredRef) (*models.Certificate, error) {
+	if ref == nil || ref.Name == "" || ref.ExternalIdentifier == "" {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("OCI certificate reference is empty or incomplete"))
+	}
+
+	cacheKey := ref.Name
+	if certCache, exist := common.GetCertAuthCache(cacheKey); exist && certCache.Certificate != nil {
+		return certCache.Certificate, nil
+	}
+
+	ociService, err := hyperscaler.GetOCIService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cert, err := ociService.GetCertificate(ref.ExternalIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	// OciServices.GetCertificate returns (nil, nil) for the 404/deletion-state
+	// cases (mirrors googleResourceNotFoundCheck). Surface those as a typed
+	// fetch error so the cert-auth code path can fail fast instead of trying
+	// to build a vsa.Provider with a nil Certificate.
+	if cert == nil {
+		return nil, errors.NewVCPError(errors.ErrOCIResourceFetchError,
+			fmt.Errorf("OCI certificate %q (OCID %s) not found in OCI Certificates Service",
+				ref.Name, ref.ExternalIdentifier))
+	}
+	if cert.PrivateKeyPem == "" || cert.PemCertificate == "" {
+		return nil, errors.NewVCPError(errors.ErrOCIResourceFetchError,
+			fmt.Errorf("OCI certificate %q (OCID %s) bundle is missing required PEM material",
+				ref.Name, ref.ExternalIdentifier))
+	}
+
+	out := &models.Certificate{
+		CommonName:               cert.SubjectCommonName,
+		SignedCertificate:        cert.PemCertificate,
+		PrivateKey:               cert.PrivateKeyPem,
+		InterMediateCertificates: ociPemChainToSlice(cert.PemCertificateChain),
+	}
+	common.AddToCertAuthCache(cacheKey, out)
+	return out, nil
+}
+
 // _getOrCreateCloudDNSRecord checks if a Cloud DNS record exists, and if not, creates it.
 func _getOrCreateCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
 	gcpService.GetLogger().Debugf("Get and Create Cloud DNS for projectID: %s, record: %s, managedZone: %s", env.SecretManagerProjectID, recordName, env.VsaManagedZone)
@@ -752,6 +1142,84 @@ func _deleteCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName str
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// _getOrCreateOCIDNSRecord is the OCI counterpart to _getOrCreateCloudDNSRecord.
+// It looks up the A record first, and on miss falls through to an upsert via
+// OCI DNS UpdateRRSet (which is naturally idempotent — it REPLACES the RRSet
+// for (domain, A) rather than appending). The GCP path uses GET-then-CREATE
+// because the GCP API rejects duplicate creates with 409; OCI does not have
+// that quirk, but we keep the GET-first shape so the retry/error behaviour
+// stays identical across hyperscalers.
+//
+// All zone/scope context is taken from env vars so the caller stays
+// hyperscaler-agnostic at the activity layer:
+//   - env.OCIVsaDnsZoneOCID — zone OCID (mandatory)
+//   - env.OCIVsaDnsScope    — "PRIVATE" (default) | "GLOBAL"
+//   - env.CloudDNSCacheTTL  — shared with GCP
+func _getOrCreateOCIDNSRecord(ociService *oci.OciServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
+	if ociService == nil {
+		return nil, errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_getOrCreateOCIDNSRecord: ociService must not be nil"))
+	}
+	zoneOCID := env.OCIVsaDnsZoneOCID
+	logger := ociService.GetLogger()
+	logger.Debugf("Get-or-create OCI DNS record — zoneOCID: %s, record: %s, ip: %s",
+		zoneOCID, recordName, ipAddress)
+
+	record, err := ociService.GetDnsRecord(zoneOCID, recordName)
+	if err != nil {
+		logger.Errorf("Failed to get OCI DNS record %s: %v", recordName, err)
+		return nil, err
+	}
+	if record != nil {
+		// Idempotency: if a record already exists for this name, return it as-is.
+		// We intentionally do NOT verify Data == ipAddress here — the GCP path
+		// matches that behaviour, and a mismatch on retry is handled by the
+		// surrounding workflow's rollback (DeleteCloudDNSRecords) rather than
+		// silently overwriting.
+		return record, nil
+	}
+
+	logger.Debugf("Creating OCI DNS record %s → %s in zone %s",
+		recordName, ipAddress, zoneOCID)
+	record, err = ociService.CreateOrUpdateDnsRecord(zoneOCID, recordName, ipAddress)
+	if err != nil {
+		logger.Errorf("Failed to create OCI DNS record %s: %v", recordName, err)
+		return nil, err
+	}
+	return record, nil
+}
+
+// _deleteOCIDNSRecord is the OCI counterpart to _deleteCloudDNSRecord. The
+// GET-first shape mirrors GCP: we only call DeleteRRSet when the record
+// actually exists, so the delete-pool/rollback path stays a no-op on already-
+// absent records (OCI DNS surfaces those as 404, which DeleteDnsRecord
+// silences for the same reason).
+func _deleteOCIDNSRecord(ociService *oci.OciServices, recordName string) error {
+	if ociService == nil {
+		return errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_deleteOCIDNSRecord: ociService must not be nil"))
+	}
+	zoneOCID := env.OCIVsaDnsZoneOCID
+	logger := ociService.GetLogger()
+
+	record, err := ociService.GetDnsRecord(zoneOCID, recordName)
+	if err != nil {
+		logger.Errorf("Failed to get OCI DNS record %s before delete: %v", recordName, err)
+		return err
+	}
+	if record == nil {
+		logger.Infof("OCI DNS record %s already absent in zone %s — nothing to delete",
+			recordName, zoneOCID)
+		return nil
+	}
+
+	logger.Infof("Deleting OCI DNS record %s in zone %s", recordName, zoneOCID)
+	if err = ociService.DeleteDnsRecord(zoneOCID, recordName); err != nil {
+		return err
 	}
 	return nil
 }
@@ -793,6 +1261,63 @@ func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService hyperscaler
 	done := common.RemoveFromCertAuthCache(certificateID)
 	if !done {
 		logger.Errorf("Failed to remove certificate %s from cache", certificateID)
+	}
+	return nil
+}
+
+// _revokeCertificateFromCAS schedules the OCI-managed cluster
+// certificate for deletion in OCI Certificates Service
+// and evicts it from the in-memory cert-auth cache.
+//
+// Idempotency:
+//
+//	The function tolerates the three "nothing to do" shapes that the OCI
+//	pool delete flow can legitimately produce:
+//	  1. poolCredentials.ExternalCertificate == nil — pool create failed
+//	     before the cert handle was persisted; nothing was ever provisioned.
+//	  2. ExternalIdentifier == "" — same shape as (1) but with a partially
+//	     populated ref.
+//	  3. Cert already 404 / SCHEDULING_DELETION / PENDING_DELETION /
+//	     DELETING / DELETED in OCI — absorbed by OciServices.DeleteCertificate
+//	     itself, which returns nil for these states.
+//	All three return nil so the surrounding Temporal activity stays
+//	re-runnable without surfacing spurious failures.
+//
+// Cache eviction is best-effort: a missing entry is logged at debug and the
+// activity continues — the OCI-side deletion is already scheduled at that
+// point and any stale cache entry would be filtered by the lifecycle state
+// on the next certificate lookup anyway.
+func _revokeCertificateFromCAS(ociService *oci.OciServices, poolCredentials *datamodel.PoolCredentials) error {
+	if ociService == nil {
+		return errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_revokeCertificateFromCAS: ociService must not be nil"))
+	}
+	logger := ociService.GetLogger()
+
+	if poolCredentials == nil {
+		return errors.NewVCPError(errors.ErrInputValidationError,
+			errors2.New("_revokeCertificateFromCAS: poolCredentials must not be nil"))
+	}
+
+	if poolCredentials.ExternalCertificate == nil ||
+		poolCredentials.ExternalCertificate.ExternalIdentifier == "" {
+		logger.Infof("RevokeCertificateFromCAS: no persisted OCI certificate handle on poolCredentials — skipping revoke")
+		return nil
+	}
+
+	certOCID := poolCredentials.ExternalCertificate.ExternalIdentifier
+	certName := poolCredentials.ExternalCertificate.Name
+
+	if err := ociService.DeleteCertificate(certOCID); err != nil {
+		logger.Errorf("Failed to schedule OCI certificate deletion — certName: %s, certOCID: %s, err: %v",
+			certName, certOCID, err)
+		return err
+	}
+
+	if certName != "" {
+		if !common.RemoveFromCertAuthCache(certName) {
+			logger.Debugf("RevokeCertificateFromCAS: certificate %s not present in auth cache, nothing to evict", certName)
+		}
 	}
 	return nil
 }
@@ -866,6 +1391,11 @@ func _generateCSR(commonName string, domains []string, isServerAuthEnabled bool)
 
 	return csrDER, key, nil
 }
+
+// ontapCertSubjectOrganization is the X.509 Subject "O" (Organization) used for
+// all VSA-cluster certificates. It mirrors the value baked into the GCP CSR
+// template in _generateCSR (Subject.Organization = []string{"Netapp"}).
+const ontapCertSubjectOrganization = "Netapp"
 
 const CsrType = "CERTIFICATE REQUEST"
 

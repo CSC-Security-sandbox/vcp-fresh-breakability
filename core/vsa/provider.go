@@ -191,6 +191,7 @@ func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvid
 			Host:               provider.IPAddress,
 			InsecureSkipVerify: provider.InsecureSkipVerify,
 			FastConnection:     provider.FastConnection,
+			ServerName:         provider.ServerName,
 			Trace:              logger,
 			Ctx:                ctx,
 		},

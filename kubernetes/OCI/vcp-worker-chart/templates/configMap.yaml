@@ -118,5 +118,9 @@ data:
   OCI_NODE_CAPACITY_MAX_TIB: {{ $.Values.workerConfig.ociNodeCapacityMaxTib | quote }}
   OCI_THROUGHPUT_THRESHOLD_GBPS: {{ $.Values.workerConfig.ociThroughputThresholdGbps | quote }}
   OCI_VSA_USE_SECONDARY_IPS_FOR_LIFS: {{ $.Values.workerConfig.ociVsaUseSecondaryIpsForLifs | quote }}
+  OCI_ISSUER_CA_OCID: {{ $.Values.workerConfig.ociIssuerCaOcid | quote }}
+  VSA_DEPLOYED_DNS_NAME: {{ $.Values.workerConfig.vsaDeployedDnsName | quote }}
+  OCI_VSA_DNS_ZONE_OCID: {{ $.Values.workerConfig.ociVsaDnsZoneOcid | quote }}
+  OCI_USE_TLS_SNI_OVERRIDE: {{ $.Values.workerConfig.ociUseTlsSniOverride | quote }}
 ---
 {{- end }}
