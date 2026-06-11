@@ -152,3 +152,11 @@ func (vlmManager *VSAClientWorkflowManagerMock) ZoneSwitch(ctx workflow.Context,
 	zoneSwitchResponse := &ZoneSwitchResponse{}
 	return zoneSwitchResponse, nil
 }
+
+func (vlmManager *VSAClientWorkflowManagerMock) RotateFabricPoolKeys(ctx workflow.Context, req *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock RotateFabricPoolKeys")
+	resp := &RotateFabricPoolKeysResponse{VLMConfig: req.VLMConfig}
+	resp.VLMConfig.Deployment.OCIConfig.FabricPoolConfig.SecretOcid = req.NewSecretOcid
+	return resp, nil
+}

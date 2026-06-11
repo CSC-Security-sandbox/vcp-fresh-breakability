@@ -88,6 +88,20 @@ func (UnimplementedHandler) RbacRefreshPool(ctx context.Context, req OptRbacRefr
 	return r, ht.ErrNotImplemented
 }
 
+// RotateFabricPoolKeys implements rotateFabricPoolKeys operation.
+//
+// Rotates the access_key/secret_key that the pool's VSA cluster uses to
+// authenticate against the OCI Object Storage tier (fabric pool /
+// cloud target). The new credentials are sourced from an OCI Vault
+// Secret whose payload is the canonical
+// `{ "access_key": "...", "secret_key": "..." }` JSON shape consumed
+// by the underlying lifecycle manager.
+//
+// POST /v1beta/pools/{poolOCID}/rotateFabricPoolKeys
+func (UnimplementedHandler) RotateFabricPoolKeys(ctx context.Context, req *RotateFabricPoolKeysRequest, params RotateFabricPoolKeysParams) (r RotateFabricPoolKeysRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdatePool implements updatePool operation.
 //
 // Updates an existing storage pool's capacity and/or throughput. The operation

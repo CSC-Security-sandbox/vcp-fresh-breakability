@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
@@ -25,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/workflowquery"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
 
@@ -497,6 +500,145 @@ func validateUpdatePoolNodeCapacities(
 				pool.PoolExternalIdentifier, currentPoolGiB, requestedPoolGiB))
 	}
 	return nil
+}
+
+var rotateFabricPoolKeys = _rotateFabricPoolKeys
+
+func (o *OCIOrchestrator) RotateFabricPoolKeys(ctx context.Context, params *commonparams.RotateFabricPoolKeysParams) (string, bool, error) {
+	return rotateFabricPoolKeys(ctx, o.storage, o.temporal, params)
+}
+
+func _rotateFabricPoolKeys(
+	ctx context.Context,
+	se database.Storage,
+	temporal client.Client,
+	params *commonparams.RotateFabricPoolKeysParams,
+) (string, bool, error) {
+	logger := util.GetLogger(ctx)
+
+	if params == nil {
+		return "", false, customerrors.NewBadRequestErr("RotateFabricPoolKeysParams is required")
+	}
+
+	account, err := common.GetAccount(ctx, se, params.AccountName)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			accountName := params.AccountName
+			logger.Error("Account not found for fabric pool key rotation",
+				"accountName", params.AccountName, "poolOCID", params.PoolOCID, "error", err)
+			return "", false, customerrors.NewNotFoundErr("account", &accountName)
+		}
+		logger.Error("Failed to load account for fabric pool key rotation",
+			"accountName", params.AccountName, "poolOCID", params.PoolOCID, "error", err)
+		return "", false, err
+	}
+
+	conditions := [][]interface{}{{"pool_external_identifier = ?", params.PoolOCID}}
+	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
+	poolView, err := se.GetPoolByName(ctx, conditions)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			poolOCID := params.PoolOCID
+			logger.Error("Pool not found in caller's tenancy for fabric pool key rotation",
+				"poolOCID", params.PoolOCID, "accountName", params.AccountName)
+			return "", false, customerrors.NewNotFoundErr("pool", &poolOCID)
+		}
+		return "", false, err
+	}
+
+	if err = validateUpdatePoolState(poolView.State, params.PoolOCID); err != nil {
+		logger.Error("Pool state rejects fabric pool key rotation",
+			"poolOCID", params.PoolOCID, "state", poolView.State, "error", err)
+		return "", false, err
+	}
+
+	if err = validateNoActiveClusterUpgrade(ctx, se, poolView.UUID, params.PoolOCID); err != nil {
+		logger.Error("Active cluster upgrade in progress", "poolExternalIdentifier", params.PoolOCID, "error", err)
+		return "", false, err
+	}
+
+	pool := database.ConvertPoolViewToPool(poolView)
+
+	fabricPoolConfig, err := currentFabricPoolConfig(pool)
+	if err != nil {
+		logger.Error("Failed to parse stored VLMConfig for fabric pool key rotation",
+			"poolOCID", params.PoolOCID, "poolUUID", pool.UUID, "error", err)
+		return "", false, err
+	}
+	if fabricPoolConfig == nil {
+		logger.Error("Fabric pool key rotation requested for a pool without a fabric pool configured",
+			"poolOCID", params.PoolOCID, "poolUUID", pool.UUID)
+		return "", false, customerrors.NewBadRequestErr(
+			fmt.Sprintf("pool %s does not have a fabric pool configured; nothing to rotate", params.PoolOCID))
+	}
+
+	if fabricPoolConfig.SecretOcid == params.NewSecretOCID {
+		logger.Info("Fabric pool key rotation is a no-op; same OCID already programmed",
+			"poolOCID", params.PoolOCID,
+			"poolUUID", pool.UUID,
+			"secretOCID", params.NewSecretOCID)
+		return "", true, nil
+	}
+
+	preUpdateUUID := pool.UUID
+	updatedPool, err := se.UpdatingPool(ctx, pool)
+	if err != nil {
+		logger.Error("Failed to transition pool to UPDATING for fabric pool key rotation",
+			"poolOCID", params.PoolOCID, "poolUUID", preUpdateUUID, "error", err)
+		return "", false, err
+	}
+	pool = updatedPool
+
+	defer func() {
+		if err != nil {
+			if _, rbErr := se.ErroredResource(ctx, pool, err.Error()); rbErr != nil {
+				logger.Error("Failed to roll pool back to ERROR after dispatch failure",
+					"poolOCID", params.PoolOCID, "poolUUID", pool.UUID, "error", rbErr)
+			}
+		}
+	}()
+
+	workflowID := uuid.NewString()
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		workflowID,
+		workflowengine.CustomerTaskQueue,
+		ociworkflows.OCIRotateFabricPoolKeysWorkflow,
+		workflowengine.GetRotateFabricPoolKeysWorkflowRunTimeout(),
+		params,
+		pool,
+	)
+	if err != nil {
+		logger.Error("Failed to start OCI fabric pool key rotation workflow",
+			"workflowID", workflowID,
+			"poolOCID", params.PoolOCID,
+			"poolUUID", pool.UUID,
+			"error", err)
+		return "", false, err
+	}
+
+	logger.Info("OCI fabric pool key rotation workflow started",
+		"workflowID", workflowID,
+		"poolOCID", params.PoolOCID,
+		"poolUUID", pool.UUID)
+	return workflowID, false, nil
+}
+
+func currentFabricPoolConfig(pool *datamodel.Pool) (*vlm.FabricPoolConfig, error) {
+	if pool == nil || pool.VLMConfig == "" {
+		return nil, nil
+	}
+	var cfg vlm.VLMConfig
+	if err := json.Unmarshal([]byte(pool.VLMConfig), &cfg); err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError,
+			fmt.Errorf("failed to parse stored VLMConfig for pool %q: %w", pool.UUID, err))
+	}
+	fpc := cfg.Deployment.OCIConfig.FabricPoolConfig
+	if fpc == (vlm.FabricPoolConfig{}) {
+		return nil, nil
+	}
+	return &fpc, nil
 }
 
 func validateNodeCapacityPerNodeRules(

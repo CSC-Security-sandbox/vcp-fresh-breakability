@@ -627,7 +627,8 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool, dec
 		ociConfig.VSAInstanceShape = decision.VMShape
 		ociConfig.VSAFlexOcpus = float32(decision.OCPUs)
 		ociConfig.VSAFlexMemoryInGBs = float32(decision.MemoryGBs)
-		ociConfig.DataDiskVpus = int64(decision.VPU)
+		vpu := int64(decision.VPU)
+		ociConfig.DataDiskVpus = &vpu
 		iops = decision.IOPS
 	}
 

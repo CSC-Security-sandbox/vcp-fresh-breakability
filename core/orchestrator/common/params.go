@@ -1311,3 +1311,9 @@ type RefreshRbacForPoolParams struct {
 	AccountName string `json:"accountName"`
 	RbacFileURL string `json:"rbacFileURL,omitempty"`
 }
+
+type RotateFabricPoolKeysParams struct {
+	AccountName   string
+	PoolOCID      string
+	NewSecretOCID string
+}

@@ -29,6 +29,10 @@ type RbacRefreshPoolRes interface {
 	rbacRefreshPoolRes()
 }
 
+type RotateFabricPoolKeysRes interface {
+	rotateFabricPoolKeysRes()
+}
+
 type UpdatePoolRes interface {
 	updatePoolRes()
 }

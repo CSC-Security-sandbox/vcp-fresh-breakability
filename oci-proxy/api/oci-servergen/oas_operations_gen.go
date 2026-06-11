@@ -6,13 +6,14 @@ package ociserver
 type OperationName = string
 
 const (
-	CreatePoolOperation      OperationName = "CreatePool"
-	CreateSvmByPoolOperation OperationName = "CreateSvmByPool"
-	DeletePoolOperation      OperationName = "DeletePool"
-	DeleteSvmOperation       OperationName = "DeleteSvm"
-	GetHealthOperation       OperationName = "GetHealth"
-	GetWorkflowOperation     OperationName = "GetWorkflow"
-	RbacRefreshPoolOperation OperationName = "RbacRefreshPool"
-	UpdatePoolOperation      OperationName = "UpdatePool"
-	UpgradePoolOperation     OperationName = "UpgradePool"
+	CreatePoolOperation           OperationName = "CreatePool"
+	CreateSvmByPoolOperation      OperationName = "CreateSvmByPool"
+	DeletePoolOperation           OperationName = "DeletePool"
+	DeleteSvmOperation            OperationName = "DeleteSvm"
+	GetHealthOperation            OperationName = "GetHealth"
+	GetWorkflowOperation          OperationName = "GetWorkflow"
+	RbacRefreshPoolOperation      OperationName = "RbacRefreshPool"
+	RotateFabricPoolKeysOperation OperationName = "RotateFabricPoolKeys"
+	UpdatePoolOperation           OperationName = "UpdatePool"
+	UpgradePoolOperation          OperationName = "UpgradePool"
 )

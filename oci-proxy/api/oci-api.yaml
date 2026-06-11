@@ -544,6 +544,127 @@ paths:
           $ref: '#/components/responses/RbacRefreshPoolDefaultError'
       x-codegen-request-body-name: body
 
+  /v1beta/pools/{poolOCID}/rotateFabricPoolKeys:
+    post:
+      tags:
+        - pools
+      summary: Rotate fabric pool object-store keys
+      description: |
+        Rotates the access_key/secret_key that the pool's VSA cluster uses to
+        authenticate against the OCI Object Storage tier (fabric pool /
+        cloud target). The new credentials are sourced from an OCI Vault
+        Secret whose payload is the canonical
+        `{ "access_key": "...", "secret_key": "..." }` JSON shape consumed
+        by the underlying lifecycle manager.
+
+      operationId: rotateFabricPoolKeys
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateFabricPoolKeysRequest'
+            example:
+              secretOCID: "ocid1.vaultsecret.oc1.iad.amaaaaaarotatekeysv2xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      responses:
+        "202":
+          description: Accepted
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RotateFabricPoolKeysAcceptedResponse'
+              examples:
+                inProgress:
+                  summary: Rotation workflow started
+                  value:
+                    status: "in_progress"
+                    workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                    poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+                noChange:
+                  summary: Same secret already programmed, no workflow started
+                  value:
+                    status: "no_change"
+                    poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "400":
+          description: |
+            Bad request. Missing or invalid `secretOCID`, malformed
+            `poolOCID`, missing `Tenancy-Ocid`
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "403":
+          description: |
+            Forbidden. Caller lacks permission for this pool, tenancy,
+            or secret OCID.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Pool not found in the caller's tenancy.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "409":
+          description: |
+            Conflict. Pool is not in `READY` state, or another update or
+            rotation is already in flight.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "429":
+          description: Too many requests / rate limit on rotations for this pool.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/RotateFabricPoolKeysDefaultError'
+      x-codegen-request-body-name: body
+
   /v1beta/pools/{poolOCID}/svms:
     post:
       tags:
@@ -1142,6 +1263,39 @@ components:
           type: string
           description: Pool OCID for the requested pool.
 
+    RotateFabricPoolKeysRequest:
+      type: object
+      required:
+        - secretOCID
+      properties:
+        secretOCID:
+          type: string
+          description: |
+            OCID of the OCI Vault Secret
+          example: "ocid1.vaultsecret.oc1.iad.amaaaaaarotatekeysv2xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+    RotateFabricPoolKeysAcceptedResponse:
+      type: object
+      required:
+        - status
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: |
+            Outcome of the rotate request
+          enum:
+            - in_progress
+            - no_change
+          example: in_progress
+        workflowId:
+          type: string
+          description: |
+            Workflow identifier used to poll operation status
+        poolOCID:
+          type: string
+          description: Pool OCID for the requested pool.
+
     DeletePoolAcceptedResponse:
       type: object
       required:
@@ -1702,6 +1856,15 @@ components:
           schema:
             $ref: '#/components/schemas/PoolOperationErrorResponse'
     RbacRefreshPoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
+    RotateFabricPoolKeysDefaultError:
       description: Internal server error
       headers:
         Opc-Request-Id:

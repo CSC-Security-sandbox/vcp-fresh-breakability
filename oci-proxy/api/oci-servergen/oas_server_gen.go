@@ -62,6 +62,17 @@ type Handler interface {
 	//
 	// POST /v1beta/pools/{poolOCID}/rbacRefresh
 	RbacRefreshPool(ctx context.Context, req OptRbacRefreshRequest, params RbacRefreshPoolParams) (RbacRefreshPoolRes, error)
+	// RotateFabricPoolKeys implements rotateFabricPoolKeys operation.
+	//
+	// Rotates the access_key/secret_key that the pool's VSA cluster uses to
+	// authenticate against the OCI Object Storage tier (fabric pool /
+	// cloud target). The new credentials are sourced from an OCI Vault
+	// Secret whose payload is the canonical
+	// `{ "access_key": "...", "secret_key": "..." }` JSON shape consumed
+	// by the underlying lifecycle manager.
+	//
+	// POST /v1beta/pools/{poolOCID}/rotateFabricPoolKeys
+	RotateFabricPoolKeys(ctx context.Context, req *RotateFabricPoolKeysRequest, params RotateFabricPoolKeysParams) (RotateFabricPoolKeysRes, error)
 	// UpdatePool implements updatePool operation.
 	//
 	// Updates an existing storage pool's capacity and/or throughput. The operation

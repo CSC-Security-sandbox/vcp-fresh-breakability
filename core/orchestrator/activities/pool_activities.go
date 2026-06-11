@@ -624,6 +624,52 @@ func (j *PoolActivity) UpdateOCINodesFromVLMConfig(ctx context.Context, poolID i
 	return nil
 }
 
+type fabricPoolSecretPayload struct {
+	AccessKey string `json:"access_key"`
+	SecretKey string `json:"secret_key"`
+}
+
+func (j *PoolActivity) ValidateOCIFabricPoolSecret(ctx context.Context, secretOCID string) (*vlm.FabricPoolConfig, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting ValidateOCIFabricPoolSecret activity — secretOCID: %s", secretOCID))
+	logger := util.GetLogger(ctx)
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
+	}
+
+	logger.Infof("Fetching fabric pool secret from OCI Vault (latest version) — secretOCID: %s", secretOCID)
+	secret, err := ociService.GetSecretWithLatestVersion(secretOCID)
+
+	if err != nil {
+		logger.Errorf("Failed to fetch fabric pool secret from OCI Vault: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if secret == nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError,
+				fmt.Errorf("ValidateOCIFabricPoolSecret: secret is inactive, pending deletion, or version not found — OCID: %s", secretOCID)))
+	}
+
+	var payload fabricPoolSecretPayload
+	if err := json.Unmarshal([]byte(secret.Value), &payload); err != nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError,
+				fmt.Errorf("ValidateOCIFabricPoolSecret: secret payload is not valid JSON (OCID: %s, version: %d): %w",
+					secretOCID, secret.Version, err)))
+	}
+	if payload.AccessKey == "" || payload.SecretKey == "" {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError,
+				fmt.Errorf("ValidateOCIFabricPoolSecret: secret payload must contain non-empty access_key and secret_key (OCID: %s, version: %d)",
+					secretOCID, secret.Version)))
+	}
+
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished ValidateOCIFabricPoolSecret activity — secretOCID: %s, resolvedVersion: %d", secretOCID, secret.Version))
+	return &vlm.FabricPoolConfig{SecretOcid: secretOCID}, nil
+}
+
 func (j *PoolActivity) UpdateNodesInstanceTypeActivity(ctx context.Context, poolID int64, newInstanceType string) error {
 	se := j.SE
 	logger := util.GetLogger(ctx)

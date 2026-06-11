@@ -1769,9 +1769,9 @@ func (_c *MockDataStore_CreateExpertModeVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// CreateExternalCluster provides a mock function with given fields: ctx, host
-func (_m *MockDataStore) CreateExternalCluster(ctx context.Context, host *datamodel.Cluster) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, host)
+// CreateExternalCluster provides a mock function with given fields: ctx, cluster
+func (_m *MockDataStore) CreateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, cluster)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateExternalCluster")
@@ -1780,10 +1780,10 @@ func (_m *MockDataStore) CreateExternalCluster(ctx context.Context, host *datamo
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Cluster) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, host)
+		return rf(ctx, cluster)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Cluster) *datamodel.Cluster); ok {
-		r0 = rf(ctx, host)
+		r0 = rf(ctx, cluster)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -1791,7 +1791,7 @@ func (_m *MockDataStore) CreateExternalCluster(ctx context.Context, host *datamo
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Cluster) error); ok {
-		r1 = rf(ctx, host)
+		r1 = rf(ctx, cluster)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1806,12 +1806,12 @@ type MockDataStore_CreateExternalCluster_Call struct {
 
 // CreateExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - host *datamodel.Cluster
-func (_e *MockDataStore_Expecter) CreateExternalCluster(ctx interface{}, host interface{}) *MockDataStore_CreateExternalCluster_Call {
-	return &MockDataStore_CreateExternalCluster_Call{Call: _e.mock.On("CreateExternalCluster", ctx, host)}
+//   - cluster *datamodel.Cluster
+func (_e *MockDataStore_Expecter) CreateExternalCluster(ctx interface{}, cluster interface{}) *MockDataStore_CreateExternalCluster_Call {
+	return &MockDataStore_CreateExternalCluster_Call{Call: _e.mock.On("CreateExternalCluster", ctx, cluster)}
 }
 
-func (_c *MockDataStore_CreateExternalCluster_Call) Run(run func(ctx context.Context, host *datamodel.Cluster)) *MockDataStore_CreateExternalCluster_Call {
+func (_c *MockDataStore_CreateExternalCluster_Call) Run(run func(ctx context.Context, cluster *datamodel.Cluster)) *MockDataStore_CreateExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*datamodel.Cluster))
 	})
@@ -3660,9 +3660,9 @@ func (_c *MockDataStore_DeleteExpertModeVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// DeleteExternalCluster provides a mock function with given fields: ctx, hostID
-func (_m *MockDataStore) DeleteExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, hostID)
+// DeleteExternalCluster provides a mock function with given fields: ctx, externalClusterID
+func (_m *MockDataStore) DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, externalClusterID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteExternalCluster")
@@ -3671,10 +3671,10 @@ func (_m *MockDataStore) DeleteExternalCluster(ctx context.Context, hostID strin
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, hostID)
+		return rf(ctx, externalClusterID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
-		r0 = rf(ctx, hostID)
+		r0 = rf(ctx, externalClusterID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -3682,7 +3682,7 @@ func (_m *MockDataStore) DeleteExternalCluster(ctx context.Context, hostID strin
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, hostID)
+		r1 = rf(ctx, externalClusterID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3697,12 +3697,12 @@ type MockDataStore_DeleteExternalCluster_Call struct {
 
 // DeleteExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - hostID string
-func (_e *MockDataStore_Expecter) DeleteExternalCluster(ctx interface{}, hostID interface{}) *MockDataStore_DeleteExternalCluster_Call {
-	return &MockDataStore_DeleteExternalCluster_Call{Call: _e.mock.On("DeleteExternalCluster", ctx, hostID)}
+//   - externalClusterID string
+func (_e *MockDataStore_Expecter) DeleteExternalCluster(ctx interface{}, externalClusterID interface{}) *MockDataStore_DeleteExternalCluster_Call {
+	return &MockDataStore_DeleteExternalCluster_Call{Call: _e.mock.On("DeleteExternalCluster", ctx, externalClusterID)}
 }
 
-func (_c *MockDataStore_DeleteExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockDataStore_DeleteExternalCluster_Call {
+func (_c *MockDataStore_DeleteExternalCluster_Call) Run(run func(ctx context.Context, externalClusterID string)) *MockDataStore_DeleteExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -9026,9 +9026,9 @@ func (_c *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call) RunAndReturn(r
 	return _c
 }
 
-// GetExternalCluster provides a mock function with given fields: ctx, hostID
-func (_m *MockDataStore) GetExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, hostID)
+// GetExternalCluster provides a mock function with given fields: ctx, externalClusterID
+func (_m *MockDataStore) GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, externalClusterID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetExternalCluster")
@@ -9037,10 +9037,10 @@ func (_m *MockDataStore) GetExternalCluster(ctx context.Context, hostID string) 
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, hostID)
+		return rf(ctx, externalClusterID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
-		r0 = rf(ctx, hostID)
+		r0 = rf(ctx, externalClusterID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -9048,7 +9048,7 @@ func (_m *MockDataStore) GetExternalCluster(ctx context.Context, hostID string) 
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, hostID)
+		r1 = rf(ctx, externalClusterID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -9063,12 +9063,12 @@ type MockDataStore_GetExternalCluster_Call struct {
 
 // GetExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - hostID string
-func (_e *MockDataStore_Expecter) GetExternalCluster(ctx interface{}, hostID interface{}) *MockDataStore_GetExternalCluster_Call {
-	return &MockDataStore_GetExternalCluster_Call{Call: _e.mock.On("GetExternalCluster", ctx, hostID)}
+//   - externalClusterID string
+func (_e *MockDataStore_Expecter) GetExternalCluster(ctx interface{}, externalClusterID interface{}) *MockDataStore_GetExternalCluster_Call {
+	return &MockDataStore_GetExternalCluster_Call{Call: _e.mock.On("GetExternalCluster", ctx, externalClusterID)}
 }
 
-func (_c *MockDataStore_GetExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockDataStore_GetExternalCluster_Call {
+func (_c *MockDataStore_GetExternalCluster_Call) Run(run func(ctx context.Context, externalClusterID string)) *MockDataStore_GetExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -20311,9 +20311,9 @@ func (_c *MockDataStore_UpdateExpertModeVolumeFields_Call) RunAndReturn(run func
 	return _c
 }
 
-// UpdateExternalCluster provides a mock function with given fields: ctx, host
-func (_m *MockDataStore) UpdateExternalCluster(ctx context.Context, host *datamodel.Cluster) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, host)
+// UpdateExternalCluster provides a mock function with given fields: ctx, cluster
+func (_m *MockDataStore) UpdateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, cluster)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateExternalCluster")
@@ -20322,10 +20322,10 @@ func (_m *MockDataStore) UpdateExternalCluster(ctx context.Context, host *datamo
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Cluster) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, host)
+		return rf(ctx, cluster)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Cluster) *datamodel.Cluster); ok {
-		r0 = rf(ctx, host)
+		r0 = rf(ctx, cluster)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -20333,7 +20333,7 @@ func (_m *MockDataStore) UpdateExternalCluster(ctx context.Context, host *datamo
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Cluster) error); ok {
-		r1 = rf(ctx, host)
+		r1 = rf(ctx, cluster)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -20348,12 +20348,12 @@ type MockDataStore_UpdateExternalCluster_Call struct {
 
 // UpdateExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - host *datamodel.Cluster
-func (_e *MockDataStore_Expecter) UpdateExternalCluster(ctx interface{}, host interface{}) *MockDataStore_UpdateExternalCluster_Call {
-	return &MockDataStore_UpdateExternalCluster_Call{Call: _e.mock.On("UpdateExternalCluster", ctx, host)}
+//   - cluster *datamodel.Cluster
+func (_e *MockDataStore_Expecter) UpdateExternalCluster(ctx interface{}, cluster interface{}) *MockDataStore_UpdateExternalCluster_Call {
+	return &MockDataStore_UpdateExternalCluster_Call{Call: _e.mock.On("UpdateExternalCluster", ctx, cluster)}
 }
 
-func (_c *MockDataStore_UpdateExternalCluster_Call) Run(run func(ctx context.Context, host *datamodel.Cluster)) *MockDataStore_UpdateExternalCluster_Call {
+func (_c *MockDataStore_UpdateExternalCluster_Call) Run(run func(ctx context.Context, cluster *datamodel.Cluster)) *MockDataStore_UpdateExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*datamodel.Cluster))
 	})

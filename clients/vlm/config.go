@@ -41,6 +41,7 @@ const (
 	UpdateLicenseWorkflowName                  = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName                = "vlm.ASUPTriggerWaitWorkflow"
 	ZoneSwitchWorkflowName                     = "vlm.ZoneSwitchWorkflow"
+	RotateFabricPoolKeysWorkflowName           = "vlm.RotateFabricPoolKeysWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
@@ -86,6 +87,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	UpdateLicenseWorkflowName:                  10 * time.Minute,
 	CreateVSAExpertModeUserWorkflowName:        30 * time.Minute,
 	ZoneSwitchWorkflowName:                     30 * time.Minute,
+	RotateFabricPoolKeysWorkflowName:           5 * time.Minute,
 }
 
 type VLMConfig struct {
@@ -102,8 +104,7 @@ type CloudConfig struct {
 }
 
 type DeploymentConfigFlags struct {
-	EnableAASupportSvm         bool   `json:"enable_aa_support_svm"`          // Enable AA support for svm
-	EnableAAConfig             bool   `json:"enable_aa_config"`               // Enable AA Config for active-active deployments
+	EnableAAConfig             bool   `json:"enable_aa_config"`               // Enable AA Config for svm
 	EnableIlbSupport           bool   `json:"enable_ilb_support"`             // Enable ILB support
 	EnableNfsV364BitIdentifier string `json:"enable_nfs_v3_64bit_identifier"` // Enable NFS v3 64-bit identifier support
 	EnableNonLssdInstanceType  bool   `json:"enable_non_lssd_instance_type"`  // Enable Non LSSD instance type support
@@ -186,7 +187,7 @@ type OCIConfig struct {
 	CompartmentID              string                            `json:"compartment_id"` // OCI Compartment ID
 	SubnetID                   string                            `json:"subnet_id"`
 	DataNICSubnetID            string                            `json:"data_nic_subnet_id"`
-	DataDiskVpus               int64                             `json:"data_disk_vpus"`                   // Number of data disk VPUs to be created
+	DataDiskVpus               *int64                            `json:"data_disk_vpus"`                   // Data disk VPUs (nil = leave to VLM default)
 	AvailabilityDomain         AvailabilityDomainInfo            `json:"availability_domain_info"`         // OCI Availability Domain Info
 	VSAInstanceShape           string                            `json:"vsa_instance_shape"`               // Instance shape for VSA
 	VSAFlexOcpus               float32                           `json:"vsa_flex_ocpus,omitempty"`         // OCPUs for VSA flex (non-mediator); 0 = default 4
@@ -313,8 +314,8 @@ func ParseSizeStringGiB(s string) int64 {
 }
 
 type SPHAPairConfig struct {
-	InstanceType string       `json:"instance_type"` // VM instance type for both nodes in this HA pai
-	AggrConfigs []AggrConfig  `json:"aggr_configs"` // Aggr configurations for the HA pair
+	InstanceType string       `json:"instance_type"` // VM instance type for both nodes in this HA pair
+	AggrConfigs  []AggrConfig `json:"aggr_configs"`  // Aggr configurations for the HA pair
 }
 
 type AggrConfig struct {
@@ -665,6 +666,16 @@ type ZoneSwitchRequest struct {
 }
 
 type ZoneSwitchResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+type RotateFabricPoolKeysRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`        // VLM configuration
+	NewSecretOcid    string           `json:"new_secret_ocid"`   // OCI Vault Secret OCID holding the new access_key/secret_key
+	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+}
+
+type RotateFabricPoolKeysResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 

@@ -2205,6 +2205,199 @@ func (s *RbacRefreshRequest) SetRbacFilePath(val OptString) {
 	s.RbacFilePath = val
 }
 
+// Ref: #/components/schemas/RotateFabricPoolKeysAcceptedResponse
+type RotateFabricPoolKeysAcceptedResponse struct {
+	// Outcome of the rotate request.
+	Status RotateFabricPoolKeysAcceptedResponseStatus `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId OptString `json:"workflowId"`
+	// Pool OCID for the requested pool.
+	PoolOCID string `json:"poolOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *RotateFabricPoolKeysAcceptedResponse) GetStatus() RotateFabricPoolKeysAcceptedResponseStatus {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *RotateFabricPoolKeysAcceptedResponse) GetWorkflowId() OptString {
+	return s.WorkflowId
+}
+
+// GetPoolOCID returns the value of PoolOCID.
+func (s *RotateFabricPoolKeysAcceptedResponse) GetPoolOCID() string {
+	return s.PoolOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *RotateFabricPoolKeysAcceptedResponse) SetStatus(val RotateFabricPoolKeysAcceptedResponseStatus) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *RotateFabricPoolKeysAcceptedResponse) SetWorkflowId(val OptString) {
+	s.WorkflowId = val
+}
+
+// SetPoolOCID sets the value of PoolOCID.
+func (s *RotateFabricPoolKeysAcceptedResponse) SetPoolOCID(val string) {
+	s.PoolOCID = val
+}
+
+// RotateFabricPoolKeysAcceptedResponseHeaders wraps RotateFabricPoolKeysAcceptedResponse with response headers.
+type RotateFabricPoolKeysAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     RotateFabricPoolKeysAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *RotateFabricPoolKeysAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *RotateFabricPoolKeysAcceptedResponseHeaders) GetResponse() RotateFabricPoolKeysAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *RotateFabricPoolKeysAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RotateFabricPoolKeysAcceptedResponseHeaders) SetResponse(val RotateFabricPoolKeysAcceptedResponse) {
+	s.Response = val
+}
+
+func (*RotateFabricPoolKeysAcceptedResponseHeaders) rotateFabricPoolKeysRes() {}
+
+// Outcome of the rotate request.
+type RotateFabricPoolKeysAcceptedResponseStatus string
+
+const (
+	RotateFabricPoolKeysAcceptedResponseStatusInProgress RotateFabricPoolKeysAcceptedResponseStatus = "in_progress"
+	RotateFabricPoolKeysAcceptedResponseStatusNoChange   RotateFabricPoolKeysAcceptedResponseStatus = "no_change"
+)
+
+// AllValues returns all RotateFabricPoolKeysAcceptedResponseStatus values.
+func (RotateFabricPoolKeysAcceptedResponseStatus) AllValues() []RotateFabricPoolKeysAcceptedResponseStatus {
+	return []RotateFabricPoolKeysAcceptedResponseStatus{
+		RotateFabricPoolKeysAcceptedResponseStatusInProgress,
+		RotateFabricPoolKeysAcceptedResponseStatusNoChange,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RotateFabricPoolKeysAcceptedResponseStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case RotateFabricPoolKeysAcceptedResponseStatusInProgress:
+		return []byte(s), nil
+	case RotateFabricPoolKeysAcceptedResponseStatusNoChange:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RotateFabricPoolKeysAcceptedResponseStatus) UnmarshalText(data []byte) error {
+	switch RotateFabricPoolKeysAcceptedResponseStatus(data) {
+	case RotateFabricPoolKeysAcceptedResponseStatusInProgress:
+		*s = RotateFabricPoolKeysAcceptedResponseStatusInProgress
+		return nil
+	case RotateFabricPoolKeysAcceptedResponseStatusNoChange:
+		*s = RotateFabricPoolKeysAcceptedResponseStatusNoChange
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type RotateFabricPoolKeysBadRequest PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysBadRequest) rotateFabricPoolKeysRes() {}
+
+type RotateFabricPoolKeysConflict PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysConflict) rotateFabricPoolKeysRes() {}
+
+// RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders wraps PoolOperationErrorResponse with status code and response headers.
+type RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     PoolOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) GetResponse() PoolOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) SetResponse(val PoolOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*RotateFabricPoolKeysDefaultErrorStatusCodeWithHeaders) rotateFabricPoolKeysRes() {}
+
+type RotateFabricPoolKeysForbidden PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysForbidden) rotateFabricPoolKeysRes() {}
+
+type RotateFabricPoolKeysInternalServerError PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysInternalServerError) rotateFabricPoolKeysRes() {}
+
+type RotateFabricPoolKeysNotFound PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysNotFound) rotateFabricPoolKeysRes() {}
+
+// Ref: #/components/schemas/RotateFabricPoolKeysRequest
+type RotateFabricPoolKeysRequest struct {
+	// OCID of the OCI Vault Secret.
+	SecretOCID string `json:"secretOCID"`
+}
+
+// GetSecretOCID returns the value of SecretOCID.
+func (s *RotateFabricPoolKeysRequest) GetSecretOCID() string {
+	return s.SecretOCID
+}
+
+// SetSecretOCID sets the value of SecretOCID.
+func (s *RotateFabricPoolKeysRequest) SetSecretOCID(val string) {
+	s.SecretOCID = val
+}
+
+type RotateFabricPoolKeysTooManyRequests PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysTooManyRequests) rotateFabricPoolKeysRes() {}
+
+type RotateFabricPoolKeysUnauthorized PoolOperationErrorResponseHeaders
+
+func (*RotateFabricPoolKeysUnauthorized) rotateFabricPoolKeysRes() {}
+
 // Ref: #/components/schemas/SecurityAttributeValue
 type SecurityAttributeValue struct {
 	// Attribute value. Must satisfy the validator (if any) configured on

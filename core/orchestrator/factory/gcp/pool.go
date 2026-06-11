@@ -262,6 +262,13 @@ func createExpertModeUser(poolObj *datamodel.Pool, userName string) *datamodel.E
 }
 
 // UpdatePool updates the specified pool
+// RotateFabricPoolKeys is OCI-only; GCP returns NotImplementedYetErr so the
+// shared OrchestratorFactory interface stays satisfied. The GCP cluster does
+// not expose a fabric pool object-store credential rotation today.
+func (o *GCPOrchestrator) RotateFabricPoolKeys(ctx context.Context, params *commonparams.RotateFabricPoolKeysParams) (string, bool, error) {
+	return "", false, customerrors.NewNotImplementedYetErr()
+}
+
 func (o *GCPOrchestrator) UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
 	return updatePool(ctx, o.storage, o.temporal, params)
 }

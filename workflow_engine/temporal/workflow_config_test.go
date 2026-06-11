@@ -225,6 +225,28 @@ func TestGetUpdatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
 	}
 }
 
+func TestGetRotateFabricPoolKeysWorkflowRunTimeout_UsesConfiguredValue(t *testing.T) {
+	orig := RotateFabricPoolKeysWorkflowTimeoutMinutes
+	defer func() { RotateFabricPoolKeysWorkflowTimeoutMinutes = orig }()
+
+	RotateFabricPoolKeysWorkflowTimeoutMinutes = "10"
+	got := GetRotateFabricPoolKeysWorkflowRunTimeout()
+	if got == nil || *got != 10*time.Minute {
+		t.Fatalf("expected 10m, got %v", got)
+	}
+}
+
+func TestGetRotateFabricPoolKeysWorkflowRunTimeout_InvalidEnvFallsBack(t *testing.T) {
+	orig := RotateFabricPoolKeysWorkflowTimeoutMinutes
+	defer func() { RotateFabricPoolKeysWorkflowTimeoutMinutes = orig }()
+
+	RotateFabricPoolKeysWorkflowTimeoutMinutes = "invalid"
+	got := GetRotateFabricPoolKeysWorkflowRunTimeout()
+	if got == nil || *got != 10*time.Minute {
+		t.Fatalf("expected fallback 10m, got %v", got)
+	}
+}
+
 func TestGetCreateBackupWorkflowTimeout_InvalidEnv(t *testing.T) {
 	original := CreateBackupWorkflowTimeoutMinutes
 	defer func() { CreateBackupWorkflowTimeoutMinutes = original }()

@@ -512,7 +512,8 @@ func TestPrepareVLMConfig_AppliesDecisionFlipsAllFourOCIFields(t *testing.T) {
 		"VMRS-chosen OCPUs must land on OCIConfig.VSAFlexOcpus")
 	assert.Equal(t, float32(480), oc.VSAFlexMemoryInGBs,
 		"VMRS-chosen memory must land on OCIConfig.VSAFlexMemoryInGBs verbatim (no per-OCPU derivation)")
-	assert.Equal(t, int64(90), oc.DataDiskVpus,
+	require.NotNil(t, oc.DataDiskVpus, "VMRS-chosen VPU must be set on OCIConfig.DataDiskVpus")
+	assert.Equal(t, int64(90), *oc.DataDiskVpus,
 		"VMRS-chosen VPU must land on OCIConfig.DataDiskVpus")
 	// The deployment-level VSAInstanceType is wired off OCIConfig.VSAInstanceShape
 	// inside ociDeploymentConfig — if the decision shape doesn't flow
@@ -622,8 +623,6 @@ func TestOCIDeploymentConfig(t *testing.T) {
 				"DeploymentType must be derived from params.IsRegionalHA")
 			assert.Equal(tt, tc.wantEnableAAConfig, got.DeploymentConfigFlags.EnableAAConfig,
 				"DeploymentConfigFlags.EnableAAConfig must be the inverse of params.IsRegionalHA: AA on iff shared HA")
-			assert.False(tt, got.DeploymentConfigFlags.EnableAASupportSvm,
-				"EnableAASupportSvm is not wired for OCI; should be false in both HA modes")
 			assert.False(tt, got.DeploymentConfigFlags.EnableIlbSupport,
 				"EnableIlbSupport is not wired for OCI; should be false in both HA modes")
 			assert.Empty(tt, got.DeploymentConfigFlags.EnableNfsV364BitIdentifier,

@@ -468,6 +468,65 @@ func (_c *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call) RunAndReturn(run func
 	return _c
 }
 
+// RotateFabricPoolKeys provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) RotateFabricPoolKeys(ctx internal.Context, req *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RotateFabricPoolKeys")
+	}
+
+	var r0 *RotateFabricPoolKeysResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *RotateFabricPoolKeysRequest) *RotateFabricPoolKeysResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*RotateFabricPoolKeysResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *RotateFabricPoolKeysRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_RotateFabricPoolKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RotateFabricPoolKeys'
+type MockVlmWorkflowClient_RotateFabricPoolKeys_Call struct {
+	*mock.Call
+}
+
+// RotateFabricPoolKeys is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *RotateFabricPoolKeysRequest
+func (_e *MockVlmWorkflowClient_Expecter) RotateFabricPoolKeys(ctx interface{}, req interface{}) *MockVlmWorkflowClient_RotateFabricPoolKeys_Call {
+	return &MockVlmWorkflowClient_RotateFabricPoolKeys_Call{Call: _e.mock.On("RotateFabricPoolKeys", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_RotateFabricPoolKeys_Call) Run(run func(ctx internal.Context, req *RotateFabricPoolKeysRequest)) *MockVlmWorkflowClient_RotateFabricPoolKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*RotateFabricPoolKeysRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_RotateFabricPoolKeys_Call) Return(_a0 *RotateFabricPoolKeysResponse, _a1 error) *MockVlmWorkflowClient_RotateFabricPoolKeys_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_RotateFabricPoolKeys_Call) RunAndReturn(run func(internal.Context, *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error)) *MockVlmWorkflowClient_RotateFabricPoolKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateLicenseWorkflow provides a mock function with given fields: ctx, req
 func (_m *MockVlmWorkflowClient) UpdateLicenseWorkflow(ctx internal.Context, req *UpdateLicenseRequest) error {
 	ret := _m.Called(ctx, req)

@@ -38,6 +38,8 @@ var (
 	RetryErrorPatterns = getRetryErrorPatterns()
 )
 
+const accountIDLabelKey = "account_id"
+
 const VLMCloudProvider = "gcp"
 const AccountName = "AccountName"
 const expertMode = "exp-mode"
@@ -83,6 +85,7 @@ type VlmWorkflowClient interface {
 	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
 	CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error)
 	ZoneSwitch(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error)
+	RotateFabricPoolKeys(ctx workflow.Context, req *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error)
 }
 
 type VSAClientWorkflowManager struct {
@@ -107,7 +110,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	if err != nil {
 		return ontapExpertModeUserResponse, err
 	}
-	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
@@ -163,7 +166,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 		return nil, err
 	}
 
-	accountID := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAClusterDeploymentWorkflowName]; ok {
@@ -294,7 +297,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 		return nil, err
 	}
 
-	accountID := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := createSVMRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
@@ -364,7 +367,7 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSASVM(ctx workflow.Context, d
 		return nil, err
 	}
 
-	accountID := deleteSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := deleteSVMRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[DeleteVSASVMWorkflowName]; ok {
@@ -416,7 +419,7 @@ func (vlmManager *VSAClientWorkflowManager) ModifyVSASVMWorkflow(ctx workflow.Co
 		return nil, err
 	}
 
-	accountID := req.VLMConfig.Deployment.Labels["account_id"]
+	accountID := req.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[ModifyVSASVMWorkflowName]; ok {
@@ -809,7 +812,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 		return err
 	}
 
-	accountID := validateClusterHealthRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := validateClusterHealthRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterHealthCheckWorkflowName]; ok {
@@ -861,7 +864,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 		return err
 	}
 
-	accountID := clusterPowerOpRequest.VLMConfig.Deployment.Labels["account_id"]
+	accountID := clusterPowerOpRequest.VLMConfig.Deployment.Labels[accountIDLabelKey]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[ClusterPowerCycleWorkflowName]; ok {
@@ -1007,4 +1010,77 @@ func (vlmManager *VSAClientWorkflowManager) ZoneSwitch(ctx workflow.Context, req
 
 	logger.Info("ZoneSwitch workflow completed successfully")
 	return zoneSwitchResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) RotateFabricPoolKeys(ctx workflow.Context, req *RotateFabricPoolKeysRequest) (*RotateFabricPoolKeysResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	if req == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("RotateFabricPoolKeysRequest cannot be nil")))
+	}
+	if req.NewSecretOcid == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("NewSecretOcid is required to rotate fabric pool keys")))
+	}
+	if req.VLMConfig.Deployment.DeploymentID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("deployment ID is required to rotate fabric pool keys")))
+	}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	accountID := req.VLMConfig.Deployment.Labels[accountIDLabelKey]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[RotateFabricPoolKeysWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowID := fmt.Sprintf("%s-rotate-fabric-pool-keys-%d-%s",
+		req.VLMConfig.Deployment.DeploymentID, workflow.Now(ctx).UnixNano(), workflow.GetInfo(ctx).WorkflowExecution.ID)
+	logger.Info("Creating RotateFabricPoolKeys child workflow",
+		"deploymentID", req.VLMConfig.Deployment.DeploymentID,
+		"childWorkflowID", childWorkflowID,
+		"accountID", accountID,
+		"newSecretOcid", req.NewSecretOcid)
+
+	childWorkflowCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:            childWorkflowID,
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	childWorkflowCtx = workflow.WithValue(childWorkflowCtx, CorrelationIDKey, correlationID)
+	childWorkflowCtx = workflow.WithValue(childWorkflowCtx, DeploymentIDKey, req.VLMConfig.Deployment.DeploymentID)
+
+	rotateResp := &RotateFabricPoolKeysResponse{}
+	if err = workflow.ExecuteChildWorkflow(childWorkflowCtx, RotateFabricPoolKeysWorkflowName, req).Get(childWorkflowCtx, rotateResp); err != nil {
+		logger.Error("Failed to rotate fabric pool keys", "error", err)
+		vlmErrorHandler := NewVLMErrorHandlerWithLogger(logger)
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	logger.Info("RotateFabricPoolKeys child workflow completed successfully",
+		"deploymentID", req.VLMConfig.Deployment.DeploymentID,
+		"childWorkflowID", childWorkflowID)
+	return rotateResp, nil
 }

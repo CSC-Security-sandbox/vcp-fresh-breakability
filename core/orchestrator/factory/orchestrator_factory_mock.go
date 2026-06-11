@@ -2288,9 +2288,9 @@ func (_c *MockOrchestratorFactory_DeleteExpertModeVolume_Call) RunAndReturn(run 
 	return _c
 }
 
-// DeleteExternalCluster provides a mock function with given fields: ctx, hostID
-func (_m *MockOrchestratorFactory) DeleteExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, hostID)
+// DeleteExternalCluster provides a mock function with given fields: ctx, externalClusterID
+func (_m *MockOrchestratorFactory) DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, externalClusterID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteExternalCluster")
@@ -2299,10 +2299,10 @@ func (_m *MockOrchestratorFactory) DeleteExternalCluster(ctx context.Context, ho
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, hostID)
+		return rf(ctx, externalClusterID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
-		r0 = rf(ctx, hostID)
+		r0 = rf(ctx, externalClusterID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -2310,7 +2310,7 @@ func (_m *MockOrchestratorFactory) DeleteExternalCluster(ctx context.Context, ho
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, hostID)
+		r1 = rf(ctx, externalClusterID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2325,12 +2325,12 @@ type MockOrchestratorFactory_DeleteExternalCluster_Call struct {
 
 // DeleteExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - hostID string
-func (_e *MockOrchestratorFactory_Expecter) DeleteExternalCluster(ctx interface{}, hostID interface{}) *MockOrchestratorFactory_DeleteExternalCluster_Call {
-	return &MockOrchestratorFactory_DeleteExternalCluster_Call{Call: _e.mock.On("DeleteExternalCluster", ctx, hostID)}
+//   - externalClusterID string
+func (_e *MockOrchestratorFactory_Expecter) DeleteExternalCluster(ctx interface{}, externalClusterID interface{}) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+	return &MockOrchestratorFactory_DeleteExternalCluster_Call{Call: _e.mock.On("DeleteExternalCluster", ctx, externalClusterID)}
 }
 
-func (_c *MockOrchestratorFactory_DeleteExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+func (_c *MockOrchestratorFactory_DeleteExternalCluster_Call) Run(run func(ctx context.Context, externalClusterID string)) *MockOrchestratorFactory_DeleteExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -4804,9 +4804,9 @@ func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) RunAnd
 	return _c
 }
 
-// GetExternalCluster provides a mock function with given fields: ctx, hostID
-func (_m *MockOrchestratorFactory) GetExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
-	ret := _m.Called(ctx, hostID)
+// GetExternalCluster provides a mock function with given fields: ctx, externalClusterID
+func (_m *MockOrchestratorFactory) GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, externalClusterID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetExternalCluster")
@@ -4815,10 +4815,10 @@ func (_m *MockOrchestratorFactory) GetExternalCluster(ctx context.Context, hostI
 	var r0 *datamodel.Cluster
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
-		return rf(ctx, hostID)
+		return rf(ctx, externalClusterID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
-		r0 = rf(ctx, hostID)
+		r0 = rf(ctx, externalClusterID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Cluster)
@@ -4826,7 +4826,7 @@ func (_m *MockOrchestratorFactory) GetExternalCluster(ctx context.Context, hostI
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, hostID)
+		r1 = rf(ctx, externalClusterID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4841,12 +4841,12 @@ type MockOrchestratorFactory_GetExternalCluster_Call struct {
 
 // GetExternalCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - hostID string
-func (_e *MockOrchestratorFactory_Expecter) GetExternalCluster(ctx interface{}, hostID interface{}) *MockOrchestratorFactory_GetExternalCluster_Call {
-	return &MockOrchestratorFactory_GetExternalCluster_Call{Call: _e.mock.On("GetExternalCluster", ctx, hostID)}
+//   - externalClusterID string
+func (_e *MockOrchestratorFactory_Expecter) GetExternalCluster(ctx interface{}, externalClusterID interface{}) *MockOrchestratorFactory_GetExternalCluster_Call {
+	return &MockOrchestratorFactory_GetExternalCluster_Call{Call: _e.mock.On("GetExternalCluster", ctx, externalClusterID)}
 }
 
-func (_c *MockOrchestratorFactory_GetExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockOrchestratorFactory_GetExternalCluster_Call {
+func (_c *MockOrchestratorFactory_GetExternalCluster_Call) Run(run func(ctx context.Context, externalClusterID string)) *MockOrchestratorFactory_GetExternalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -8691,6 +8691,70 @@ func (_c *MockOrchestratorFactory_RotateCmekBackupsForBackupVault_Call) Return(_
 }
 
 func (_c *MockOrchestratorFactory_RotateCmekBackupsForBackupVault_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams, string) (string, error)) *MockOrchestratorFactory_RotateCmekBackupsForBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RotateFabricPoolKeys provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) RotateFabricPoolKeys(ctx context.Context, params *common.RotateFabricPoolKeysParams) (string, bool, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RotateFabricPoolKeys")
+	}
+
+	var r0 string
+	var r1 bool
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RotateFabricPoolKeysParams) (string, bool, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RotateFabricPoolKeysParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.RotateFabricPoolKeysParams) bool); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.RotateFabricPoolKeysParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_RotateFabricPoolKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RotateFabricPoolKeys'
+type MockOrchestratorFactory_RotateFabricPoolKeys_Call struct {
+	*mock.Call
+}
+
+// RotateFabricPoolKeys is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.RotateFabricPoolKeysParams
+func (_e *MockOrchestratorFactory_Expecter) RotateFabricPoolKeys(ctx interface{}, params interface{}) *MockOrchestratorFactory_RotateFabricPoolKeys_Call {
+	return &MockOrchestratorFactory_RotateFabricPoolKeys_Call{Call: _e.mock.On("RotateFabricPoolKeys", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_RotateFabricPoolKeys_Call) Run(run func(ctx context.Context, params *common.RotateFabricPoolKeysParams)) *MockOrchestratorFactory_RotateFabricPoolKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.RotateFabricPoolKeysParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RotateFabricPoolKeys_Call) Return(workflowID string, noChange bool, err error) *MockOrchestratorFactory_RotateFabricPoolKeys_Call {
+	_c.Call.Return(workflowID, noChange, err)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RotateFabricPoolKeys_Call) RunAndReturn(run func(context.Context, *common.RotateFabricPoolKeysParams) (string, bool, error)) *MockOrchestratorFactory_RotateFabricPoolKeys_Call {
 	_c.Call.Return(run)
 	return _c
 }

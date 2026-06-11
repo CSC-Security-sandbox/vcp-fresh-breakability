@@ -158,26 +158,62 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
-							case 'r': // Prefix: "rbacRefresh"
+							case 'r': // Prefix: "r"
 
-								if l := len("rbacRefresh"); len(elem) >= l && elem[0:l] == "rbacRefresh" {
+								if l := len("r"); len(elem) >= l && elem[0:l] == "r" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "POST":
-										s.handleRbacRefreshPoolRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "POST")
+									break
+								}
+								switch elem[0] {
+								case 'b': // Prefix: "bacRefresh"
+
+									if l := len("bacRefresh"); len(elem) >= l && elem[0:l] == "bacRefresh" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleRbacRefreshPoolRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								case 'o': // Prefix: "otateFabricPoolKeys"
+
+									if l := len("otateFabricPoolKeys"); len(elem) >= l && elem[0:l] == "otateFabricPoolKeys" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleRotateFabricPoolKeysRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
 								}
 
 							case 's': // Prefix: "svms"
@@ -501,28 +537,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
-							case 'r': // Prefix: "rbacRefresh"
+							case 'r': // Prefix: "r"
 
-								if l := len("rbacRefresh"); len(elem) >= l && elem[0:l] == "rbacRefresh" {
+								if l := len("r"); len(elem) >= l && elem[0:l] == "r" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = RbacRefreshPoolOperation
-										r.summary = "Refresh pool RBAC configuration"
-										r.operationID = "rbacRefreshPool"
-										r.pathPattern = "/v1beta/pools/{poolOCID}/rbacRefresh"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
+									break
+								}
+								switch elem[0] {
+								case 'b': // Prefix: "bacRefresh"
+
+									if l := len("bacRefresh"); len(elem) >= l && elem[0:l] == "bacRefresh" {
+										elem = elem[l:]
+									} else {
+										break
 									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = RbacRefreshPoolOperation
+											r.summary = "Refresh pool RBAC configuration"
+											r.operationID = "rbacRefreshPool"
+											r.pathPattern = "/v1beta/pools/{poolOCID}/rbacRefresh"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'o': // Prefix: "otateFabricPoolKeys"
+
+									if l := len("otateFabricPoolKeys"); len(elem) >= l && elem[0:l] == "otateFabricPoolKeys" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = RotateFabricPoolKeysOperation
+											r.summary = "Rotate fabric pool object-store keys"
+											r.operationID = "rotateFabricPoolKeys"
+											r.pathPattern = "/v1beta/pools/{poolOCID}/rotateFabricPoolKeys"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							case 's': // Prefix: "svms"

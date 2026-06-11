@@ -588,6 +588,39 @@ func (s *RbacRefreshRequest) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *RotateFabricPoolKeysAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+	{
+		{
+			s.WorkflowId.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *RotateFabricPoolKeysAcceptedResponseStatus) SetFake() {
+	*s = RotateFabricPoolKeysAcceptedResponseStatusInProgress
+}
+
+// SetFake set fake values.
+func (s *RotateFabricPoolKeysRequest) SetFake() {
+	{
+		{
+			s.SecretOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *SecurityAttributeValue) SetFake() {
 	{
 		{

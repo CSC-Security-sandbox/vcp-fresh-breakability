@@ -545,6 +545,130 @@ func TestRbacRefreshRequest_Examples(t *testing.T) {
 		})
 	}
 }
+func TestRotateFabricPoolKeysAcceptedResponse_EncodeDecode(t *testing.T) {
+	var typ RotateFabricPoolKeysAcceptedResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 RotateFabricPoolKeysAcceptedResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestRotateFabricPoolKeysAcceptedResponse_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"poolOCID\":\"ocid1.pool.oc1.ashburn-1.testing-pool1\",\"status\":\"in_progress\",\"workflowId\":\"ad134355-08ad-cfd1-a728-b62c3cf754a5\"}"},
+		{Input: "{\"poolOCID\":\"ocid1.pool.oc1.ashburn-1.testing-pool1\",\"status\":\"no_change\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ RotateFabricPoolKeysAcceptedResponse
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 RotateFabricPoolKeysAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestRotateFabricPoolKeysAcceptedResponseStatus_EncodeDecode(t *testing.T) {
+	var typ RotateFabricPoolKeysAcceptedResponseStatus
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 RotateFabricPoolKeysAcceptedResponseStatus
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestRotateFabricPoolKeysAcceptedResponseStatus_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"in_progress\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ RotateFabricPoolKeysAcceptedResponseStatus
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 RotateFabricPoolKeysAcceptedResponseStatus
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestRotateFabricPoolKeysRequest_EncodeDecode(t *testing.T) {
+	var typ RotateFabricPoolKeysRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 RotateFabricPoolKeysRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestRotateFabricPoolKeysRequest_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"secretOCID\":\"ocid1.vaultsecret.oc1.iad.amaaaaaarotatekeysv2xxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ RotateFabricPoolKeysRequest
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 RotateFabricPoolKeysRequest
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestSecurityAttributeValue_EncodeDecode(t *testing.T) {
 	var typ SecurityAttributeValue
 	typ.SetFake()

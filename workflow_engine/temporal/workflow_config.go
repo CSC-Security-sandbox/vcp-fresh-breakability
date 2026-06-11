@@ -17,6 +17,7 @@ var (
 	CreatePoolWorkflowTimeoutMinutesLV             = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
 	UpdatePoolWorkflowTimeoutMinutes               = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
 	UpdatePoolWorkflowTimeoutMinutesLV             = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
+	RotateFabricPoolKeysWorkflowTimeoutMinutes     = env.GetString("ROTATE_FABRIC_POOL_KEYS_WORKFLOW_TIMEOUT_MINUTES", "10")
 	CreateBackupWorkflowTimeoutMinutes             = env.GetString("CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "8640")
 	DeleteBackupWorkflowTimeoutMinutes             = env.GetString("DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "6480")
 	SFRWorkflowTimeoutMinutes                      = env.GetString("SFR_WORKFLOW_TIMEOUT_MINUTES", "13680")
@@ -150,6 +151,10 @@ func GetCreatePoolWorkflowTimeout(largeCapacity bool) *time.Duration {
 func GetCreatePoolWorkflowRunTimeout(largeCapacity bool) *time.Duration {
 	timeout := GetCreatePoolWorkflowTimeout(largeCapacity)
 	return timeout
+}
+
+func GetRotateFabricPoolKeysWorkflowRunTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(RotateFabricPoolKeysWorkflowTimeoutMinutes, 10)
 }
 
 func GetUpdatePoolWorkflowTimeout(largeCapacity bool) *time.Duration {
