@@ -270,6 +270,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Check if digest exists in the gcloud or not
+        if: ${{ inputs.build_target != 'oci' }}
         shell: bash -e {0}
         run: |
           ALL_DIGESTS_EXIST=1
@@ -316,7 +317,11 @@ jobs:
         run: |
           IMAGES_TO_PUSH=$(echo "${{ inputs.images_to_build }}" | tr ',' '\n' | grep -v '^oci-proxy$' | tr '\n' ',' | sed 's/,$//')
           if [[ -n "$IMAGES_TO_PUSH" ]]; then
-            vsacictl images push "$IMAGES_TO_PUSH"
+            if [[ "${{ inputs.build_target }}" == "oci" ]]; then
+              vsacictl images push "$IMAGES_TO_PUSH" --registry ghcr
+            else
+              vsacictl images push "$IMAGES_TO_PUSH"
+            fi
           fi
 
       - name: Push oci-proxy image to GHCR only
@@ -353,6 +358,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Generate GCP Artifact URLs
+        if: ${{ inputs.build_target != 'oci' }}
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
@@ -385,14 +391,16 @@ jobs:
             COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --tlog-upload=false
             cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
             
-            # Sign GCP Artifact Registry image
-            gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
-            if [[ -n "$gcp_artifact_url" ]]; then
-              echo "Signing GCP image: ${gcp_artifact_url}"
-              COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key $gcp_artifact_url --tlog-upload=false
-              cosign verify --key /tmp/cosign.pub $gcp_artifact_url --insecure-ignore-tlog=true
-            else
-              echo "Warning: No GCP artifact URL found for ${IMAGE}"
+            # Sign GCP Artifact Registry image (skip for OCI-only builds)
+            if [[ "${{ inputs.build_target }}" != "oci" ]]; then
+              gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
+              if [[ -n "$gcp_artifact_url" ]]; then
+                echo "Signing GCP image: ${gcp_artifact_url}"
+                COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key $gcp_artifact_url --tlog-upload=false
+                cosign verify --key /tmp/cosign.pub $gcp_artifact_url --insecure-ignore-tlog=true
+              else
+                echo "Warning: No GCP artifact URL found for ${IMAGE}"
+              fi
             fi
           done
         shell: bash -e {0}
@@ -503,7 +511,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Push Helm Charts to Artifact Registry
-        if: ${{ inputs.push_charts }}
+        if: ${{ inputs.push_charts && inputs.build_target != 'oci' }}
         run: |
           is_oci_chart() { local name=$1; [[ " ${OCI_CHART_NAMES} " == *" ${name} "* ]]; }
           for CHART in ./helm-packages/*.tgz; do

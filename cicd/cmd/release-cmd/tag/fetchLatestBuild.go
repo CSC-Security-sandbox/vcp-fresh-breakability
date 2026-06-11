@@ -49,11 +49,6 @@ func fetchLatestBuild(newTag *string) error {
 		existingTag := strings.TrimSpace(string(output))
 		log.Printf("HEAD already has tag: %s, skipping tag creation", existingTag)
 		*newTag = existingTag
-		if strings.TrimSpace(githubBase) != "main" && strings.Contains(existingTag, "-RC.") && !strings.Contains(existingTag, "-OCI-RC.") {
-			if err := createAndPushOCIRCTag(existingTag); err != nil {
-				log.Printf("Warning: failed to create OCI RC tag on rerun: %v", err)
-			}
-		}
 		return nil
 	}
 
@@ -73,7 +68,11 @@ func fetchLatestBuild(newTag *string) error {
 			log.Println("Error fetching target version:", err)
 			os.Exit(1)
 		}
-		tagPattern = fmt.Sprintf("%s-RC.*", targetVersionName)
+		if isOCIBranch() {
+			tagPattern = fmt.Sprintf("%s-OCI-RC.*", targetVersionName)
+		} else {
+			tagPattern = fmt.Sprintf("%s-RC.*", targetVersionName)
+		}
 	}
 
 	// Execute the git command to list tags sorted by version (descending)
@@ -125,39 +124,11 @@ func fetchLatestBuild(newTag *string) error {
 
 	log.Printf("Successfully created and pushed tag: %s", *newTag)
 
-	if strings.TrimSpace(githubBase) != "main" && strings.Contains(*newTag, "-RC.") {
-		if err := createAndPushOCIRCTag(*newTag); err != nil {
-			log.Printf("Warning: failed to create OCI RC tag: %v", err)
-		}
-	}
-
 	return nil
 }
 
-func createAndPushOCIRCTag(gcpRcTag string) error {
-	ociTag := strings.Replace(gcpRcTag, "-RC.", "-OCI-RC.", 1)
-	log.Printf("Creating OCI RC tag: %s (from %s)", ociTag, gcpRcTag)
-
-	createCmd := exec.Command("git", "tag", "-a", ociTag, "-m", fmt.Sprintf("Auto-generated OCI RC tag %s", ociTag))
-	if output, err := createCmd.CombinedOutput(); err != nil {
-		if strings.Contains(string(output), "already exists") {
-			log.Printf("OCI RC tag %s already exists locally", ociTag)
-		} else {
-			return fmt.Errorf("failed to create OCI RC tag: %w, output: %s", err, string(output))
-		}
-	}
-
-	pushCmd := exec.Command("git", "push", "origin", ociTag)
-	if output, err := pushCmd.CombinedOutput(); err != nil {
-		if strings.Contains(string(output), "already exists") {
-			log.Printf("OCI RC tag %s already exists on remote, continuing", ociTag)
-		} else {
-			return fmt.Errorf("failed to push OCI RC tag: %w, output: %s", err, string(output))
-		}
-	}
-
-	log.Printf("Successfully created and pushed OCI RC tag: %s", ociTag)
-	return nil
+func isOCIBranch() bool {
+	return strings.HasPrefix(strings.TrimSpace(githubBase), "release/oci/")
 }
 
 func fetchTargetVersion(prTitle string) (string, error) {

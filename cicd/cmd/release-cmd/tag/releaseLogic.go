@@ -89,15 +89,26 @@ func ReleaseFunc() {
 			log.Fatalf("Error writing RC_BRANCH: %v", errWrite)
 		}
 
-		ociRcTag := sprint + ".0.0-OCI-RC.1"
-		if errCreateOci := CreateGitTag(ociRcTag, ""); errCreateOci != nil {
-			log.Printf("Warning: OCI RC tag creation failed (may already exist), attempting push: %v", errCreateOci)
-		}
-		if errPushOci := GitPush(ociRcTag); errPushOci != nil {
-			log.Printf("Warning: failed to push OCI RC tag, GCP release is unaffected: %v", errPushOci)
+		ociSprintBranch := "release/oci/" + sprint
+		log.Printf("Creating OCI release branch - %s\n", ociSprintBranch)
+		if err := GitCheckout(ociSprintBranch, CurrentTag); err != nil {
+			log.Printf("Warning: failed to create OCI branch, GCP release is unaffected: %v", err)
+		} else if err := GitPush(ociSprintBranch); err != nil {
+			log.Printf("Warning: failed to push OCI branch, skipping OCI tag creation: %v", err)
 		} else {
-			if _, errWrite := file.WriteString(fmt.Sprintf("OCI_RC_TAG=%s\n", ociRcTag)); errWrite != nil {
-				log.Printf("Warning: failed to write OCI_RC_TAG output: %v", errWrite)
+			ociRcTag := sprint + ".0.0-OCI-RC.1"
+			if errCreateOci := CreateGitTag(ociRcTag, ""); errCreateOci != nil {
+				log.Printf("Warning: OCI RC tag creation failed (may already exist), attempting push: %v", errCreateOci)
+			}
+			if errPushOci := GitPush(ociRcTag); errPushOci != nil {
+				log.Printf("Warning: failed to push OCI RC tag, GCP release is unaffected: %v", errPushOci)
+			} else {
+				if _, errWrite := file.WriteString(fmt.Sprintf("OCI_RC_TAG=%s\n", ociRcTag)); errWrite != nil {
+					log.Printf("Warning: failed to write OCI_RC_TAG output: %v", errWrite)
+				}
+			}
+			if _, errWrite := file.WriteString(fmt.Sprintf("OCI_RC_BRANCH=%s\n", ociSprintBranch)); errWrite != nil {
+				log.Printf("Warning: failed to write OCI_RC_BRANCH output: %v", errWrite)
 			}
 		}
 	} else {

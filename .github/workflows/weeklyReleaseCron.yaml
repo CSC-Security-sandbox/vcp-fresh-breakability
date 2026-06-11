@@ -63,6 +63,7 @@ jobs:
         run: |
           echo "RC_TAG=${{ steps.release_logic_binary.outputs.RC_TAG }}" 
           echo "OCI_RC_TAG=${{ steps.release_logic_binary.outputs.OCI_RC_TAG }}"
+          echo "OCI_RC_BRANCH=${{ steps.release_logic_binary.outputs.OCI_RC_BRANCH }}"
           echo "DEV_TAG=${{ steps.release_logic_binary.outputs.DEV_TAG }}" 
           echo "RC_BRANCH=${{ steps.release_logic_binary.outputs.RC_BRANCH }}"
           echo "DEV_BRANCH=${{ steps.release_logic_binary.outputs.DEV_BRANCH }}"
@@ -70,6 +71,7 @@ jobs:
     outputs:
       rcTAG: ${{ steps.release_logic_binary.outputs.RC_TAG }}
       ociRcTAG: ${{ steps.release_logic_binary.outputs.OCI_RC_TAG }}
+      ociRcBranch: ${{ steps.release_logic_binary.outputs.OCI_RC_BRANCH }}
       devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
       rcBranch: ${{ steps.release_logic_binary.outputs.RC_BRANCH }}
       devBranch: ${{ steps.release_logic_binary.outputs.DEV_BRANCH }}
@@ -82,6 +84,17 @@ jobs:
       pre_release: true
       tag: ${{ needs.release_branch.outputs.rcTAG }}
       pr_base_branch: ${{ needs.release_branch.outputs.rcBranch }}
+
+  create_release_vsa_oci_rc:
+    needs: [release_branch]
+    if: ${{ needs.release_branch.outputs.ociRcTAG != '' }}
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      pre_release: true
+      tag: ${{ needs.release_branch.outputs.ociRcTAG }}
+      pr_base_branch: ${{ needs.release_branch.outputs.ociRcBranch }}
+      build_target: oci
 
   create_release_vsa_dev:
     needs: [release_branch]
