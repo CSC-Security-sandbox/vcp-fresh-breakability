@@ -379,6 +379,7 @@ jobs:
 
       - name: Sign Images using cosign (GHCR and GCP)
         run: |
+          source ./.github/scripts/cosign-retry.sh
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
@@ -388,29 +389,28 @@ jobs:
             # Sign GHCR image
             ghcr_digest=$(printenv "${IMAGE}-digest")
             echo "Signing GHCR image: ${IMAGE}@${ghcr_digest}"
-            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --tlog-upload=false
-            cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
+            cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest"
             
             # Sign GCP Artifact Registry image (skip for OCI-only builds)
             if [[ "${{ inputs.build_target }}" != "oci" ]]; then
               gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
               if [[ -n "$gcp_artifact_url" ]]; then
                 echo "Signing GCP image: ${gcp_artifact_url}"
-                COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key $gcp_artifact_url --tlog-upload=false
-                cosign verify --key /tmp/cosign.pub $gcp_artifact_url --insecure-ignore-tlog=true
+                cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "$gcp_artifact_url"
               else
                 echo "Warning: No GCP artifact URL found for ${IMAGE}"
               fi
+            fi
             fi
           done
         shell: bash -e {0}
 
       - name: Sign oci-proxy image (GHCR only)
         run: |
+          source ./.github/scripts/cosign-retry.sh
           ghcr_digest=$(printenv "oci-proxy-digest")
           echo "Signing GHCR image: oci-proxy@${ghcr_digest}"
-          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest --tlog-upload=false
-          cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest --insecure-ignore-tlog=true
+          cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest"
         shell: bash -e {0}
 
       - name: Push and sign binary OCI artifacts to GHCR
@@ -420,6 +420,7 @@ jobs:
           BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
           IMAGES_TAG: ${{ inputs.tag }}
         run: |
+          source ./.github/scripts/cosign-retry.sh
           IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
           for BINARY in "${BINARIES[@]}"; do
             ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}:${IMAGES_TAG}"
@@ -436,8 +437,7 @@ jobs:
               exit 1
             fi
             echo "Signing binary artifact: ${BINARY}@${DIGEST}"
-            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}@${DIGEST}" --tlog-upload=false
-            cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}@${DIGEST}" --insecure-ignore-tlog=true
+            cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}@${DIGEST}"
             echo "Signed and verified ${BINARY}"
           done
         shell: bash -e {0}
@@ -874,8 +874,8 @@ jobs:
             exit 1
           fi
           echo "Signing release manifest: release-manifest@${DIGEST}"
-          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --tlog-upload=false
-          cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --insecure-ignore-tlog=true
+          source ./.github/scripts/cosign-retry.sh
+          cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}"
           echo "Signed and verified release manifest"
         shell: bash -e {0}
 
@@ -904,8 +904,8 @@ jobs:
             exit 1
           fi
           echo "Signing release build context: release-build-context@${DIGEST}"
-          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context@${DIGEST}" --tlog-upload=false
-          cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context@${DIGEST}" --insecure-ignore-tlog=true
+          source ./.github/scripts/cosign-retry.sh
+          cosign_sign_verify /tmp/cosign.key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context@${DIGEST}"
           echo "Signed and verified release build context"
         shell: bash -e {0}
 

@@ -78,3 +78,11 @@ jobs:
           else
             echo "🔨 Built and cached new vsacictl binary with key: ${{ needs.compute-cache-key.outputs.cache-key }}"
           fi
+
+      - name: Upload vsacictl artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.compute-cache-key.outputs.cache-key }}
+          path: bin/vsacictl
+          if-no-files-found: error
+          retention-days: 1

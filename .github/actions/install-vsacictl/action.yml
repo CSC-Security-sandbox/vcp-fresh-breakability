@@ -1,5 +1,5 @@
 name: 'Install vsacictl'
-description: 'Restores and installs vsacictl binary from cache'
+description: 'Restores and installs vsacictl binary from cache or workflow artifact'
 inputs:
   cache-key:
     description: 'Cache key for the vsacictl binary'
@@ -9,16 +9,24 @@ runs:
   using: 'composite'
   steps:
     - name: Restore vsacictl from cache
+      id: restore-vsacictl
       uses: actions/cache@v4
       with:
         path: bin/vsacictl
         key: ${{ inputs.cache-key }}
 
+    - name: Download vsacictl artifact
+      if: steps.restore-vsacictl.outputs.cache-hit != 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.cache-key }}
+        path: bin
+
     - name: Install vsacictl from cache
       shell: bash
       run: |
         if [ ! -f bin/vsacictl ]; then
-          echo "❌ vsacictl binary not found in cache. Please ensure the setup-vsacictl workflow has run and cache is populated."
+          echo "❌ vsacictl binary not found in cache or workflow artifact. Please ensure the setup-vsacictl workflow completed successfully."
           exit 1
         fi
         
@@ -26,4 +34,3 @@ runs:
         sudo chmod +x /usr/local/bin/vsacictl
         echo "✅ vsacictl installed from cache: ${{ inputs.cache-key }}"
         vsacictl help || echo "vsacictl version check complete"
-

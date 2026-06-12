@@ -8,11 +8,45 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 var registry string
+
+// maxPushAttempts bounds how many times a single `docker push` is retried.
+const maxPushAttempts = 4
+
+// pushImageWithRetry runs `docker push <ref>` with exponential backoff.
+//
+// Container registries (notably GHCR) are eventually consistent and, under the
+// concurrent pushes this command issues, can transiently fail a layer upload
+// with errors such as "unknown blob" / "BLOB_UNKNOWN" while a sibling push is
+// still committing a shared base layer. Pushing is idempotent (already-present
+// layers are skipped), so retrying the whole push safely resolves these races.
+func pushImageWithRetry(ref string) error {
+	var lastErr error
+	delay := 2 * time.Second
+	for attempt := 1; attempt <= maxPushAttempts; attempt++ {
+		pushCmd := exec.Command("docker", "push", ref)
+		log.Printf("Running command (attempt %d/%d): %s\n", attempt, maxPushAttempts, pushCmd.String())
+		pushCmd.Stderr = os.Stderr
+		pushCmd.Stdout = os.Stdout
+		if err := pushCmd.Run(); err != nil {
+			lastErr = err
+			if attempt < maxPushAttempts {
+				log.Printf("docker push failed for %s (attempt %d/%d): %v; retrying in %s\n", ref, attempt, maxPushAttempts, err, delay)
+				time.Sleep(delay)
+				delay *= 2
+				continue
+			}
+			return err
+		}
+		return nil
+	}
+	return lastErr
+}
 
 var pushCmd = &cobra.Command{
 	Use:   "push",
@@ -71,11 +105,8 @@ func PushImages(registry, img string) error {
 				log.Printf("Successfully tagged image %s for GHCR\n", image)
 
 				// Pushing the image to GHCR
-				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.GHCROrg, imagesConfig.Path, image, imagesConfig.ImagesTag))
-				log.Printf("Running command: %s\n", pushCmd.String())
-				pushCmd.Stderr = os.Stderr
-				pushCmd.Stdout = os.Stdout
-				if err := pushCmd.Run(); err != nil {
+				ghcrRef := fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.GHCROrg, imagesConfig.Path, image, imagesConfig.ImagesTag)
+				if err := pushImageWithRetry(ghcrRef); err != nil {
 					mu.Lock()
 					errorsArr = append(errorsArr, fmt.Errorf("failed to push image %s to GHCR: %v", image, err))
 					mu.Unlock()
@@ -107,11 +138,8 @@ func PushImages(registry, img string) error {
 				log.Printf("Successfully tagged image %s for GCP\n", image)
 
 				// Pushing the image to GCP
-				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.Path, image, imagesConfig.ImagesTag))
-				log.Printf("Running command: %s\n", pushCmd.String())
-				pushCmd.Stderr = os.Stderr
-				pushCmd.Stdout = os.Stdout
-				if err := pushCmd.Run(); err != nil {
+				gcpRef := fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.Path, image, imagesConfig.ImagesTag)
+				if err := pushImageWithRetry(gcpRef); err != nil {
 					mu.Lock()
 					errorsArr = append(errorsArr, fmt.Errorf("failed to push image %s to GCP: %v", image, err))
 					mu.Unlock()
