@@ -153,7 +153,17 @@ fi
 # failure -> Medium, never a false low), and sandboxed. No-op when no residuals.
 if run_stage probe; then
   if [[ "$SKIP_AI" == 1 ]]; then
-    echo "skip-probe: no agent backend (SKIP_AI=1); residual PRs stay at deterministic verdict"
+    # The npm runtime-shape probe is deterministic (installs old/new from the public
+    # registry and diffs the runtime surface) and needs no agent — run it even with
+    # --skip-ai. Residuals that require the AI agent are skipped in this mode.
+    say "2/7 deterministic npm runtime-shape probe (no agent; --skip-ai)"
+    st=$(date +%s)
+    DP_DETERMINISTIC_ONLY=1 \
+    DP_RESULTS=/tmp/build-results.json \
+    DP_REPO_ROOT="$REPO_ROOT" \
+      python3 .github/scripts/differential-probe.py \
+      && echo "deterministic npm probe done in $(( $(date +%s) - st ))s" \
+      || echo "[warn] deterministic npm probe failed; residuals stay at deterministic verdict"
   else
     say "2/7 behavioral differential probe (model: $MODEL)"
     st=$(date +%s)

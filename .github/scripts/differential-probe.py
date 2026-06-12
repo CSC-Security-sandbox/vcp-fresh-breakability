@@ -60,6 +60,10 @@ REASON_TIMEOUT = int(os.environ.get("DP_REASON_TIMEOUT", "180"))
 CACHE_DIR = os.environ.get("DP_CACHE_DIR", "/tmp/dp-cache")
 NPM_PROBE_TIMEOUT = int(os.environ.get("DP_NPM_TIMEOUT", "120"))
 NPM_PROBE_ROOT = os.environ.get("DP_NPM_PROBE_ROOT", os.path.join(REPO_ROOT, ".github", ".npm-probe-work"))
+# When set, grade ONLY deterministic npm runtime-shape candidates and skip any
+# residual that would require the AI agent. Lets the deterministic npm probe run
+# under --skip-ai (no agent backend) without spending/needing AI budget.
+DETERMINISTIC_ONLY = str(os.environ.get("DP_DETERMINISTIC_ONLY", "")).strip().lower() in ("1", "true", "yes")
 PROMPT_VERSION = "dp-v1"
 REASON_PROMPT_VERSION = "dr-v1"
 
@@ -769,17 +773,50 @@ def npm_grade_from_snapshots(pkg, from_version, to_version, old_snapshot=None, n
     }
 
 
+def _prop_is_breaking(old_p, new_p):
+    """True only if an EXISTING export's runtime shape changed in a compatibility-
+    sensitive way. Pure additions (a method/static gained on an existing export
+    object) are additive and NOT breaking — axios/react-router minors commonly add
+    members to the default export object while preserving every existing one.
+
+    Breaking = kind changed (e.g. function->object), an accessor turned into/out of
+    a getter/setter, a function's arity DECREASED (lost a required parameter), or a
+    nested own-property was REMOVED. Added nested keys and arity increases (usually
+    new optional params) do not count.
+    """
+    if not isinstance(old_p, dict) or not isinstance(new_p, dict):
+        return old_p != new_p
+    if old_p.get("type") != new_p.get("type"):
+        return True
+    if bool(old_p.get("accessor")) != bool(new_p.get("accessor")):
+        return True
+    if old_p.get("accessor") or new_p.get("accessor"):
+        if (old_p.get("get"), old_p.get("set")) != (new_p.get("get"), new_p.get("set")):
+            return True
+    if old_p.get("type") == "function" and new_p.get("type") == "function":
+        oa, na = old_p.get("arity"), new_p.get("arity")
+        if isinstance(oa, int) and isinstance(na, int) and na < oa:
+            return True
+    old_keys = set(old_p.get("keys") or [])
+    new_keys = set(new_p.get("keys") or [])
+    if old_keys - new_keys:
+        return True
+    return False
+
+
 def _npm_breaking_diff(old_snapshot, new_snapshot):
     """Compatibility-sensitive npm snapshot differences.
 
     Additive exports are not breakage: axios minors commonly add explicit export
     aliases while preserving the old entrypoints. Removed exports, changed old
     export targets, engines/main/module/type changes, loader changes, or changed
-    existing runtime export shapes remain review-worthy.
+    existing runtime export shapes remain review-worthy. package.browser is NOT
+    compared: it only steers bundlers (webpack/browserify) and never affects the
+    Node require()/import() runtime this probe actually exercises.
     """
     diffs = []
     for path in (("package", "main"), ("package", "module"), ("package", "type"),
-                 ("package", "browser"), ("package", "engines"), ("load", "require"),
+                 ("package", "engines"), ("load", "require"),
                  ("load", "import"), ("surface", "root")):
         old_v = _dig(old_snapshot, path)
         new_v = _dig(new_snapshot, path)
@@ -806,7 +843,8 @@ def _npm_breaking_diff(old_snapshot, new_snapshot):
         removed = sorted(set(old_props) - set(new_props))
         if removed:
             diffs.append("removed_exports=" + ",".join(removed[:20]))
-        changed = [k for k in sorted(set(old_props) & set(new_props)) if old_props.get(k) != new_props.get(k)]
+        changed = [k for k in sorted(set(old_props) & set(new_props))
+                   if _prop_is_breaking(old_props.get(k), new_props.get(k))]
         if changed:
             diffs.append("changed_exports=" + ",".join(changed[:20]))
     elif old_props != new_props:
@@ -1276,13 +1314,22 @@ def main():
         log(f"cannot parse {RESULTS}: {e}")
         return 0
     prs = data.get("prs") or {}
-    candidates = [
-        (n, pr) for n, pr in prs.items()
-        if isinstance(pr, dict) and (is_residual(pr) or is_npm_probe_candidate(pr))
-    ]
-    if not candidates:
-        log("no declared-behavioral residual or npm probe candidate PRs; nothing to grade")
-        return 0
+    if DETERMINISTIC_ONLY:
+        candidates = [
+            (n, pr) for n, pr in prs.items()
+            if isinstance(pr, dict) and is_npm_probe_candidate(pr)
+        ]
+        if not candidates:
+            log("deterministic-only mode: no npm runtime-shape probe candidates; nothing to grade")
+            return 0
+    else:
+        candidates = [
+            (n, pr) for n, pr in prs.items()
+            if isinstance(pr, dict) and (is_residual(pr) or is_npm_probe_candidate(pr))
+        ]
+        if not candidates:
+            log("no declared-behavioral residual or npm probe candidate PRs; nothing to grade")
+            return 0
     probe_budget = MAX_PRS
     reason_budget = MAX_REASON
     annotated = 0
