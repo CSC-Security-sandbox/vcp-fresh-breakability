@@ -145,6 +145,49 @@ def _declared_breaking_unverified_clear(pr):
                    f"holding REVIEW (run the suite or a behavioral probe to clear)."))
 
 
+_STRUCTURAL_PROBE_TOKENS = (
+    "package.main", "package.module", "package.type", "package.exports",
+    "removed_package_exports", "changed_package_exports",
+    "load.require", "load.import",
+)
+
+
+def _probe_structural_break_unverified_clear(pr):
+    """Guard: the deterministic npm runtime-shape probe found a STRUCTURAL module-system
+    break — the package changed its entrypoint (`package.main`), module type/format
+    (`package.module`/`package.type`), its `exports` map, or its require()/import()
+    loadability (e.g. it went ESM-only). Such a break affects EVERY consumer regardless
+    of which symbols it imports (a CommonJS consumer cannot require() an ESM-only package),
+    so an AI reachability/grep clear ("the symbol I use is unchanged / not imported")
+    cannot refute it. Only execution evidence (an actually-run test suite against the new
+    version) may clear it. Otherwise hold REVIEW.
+
+    Symbol-level-only probe diffs (changed_exports/removed_exports of individual members)
+    are intentionally NOT covered here — those remain AI-resolvable via reachability.
+
+    Returns (True, human_reason) when the clear is insufficient and must be blocked."""
+    bg = pr.get("behavioral_grade") or {}
+    if not isinstance(bg, dict):
+        return (False, "")
+    if bg.get("probe_kind") != "npm_runtime_shape":
+        return (False, "")
+    if bg.get("same_behavior") is not False:
+        return (False, "")  # probe found same behavior, or was unavailable -> nothing to protect
+    ev = str(bg.get("evidence") or "")
+    if not any(tok in ev for tok in _STRUCTURAL_PROBE_TOKENS):
+        return (False, "")  # only symbol-level diffs -> AI reachability may legitimately resolve
+    if _tests_executed(pr):
+        return (False, "")  # execution evidence backs the clear
+    hit = ", ".join(t for t in _STRUCTURAL_PROBE_TOKENS if t in ev)
+    return (True, (f"The deterministic runtime-shape probe found a STRUCTURAL module-system "
+                   f"break in `{pr.get('package')}` {pr.get('from')}->{pr.get('to')} ({hit}) — "
+                   f"e.g. the package changed its entrypoint/module type/exports map or its "
+                   f"require()/import() loadability (it may have gone ESM-only). This breaks "
+                   f"consumers regardless of which symbols they import, so a reachability/grep "
+                   f"clear cannot refute it; holding REVIEW (a passing test suite executed "
+                   f"against the new version is required to clear)."))
+
+
 def _pkg_name(pr):
     p = pr.get("package")
     if isinstance(p, list):
@@ -327,6 +370,10 @@ def reconcile_pr(pr, verdict, repo):
         if dbr_blocked:
             _record_review(pr, dbr_why, cite, "declared_breaking_floor", flaw)
             return ("kept", f"AI said SAFE but blocked: declared-breaking change not execution-verified -> REVIEW")
+        probe_blocked, probe_why = _probe_structural_break_unverified_clear(pr)
+        if probe_blocked:
+            _record_review(pr, probe_why, cite, "probe_structural_floor", flaw)
+            return ("kept", f"AI said SAFE but blocked: structural runtime-shape (module-system) break not execution-verified -> REVIEW")
         reason = "safe:ai-resolved" + ("-audit-override" if flaw else "")
         _apply_safe(pr, reason, ev, cite, "ai_arbiter")
         tail = f" (override flaw: {flaw})" if flaw else ""
