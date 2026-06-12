@@ -1,0 +1,527 @@
+---
+alwaysApply: true
+---
+# OCI Local Dev Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `setup oci local`, `oci local dev`, `start oci dev`, `bring up oci local`
+- `start oci stack`, `oci dev environment`, `oci dev setup`
+- `run oci-proxy and vcp-worker locally`, `local oci proxy`, `local vcp-worker`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+This agent is the OCI-specific counterpart to `local-env.mdc` (which targets
+the full GCP/skaffold flow). Always prefer `local-env.mdc` if the user says
+"skaffold" or "k8s local" without mentioning OCI.
+
+## Purpose
+You are an **operator assistant** that brings up the OCI local development
+environment described in `doc/guides/local-oci-dev-setup.md`. You materialise
+the workspace-root infra files, render the per-service env files, start
+Postgres + Temporal + the prebuilt `vlm-worker` in Docker, verify health, and
+tell the user which Cursor Run/Debug compound to launch for the from-source
+services (`oci-proxy`, `vcp-worker`).
+
+## Hard constraints
+- **Never echo or log secrets** (`DB_PASSWORD`, `OCI_ONTAP_ADMIN_PASSWORD`,
+  `VSA_VLM_ENCRYPTION_KEY`, `ONTAP_CREDENTIAL_ENCRYPT_KEY`, OCI API private
+  key / PEM contents, etc.). Only confirm whether they are set.
+- **Never commit** `*.env` files, `*.pem`/`*.key` files (now covered by
+  `vsa-control-plane/.gitignore`), or any file under `local-dev/`,
+  `.vscode/` at the workspace root. They are intentionally outside the git
+  repo or matched by `.gitignore`.
+- The committable artifacts are only:
+  - `vsa-control-plane/oci-proxy/oci.dev.env.tmpl`
+  - `vsa-control-plane/worker/oci.dev.env.tmpl`
+  - `vsa-control-plane/kubernetes/OCI/vlm-worker/vlm-worker.dev.env.tmpl`
+  - `vsa-control-plane/doc/guides/local-oci-dev-setup.md`
+  - This agent file (`.cursor/agents/oci-local-dev.mdc`)
+- Ask the user before running destructive commands (`docker compose down -v`,
+  `docker volume rm`, deleting env files).
+- Run all Shell commands from the workspace root (the directory that
+  contains `vsa-control-plane/`).
+
+---
+
+## Step 0 — Locate workspace + repo roots
+
+Resolve two paths up front:
+
+1. `REPO_ROOT` = the cloned `vsa-control-plane/` directory.
+2. `WORKSPACE_ROOT` = the parent of `REPO_ROOT`. This is where
+   `.vscode/launch.json`, `docker-compose.local.yml`, and
+   `local-dev/postgres-init/` live.
+
+```bash
+# Portable across BSD `find` (macOS, the primary dev platform) and GNU `find`.
+# `-printf` is a GNU extension and is NOT available on BSD `find`.
+REPO_ROOT="$(git -C . rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$REPO_ROOT" ]; then
+  gowork="$(find . -maxdepth 3 -name 'go.work' -print -quit 2>/dev/null)"
+  [ -n "$gowork" ] && REPO_ROOT="$(cd "$(dirname "$gowork")" && pwd)"
+fi
+WORKSPACE_ROOT="$(dirname "$REPO_ROOT")"
+echo "REPO=$REPO_ROOT"
+echo "WORKSPACE=$WORKSPACE_ROOT"
+```
+
+If either is empty, abort and ask the user to confirm the directory.
+
+---
+
+## Step 1 — Check prerequisites
+
+Run these in parallel. Report missing tools with one-line install hints.
+
+```bash
+docker version --format '{{.Client.Version}}'
+docker compose version --short
+go version
+dlv version 2>/dev/null || echo "dlv MISSING"
+```
+
+Install hints (macOS):
+- docker: `brew install --cask docker` (or Colima / Rancher Desktop)
+- go: `brew install go`
+- dlv: `go install github.com/go-delve/delve/cmd/dlv@latest`
+
+Do NOT proceed until docker, docker compose, and go are present. `dlv` is
+optional at this stage — the Cursor Go extension will install it on the first
+debug session.
+
+Also verify the Docker daemon is actually running:
+
+```bash
+docker info --format '{{.ServerVersion}}' >/dev/null && echo "docker OK"
+```
+
+---
+
+## Step 2 — Materialise workspace-root infra files
+
+These three files live outside the git repo. If any is missing, create it.
+Use the **Write** tool, never `cat << EOF`.
+
+### 2.1 `.vscode/launch.json` (workspace root)
+
+Check existence:
+
+```bash
+test -f "$WORKSPACE_ROOT/.vscode/launch.json" && echo "launch.json EXISTS" || echo "MISSING"
+```
+
+If missing, create the parent dir and write:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "oci-proxy (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/vsa-control-plane/oci-proxy",
+      "cwd": "${workspaceFolder}/vsa-control-plane",
+      "envFile": "${workspaceFolder}/vsa-control-plane/oci-proxy/oci.dev.env",
+      "showLog": true,
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "name": "vcp-worker (customer, debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/vsa-control-plane/worker",
+      "cwd": "${workspaceFolder}/vsa-control-plane",
+      "envFile": "${workspaceFolder}/vsa-control-plane/worker/oci.dev.env",
+      "env": {
+        "WORKER_TASK_QUEUE": "customer-workflows",
+        "VLM_CONFIG_FILE_PATH": "${workspaceFolder}/vsa-control-plane/common/vsa_config/vlm-config-oci.json",
+        "VMRS_CONFIG_PATH": "${workspaceFolder}/vsa-control-plane/config/vmrs_oci.yaml"
+      },
+      "showLog": true,
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "name": "vcp-worker (background, debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/vsa-control-plane/worker",
+      "cwd": "${workspaceFolder}/vsa-control-plane",
+      "envFile": "${workspaceFolder}/vsa-control-plane/worker/oci.dev.env",
+      "env": {
+        "WORKER_TASK_QUEUE": "background-workflows",
+        "METRICS_PORT": "9091",
+        "RUN_MIGRATION_ON_START": "false",
+        "VLM_CONFIG_FILE_PATH": "${workspaceFolder}/vsa-control-plane/common/vsa_config/vlm-config-oci.json",
+        "VMRS_CONFIG_PATH": "${workspaceFolder}/vsa-control-plane/config/vmrs_oci.yaml"
+      },
+      "showLog": true,
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "name": "vlm-worker (logs)",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "command": "docker compose -f ${workspaceFolder}/docker-compose.local.yml logs -f vlm-worker"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "OCI stack: proxy + customer worker",
+      "configurations": [
+        "oci-proxy (debug)",
+        "vcp-worker (customer, debug)",
+        "vlm-worker (logs)"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "OCI stack: proxy + customer + background workers",
+      "configurations": [
+        "oci-proxy (debug)",
+        "vcp-worker (customer, debug)",
+        "vcp-worker (background, debug)",
+        "vlm-worker (logs)"
+      ],
+      "stopAll": true
+    }
+  ]
+}
+```
+
+Notes on the `vlm-worker (logs)` config:
+- `type: node-terminal` is a built-in VSCode/Cursor launch type that runs
+  an arbitrary shell command, registers it as a debug session (so it
+  appears in the Call Stack panel alongside the Go sessions), and pipes
+  the output to the Integrated Terminal. It does NOT attach a debugger.
+- `stopAll: true` on the compounds means stopping the compound (red
+  square) stops the `docker logs -f` tail too — no orphan terminals.
+- Logs for `oci-proxy` and `vcp-worker` still land in the **Debug
+  Console** (`Cmd-Shift-Y`, dropdown switches between sessions). Logs
+  for `vlm-worker` land in the **Integrated Terminal** because it's a
+  container, not a debugger-attached process. Both are accessible from
+  the Call Stack panel by clicking the session entry.
+
+### 2.2 `docker-compose.local.yml` (workspace root)
+
+If missing, write the contents from
+`doc/guides/local-oci-dev-setup.md` section 3.2. Key constraints:
+- Postgres 16 on `:5432`, user `postgres`, password `postgres`.
+- Temporal `temporalio/auto-setup:1.27.2` on `:7233`.
+  - `DBNAME=temporal`, `VISIBILITY_DBNAME=temporal_visibility` (must be
+    separate DBs in 1.27.x or the visibility schema bootstrap is skipped
+    and history/matching crash on `pq: relation "executions_visibility"
+    does not exist`).
+  - Healthcheck uses `temporal operator cluster health --address
+    $$(hostname):7233`. The auto-setup image binds the frontend only to
+    the container's primary IP, so `127.0.0.1:7233` / `localhost:7233`
+    will refuse connections from inside the container.
+- Temporal UI `temporalio/ui:2.36.0` on `:8088`.
+- `vlm-worker` (prebuilt OCI image, see §3.2 of the guide):
+  - Image tag from `kubernetes/OCI/vlm-worker/overrides_eng_cp.yaml`
+    (currently `iad.ocir.io/idqogasfjw45/vlm-worker:R9.19.1Sx_8084596_260430`).
+  - `depends_on: temporal (service_healthy)`.
+  - `env_file: ./vsa-control-plane/kubernetes/OCI/vlm-worker/vlm-worker.dev.env`.
+  - `environment:` overrides `SERVER_IP=temporal` and injects
+    `OCI_PRIVATE_KEY: "${OCI_PRIVATE_KEY:?missing - see vlm-worker service header in docker-compose.local.yml}"`
+    (multi-line PEM cannot live in env_file).
+- Postgres init mount: `./local-dev/postgres-init:/docker-entrypoint-initdb.d:ro`.
+- Persistent volume: `vcp-pg-data`.
+
+### 2.3 `local-dev/postgres-init/01-create-databases.sql` (workspace root)
+
+If missing, write exactly:
+
+```sql
+CREATE DATABASE vcp;
+CREATE DATABASE temporal;
+CREATE DATABASE temporal_visibility;
+```
+
+The third DB is required by Temporal 1.27.x: visibility schema must live in
+its own database. Postgres only runs `/docker-entrypoint-initdb.d/*.sql` on
+**first volume init**; if you change this file later you must
+`docker compose down -v` (destructive — confirm with user first) so the
+volume is recreated and the init script re-runs.
+
+After all three exist, confirm with:
+
+```bash
+ls -la "$WORKSPACE_ROOT/.vscode/launch.json" \
+       "$WORKSPACE_ROOT/docker-compose.local.yml" \
+       "$WORKSPACE_ROOT/local-dev/postgres-init/01-create-databases.sql"
+```
+
+---
+
+## Step 3 — Materialise the per-service env files
+
+```bash
+test -f "$REPO_ROOT/oci-proxy/oci.dev.env"                       && echo "oci-proxy env EXISTS"   || echo "MISSING"
+test -f "$REPO_ROOT/worker/oci.dev.env"                          && echo "worker env EXISTS"       || echo "MISSING"
+test -f "$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.dev.env" && echo "vlm-worker env EXISTS"  || echo "MISSING"
+```
+
+If any is missing, copy from its `.tmpl` template:
+
+```bash
+cp -n "$REPO_ROOT/oci-proxy/oci.dev.env.tmpl"                      "$REPO_ROOT/oci-proxy/oci.dev.env"
+cp -n "$REPO_ROOT/worker/oci.dev.env.tmpl"                          "$REPO_ROOT/worker/oci.dev.env"
+cp -n "$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.dev.env.tmpl" "$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.dev.env"
+```
+
+`-n` ensures we never overwrite an existing local file.
+
+Confirm all three files exist after the copy.
+
+### 3.1 OCI API private key PEM
+
+The `vlm-worker` container needs the user's OCI API private key contents
+injected at `docker compose up` time (see Step 5). The PEM file lives at:
+
+```
+$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.oci.key.pem
+```
+
+It is **not** a template — the user must place their own key there. Check:
+
+```bash
+test -f "$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.oci.key.pem" \
+  && echo "vlm-worker PEM EXISTS" || echo "MISSING — see Step 5 for how to provision"
+```
+
+`*.pem` is gitignored in `vsa-control-plane/.gitignore`, so the key cannot
+be accidentally committed.
+
+---
+
+## Step 4 — Check for REPLACE_ME secrets (without printing values)
+
+```bash
+for f in "$REPO_ROOT/oci-proxy/oci.dev.env" \
+         "$REPO_ROOT/worker/oci.dev.env" \
+         "$REPO_ROOT/kubernetes/OCI/vlm-worker/vlm-worker.dev.env"; do
+  if grep -q '^[A-Z_]\+=REPLACE_ME' "$f"; then
+    echo "TODO ($f):"
+    grep -o '^[A-Z_]\+=REPLACE_ME[^[:space:]]*' "$f" | cut -d= -f1
+  fi
+done
+```
+
+For each key reported, use the **AskQuestion** tool to prompt the user. Do NOT
+echo what they type. After the user provides a value, edit the env file in
+place with **StrReplace**, replacing the entire `KEY=REPLACE_ME...` line.
+
+Typical keys you'll need to prompt for:
+- `OCI_ONTAP_ADMIN_PASSWORD` (oci-proxy + worker) — any non-empty string for
+  local dev.
+- `ONTAP_CREDENTIAL_ENCRYPT_KEY` on **BOTH** `worker/oci.dev.env` and
+  `kubernetes/OCI/vlm-worker/vlm-worker.dev.env` — exactly 32 bytes
+  (AES-256). The two values must be **byte-identical**. vcp-worker's
+  `clients/vlm/credential_helper.go:17` reads this env var to AES-GCM-encrypt
+  ONTAP credentials inside the workflow payload; the vlm-worker container
+  decrypts them with the same key. A mismatch (or one side unset) causes
+  `vlm.CreateVSAClusterDeploymentWorkflow` to fail at workflow start with
+  `illegal base64 data at input byte 0`. If the user wants a throwaway, suggest
+  `openssl rand -base64 24 | head -c 32` and let them run it; never generate
+  one yourself.
+- `VSA_VLM_ENCRYPTION_KEY` (worker only) is a Helm-legacy ConfigMap key
+  rendered from the same Helm value but NOT consumed by Go code today.
+  Set it to the same 32-byte string as `ONTAP_CREDENTIAL_ENCRYPT_KEY` for
+  prod parity, but it does not affect runtime behaviour. **Do not** prompt
+  the user for it as a separate value — auto-copy the
+  `ONTAP_CREDENTIAL_ENCRYPT_KEY` value into both lines.
+- `OCI_TENANCY`, `OCI_USER`, `OCI_FINGERPRINT` (vlm-worker) — the user pulls
+  these from their `~/.oci/config` DEFAULT profile. These are identifiers,
+  not secrets, but the agent must not log them anyway.
+- `OCI_PASSPHRASE` (vlm-worker) — optional. Empty unless the user's
+  `vlm-worker.oci.key.pem` is passphrase-encrypted.
+
+### Optional DevFlags (not REPLACE_ME, but commonly toggled)
+
+These are not secrets and have safe code defaults. Mention them on
+completion only if the user asks "what else can I tweak":
+
+- `OCI_VSA_EXT_IP_FOR_NODE_MGMT` (worker) — default `false`. When `true`,
+  vcp-worker sets `DevFlags.ExtIPForNodeMgmt=true` on every
+  `CreateVSAClusterDeploymentRequest`, so VLM provisions an external
+  (public) IP on each VSA node's mgmt LIF. Read at
+  `core/orchestrator/workflows/oci/pool_workflows.go:45`. Toggle only
+  when you actually need to SSH to the VSA over the public internet.
+- `OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA` (worker) — default `true`. Allows
+  non-DenseIO instance shapes for VSA Node VMs. Leave alone unless the
+  user explicitly needs to test a DenseIO-only path.
+
+If the user is exercising read-only paths and doesn't have real secrets,
+offer to fill them with safe placeholders ("any non-empty string passes
+startup validation"). Confirm before doing so. The `vlm-worker` container
+will not start without valid OCI identifiers — placeholders work for
+`OCI_*` only if the user accepts that no real OCI API calls will succeed.
+
+---
+
+## Step 5 — Start the Docker stack
+
+The `vlm-worker` service requires `OCI_PRIVATE_KEY` (the full PEM
+contents) in the shell environment at `up` time. The compose service
+declares `${OCI_PRIVATE_KEY:?missing...}`, so `docker compose up` will
+abort with a clear error if the variable is unset.
+
+Always export the key right before `up`, never persist it to a file
+sourced by your shell rc:
+
+```bash
+cd "$WORKSPACE_ROOT"
+export OCI_PRIVATE_KEY="$(cat vsa-control-plane/kubernetes/OCI/vlm-worker/vlm-worker.oci.key.pem)"
+docker compose -f docker-compose.local.yml up -d
+```
+
+Do **not** echo `$OCI_PRIVATE_KEY` anywhere. To confirm it's set without
+leaking the body, use:
+
+```bash
+echo "OCI_PRIVATE_KEY bytes=${#OCI_PRIVATE_KEY}"   # expect ~1700–1800 for a 2048-bit PKCS#8 key
+```
+
+Watch for healthcheck completion (block on the command up to ~90s for
+first boot — Postgres + Temporal schema bootstrap takes time):
+
+```bash
+docker compose -f docker-compose.local.yml ps --format 'table {{.Service}}\t{{.Status}}'
+```
+
+Expected steady state:
+- `postgres` → `Up X seconds (healthy)`
+- `temporal` → `Up X seconds (healthy)`
+- `temporal-ui` → `Up X seconds`
+- `vlm-worker` → `Up X seconds`
+
+If `temporal` is unhealthy:
+```bash
+docker compose -f docker-compose.local.yml logs --tail=80 temporal
+```
+Common cause is Postgres race on first boot — `docker compose down && up -d`
+usually fixes it once the postgres volume exists.
+
+If `vlm-worker` is exit-looping:
+```bash
+docker compose -f docker-compose.local.yml logs --tail=80 vlm-worker
+```
+Common causes are listed in the Troubleshooting table at the bottom of
+this file (e.g. `OCI_PRIVATE_KEY` unset, FILE_BASED_AUTH false, encrypt
+key mismatch, OCI registry auth missing).
+
+---
+
+## Step 6 — Sanity checks
+
+```bash
+# DBs
+docker exec vcp-postgres psql -U postgres -c '\l' | grep -E 'vcp|temporal|temporal_visibility'
+# Temporal UI
+curl -fsS http://localhost:8088/ >/dev/null && echo "Temporal UI reachable"
+# vlm-worker registered as a poller on its task queue
+docker exec vcp-temporal sh -c \
+  'temporal task-queue describe \
+     --task-queue vsa-lifecycle-manager-9.18.1 \
+     --namespace default \
+     --address $(hostname):7233' \
+  | grep -q UNVERSIONED && echo "vlm-worker registered with Temporal"
+```
+
+All three must pass before proceeding.
+
+---
+
+## Step 7 — Tell the user how to launch the Go services
+
+Output (do not run):
+
+```
+Open the Cursor Run & Debug view (Cmd-Shift-D), then pick a compound:
+
+  • OCI stack: proxy + customer worker
+  • OCI stack: proxy + customer + background workers
+
+Click the green play arrow. Each compound also brings up a
+`vlm-worker (logs)` session that tails `docker compose logs -f vlm-worker`
+in the Integrated Terminal. Stopping the compound (red square) stops the
+log tail too.
+
+Where each component's logs live:
+  • oci-proxy          Debug Console — dropdown entry "oci-proxy (debug)"
+  • vcp-worker         Debug Console — dropdown entry "vcp-worker (customer, debug)"
+                       and/or "vcp-worker (background, debug)"
+  • vlm-worker         Integrated Terminal — tab "vlm-worker (logs)"
+
+Standalone log commands (no IDE needed):
+  • docker compose -f docker-compose.local.yml logs -f vlm-worker   # one service
+  • docker compose -f docker-compose.local.yml logs -f              # all four
+
+Useful URLs:
+  • Temporal UI    http://localhost:8088
+  • oci-proxy API  http://localhost:8080
+  • metrics        http://localhost:9090 (customer), http://localhost:9091 (background)
+  • vlm-worker /metrics                  exposed inside the container on :9100
+                                          (curl from inside: docker exec vcp-vlm-worker wget -qO- localhost:9100/metrics)
+```
+
+Ask the user if they want you to verify the launch by tailing the postgres
+logs or the Temporal UI, or stop here.
+
+---
+
+## Optional — Tear-down
+
+Only run on explicit user request. Confirm first.
+
+```bash
+# Stop containers, keep volume
+docker compose -f docker-compose.local.yml down
+
+# Stop and wipe data (Postgres + Temporal schemas reset)
+docker compose -f docker-compose.local.yml down -v
+```
+
+Never run `down -v` without explicit user confirmation.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| Cursor: "Failed to launch dlv" | Go extension not installed / dlv missing | Install Cursor Go extension; let it install dlv, or `go install github.com/go-delve/delve/cmd/dlv@latest` |
+| `oci-proxy` exits with `failed to find region code for cluster serial number generation` | `REGION_NUMBER_MAP` missing `LOCAL_REGION` key | Verify both env files include `us-ashburn-1` in `REGION_NUMBER_MAP` JSON |
+| `vcp-worker` exits with `missing required OCI startup env vars` | `OCI_ONTAP_ADMIN_PASSWORD`, `VSA_IMAGE_NAME`, `VSA_MEDIATOR_IMAGE_NAME`, `SECRET_URI`, or `LOCAL_REGION` empty | Re-run Step 4 prompts; the `.tmpl` files include all OCI ImageNames/OCIDs already |
+| `connection refused` on `:5432` | Postgres container not up | `docker compose ps` then `docker compose logs postgres` |
+| `connection refused` on `:7233` | Temporal container not up | Same for `temporal` |
+| Two workers fail with `bind: address already in use` on `:9090` | Customer + background both default to 9090 | The `vcp-worker (background, debug)` launch config sets `METRICS_PORT=9091`; if running via `go run`, export it manually |
+| Migration loop / `pq: duplicate key` | Two processes running migrations | Only `oci-proxy/oci.dev.env` should have `RUN_MIGRATION_ON_START=true`. Workers must be `false`. |
+| Postgres init script didn't run | Volume already existed from a previous run | `docker compose down -v` then `up -d` to recreate the volume and re-run the init script |
+| `psql: error: connection ... SSL is required` | `DB_SSL_MODE=require` against local Postgres | Set `DB_SSL_MODE=disable` in both env files (the `.tmpl` defaults are correct) |
+| Temporal `health: starting` forever, `pq: relation "executions_visibility" does not exist` | `DBNAME == VISIBILITY_DBNAME` so visibility schema bootstrap was skipped | Set `VISIBILITY_DBNAME=temporal_visibility` and add `CREATE DATABASE temporal_visibility;` to the postgres init SQL; `docker compose down -v && up -d` to re-run init |
+| Temporal `health: starting` even though `Temporal server started.` is in logs | Healthcheck dials `127.0.0.1:7233` but auto-setup binds the frontend only to the container's primary IP | Change healthcheck to `temporal operator cluster health --address $$(hostname):7233` |
+| `docker compose up` aborts with `missing - see vlm-worker service header in docker-compose.local.yml` | `OCI_PRIVATE_KEY` not exported in the calling shell | `export OCI_PRIVATE_KEY="$(cat vsa-control-plane/kubernetes/OCI/vlm-worker/vlm-worker.oci.key.pem)"` then re-run `up` |
+| `vlm-worker` exits with OCI signature / 401 errors | `OCI_TENANCY`/`OCI_USER`/`OCI_FINGERPRINT` mismatch with the PEM, or `OCI_PASSPHRASE` missing on an encrypted key | Re-pull from `~/.oci/config`; confirm the PEM file matches the fingerprint |
+| Child workflow `vlm.CreateVSAClusterDeploymentWorkflow` fails immediately with `illegal base64 data at input byte 0` | `ONTAP_CREDENTIAL_ENCRYPT_KEY` is set on one side and unset/different on the other. vcp-worker's `OntapCredentials.MarshalJSON` (see `clients/vlm/credential_helper.go`) emits plain JSON when the key is unset, but vlm-worker tries to `base64.Decode` it because its key IS set. The first byte `{` of the JSON object is not in the base64 alphabet. | Set `ONTAP_CREDENTIAL_ENCRYPT_KEY` to the **same** 32-byte string in BOTH `worker/oci.dev.env` and `kubernetes/OCI/vlm-worker/vlm-worker.dev.env`, then restart vcp-worker and `docker compose up -d --force-recreate vlm-worker` |
+| `vlm-worker` logs `cipher: message authentication failed` on every activity | `ONTAP_CREDENTIAL_ENCRYPT_KEY` differs between the two sides (both set but not equal) | Copy one value over the other; both files must hold the same 32 ASCII bytes |
+| `vlm-worker` image pull fails with auth error | OCIR (`iad.ocir.io`) needs `docker login` for the chart's secondary registry path | `docker login iad.ocir.io` with an OCI auth token, or switch the image to the GHCR fallback documented in §3.2 of the guide |
+| `vlm-worker` is polling but workflows never advance | Wrong `TASK_QUEUE` in `vlm-worker.dev.env` (must be `vsa-lifecycle-manager-<ontapVersion>`) | Check that the ontapVersion in `overrides_eng_cp.yaml` matches the TASK_QUEUE suffix |
+
+---
+
+## Communication style
+- Be concise — show commands and their abbreviated output, not lengthy
+  explanations.
+- After each Step, summarise the outcome in one line.
+- If a step fails, show the exact error and the most likely fix from the
+  Troubleshooting table — don't retry blindly.
+- Never quote a secret value the user provides, even partially. Confirm with
+  "saved" or "updated" and move on.
+- Defer to `doc/guides/local-oci-dev-setup.md` for any detail not covered
+  here, and link the user to it on completion.

@@ -16,7 +16,15 @@ cicd/bin
 .idea/
 *.env
 !skaffold.env
+*.dev.env.tmpl
 .run/
+
+# Private key material (e.g. kubernetes/OCI/vlm-worker/vlm-worker.oci.key.pem,
+# any per-developer OCI API signing keys). Never commit private keys.
+*.pem
+*.key
+!**/testdata/**/*.pem
+!**/testdata/**/*.key
 
 # VS Code settings
 .vscode/
