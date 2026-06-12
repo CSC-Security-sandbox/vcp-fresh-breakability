@@ -72,7 +72,7 @@ workerConfig:
   vlmClusterPowerOpWorkflowTimeoutMinutes: 30
   # Comma-separated list of error patterns that trigger delete and retry operations
   vlmRetryErrorPatterns: ""
-  ontapVersionDetails: "9.19.1"
+  ontapVersionDetails: "9.19.1X26"
   localCell: "00"
   ociVSASerialAllocationEnabled: true
 
