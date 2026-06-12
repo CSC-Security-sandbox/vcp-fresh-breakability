@@ -726,13 +726,28 @@ extract_cves() {
 # ── Usage scan helpers ────────────────────────────────────────────────────────
 scan_usage_npm() {
   local pkg="$1"
-  # Also scan for @types/X → X
+  # Also scan for @types/X → X (the runtime package the types describe).
   local scan_name="$pkg"
   [[ "$pkg" == @types/* ]] && scan_name="${pkg#@types/}"
 
-  grep -rnE "from ['\"]${scan_name}(/[^'\"]+)?['\"]|require\(['\"]${scan_name}(/[^'\"]+)?['\"]" \
-    --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" \
-    src/ lib/ test/ 2>/dev/null | head -50 || true
+  # Escape regex metacharacters in the package name (scoped pkgs contain '/', some
+  # contain '.') so e.g. "react-dom" or "@scope/pkg.io" match literally.
+  local esc
+  esc=$(printf '%s' "$scan_name" | sed -E 's/[][(){}.^$*+?|\\]/\\&/g')
+
+  # Match every static + dynamic import form for the EXACT package (optionally a
+  # subpath import like pkg/sub), across the whole worktree minus build/vendor dirs.
+  # A name boundary ((/…)?['"]) prevents react-router from matching react-router-dom.
+  #   import … from 'pkg'      export … from 'pkg'
+  #   require('pkg')           import('pkg')   (dynamic)
+  grep -rnE \
+    "(from|require\(|import\()[[:space:]]*['\"]${esc}(/[^'\"]+)?['\"]" \
+    --include="*.ts" --include="*.tsx" --include="*.js" \
+    --include="*.mjs" --include="*.cjs" --include="*.jsx" \
+    --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+    --exclude-dir=.git --exclude-dir=coverage --exclude-dir=.next \
+    --exclude-dir=out --exclude-dir=.turbo --exclude-dir=.cache \
+    . 2>/dev/null | head -50 || true
 }
 
 scan_usage_go() {
