@@ -2304,10 +2304,11 @@ print(json.dumps(result))
       echo "  npm api-diff: $PKG $FROM_VER -> $TO_VER ..."
       APIDIFF_JSON=$(timeout -k 15 240 node "$APIDIFF_SCRIPT" "$PKG" "$FROM_VER" "$TO_VER" 2>/dev/null | tail -1 || echo "")
       if [[ -n "$APIDIFF_JSON" ]]; then
-        DETERMINISTIC=$(DET_IN="${DETERMINISTIC:-{}}" AD_IN="$APIDIFF_JSON" python3 -c "
+        DETERMINISTIC=$(DET_IN="$DETERMINISTIC" AD_IN="$APIDIFF_JSON" python3 -c "
 import json, os
+_din = os.environ.get('DET_IN') or '{}'
 try:
-    det = json.loads(os.environ.get('DET_IN') or '{}')
+    det = json.loads(_din)
 except Exception:
     det = {}
 if not isinstance(det, dict):
