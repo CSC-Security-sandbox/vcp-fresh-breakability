@@ -1150,6 +1150,88 @@ for skew in nestjs_skew: print(f"  NestJS skew: {skew['package']} has majors {sk
 GRAPHEOF
 }
 
+# ── Test oracle: build workspace-internal libs to dist/ before a consumer build ─
+# Services import private @scope/* workspace libs (resolved via the file: fallback)
+# whose package.json points main/types at dist/. Until those libs are COMPILED, the
+# consumer's `tsc --noEmit` / `npm test` fails to resolve the workspace import — a
+# PRE-EXISTING infra failure unrelated to the dependency bump, which leaves build at
+# `pre_existing` and denies us a real PASS/FAIL test oracle. This builds the internal
+# libs in topological order (deps first) so the consumer compiles against real .d.ts.
+# Fail-open by design: any per-lib install/compile error is logged and skipped — we
+# NEVER abort the pipeline and NEVER manufacture a green (a still-missing lib simply
+# leaves the consumer build as it was). tsc emits .d.ts even with unrelated peer-dep
+# errors, which is exactly what the consumer needs to resolve types.
+build_npm_workspace_libs() {
+  local worktree="${1:-.}"
+  local timeout_s="${2:-300}"
+  # Topologically order internal libs (name contains netapp/datamigrate) from the
+  # workspace graph, deps first. Emits "relpath\tname" lines.
+  local order
+  order=$(_BC_WT="$worktree" python3 - << 'TOPOEOF'
+import json, os, sys
+try:
+    g = json.load(open("/tmp/_bc_workspace_graph.json"))
+except Exception:
+    sys.exit(0)
+pkgs = g.get("packages", {})
+def is_internal(n):
+    n = (n or "").lower()
+    return "netapp" in n or "datamigrate" in n
+libs = {n: i for n, i in pkgs.items() if is_internal(n)}
+# Map lower(name)->canonical for resolving internal_deps regardless of case.
+by_lower = {n.lower(): n for n in libs}
+visited, order = set(), []
+def visit(n, stack):
+    if n in visited or n in stack:
+        return
+    stack.add(n)
+    for dep in libs.get(n, {}).get("internal_deps", []) or []:
+        c = by_lower.get((dep or "").lower())
+        if c and c in libs:
+            visit(c, stack)
+    stack.discard(n)
+    visited.add(n)
+    order.append(n)
+for n in libs:
+    visit(n, set())
+wt = os.environ.get("_BC_WT", ".")
+for n in order:
+    rel = libs[n].get("path", "")
+    if rel and os.path.isfile(os.path.join(wt, rel, "package.json")):
+        print(f"{rel}\t{n}")
+TOPOEOF
+)
+  [[ -z "$order" ]] && return 0
+  local built=0
+  while IFS=$'\t' read -r rel name; do
+    [[ -z "$rel" ]] && continue
+    local libdir="$worktree/$rel"
+    [[ -d "$libdir/dist" ]] && { echo "  [test-oracle] $name: dist/ present, skip"; continue; }
+    setup_private_registries "$libdir" 2>/dev/null || true
+    # Rewrite this lib's own internal @scope/* deps to file: links so a non-leaf lib
+    # (e.g. api-handler-lib -> logger-lib) installs against the already-built sibling
+    # instead of the unreachable private registry. Topological order guarantees the
+    # dependency's dist/ already exists by the time we reach the dependent lib.
+    rewrite_private_deps_to_local "$libdir" "$worktree" 2>/dev/null || true
+    ( cd "$libdir" && retry_cmd 2 3 timeout "$timeout_s" npm ci --ignore-scripts >/dev/null 2>&1 ) \
+      || ( cd "$libdir" && timeout "$timeout_s" npm install --ignore-scripts --legacy-peer-deps >/dev/null 2>&1 ) \
+      || { echo "  [test-oracle] $name: install failed (skip)"; continue; }
+    # Prefer the package's own build script; fall back to a bare tsc. tsc emits the
+    # .d.ts even when unrelated peer-dep type errors are present, so ignore the exit.
+    if ( cd "$libdir" && timeout "$timeout_s" npm run build >/dev/null 2>&1 ); then :; else
+      ( cd "$libdir" && timeout "$timeout_s" npx tsc >/dev/null 2>&1 ) || true
+    fi
+    if [[ -d "$libdir/dist" ]]; then
+      echo "  [test-oracle] $name: built dist/"
+      built=$((built+1))
+    else
+      echo "  [test-oracle] $name: no dist/ after build (skip)"
+    fi
+  done <<< "$order"
+  [[ "$built" -gt 0 ]] && echo "  [test-oracle] built $built workspace lib(s)"
+  return 0
+}
+
 check_cascade_impact() {
   local pkg_dir="$1"
   _BC_PKG_DIR="$pkg_dir" python3 -c "
@@ -1457,6 +1539,9 @@ build_npm_baseline_for_dir() {
     fi
   fi
   if [[ "$dir_install_exit" -eq 0 && -f "$full_dir/tsconfig.json" ]]; then
+    # Build workspace-internal libs to dist/ so the consumer resolves @scope/* types
+    # (symmetric with the PR build/test worktrees — keeps build comparison honest).
+    build_npm_workspace_libs "$MAIN_DIR" "$TIMEOUT"
     echo "  [lazy baseline] tsc in $target_dir ..."
     dir_tsc_out=$(cd "$full_dir" && timeout $TIMEOUT npx tsc --noEmit 2>&1)
     dir_tsc_exit=$?
@@ -2479,6 +2564,7 @@ $FALLBACK_OUT"
           fi
 
           if [[ "$PR_INSTALL_EXIT" -eq 0 && -f "$BUILD_DIR/tsconfig.json" ]]; then
+            build_npm_workspace_libs "$PR_WORKTREE" "$TIMEOUT"
             EVIDENCE_BUILD_COMMAND="npx tsc --noEmit"
             TSC_OUT=$(cd "$BUILD_DIR" && timeout $TIMEOUT npx tsc --noEmit 2>&1)
             PR_TSC_EXIT=$?
@@ -3044,7 +3130,8 @@ $IMPORT_OUT"
   # pre_existing means the failures are the same on both branches — the upgrade didn't break
   # anything. Running tests lets these PRs reach L4 instead of capping at L2.
   if [[ "$BUILD_VERDICT" == "pass" || "$BUILD_VERDICT" == "security_review" ]] || \
-     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "gomod" && "$INSTALL_OK" == "true" ]]; then
+     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "gomod" && "$INSTALL_OK" == "true" ]] || \
+     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "npm" && "$INSTALL_OK" == "true" ]]; then
     if [[ "$DEP_TYPE" == "production" ]]; then
       RUN_TESTS="true"
     elif [[ "$BUMP" == "major" && "$DEP_TYPE" == "dev" ]]; then
@@ -3093,7 +3180,19 @@ $IMPORT_OUT"
           TEST_INSTALL_OK=false
           if (cd "$TEST_BUILD_DIR" && retry_cmd 3 5 timeout $TIMEOUT npm ci --ignore-scripts) 2>/dev/null; then
             TEST_INSTALL_OK=true
+          else
+            # Workspace monorepo: npm ci fails on private @scope/* deps. Mirror the
+            # build stage's fallback (rewrite to file: links + npm install) so tests
+            # actually run instead of being skipped (which left test ran=false).
+            echo "  test: npm ci failed — trying workspace-local fallback..."
+            rewrite_private_deps_to_local "$TEST_BUILD_DIR" "$PR_WORKTREE"
+            if (cd "$TEST_BUILD_DIR" && timeout $TIMEOUT npm install --ignore-scripts --legacy-peer-deps) >/dev/null 2>&1; then
+              TEST_INSTALL_OK=true
+              echo "  test: workspace-local fallback: SUCCESS"
+            fi
           fi
+          # Build workspace-internal libs so tsc/jest resolve @scope/* against real dist/.
+          [[ "$TEST_INSTALL_OK" == "true" ]] && build_npm_workspace_libs "$PR_WORKTREE" "$TIMEOUT"
           if [[ "$TEST_INSTALL_OK" == "true" ]]; then
             # Use --testPathPattern for scoped test execution in monorepos
             if [[ "$PKG_DIR" != "/" && -f "$TEST_BUILD_DIR/package.json" ]]; then
