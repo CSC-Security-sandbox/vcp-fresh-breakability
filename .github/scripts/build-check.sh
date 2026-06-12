@@ -134,6 +134,18 @@ print("\n".join(f"- {l}" for l in seen[:40]))
   )
 }
 
+# ── npm changelog fetch (release bodies + scoped changelog sections) ──────────
+# Resolves npm package metadata to a GitHub repository (including scoped
+# monorepo directories), pulls release bodies/tags in (from,to] plus
+# CHANGELOG/CHANGES/HISTORY/RELEASES sections, and emits nothing on failure so
+# release-notes evidence remains UNAVAILABLE rather than falsely clean.
+fetch_npm_changelog_text() {
+  local _pkg="$1" _from="$2" _to="$3"
+  [[ -z "$_pkg" || -z "$_from" || -z "$_to" ]] && return 0
+  python3 "$REPO_ROOT/.github/scripts/npm_changelog.py" fetch \
+    --package "$_pkg" --from-version "$_from" --to-version "$_to" 2>/dev/null || true
+}
+
 
 export BC_SCRATCH_DIR="${BC_SCRATCH_DIR:-$REPO_ROOT/.breakability-scratch}"
 mkdir -p "$BC_SCRATCH_DIR"
@@ -2212,15 +2224,20 @@ except Exception as e:
     CLI_OUTPUT_FILE="/tmp/_bc_cli_${PR_NUM}.raw"
     CLI_JSON_FILE="/tmp/_bc_cli_${PR_NUM}.json"
     CLI_ERR_FILE="/tmp/_bc_cli_${PR_NUM}.err"
-    # For Go, pre-fetch the comprehensive changelog (vanity-path aware, releases-in-range +
-    # CHANGELOG.md) and feed it to the CLI so computeMergeRisk sees declared breaking changes.
+    # Pre-fetch comprehensive changelogs/release notes and feed them to the CLI so
+    # computeMergeRisk sees declared breaking changes; the CLI also persists
+    # deterministic.changelogText + deterministic.changelogSignal.
     CLI_CHANGELOG_ARGS=()
-    if [[ "$ECOSYSTEM" == "gomod" ]]; then
+    if [[ "$ECOSYSTEM" == "gomod" || "$ECOSYSTEM" == "npm" ]]; then
       CLI_CHANGELOG_FILE="/tmp/_bc_changelog_${PR_NUM}.txt"
-      fetch_go_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      if [[ "$ECOSYSTEM" == "gomod" ]]; then
+        fetch_go_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      else
+        fetch_npm_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      fi
       if [[ -s "$CLI_CHANGELOG_FILE" ]]; then
         CLI_CHANGELOG_ARGS=(--changelog-file "$CLI_CHANGELOG_FILE")
-        echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') signal line(s) for CLI verdict"
+        echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') line(s) for CLI verdict"
       fi
     fi
     timeout -k 15 180 node "$CLI_PATH" \

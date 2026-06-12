@@ -200,7 +200,7 @@ def extract_deterministic(bullets: List[str], prose: str) -> List[Dict[str, Any]
     return claims
 
 
-_AI_PROMPT = """You extract structured breaking-change claims from a Go dependency changelog.
+_AI_PROMPT = """You extract structured breaking-change claims from a dependency changelog or release notes.
 Return ONLY a JSON array. Each element: {"symbol","kind","old","new","severity","source"}.
 kind in [removed,renamed,signature_changed,behavioral,deprecated]; severity in [high,medium,low].
 Only include claims supported by the text. If none, return []. Do not invent symbols.
