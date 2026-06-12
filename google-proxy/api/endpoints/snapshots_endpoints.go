@@ -54,11 +54,12 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 	}
 
 	snapshotsVCP := make([]gcpgenserver.SnapshotV1beta, 0)
-	if len(snapshotModelVCP) > 0 { // If snapshots are found in VCP, return them else return from CVP
-		for _, snapshot := range snapshotModelVCP {
-			response := convertModelToVCPSnapshot(snapshot)
-			snapshotsVCP = append(snapshotsVCP, *response)
-		}
+	for _, snapshot := range snapshotModelVCP {
+		response := convertModelToVCPSnapshot(snapshot)
+		snapshotsVCP = append(snapshotsVCP, *response)
+	}
+	// Return VCP results when present, or skip CVP fallback when host is not configured.
+	if len(snapshotsVCP) > 0 || !utils.IsCVPHostConfigured() {
 		return &gcpgenserver.V1betaGetMultipleSnapshotsOK{
 			Snapshots: snapshotsVCP,
 		}, nil

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -102,6 +103,9 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	t.Run("WhenGetMultipleSnapshotsFailsWithBadRequest", func(tt *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		oldValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
@@ -190,6 +194,9 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 	t.Run("WhenSnapshotsNotFoundInVCP", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -234,6 +241,9 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 	t.Run("WhenSnapshotsNotFoundInVCPAndFoundInCVP", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -451,6 +461,9 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsEmpty_TriggersCVPFallback", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -492,6 +505,9 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsNil_TriggersCVPFallback", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
