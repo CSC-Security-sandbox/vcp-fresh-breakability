@@ -49,6 +49,7 @@ type Pool struct {
 	ActiveDirectoryChangeId string                 `gorm:"column:active_directory_change_id;type:text"`
 	APIAccessMode           string                 `gorm:"column:api_access_mode;type:text"`
 	ExpertModeCredentials   *ExpertModeCredentials `gorm:"column:expert_mode_credentials;type:jsonb"`
+	WorkflowID              string                 `gorm:"column:workflow_id;type:text"`
 }
 
 type ExpertModeCredentials struct {
@@ -562,6 +563,7 @@ type Svm struct {
 	Description           string           `gorm:"column:description"`
 	State                 string           `gorm:"column:state"`
 	StateDetails          string           `gorm:"column:state_details"`
+	WorkflowID            string           `gorm:"column:workflow_id;type:text"`
 	SvmDetails            *SvmDetails      `gorm:"column:svm_details;type:jsonb"`
 	AccountID             int64            `gorm:"column:account_id"`
 	Account               *Account         `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`

@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/api/serviceerror"
 	"gorm.io/gorm"
 )
 
@@ -178,6 +179,8 @@ func TestCreateSvm_DuplicateSvmOCID(t *testing.T) {
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
 	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
 		Return(true, nil)
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
+		Return(&datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}, State: string(datamodel.LifeCycleStateREADY)}, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
@@ -247,7 +250,6 @@ func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
 		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
-
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)
@@ -410,8 +412,7 @@ func TestCreateSvm_WorkflowStartFails(t *testing.T) {
 		SvmExternalIdentifier: "ocid1.svm..new",
 		State:                 datamodel.LifeCycleStateCreating,
 	}
-	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
-	// Workflow start failure must trigger compensation: the row we just
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)	// Workflow start failure must trigger compensation: the row we just
 	// inserted in CREATING has no workflow driving it, so the factory must
 	// flip it to ERROR before returning.
 	compensationCalled := false
@@ -467,7 +468,6 @@ func TestCreateSvm_Success(t *testing.T) {
 		State:                 datamodel.LifeCycleStateCreating,
 	}
 	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
-
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)
@@ -807,7 +807,6 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
-
 	// Workflow start failure must trigger compensation: the row was just
 	// flipped to DELETING and has no workflow driving it, so the factory must
 	// flip it to ERROR before returning.
@@ -828,6 +827,47 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.True(t, compensationCalled, "ErroredSVM compensation must run when workflow start fails")
+}
+
+func TestDeleteSvm_WorkflowAlreadyStarted_ReturnsSuccessWithoutCompensation(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
+	}, nil)
+	svm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(datamodel.LifeCycleStateREADY),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+
+	deletingSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(datamodel.LifeCycleStateDeleting),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, serviceerror.NewWorkflowExecutionAlreadyStarted("already started", "", ""))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	wfID, err := orch.DeleteSvm(svmTestCtx(), &commonparams.DeleteSvmParams{
+		SvmID:       "ocid1.svm..a",
+		AccountName: "tenancy",
+		PoolOCID:    "ocid1.pool..a",
+		WorkflowID:  testSuppliedWorkflowID,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, testSuppliedWorkflowID, wfID)
+	mockStorage.AssertNotCalled(t, "ErroredSVM", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // When workflow start fails AND the deferred compensation ErroredSVM also
@@ -885,6 +925,57 @@ func TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
 	require.Error(t, err)
 	// The original workflow-start error is what the caller sees.
 	assert.Contains(t, err.Error(), "temporal unavailable")
+}
+
+func TestCreateSvm_WorkflowAlreadyStarted_ReturnsSuccessWithoutCompensation(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 10},
+			AccountID: 1,
+			State:     string(datamodel.LifeCycleStateREADY),
+			VLMConfig: "cfg",
+		},
+	}
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
+	}, nil)
+	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: datamodel.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: datamodel.LifeCycleStateREADY},
+	}, nil)
+	preallocatedSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:                  "svm1",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		State:                 datamodel.LifeCycleStateCreating,
+	}
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, serviceerror.NewWorkflowExecutionAlreadyStarted("already started", "", ""))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	wfID, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
+		PoolOCID:              "ocid1.pool..a",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		Name:                  "svm1",
+		AccountName:           "tenancy",
+		EnableIscsi:           true,
+		WorkflowID:            testSuppliedWorkflowID,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, testSuppliedWorkflowID, wfID)
+	mockStorage.AssertNotCalled(t, "ErroredSVM", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // Mirror of TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails for the
@@ -956,7 +1047,6 @@ func TestDeleteSvm_Success(t *testing.T) {
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
-
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)

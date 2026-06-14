@@ -981,6 +981,16 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
 	})
 
+	rollbackManager := common.NewRollbackManager()
+	rollbackManager.AddActivity(poolActivity.ErroredPool, pool)
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackCtx := workflow.WithActivityOptions(disconnectedCtx, ao)
+			rollbackManager.ExecuteRollback(rollbackCtx, err)
+		}
+	}()
+
 	// Call DeleteVSAClusterDeployment
 	vsaClientWorkflowManager := workflows.GetNewVSAClientWorkflowManager()
 	deleteRequest := &vlm.DeleteVSAClusterDeploymentRequest{}

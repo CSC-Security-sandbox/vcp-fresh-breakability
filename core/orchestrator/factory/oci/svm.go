@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonfactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -56,34 +55,50 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 	}
 	pool := database.ConvertPoolViewToPool(poolView)
 
-	exists, err := se.SvmExistsByExternalIdentifier(ctx, strings.TrimSpace(params.SvmExternalIdentifier), pool.AccountID)
+	svmExternalIdentifier := strings.TrimSpace(params.SvmExternalIdentifier)
+	workflowID := resolveWorkflowID(params.WorkflowID)
+
+	exists, err := se.SvmExistsByExternalIdentifier(ctx, svmExternalIdentifier, pool.AccountID)
 	if err != nil {
 		logger.Error("Failed to check for existing SVM by OCID", "svmOCID", params.SvmExternalIdentifier, "error", err)
 		return "", err
 	}
+
+	var preallocatedSvm *datamodel.Svm
 	if exists {
-		return "", customerrors.NewConflictErr("svmOCID already exists")
-	}
-	logger.Info("No existing SVM with same OCID, proceeding to create",
-		"svmOCID", params.SvmExternalIdentifier, "poolOCID", params.PoolOCID)
+		existingSvm, getErr := se.GetSvmByExternalIdentifier(ctx, svmExternalIdentifier, pool.AccountID)
+		if getErr != nil {
+			logger.Error("Failed to load existing SVM by OCID", "svmOCID", params.SvmExternalIdentifier, "error", getErr)
+			return "", getErr
+		}
+		if !(existingSvm.State == datamodel.LifeCycleStateCreating && isCrashResume(existingSvm.WorkflowID, workflowID)) {
+			return "", customerrors.NewConflictErr("svmOCID already exists")
+		}
+		preallocatedSvm = existingSvm
+		logger.Info("Resuming in-flight CreateSVM after crash", "svmUUID", preallocatedSvm.UUID, "svmOCID", preallocatedSvm.SvmExternalIdentifier, "workflowID", workflowID)
+	} else {
+		logger.Info("No existing SVM with same OCID, proceeding to create",
+			"svmOCID", params.SvmExternalIdentifier, "poolOCID", params.PoolOCID)
 
-	// Pre-create validation: cluster state/capacity, SVM name, IP requirements.
-	if err := validateCreateSvm(ctx, se, params, pool); err != nil {
-		return "", err
-	}
+		// Pre-create validation: cluster state/capacity, SVM name, IP requirements.
+		if err = validateCreateSvm(ctx, se, params, pool); err != nil {
+			return "", err
+		}
 
-	svmRow := &datamodel.Svm{
-		Name:                  params.Name,
-		SvmExternalIdentifier: strings.TrimSpace(params.SvmExternalIdentifier),
-		AccountID:             pool.AccountID,
-		PoolID:                pool.ID,
+		svmRow := &datamodel.Svm{
+			Name:                  params.Name,
+			SvmExternalIdentifier: svmExternalIdentifier,
+			AccountID:             pool.AccountID,
+			PoolID:                pool.ID,
+			WorkflowID:            workflowID,
+		}
+		preallocatedSvm, err = se.CreateSvmInCreatingState(ctx, svmRow)
+		if err != nil {
+			logger.Error("Failed to pre-allocate SVM in CREATING state", "svmOCID", params.SvmExternalIdentifier, "error", err)
+			return "", err
+		}
+		logger.Info("SVM pre-allocated in CREATING state", "svmUUID", preallocatedSvm.UUID, "svmOCID", preallocatedSvm.SvmExternalIdentifier)
 	}
-	preallocatedSvm, err := se.CreateSvmInCreatingState(ctx, svmRow)
-	if err != nil {
-		logger.Error("Failed to pre-allocate SVM in CREATING state", "svmOCID", params.SvmExternalIdentifier, "error", err)
-		return "", err
-	}
-	logger.Info("SVM pre-allocated in CREATING state", "svmUUID", preallocatedSvm.UUID, "svmOCID", preallocatedSvm.SvmExternalIdentifier)
 
 	defer func() {
 		if err != nil && preallocatedSvm != nil {
@@ -95,8 +110,6 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 			}
 		}
 	}()
-
-	workflowID := uuid.NewString()
 
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
@@ -110,6 +123,11 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 		preallocatedSvm,
 	)
 	if err != nil {
+		if isWorkflowAlreadyStarted(err) {
+			logger.Info("CreateSVM workflow already started; returning idempotent success", "workflowID", workflowID, "svmOCID", params.SvmExternalIdentifier)
+			err = nil
+			return workflowID, nil
+		}
 		logger.Error("Failed to start CreateSVM workflow", "workflowID", workflowID, "error", err)
 		return "", err
 	}
@@ -170,22 +188,32 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 		return "", customerrors.NewNotFoundErr("svm not found for svmOCID", nil)
 	}
 
-	if err := validateSvmDeletionState(targetSvm); err != nil {
-		return "", err
+	workflowID := resolveWorkflowID(params.WorkflowID)
+	resume := targetSvm.State == datamodel.LifeCycleStateDeleting && isCrashResume(targetSvm.WorkflowID, workflowID)
+
+	if !resume {
+		if err := validateSvmDeletionState(targetSvm); err != nil {
+			return "", err
+		}
 	}
 
 	pool := database.ConvertPoolViewToPool(poolView)
 
-	// Atomically flip the SVM to DELETING here in the orchestrator
-	deletingSvm, err := se.TransitionSvmToDeleting(ctx, targetSvm)
-	if err != nil {
-		if customerrors.IsConflictErr(err) {
+	deletingSvm := targetSvm
+	if !resume {
+		targetSvm.WorkflowID = workflowID
+		deletingSvm, err = se.TransitionSvmToDeleting(ctx, targetSvm)
+		if err != nil {
+			if customerrors.IsConflictErr(err) {
+				return "", err
+			}
+			logger.Error("Failed to transition SVM to DELETING", "svmOCID", params.SvmID, "error", err)
 			return "", err
 		}
-		logger.Error("Failed to transition SVM to DELETING", "svmOCID", params.SvmID, "error", err)
-		return "", err
+		logger.Info("SVM transitioned to DELETING", "svmUUID", deletingSvm.UUID, "svmOCID", params.SvmID)
+	} else {
+		logger.Info("Resuming in-flight DeleteSVM after crash", "svmUUID", deletingSvm.UUID, "svmOCID", params.SvmID, "workflowID", workflowID)
 	}
-	logger.Info("SVM transitioned to DELETING", "svmUUID", deletingSvm.UUID, "svmOCID", params.SvmID)
 
 	defer func() {
 		if err != nil && deletingSvm != nil {
@@ -198,7 +226,6 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 		}
 	}()
 
-	workflowID := uuid.NewString()
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
@@ -211,6 +238,11 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 		pool,
 	)
 	if err != nil {
+		if isWorkflowAlreadyStarted(err) {
+			logger.Info("DeleteSVM workflow already started; returning idempotent success", "workflowID", workflowID, "svmOCID", params.SvmID)
+			err = nil
+			return workflowID, nil
+		}
 		logger.Error("Failed to start DeleteSVM workflow", "workflowID", workflowID, "error", err)
 		return "", err
 	}

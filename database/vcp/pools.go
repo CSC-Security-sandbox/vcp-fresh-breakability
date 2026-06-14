@@ -85,6 +85,17 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 		logger.Errorf("Error while checking if pool exists: %v", err1)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
+
+	if dbPool.State == datamodel.LifeCycleStateCreating &&
+		pool.WorkflowID != "" &&
+		dbPool.WorkflowID == pool.WorkflowID {
+		dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: dbPool.UUID}})
+		if err != nil {
+			return nil, err
+		}
+		return ConvertPoolViewToPool(dbPoolView), nil
+	}
+
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewConflictErr("pool already exists"))
 }
 
@@ -174,6 +185,10 @@ func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.
 
 	if pool.ActiveDirectoryID.Valid && pool.ActiveDirectoryID.Int64 > 0 {
 		dbPool.ActiveDirectoryID = pool.ActiveDirectoryID
+	}
+
+	if pool.WorkflowID != "" {
+		dbPool.WorkflowID = pool.WorkflowID
 	}
 
 	dbPool.UpdatedAt = time.Now()
@@ -543,6 +558,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		ExpertModeCredentials:  view.ExpertModeCredentials,
 		APIAccessMode:          view.APIAccessMode,
 		BuildInfo:              view.BuildInfo,
+		WorkflowID:             view.WorkflowID,
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/workflowquery"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
@@ -68,6 +69,22 @@ func clampOCIDeploymentNameLength(s string) string {
 		return s[:ociNameMaxLen]
 	}
 	return s
+}
+
+func resolveWorkflowID(requestedID string) string {
+	if id := strings.TrimSpace(requestedID); id != "" {
+		return id
+	}
+	return uuid.NewString()
+}
+
+func isCrashResume(persistedWorkflowID, requestWorkflowID string) bool {
+	return requestWorkflowID != "" && persistedWorkflowID == requestWorkflowID
+}
+
+func isWorkflowAlreadyStarted(err error) bool {
+	var alreadyStarted *serviceerror.WorkflowExecutionAlreadyStarted
+	return errors.As(err, &alreadyStarted)
 }
 
 // prepareOCICreatePoolParams sets OCI-specific params: deployment name from PoolOCID and VendorID when empty.
@@ -195,7 +212,10 @@ func (o *OCIOrchestrator) CreatePool(ctx context.Context, params *commonparams.C
 	deploymentName := prepareOCICreatePoolParams(params)
 	logger.Infof("Generated deployment name from OCID: %s -> %s", params.PoolOCID, deploymentName)
 
+	workflowID := resolveWorkflowID(params.WorkflowID)
+
 	poolObj := preparePool(params, account, 0)
+	poolObj.WorkflowID = workflowID
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
 		logger.Error("Failed to create pool in database", "poolName", params.Name, "error", err)
@@ -209,8 +229,6 @@ func (o *OCIOrchestrator) CreatePool(ctx context.Context, params *commonparams.C
 		}
 	}()
 
-	workflowID := uuid.NewString()
-
 	// Start the OCI pool creation workflow
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
@@ -223,6 +241,12 @@ func (o *OCIOrchestrator) CreatePool(ctx context.Context, params *commonparams.C
 		dbPool,
 	)
 	if err != nil {
+		if isWorkflowAlreadyStarted(err) {
+			logger.Info("OCI pool create workflow already started; returning idempotent success", "workflowID", workflowID)
+			err = nil
+			poolView := database.ConvertPoolToPoolView(dbPool)
+			return common.ConvertDatastorePoolToModel(poolView, account.Name), workflowID, nil
+		}
 		logger.Error("Failed to start pool create workflow", "workflowID", workflowID, "error", err)
 		return nil, "", err
 	}
@@ -271,9 +295,14 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 		return nil, "", err
 	}
 
-	if err = validateUpdatePoolState(poolView.State, params.PoolExternalIdentifier); err != nil {
-		logger.Error("Invalid pool state", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
-		return nil, "", err
+	workflowID := resolveWorkflowID(params.WorkflowID)
+	resume := poolView.State == datamodel.LifeCycleStateUpdating && isCrashResume(poolView.WorkflowID, workflowID)
+
+	if !resume {
+		if err = validateUpdatePoolState(poolView.State, params.PoolExternalIdentifier); err != nil {
+			logger.Error("Invalid pool state", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
+			return nil, "", err
+		}
 	}
 
 	if err = validateNoActiveClusterUpgrade(ctx, se, poolView.UUID, params.PoolExternalIdentifier); err != nil {
@@ -307,9 +336,13 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 		params.SizeInBytes = computeUpdatePoolSizeInBytes(params, pool.PoolAttributes.IsRegionalHA)
 	}
 
-	pool, err = se.UpdatingPool(ctx, pool)
-	if err != nil {
-		return nil, "", err
+	pool.WorkflowID = workflowID
+
+	if !resume {
+		pool, err = se.UpdatingPool(ctx, pool)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	defer func() {
@@ -320,7 +353,6 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 		}
 	}()
 
-	workflowID := uuid.NewString()
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
@@ -332,6 +364,12 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 		pool,
 	)
 	if err != nil {
+		if isWorkflowAlreadyStarted(err) {
+			logger.Info("OCI pool update workflow already started; returning idempotent success", "workflowID", workflowID, "poolExternalIdentifier", params.PoolExternalIdentifier)
+			err = nil
+			poolView = database.ConvertPoolToPoolView(pool)
+			return common.ConvertDatastorePoolToModel(poolView, account.Name), workflowID, nil
+		}
 		logger.Error("Failed to start pool update workflow", "workflowID", workflowID, "error", err)
 		return nil, "", err
 	}
@@ -720,18 +758,22 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 		return nil, "", err
 	}
 
-	if utils.IsTransitionalState(poolView.State) {
+	workflowID := resolveWorkflowID(params.WorkflowID)
+	resume := poolView.State == datamodel.LifeCycleStateDeleting && isCrashResume(poolView.WorkflowID, workflowID)
+
+	if !resume && utils.IsTransitionalState(poolView.State) {
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", poolView.State))
 	}
 
 	pool := database.ConvertPoolViewToPool(poolView)
+	pool.WorkflowID = workflowID
 
-	// Update pool state to DELETING
-	if err = se.DeletingPool(ctx, pool); err != nil {
-		return nil, "", err
+	if !resume {
+		if err = se.DeletingPool(ctx, pool); err != nil {
+			return nil, "", err
+		}
 	}
 
-	workflowID := uuid.NewString()
 	params.PoolID = pool.UUID
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
@@ -743,6 +785,12 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 		pool,
 	)
 	if err != nil {
+		if isWorkflowAlreadyStarted(err) {
+			logger.Info("OCI pool delete workflow already started; returning idempotent success", "workflowID", workflowID)
+			poolView.State = pool.State
+			poolView.StateDetails = pool.StateDetails
+			return common.ConvertDatastorePoolToModel(poolView, account.Name), workflowID, nil
+		}
 		return nil, "", err
 	}
 

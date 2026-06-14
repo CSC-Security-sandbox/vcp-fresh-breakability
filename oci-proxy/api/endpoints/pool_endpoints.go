@@ -392,6 +392,36 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		createPoolParams.SecurityAttributes = toCustomerSecurityAttributes(req.SecurityAttributes.Value)
 	}
 
+	existing, lookupErr := h.lookupExistingWorkflow(ctx, opcRequestID)
+	if lookupErr != nil {
+		logger.Error("CreatePool idempotency lookup failed; failing closed", "workflowID", opcRequestID, "error", lookupErr)
+		return &ociserver.CreatePoolInternalServerError{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     req.PoolOCID,
+				ErrorMessage: "Internal server error",
+			},
+		}, nil
+	}
+	if existing.Found {
+		if isTerminalFailure(existing.Status) {
+			logger.Info("CreatePool idempotent replay of terminally-failed workflow; surfacing failure", "workflowID", opcRequestID, "status", existing.Status)
+			return &ociserver.CreatePoolConflict{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.PoolOperationErrorResponse{
+					Status:       string(existing.Status),
+					PoolOCID:     req.PoolOCID,
+					ErrorMessage: existing.failureMessage(),
+				},
+			}, nil
+		}
+		logger.Info("CreatePool idempotent replay for existing workflow", "workflowID", opcRequestID, "status", existing.Status)
+		return newCreatePoolAccepted(opcRequestID, req.PoolOCID, opcRequestID, existing.Status), nil
+	}
+
+	createPoolParams.WorkflowID = opcRequestID
+
 	_, workflowID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
 	if err != nil {
 		if utilserrors.IsUserInputValidationErr(err) {
@@ -421,24 +451,18 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 			},
 		}, nil
 	}
-	if workflowID != "" {
-		return &ociserver.CreatePoolAcceptedResponseHeaders{
-			OpcRequestID: opcRequestID,
-			Response: ociserver.CreatePoolAcceptedResponse{
-				Status:     string(workflowquery.WorkflowStatusInProgress),
-				WorkflowId: workflowID,
-				PoolOCID:   req.PoolOCID,
-			},
-		}, nil
-	}
+	return newCreatePoolAccepted(opcRequestID, req.PoolOCID, workflowID, workflowquery.WorkflowStatusInProgress), nil
+}
+
+func newCreatePoolAccepted(opcRequestID, poolOCID, workflowID string, status workflowquery.WorkflowStatus) *ociserver.CreatePoolAcceptedResponseHeaders {
 	return &ociserver.CreatePoolAcceptedResponseHeaders{
 		OpcRequestID: opcRequestID,
 		Response: ociserver.CreatePoolAcceptedResponse{
-			Status:     string(workflowquery.WorkflowStatusInProgress),
-			WorkflowId: "",
-			PoolOCID:   req.PoolOCID,
+			Status:     string(status),
+			WorkflowId: workflowID,
+			PoolOCID:   poolOCID,
 		},
-	}, nil
+	}
 }
 
 func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowParams) (ociserver.GetWorkflowRes, error) {
@@ -643,10 +667,46 @@ func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolPar
 
 	poolOCID := params.PoolOCID
 
+	existing, lookupErr := h.lookupExistingWorkflow(ctx, opcRequestID)
+	if lookupErr != nil {
+		logger.Error("DeletePool idempotency lookup failed; failing closed", "workflowID", opcRequestID, "error", lookupErr)
+		return &ociserver.DeletePoolInternalServerError{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     poolOCID,
+				ErrorMessage: "Internal server error",
+			},
+		}, nil
+	}
+	if existing.Found {
+		if isTerminalFailure(existing.Status) {
+			logger.Info("DeletePool idempotent replay of terminally-failed workflow; surfacing failure", "workflowID", opcRequestID, "status", existing.Status)
+			return &ociserver.DeletePoolConflict{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.PoolOperationErrorResponse{
+					Status:       string(existing.Status),
+					PoolOCID:     poolOCID,
+					ErrorMessage: existing.failureMessage(),
+				},
+			}, nil
+		}
+		logger.Info("DeletePool idempotent replay for existing workflow", "workflowID", opcRequestID, "status", existing.Status)
+		return &ociserver.DeletePoolAcceptedResponseHeaders{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.DeletePoolAcceptedResponse{
+				Status:     string(existing.Status),
+				WorkflowId: opcRequestID,
+				PoolOCID:   poolOCID,
+			},
+		}, nil
+	}
+
 	// Map to DeletePoolParams - for OCI, AccountName is compartment OCID and PoolName is deployment name
 	deletePoolParams := &commonparams.DeletePoolParams{
 		AccountName: params.TenancyOcid, // account name (compartment OCID)
 		PoolOCID:    poolOCID,           // path parameter
+		WorkflowID:  opcRequestID,       // OCI: workflow id == opc-request-id for idempotency
 	}
 
 	// Delete the pool
@@ -881,6 +941,36 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 		updateParams.SecurityAttributes = toUpdateCustomerSecurityAttributes(req.SecurityAttributes.Value)
 	}
 
+	existing, lookupErr := h.lookupExistingWorkflow(ctx, opcRequestID)
+	if lookupErr != nil {
+		logger.Error("UpdatePool idempotency lookup failed; failing closed", "workflowID", opcRequestID, "error", lookupErr)
+		return (*ociserver.UpdatePoolInternalServerError)(&ociserver.PoolOperationErrorResponseHeaders{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     poolExternalIdentifier,
+				ErrorMessage: "Internal server error",
+			},
+		}), nil
+	}
+	if existing.Found {
+		if isTerminalFailure(existing.Status) {
+			logger.Info("UpdatePool idempotent replay of terminally-failed workflow; surfacing failure", "workflowID", opcRequestID, "status", existing.Status)
+			return (*ociserver.UpdatePoolConflict)(&ociserver.PoolOperationErrorResponseHeaders{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.PoolOperationErrorResponse{
+					Status:       string(existing.Status),
+					PoolOCID:     poolExternalIdentifier,
+					ErrorMessage: existing.failureMessage(),
+				},
+			}), nil
+		}
+		logger.Info("UpdatePool idempotent replay for existing workflow", "workflowID", opcRequestID, "status", existing.Status)
+		return newUpdatePoolAccepted(opcRequestID, poolExternalIdentifier, opcRequestID, existing.Status), nil
+	}
+
+	updateParams.WorkflowID = opcRequestID
+
 	_, workflowID, err := h.Orchestrator.UpdatePool(ctx, updateParams)
 	if err != nil {
 		if utilserrors.IsUserInputValidationErr(err) || utilserrors.IsBadRequestErr(err) {
@@ -917,14 +1007,18 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 		}), nil
 	}
 
+	return newUpdatePoolAccepted(opcRequestID, poolExternalIdentifier, workflowID, workflowquery.WorkflowStatusInProgress), nil
+}
+
+func newUpdatePoolAccepted(opcRequestID, poolOCID, workflowID string, status workflowquery.WorkflowStatus) *ociserver.UpdatePoolAcceptedResponseHeaders {
 	return &ociserver.UpdatePoolAcceptedResponseHeaders{
 		OpcRequestID: opcRequestID,
 		Response: ociserver.UpdatePoolAcceptedResponse{
-			Status:     string(workflowquery.WorkflowStatusInProgress),
+			Status:     string(status),
 			WorkflowId: workflowID,
-			PoolOCID:   poolExternalIdentifier,
+			PoolOCID:   poolOCID,
 		},
-	}, nil
+	}
 }
 
 // NewError maps handler errors to HTTP status and returns *ErrorStatusCode. Defaults to 500 when status cannot be determined.

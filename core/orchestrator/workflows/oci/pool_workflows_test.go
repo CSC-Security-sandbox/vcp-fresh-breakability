@@ -925,6 +925,8 @@ func TestOCIDeletePoolWorkflow_VLMDeleteFailure(t *testing.T) {
 		Account:        &datamodel.Account{Name: "test-account"},
 	}
 
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 	orig := workflows.GetNewVSAClientWorkflowManager
@@ -960,6 +962,7 @@ func TestOCIDeletePoolWorkflow_DBCleanupFailure(t *testing.T) {
 	}
 
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)

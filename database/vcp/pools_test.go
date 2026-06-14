@@ -752,6 +752,210 @@ func TestCreatePool(t *testing.T) {
 		}
 		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool already exists")
 	})
+
+	t.Run("ResumesWhenCreatingRowHasMatchingWorkflowID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		existing := &datamodel.Pool{
+			BaseModel:  datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			State:      datamodel.LifeCycleStateCreating,
+			WorkflowID: "wf-1",
+		}
+		err = store.db.Create(existing).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		replay := &datamodel.Pool{
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			WorkflowID: "wf-1",
+		}
+		result, err := store.CreatingPool(context.Background(), replay)
+		if err != nil {
+			tt.Fatalf("Expected resume (no error), got %v", err)
+		}
+		if result.UUID != existing.UUID {
+			tt.Errorf("Expected reused pool UUID %v, got %v", existing.UUID, result.UUID)
+		}
+		if result.WorkflowID != "wf-1" {
+			tt.Errorf("Expected workflow id wf-1, got %v", result.WorkflowID)
+		}
+	})
+
+	t.Run("ConflictsWhenCreatingRowHasDifferentWorkflowID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		existing := &datamodel.Pool{
+			BaseModel:  datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			State:      datamodel.LifeCycleStateCreating,
+			WorkflowID: "wf-original",
+		}
+		err = store.db.Create(existing).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		replay := &datamodel.Pool{
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			WorkflowID: "wf-different",
+		}
+		_, err = store.CreatingPool(context.Background(), replay)
+		if err == nil {
+			tt.Fatalf("Expected conflict error, got nil")
+		}
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool already exists")
+	})
+
+	t.Run("ConflictsWhenExistingRowIsReady", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		existing := &datamodel.Pool{
+			BaseModel:  datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			State:      datamodel.LifeCycleStateREADY,
+			WorkflowID: "wf-1",
+		}
+		err = store.db.Create(existing).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		replay := &datamodel.Pool{
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			WorkflowID: "wf-1",
+		}
+		_, err = store.CreatingPool(context.Background(), replay)
+		if err == nil {
+			tt.Fatalf("Expected conflict error for READY pool, got nil")
+		}
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool already exists")
+	})
+
+	t.Run("ConflictsWhenReplayWorkflowIDEmpty", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		existing := &datamodel.Pool{
+			BaseModel:  datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:       "test_pool",
+			VendorID:   "test-pool-vendor-id",
+			AccountID:  account.ID,
+			Account:    account,
+			State:      datamodel.LifeCycleStateCreating,
+			WorkflowID: "",
+		}
+		err = store.db.Create(existing).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		replay := &datamodel.Pool{
+			Name:      "test_pool",
+			VendorID:  "test-pool-vendor-id",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		_, err = store.CreatingPool(context.Background(), replay)
+		if err == nil {
+			tt.Fatalf("Expected conflict error when workflow id empty, got nil")
+		}
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool already exists")
+	})
 }
 
 func TestSavePoolWithVsaClusterDetails(t *testing.T) {

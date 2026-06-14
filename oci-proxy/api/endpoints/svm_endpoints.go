@@ -84,6 +84,30 @@ func (h *Handler) CreateSvmByPool(ctx context.Context, req *ociserver.CreateSvmR
 		}, nil
 	}
 
+	existing, lookupErr := h.lookupExistingWorkflow(ctx, opcRequestID)
+	if lookupErr != nil {
+		logger.Error("CreateSvm idempotency lookup failed; failing closed", "workflowID", opcRequestID, "error", lookupErr)
+		return &ociserver.CreateSvmByPoolInternalServerError{
+			OpcRequestID: opcRequestID,
+			Response:     svmErrorResponse(svmOCID, "Internal server error"),
+		}, nil
+	}
+	if existing.Found {
+		if isTerminalFailure(existing.Status) {
+			logger.Info("CreateSvm idempotent replay of terminally-failed workflow; surfacing failure", "workflowID", opcRequestID, "status", existing.Status)
+			return &ociserver.CreateSvmByPoolConflict{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.SvmOperationErrorResponse{
+					Status:       string(existing.Status),
+					SvmOCID:      svmOCID,
+					ErrorMessage: existing.failureMessage(),
+				},
+			}, nil
+		}
+		logger.Info("CreateSvm idempotent replay for existing workflow", "workflowID", opcRequestID, "status", existing.Status)
+		return newCreateSvmAccepted(opcRequestID, svmOCID, opcRequestID, existing.Status), nil
+	}
+
 	createSvmParams := &commonparams.CreateSvmParams{
 		AccountName:           tenancyOCID,
 		PoolOCID:              poolOCID,
@@ -94,6 +118,7 @@ func (h *Handler) CreateSvmByPool(ctx context.Context, req *ociserver.CreateSvmR
 			Ocid:    req.SvmAdminPassword.Ocid,
 			Version: svmAdminPasswordVersion,
 		},
+		WorkflowID: opcRequestID,
 	}
 
 	workflowID, err := h.Orchestrator.CreateSvm(ctx, createSvmParams)
@@ -127,14 +152,18 @@ func (h *Handler) CreateSvmByPool(ctx context.Context, req *ociserver.CreateSvmR
 		}, nil
 	}
 
+	return newCreateSvmAccepted(opcRequestID, svmOCID, workflowID, workflowquery.WorkflowStatusInProgress), nil
+}
+
+func newCreateSvmAccepted(opcRequestID, svmOCID, workflowID string, status workflowquery.WorkflowStatus) *ociserver.CreateSvmAcceptedResponseHeaders {
 	return &ociserver.CreateSvmAcceptedResponseHeaders{
 		OpcRequestID: opcRequestID,
 		Response: ociserver.CreateSvmAcceptedResponse{
-			Status:     string(workflowquery.WorkflowStatusInProgress),
+			Status:     string(status),
 			WorkflowId: workflowID,
 			SvmOCID:    svmOCID,
 		},
-	}, nil
+	}
 }
 
 // DeleteSvm implements generated deleteSvm operation.
@@ -170,11 +199,36 @@ func (h *Handler) DeleteSvm(ctx context.Context, req ociserver.OptDeleteSvmReq, 
 		force = req.Value.Force.Or(false)
 	}
 
+	existing, lookupErr := h.lookupExistingWorkflow(ctx, opcRequestID)
+	if lookupErr != nil {
+		logger.Error("DeleteSvm idempotency lookup failed; failing closed", "workflowID", opcRequestID, "error", lookupErr)
+		return &ociserver.DeleteSvmInternalServerError{
+			OpcRequestID: opcRequestID,
+			Response:     svmErrorResponse(svmOCID, "Internal server error"),
+		}, nil
+	}
+	if existing.Found {
+		if isTerminalFailure(existing.Status) {
+			logger.Info("DeleteSvm idempotent replay of terminally-failed workflow; surfacing failure", "workflowID", opcRequestID, "status", existing.Status)
+			return &ociserver.DeleteSvmConflict{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.SvmOperationErrorResponse{
+					Status:       string(existing.Status),
+					SvmOCID:      svmOCID,
+					ErrorMessage: existing.failureMessage(),
+				},
+			}, nil
+		}
+		logger.Info("DeleteSvm idempotent replay for existing workflow", "workflowID", opcRequestID, "status", existing.Status)
+		return newDeleteSvmAccepted(opcRequestID, svmOCID, opcRequestID, existing.Status), nil
+	}
+
 	workflowID, err := h.Orchestrator.DeleteSvm(ctx, &commonparams.DeleteSvmParams{
 		PoolOCID:    poolOCID,
 		AccountName: tenancyOCID,
 		SvmID:       svmOCID,
 		Force:       force,
+		WorkflowID:  opcRequestID,
 	})
 	if err != nil {
 		if utilserrors.IsUserInputValidationErr(err) || utilserrors.IsBadRequestErr(err) {
@@ -207,12 +261,16 @@ func (h *Handler) DeleteSvm(ctx context.Context, req ociserver.OptDeleteSvmReq, 
 		}, nil
 	}
 
+	return newDeleteSvmAccepted(opcRequestID, svmOCID, workflowID, workflowquery.WorkflowStatusInProgress), nil
+}
+
+func newDeleteSvmAccepted(opcRequestID, svmOCID, workflowID string, status workflowquery.WorkflowStatus) *ociserver.DeleteSvmAcceptedResponseHeaders {
 	return &ociserver.DeleteSvmAcceptedResponseHeaders{
 		OpcRequestID: opcRequestID,
 		Response: ociserver.DeleteSvmAcceptedResponse{
-			Status:     string(workflowquery.WorkflowStatusInProgress),
+			Status:     string(status),
 			WorkflowId: workflowID,
 			SvmOCID:    svmOCID,
 		},
-	}, nil
+	}
 }

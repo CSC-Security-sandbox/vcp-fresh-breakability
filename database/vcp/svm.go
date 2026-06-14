@@ -308,6 +308,7 @@ func (d *DataStoreRepository) TransitionSvmToDeleting(ctx context.Context, svm *
 		Updates(map[string]interface{}{
 			"state":         datamodel.LifeCycleStateDeleting,
 			"state_details": datamodel.LifeCycleStateDeletingDetails,
+			"workflow_id":   svm.WorkflowID,
 			"updated_at":    time.Now(),
 		})
 	if res.Error != nil {

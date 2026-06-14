@@ -80,6 +80,7 @@ type CreatePoolParams struct {
 	NsgIds             []string
 	SecurityAttributes map[string]map[string]interface{}
 	FabricPoolConfig   *FabricPoolConfig
+	WorkflowID string
 }
 
 type FabricPoolConfig struct {
@@ -107,6 +108,8 @@ type CreateSvmParams struct {
 	EnableNfs             bool     // Enable NFS (data LIFs for file)
 	Ips                   []string // Optional IPs for data LIFs; if set, count must match required data LIFs
 	SvmAdminPassword      *OciAdminPassword
+	// WorkflowID, when set, is used as the Temporal workflow ID (OCI: opc-request-id).
+	WorkflowID string
 }
 
 // DeleteSvmParams describes parameters for deleting an SVM from an existing pool (cluster).
@@ -115,6 +118,8 @@ type DeleteSvmParams struct {
 	AccountName string // Account/tenancy OCID (used for account-scoped SVM lookup)
 	SvmID       string // SVM OCID
 	Force       bool   // Force delete even if dependent resources exist
+	// WorkflowID, when set, is used as the Temporal workflow ID (OCI: opc-request-id).
+	WorkflowID string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
@@ -281,6 +286,8 @@ type DeletePoolParams struct {
 	AccountName string
 	PoolID      string // Pool UUID - if provided, pool will be looked up and VendorID (PoolOCID for OCI) will be extracted
 	PoolOCID    string // OCI pool OCID - used to generate deployment name following OCI naming convention (preferred over PoolName)
+	// WorkflowID, when set, is used as the Temporal workflow ID (OCI: opc-request-id).
+	WorkflowID string
 }
 
 type SnapshotBaseParams struct {
@@ -504,6 +511,8 @@ type UpdatePoolParams struct {
 	NsgIds                    []string
 	SecurityAttributes        map[string]map[string]interface{}
 	HAPairs                   uint64
+	// WorkflowID, when set, is used as the Temporal workflow ID (OCI: opc-request-id).
+	WorkflowID string
 }
 
 // NodeCapacity describes per-node capacity parameters for OCI pool updates.
