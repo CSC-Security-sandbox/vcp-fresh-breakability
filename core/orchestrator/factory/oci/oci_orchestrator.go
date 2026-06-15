@@ -737,7 +737,7 @@ func (o *OCIOrchestrator) UpdateRbacForPoolById(ctx context.Context, params *com
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
 		workflowID,
-		workflowengine.BackgroundTaskQueue,
+		workflowengine.CustomerTaskQueue,
 		ociworkflows.OCIRefreshRbacForPoolWorkflow,
 		nil,
 		wfParams,

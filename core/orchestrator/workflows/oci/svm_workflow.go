@@ -166,16 +166,16 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	emitStage(ctx, wfCreateSVM, queueCustomer, stageParseVlmConfig, resultSuccess)
 	credConfig := vlm.OntapCredentials{}
 
-	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentialsForOCI, pool).Get(ctx, &credConfig)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM create: %v", err)
 		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if credConfig.AdminPassword == "" {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetOnTapCredentialsForOCI returned empty password"))
 		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
-		return nil, workflows.ConvertToVSAError(
-			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultSuccess)
 
@@ -186,9 +186,9 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if svmAdminCreds == nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminPasswordSecretForOCI returned nil credentials"))
 		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetSVMAdminCreds, resultFailure)
-		return nil, workflows.ConvertToVSAError(
-			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminPasswordSecretForOCI returned nil credentials")))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfCreateSVM, queueCustomer, stageGetSVMAdminCreds, resultSuccess)
 
@@ -414,16 +414,16 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	// Step 2: remove the SVM from the ONTAP cluster via VLM.
 	credConfig := vlm.OntapCredentials{}
-	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentialsForOCI, pool).Get(ctx, &credConfig)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM delete: %v", err)
 		emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if credConfig.AdminPassword == "" {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetOnTapCredentialsForOCI returned empty password"))
 		emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
-		return nil, workflows.ConvertToVSAError(
-			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultSuccess)
 

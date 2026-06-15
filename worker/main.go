@@ -467,7 +467,6 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 // Used when HYPERSCALER=oci. For GCP, RegisterBackgroundWorkflowsAndActivities registers the full set.
 func RegisterOCIBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
 	worker.RegisterWorkflow(ociworkflows.OCIClusterUpgradeWorkflow)
-	worker.RegisterWorkflow(ociworkflows.OCIRefreshRbacForPoolWorkflow)
 	worker.RegisterActivity(&activities.ClusterUpgradeActivity{SE: conn})
 	worker.RegisterActivity(&activities.PoolActivity{SE: conn})
 	worker.RegisterActivity(&activities.CommonActivities{SE: conn})

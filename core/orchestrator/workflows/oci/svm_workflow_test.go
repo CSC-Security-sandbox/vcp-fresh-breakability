@@ -610,6 +610,60 @@ func TestOCIDeleteSVMWorkflow_NilPoolCredentialsFailsBeforeVlmDelete(t *testing.
 	env.AssertExpectations(t)
 }
 
+// GetOnTapCredentialsForOCI fails -> the delete workflow must fire the rollback
+// so the SVM moves DELETING -> ERROR, and must not attempt the VLM delete or the
+// soft-delete steps.
+func TestOCIDeleteSVMWorkflow_GetOnTapCredentialsFails_RollbackMarksError(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	params, svm, pool, vlmCfg := deleteSVMTestFixtures()
+
+	markErroredCalled := false
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return((*vlm.OntapCredentials)(nil), assert.AnError)
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
+	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { t.Fatalf("SoftDeleteSvm should not run when credential fetch failed") }).
+		Return(nil).Maybe()
+
+	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForDeletion rollback must fire when GetOnTapCredentialsForOCI fails")
+	env.AssertExpectations(t)
+}
+
+// GetOnTapCredentialsForOCI returns an empty AdminPassword -> the delete workflow
+// must reject it via the empty-password guard, fail, and skip the VLM delete +
+// soft-delete steps. The guard assigns the workflow-level err before returning,
+// so the deferred rollback MUST fire to move the SVM DELETING -> ERROR rather
+// than leaving it stranded.
+func TestOCIDeleteSVMWorkflow_GetOnTapCredentialsEmptyPassword(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	params, svm, pool, vlmCfg := deleteSVMTestFixtures()
+
+	markErroredCalled := false
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: ""}, nil)
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
+	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { t.Fatalf("SoftDeleteSvm should not run when the ONTAP password is empty") }).
+		Return(nil).Maybe()
+
+	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "empty-password guard sets err, so the rollback must fire to move the SVM DELETING -> ERROR")
+	env.AssertExpectations(t)
+}
+
 // ---------------------------------------------------------------------------
 // buildCreateSVMResult
 // ---------------------------------------------------------------------------
@@ -927,13 +981,18 @@ func TestOCICreateSVMWorkflow_GetSvmAdminPasswordFails(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	// GetOnTapCredentialsForOCI runs before GetSvmAdminPasswordSecretForOCI, so it
+	// must succeed for the SVM-admin-password failure branch to be reached.
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "cluster-pw"}, nil)
 	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
 		Return((*vlm.OntapCredentials)(nil), assert.AnError)
 	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -942,6 +1001,83 @@ func TestOCICreateSVMWorkflow_GetSvmAdminPasswordFails(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+}
+
+// GetOnTapCredentialsForOCI fails -> the create workflow must propagate the
+// activity error and fire the DB rollback so the pre-allocated SVM row moves
+// CREATING -> ERROR rather than being stranded.
+func TestOCICreateSVMWorkflow_GetOnTapCredentialsFails(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	markErroredCalled := false
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return((*vlm.OntapCredentials)(nil), assert.AnError)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForCreation rollback must fire when GetOnTapCredentialsForOCI fails")
+	env.AssertExpectations(t)
+}
+
+// GetOnTapCredentialsForOCI succeeds but returns an empty AdminPassword -> the
+// create workflow must reject it via the empty-password guard and fail before
+// reaching the SVM-admin-password step. This guard assigns the workflow-level
+// err before returning, so the deferred rollback MUST fire to move the
+// pre-allocated SVM row CREATING -> ERROR rather than stranding it.
+func TestOCICreateSVMWorkflow_GetOnTapCredentialsEmptyPassword(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	markErroredCalled := false
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("GetOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: ""}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { t.Fatalf("GetSvmAdminPasswordSecretForOCI must not run when the ONTAP password is empty") }).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil).Maybe()
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "empty-password guard sets err, so the rollback must fire to move the SVM CREATING -> ERROR")
+	env.AssertExpectations(t)
 }
 
 // ParseVlmConfig returns nil vlmConfig with nil error in OCIDeleteSVMWorkflow.

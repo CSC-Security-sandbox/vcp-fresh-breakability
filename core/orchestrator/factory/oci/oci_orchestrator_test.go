@@ -2241,7 +2241,12 @@ func TestOCIOrchestrator_UpdateRbacForPoolById_Success(t *testing.T) {
 
 		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
 		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		// The RBAC refresh workflow must be dispatched on the customer task queue
+		// so it runs alongside other customer-facing OCI workflows rather than on
+		// the background queue.
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.TaskQueue == workflowengine.CustomerTaskQueue
+		}), mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 		params := &commonparams.RefreshRbacForPoolParams{
 			PoolOCID:    "ocid1.pool.oc1..abc",
