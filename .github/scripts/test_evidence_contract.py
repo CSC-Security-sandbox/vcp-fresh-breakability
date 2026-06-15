@@ -275,6 +275,70 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.ABSTAIN)
         self.assertEqual(decision.reason_code, "abstain:budget")
 
+    def test_build_unavailable_clears_when_not_reached(self):
+        # Consumer build tooling failed (UNAVAILABLE+tool_failure), but the changed
+        # dependency is not reached by our code -> safe regardless of the build.
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True),
+            SignalName.REACHABILITY: record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=False),
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.MERGE)
+        self.assertEqual(decision.reason_code, "merge:not-reached")
+        self.assertEqual(decision.confidence, Confidence.MEDIUM)
+
+    def test_build_unavailable_clears_when_probe_and_apidiff_agree(self):
+        # Two independent execution-grade signals (probe identical behavior + semantic
+        # apidiff backward-compatible) prove a non-major upgrade safe without the build.
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True),
+            SignalName.API_DIFF: record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH),
+            SignalName.REACHABILITY: record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=True),
+            SignalName.PROBE: record(SignalName.PROBE, SignalStatus.PASS, same_behavior=True, relevant=False, confidence=Confidence.HIGH),
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.MERGE)
+        self.assertEqual(decision.reason_code, "merge:probe-api-clean")
+        self.assertEqual(decision.confidence, Confidence.MEDIUM)
+
+    def test_build_unavailable_holds_major_even_with_probe_and_apidiff(self):
+        # A major bump can ship behavioral breaks under an unchanged surface; probe+apidiff
+        # alone (no passing test, no clean changelog) must NOT clear a major without a build.
+        decision = decide(bundle(
+            from_version="1.0.0",
+            to_version="2.0.0",
+            is_major=True,
+            signals={
+                SignalName.BUILD: record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True),
+                SignalName.TEST: record(SignalName.TEST, SignalStatus.UNAVAILABLE, tool_failure=True),
+                SignalName.API_DIFF: record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH),
+                SignalName.REACHABILITY: record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=True),
+                SignalName.RELEASE_NOTES: record(SignalName.RELEASE_NOTES, SignalStatus.UNAVAILABLE),
+                SignalName.PROBE: record(SignalName.PROBE, SignalStatus.PASS, same_behavior=True, relevant=False, confidence=Confidence.HIGH),
+            },
+        ))
+        self.assertNotEqual(decision.verdict, VerdictAction.MERGE)
+        self.assertEqual(decision.verdict, VerdictAction.ABSTAIN)
+
+    def test_build_unavailable_apidiff_clean_alone_does_not_clear(self):
+        # apidiff clean WITHOUT a corroborating probe-same (and the dep IS reached) is not
+        # enough to clear when the build is unavailable -> falls through to tool-failure abstain.
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True),
+            SignalName.API_DIFF: record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH),
+            SignalName.REACHABILITY: record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=True),
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.ABSTAIN)
+        self.assertEqual(decision.reason_code, "abstain:tool_failure")
+
+    def test_build_fail_never_clears_via_build_independent_path(self):
+        # A genuine build FAIL is a hard blocker; the build-independent clearance must not rescue it.
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.FAIL),
+            SignalName.REACHABILITY: record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=False),
+            SignalName.PROBE: record(SignalName.PROBE, SignalStatus.PASS, same_behavior=True, relevant=False, confidence=Confidence.HIGH),
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.FIX)
+        self.assertEqual(decision.reason_code, "build:fail")
+
     def test_dict_validation_and_decision(self):
         data = bundle().to_dict()
         decision = decide(data)

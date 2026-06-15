@@ -443,6 +443,46 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
         # security-sensitivity, already excluded. Benign -> changelog GLANCE.
         return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:ci-benign")
 
+    # ── Build-independent positive clearance ────────────────────────────────────
+    # In real monorepos the *consumer* build/test tooling fails constantly for infra reasons
+    # wholly unrelated to the upgrade (private registry auth, workspace file: links, peer-dep
+    # noise, tsc project refs). That tool failure surfaces as BUILD=UNAVAILABLE+tool_failure and,
+    # left unchecked, abstains us into REVIEW below — even when execution-grade signals that DO
+    # NOT depend on whether OUR project compiles already prove the upgrade is safe:
+    #   (a) the changed dependency is not reached by our code (no import resolves to it), or
+    #   (b) a behavioral probe installed BOTH versions and observed identical runtime behavior,
+    #       corroborated by a semantic apidiff that actually ran and found no incompatible change.
+    # Both are independent of the consumer build, so a consumer-build tool failure must not bury
+    # them. This MUST precede the generic tool-failure abstain. Only engages when the build did
+    # not already pass (build-pass flows are adjudicated by the stricter logic below). Zero-false-
+    # green is preserved: every hard build/test/api/probe FAIL was already returned above; the
+    # not-reached proof is build-agnostic by construction; and path (b) is withheld for majors
+    # and pre-1.0 multi-minor jumps (behavioral breaks can hide under an unchanged surface) and
+    # defers to an uncleared declared-breaking changelog.
+    if not _is_pass(build) and not _is_fail(build):
+        _ic_reach = bundle.signal(SignalName.REACHABILITY)
+        _ic_probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
+        _ic_not_reached = _is_not_relevant_pass(_ic_reach)
+        if _ic_not_reached:
+            return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.MEDIUM, _merge_reason("merge:not-reached", bundle))
+        _ic_api_clean = (
+            api_diff is not None
+            and _is_pass(api_diff)
+            and api_diff.confidence == Confidence.HIGH
+            and not api_diff.tool_failure
+        )
+        _ic_declared_break = (
+            _is_fail(release_notes) and release_notes is not None and release_notes.relevant is True
+        )
+        if (
+            _ic_probe_same
+            and _ic_api_clean
+            and not _ic_declared_break
+            and not _pre1_multi_minor_unverified(bundle, test)
+            and not _major_apidiff_unverified(bundle, test, release_notes)
+        ):
+            return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.MEDIUM, _merge_reason("merge:probe-api-clean", bundle))
+
     abstain = _abstain_reason(bundle)
     if abstain != AbstainReason.NONE:
         return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
@@ -540,6 +580,8 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "merge:not-reached-security-relevant": "breakability-safe: the changed dependency is not reached by production code. Security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent",
         "merge:hard-clean-security-relevant": "breakability-safe: hard evidence is clean. Security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent",
         "merge:hard-clean": "hard evidence is clean",
+        "merge:probe-api-clean": "a behavioral probe installed both versions and observed identical runtime behavior, and a semantic apidiff proves the public API is backward-compatible — independent execution evidence proves safety even though the consumer build/test tooling was unavailable",
+        "merge:probe-api-clean-security-relevant": "breakability-safe: a behavioral probe observed identical runtime behavior and a semantic apidiff proves the public API is backward-compatible (consumer build/test tooling unavailable). Security-relevant dependency — auto-cleared on the breakability axis; confirm the upgrade's security intent",
         "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",
     }.get(reason_code, reason_code)
     return VerdictDecision(verdict=verdict, severity=severity, confidence=confidence, reason_code=reason_code, display_reason=display)
