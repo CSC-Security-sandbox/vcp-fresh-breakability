@@ -401,7 +401,6 @@ jobs:
                 echo "Warning: No GCP artifact URL found for ${IMAGE}"
               fi
             fi
-            fi
           done
         shell: bash -e {0}
 
