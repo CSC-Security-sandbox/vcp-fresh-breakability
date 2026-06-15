@@ -1,7 +1,7 @@
-ARG BASE
-FROM $BASE
+ARG BASE=gcr.io/distroless/base-debian12:nonroot
+FROM ${BASE}
 
-COPY artifacts/vcp-worker /app
+COPY artifacts/vcp-worker/vcp-worker /app
 COPY common/vsa_config/vlm-config-oci.json /common/vsa_config/vlm-config.json
 COPY config/vmrs_oci.yaml /config/vmrs_oci.yaml
 

@@ -585,7 +585,12 @@ jobs:
           done
 
           # --- Read OCI metadata from override/values files ---
-          ONTAP_VERSIONS_JSON=$(yq -o=json '.ontapVersionVlmImageMappings | [.[].ontapVersion]' "$OCI_VLM_OVERRIDES")
+          ONTAP_VERSION_DETAILS=$(yq '.workerConfig.ontapVersionDetails' "$OCI_WORKER_VALUES")
+          if [ -z "$ONTAP_VERSION_DETAILS" ] || [ "$ONTAP_VERSION_DETAILS" = "null" ]; then
+            echo "Error: workerConfig.ontapVersionDetails is empty or null in $OCI_WORKER_VALUES"
+            exit 1
+          fi
+          ONTAP_VERSIONS_JSON=$(jq -cn --arg v "$ONTAP_VERSION_DETAILS" '[$v]')
 
           OCIR_REGISTRY=$(yq '.global.primaryImageRegistry' "$OCI_WORKER_VALUES")
           OCIR_TENANCY_NS=$(yq '.global.primaryImageRegistryPath' "$OCI_WORKER_OVERRIDES")
@@ -613,12 +618,8 @@ jobs:
             fi
           done
 
-          MIN_ONTAP=$(echo "$ONTAP_VERSIONS_JSON" | jq -r 'if length > 0 then first else "" end')
-          MAX_ONTAP=$(echo "$ONTAP_VERSIONS_JSON" | jq -r 'if length > 0 then last else "" end')
-          if [ -z "$MIN_ONTAP" ] || [ -z "$MAX_ONTAP" ]; then
-            echo "Error: No ONTAP versions found in $OCI_VLM_OVERRIDES (ontapVersionVlmImageMappings is empty)"
-            exit 1
-          fi
+          MIN_ONTAP="$ONTAP_VERSION_DETAILS"
+          MAX_ONTAP="$ONTAP_VERSION_DETAILS"
 
           # --- Binaries ---
           IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
@@ -712,16 +713,14 @@ jobs:
             echo "Skipping helmCharts in manifest (push_charts=false)"
           fi
 
-          # --- vsaArtifacts (from OCI overrides) ---
-          VSA_VERSIONS_JSON=$(yq -o=json '.ontapVersionVlmImageMappings' "$OCI_VLM_OVERRIDES" | jq \
+          # --- vsaArtifacts (ONTAP version from vcp-worker-chart values, VLM tag from vlm-worker overrides) ---
+          VLM_VERSION=$(echo "$VLM_IMAGE_TAG" | cut -d'_' -f1)
+          VSA_VERSIONS_JSON=$(jq -cn \
+            --arg ontap "$ONTAP_VERSION_DETAILS" \
+            --arg vlm "$VLM_VERSION" \
             --arg vsaOcid "$VSA_IMAGE_OCID" \
             --arg mediatorOcid "$MEDIATOR_IMAGE_OCID" \
-            '[.[] | {
-              "ontapVersion": .ontapVersion,
-              "vlmVersion": (.vlmImageTag | split("_") | .[0]),
-              "vsaImageOcid": $vsaOcid,
-              "mediatorImageOcid": $mediatorOcid
-            }]')
+            '[{"ontapVersion":$ontap,"vlmVersion":$vlm,"vsaImageOcid":$vsaOcid,"mediatorImageOcid":$mediatorOcid}]')
 
           # --- Dockerfiles (OCI-only: worker/Dockerfile.oci and oci-proxy/Dockerfile) ---
           DOCKERFILES_JSON='[]'
