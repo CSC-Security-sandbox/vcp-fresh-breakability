@@ -798,6 +798,10 @@ if [[ "$DRY_RUN" == "1" ]]; then
   export MERGE_PLAN_NUM
   echo "  [dry-run] skipping merge-plan issue close/create (number=LOCAL)"
 else
+# Ensure the merge-plan label exists — `gh issue create --label` hard-fails if the
+# label is absent (a fresh repo has none), which previously emptied MERGE_PLAN_NUM and
+# cascaded into "Failed to create merge plan issue". Create it idempotently.
+gh label create "$_MP_LABEL" --color "0e8a16" --description "Breakability merge plan" >/dev/null 2>&1 || true
 _MP_OLD=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
 _MP_OLD_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
   -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan|[Dd]ependabot [Mm]erge [Pp]lan|[Bb]reakability [Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
@@ -4008,6 +4012,37 @@ print(len(data.get('prs', {})))
 " 2>/dev/null || echo "?")
   _MP_TITLE="📋 Breakability Merge Plan $(date -u '+%Y-%m-%d %H:%M UTC') (${_MP_PR_COUNT} PRs)"
 
+  # GitHub caps issue/comment bodies at 65536 chars. On large repos the rendered plan
+  # (per-PR sections + long CVE lists) can exceed that, which previously made
+  # `gh issue create` fail silently ("Failed to create merge plan issue") and post
+  # nothing. Build a truncated copy for the GitHub post (the full body is still written
+  # to disk as the dry-run/CI artifact). The plan is front-loaded (Developer Action
+  # Summary, security CVEs, per-PR review), so head-truncation preserves the
+  # actionable content.
+  MERGE_PLAN_BODY_POST="$MERGE_PLAN_BODY"
+  if [[ "${#MERGE_PLAN_BODY}" -gt 65000 ]]; then
+    MERGE_PLAN_BODY_POST=$(MP_FULL="$MERGE_PLAN_BODY" python3 << 'PYEOF'
+import os
+body = os.environ.get("MP_FULL", "")
+LIMIT = 65536
+NOTICE = ("\n\n---\n> ⚠️ **Plan truncated** — the full plan exceeded GitHub's "
+          "65,536-character issue limit. The most actionable sections (summary, "
+          "security fixes, per-PR review) are shown above; the complete plan is "
+          "available as the `merge-plan.md` CI artifact / dry-run output.\n")
+budget = LIMIT - len(NOTICE) - 16
+if len(body) <= budget:
+    print(body, end="")
+else:
+    head = body[:budget]
+    nl = head.rfind("\n")
+    if nl > 0:
+        head = head[:nl]
+    print(head + NOTICE, end="")
+PYEOF
+)
+    echo "  Merge plan body exceeded 65536 chars — truncated to fit GitHub limit"
+  fi
+
   # The plan issue was reserved (and stale plans closed) BEFORE the per-PR loop so
   # comments could link the live number. Update THAT issue in place with the final
   # title + body. Only if reservation failed do we create one now (fallback).
@@ -4015,7 +4050,7 @@ print(len(data.get('prs', {})))
     printf '%s\n' "$MERGE_PLAN_BODY" > "$DRY_RUN_DIR/merge-plan.md"
     echo "  [dry-run] wrote merge plan -> $DRY_RUN_DIR/merge-plan.md"
   elif [[ -n "${MERGE_PLAN_NUM:-}" ]]; then
-    if gh issue edit "$MERGE_PLAN_NUM" --title "$_MP_TITLE" --body "$MERGE_PLAN_BODY" >/dev/null 2>&1; then
+    if gh issue edit "$MERGE_PLAN_NUM" --title "$_MP_TITLE" --body "$MERGE_PLAN_BODY_POST" >/dev/null 2>&1; then
       echo "  Updated merge plan issue #$MERGE_PLAN_NUM"
     else
       echo "  ⚠️  Failed to update reserved merge plan issue #$MERGE_PLAN_NUM"
@@ -4023,8 +4058,14 @@ print(len(data.get('prs', {})))
   else
     NEW_ISSUE=$(gh issue create \
       --title "$_MP_TITLE" \
-      --body "$MERGE_PLAN_BODY" \
+      --body "$MERGE_PLAN_BODY_POST" \
       --label "$_MP_LABEL" 2>/dev/null || echo "")
+    # Retry without the label if the labeled create failed (e.g. label missing).
+    if [[ -z "$NEW_ISSUE" ]]; then
+      NEW_ISSUE=$(gh issue create \
+        --title "$_MP_TITLE" \
+        --body "$MERGE_PLAN_BODY_POST" 2>/dev/null || echo "")
+    fi
     if [[ -n "$NEW_ISSUE" ]]; then
       echo "  Created merge plan issue: $NEW_ISSUE"
     else
