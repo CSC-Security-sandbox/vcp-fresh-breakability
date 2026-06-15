@@ -112,6 +112,9 @@ type (
 		// ListVolumesForResourceData returns only the fields needed for aggregator resource data, optimized for telemetry with pagination.
 		ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error)
 		GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
+		// GetPoolVolumesForQosTransition returns active pool volumes with only the fields needed for
+		// manual↔auto qosType transition (no association preloads).
+		GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 		GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error)
 		DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error
 		DereferencePoolVolumesFromVPGs(ctx context.Context, poolID int64) (int64, error)

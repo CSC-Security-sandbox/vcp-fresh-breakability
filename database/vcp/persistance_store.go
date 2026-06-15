@@ -673,6 +673,10 @@ func (s *PersistenceStore) GetVolumesByPoolID(ctx context.Context, poolID int64)
 	return s.dataStore.GetVolumesByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetPoolVolumesForQosTransition(ctx, poolID)
+}
+
 func (s *PersistenceStore) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
 	return s.dataStore.GetVolumesByVolumePerformanceGroupID(ctx, vpgID)
 }

@@ -14802,6 +14802,63 @@ func (_c *MockDataStore_GetVolumesByPoolID_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetPoolVolumesForQosTransition provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolVolumesForQosTransition")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.Volume); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolVolumesForQosTransition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolVolumesForQosTransition'
+type MockDataStore_GetPoolVolumesForQosTransition_Call struct {
+	*mock.Call
+}
+
+// GetPoolVolumesForQosTransition is a helper method to define mock.On call
+func (_e *MockDataStore_Expecter) GetPoolVolumesForQosTransition(ctx interface{}, poolID interface{}) *MockDataStore_GetPoolVolumesForQosTransition_Call {
+	return &MockDataStore_GetPoolVolumesForQosTransition_Call{Call: _e.mock.On("GetPoolVolumesForQosTransition", ctx, poolID)}
+}
+
+func (_c *MockDataStore_GetPoolVolumesForQosTransition_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_GetPoolVolumesForQosTransition_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolVolumesForQosTransition_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockDataStore_GetPoolVolumesForQosTransition_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolVolumesForQosTransition_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Volume, error)) *MockDataStore_GetPoolVolumesForQosTransition_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumesByVolumePerformanceGroupID provides a mock function with given fields: ctx, vpgID
 func (_m *MockDataStore) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, vpgID)

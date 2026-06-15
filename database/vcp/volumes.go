@@ -571,6 +571,21 @@ func (d *DataStoreRepository) GetVolumesByPoolID(ctx context.Context, poolID int
 	return volumes, nil
 }
 
+// GetPoolVolumesForQosTransition loads active volumes for a pool using a single query and only the
+// columns required to unassign/assign QoS policies during manual↔auto qosType transition.
+func (d *DataStoreRepository) GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.Volume{}).
+		Select("id", "uuid", "pool_id", "volume_performance_group_id", "volume_attributes").
+		Where("pool_id = ?", poolID).
+		Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
 func (d *DataStoreRepository) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
 	err := d.db.GORM().WithContext(ctx).

@@ -780,13 +780,25 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 }
 
 func (a VolumeCreateActivity) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
-	se := a.SE
-	volumes, err := se.GetVolumesByPoolID(ctx, poolID)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("GetVolumesByPoolID started poolID=%d", poolID))
+	volumes, err := a.SE.GetVolumesByPoolID(ctx, poolID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("GetVolumesByPoolID completed poolID=%d volumes=%d", poolID, len(volumes)))
+	return volumes, nil
+}
 
-	return volumes, err
+// GetPoolVolumesForQosTransition loads pool volumes for manual↔auto qosType transition using a single
+// lightweight DB query (no association preloads). Used instead of GetVolumesByPoolID on large pools.
+func (a VolumeCreateActivity) GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("GetPoolVolumesForQosTransition started poolID=%d", poolID))
+	volumes, err := a.SE.GetPoolVolumesForQosTransition(ctx, poolID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("GetPoolVolumesForQosTransition completed poolID=%d volumes=%d", poolID, len(volumes)))
+	return volumes, nil
 }
 
 func (a VolumeCreateActivity) GetVolumeByVolumeID(ctx context.Context, volumeID string) (*datamodel.Volume, error) {

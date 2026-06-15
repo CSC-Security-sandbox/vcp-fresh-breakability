@@ -2530,7 +2530,7 @@ func runPoolQosTypeTransitionAutoToManual(
 
 	// 4. Get volumes in pool
 	var volumes []*datamodel.Volume
-	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetVolumesByPoolID, pool.ID).Get(dbHbCtx, &volumes); err != nil {
+	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetPoolVolumesForQosTransition, pool.ID).Get(dbHbCtx, &volumes); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
@@ -2608,9 +2608,9 @@ func runPoolQosTypeTransitionManualToAuto(
 		OntapCredentials: pool.PoolCredentials,
 	})
 
-	// 2. Get volumes in pool
+	// 2. Get volumes in pool (lightweight query — no association preloads)
 	var volumes []*datamodel.Volume
-	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetVolumesByPoolID, pool.ID).Get(dbHbCtx, &volumes); err != nil {
+	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetPoolVolumesForQosTransition, pool.ID).Get(dbHbCtx, &volumes); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}

@@ -5745,6 +5745,49 @@ func TestGetVolumesByPoolID(t *testing.T) {
 	})
 }
 
+func TestGetPoolVolumesForQosTransition(t *testing.T) {
+	t.Run("WhenGetPoolVolumesForQosTransitionReturnsVolumes", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		env.RegisterActivity(activity.GetPoolVolumesForQosTransition)
+
+		poolID := int64(1)
+		vol1 := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{ID: 1, UUID: "vol-1"},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 10, Valid: true},
+			VolumeAttributes:         &datamodel.VolumeAttributes{ExternalUUID: "ext-1"},
+		}
+		volumes := []*datamodel.Volume{vol1}
+
+		mockSE.On("GetPoolVolumesForQosTransition", mock.Anything, poolID).Return(volumes, nil)
+		val, err := env.ExecuteActivity(activity.GetPoolVolumesForQosTransition, poolID)
+		assert.NoError(t, err)
+		var result []*datamodel.Volume
+		_ = val.Get(&result)
+		assert.Equal(t, volumes, result)
+	})
+	t.Run("WhenGetPoolVolumesForQosTransitionReturnsError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		env.RegisterActivity(activity.GetPoolVolumesForQosTransition)
+
+		poolID := int64(1)
+		mockSE.On("GetPoolVolumesForQosTransition", mock.Anything, poolID).Return(
+			nil,
+			vsaerrors.WrapAsTemporalApplicationError(errors.New("get pool volumes for qos transition failed")),
+		)
+		_, err := env.ExecuteActivity(activity.GetPoolVolumesForQosTransition, poolID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "get pool volumes for qos transition failed")
+	})
+}
+
 func TestGetVolumeByVolumeID(t *testing.T) {
 	t.Run("WhenGetVolumeByVolumeIdReturnsVolume", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}

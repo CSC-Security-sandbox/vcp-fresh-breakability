@@ -995,6 +995,22 @@ func (re *retryEngine) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]
 	return var0, err
 }
 
+func (re *retryEngine) GetPoolVolumesForQosTransition(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolVolumesForQosTransition(ctx, poolID)
+		if err != nil {
+			re.logError("GetPoolVolumesForQosTransition", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
 	var var0 []*datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
