@@ -78,6 +78,8 @@ var (
 	UpdatePoolState                         = updatePoolState
 	IsRequiredTakeoverReason                = isRequiredTakeoverReason
 	HasNodeRequiredTakeoverReasonFromHealth = hasNodeRequiredTakeoverReasonFromHealth
+	AnyNodeTakeoverNotPossible              = anyNodeTakeoverNotPossible
+	ShouldTriggerTakeoverCheck              = shouldTriggerTakeoverCheck
 	GetVSAProviderUnit                      = _getVSAProviderUnit
 	TriggerTakeoverCheckUnit                = _triggerTakeoverCheckUnit
 	GetClusterHealthStatusUnit              = _getClusterHealthStatusUnit
@@ -175,14 +177,7 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	}
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Created reusable ONTAP REST client", correlationID, poolIdentifier.UUID)
 
-	// Trigger takeover check for all nodes to refresh takeover_check status
-	takeoverCheckResult := ctx.RunUnit(TriggerTakeoverCheckUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
-	if takeoverCheckResult.Err != nil {
-		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to trigger takeover check: %v", correlationID, poolIdentifier.UUID, takeoverCheckResult.Err)
-		return
-	}
-
-	// Get cluster health status
+	// Get cluster health status first
 	clusterHealthResult := ctx.RunUnit(GetClusterHealthStatusUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
 	if clusterHealthResult.Err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get cluster health status: %v", correlationID, poolIdentifier.UUID, clusterHealthResult.Err)
@@ -190,11 +185,31 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	}
 	clusterHealth := clusterHealthResult.Result.(*vsa.ClusterHealthStatusResponse)
 
-	// Get ONTAP version to determine if we should call JSWAP API
 	ontapVersion, err := provider.GetONTAPVersion()
 	if err != nil {
-		logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get ONTAP version, defaulting to state update only: %v", correlationID, poolIdentifier.UUID, err)
+		logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get ONTAP version: %v", correlationID, poolIdentifier.UUID, err)
 		ontapVersion = nil
+	}
+
+	if shouldTriggerTakeoverCheck(clusterHealth, ontapVersion) {
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - At least one node reports takeover state 'not_possible' and ONTAP < %s; triggering takeover_check to refresh reasons", correlationID, poolIdentifier.UUID, JSwapVersionThreshold)
+
+		takeoverCheckResult := ctx.RunUnit(TriggerTakeoverCheckUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
+		if takeoverCheckResult.Err != nil {
+			logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to trigger takeover check: %v", correlationID, poolIdentifier.UUID, takeoverCheckResult.Err)
+			return
+		}
+
+		clusterHealthResult = ctx.RunUnit(GetClusterHealthStatusUnit, inmemotasksprocessor.UnitOptions{}, provider, poolIdentifier.UUID, ontapClient, bgCtx)
+		if clusterHealthResult.Err != nil {
+			logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to re-fetch cluster health status after takeover check: %v", correlationID, poolIdentifier.UUID, clusterHealthResult.Err)
+			return
+		}
+		clusterHealth = clusterHealthResult.Result.(*vsa.ClusterHealthStatusResponse)
+	} else if anyNodeTakeoverNotPossible(clusterHealth.Records) {
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Node reports takeover state 'not_possible' but ONTAP >= %s; skipping takeover_check PATCH", correlationID, poolIdentifier.UUID, JSwapVersionThreshold)
+	} else {
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - All nodes report healthy takeover state; skipping takeover_check PATCH", correlationID, poolIdentifier.UUID)
 	}
 
 	// Determine and execute JSWAP action
@@ -240,6 +255,41 @@ func determineJSwapAction(clusterHealth *vsa.ClusterHealthStatusResponse, poolUU
 	return JSwapActionNone
 }
 
+// anyNodeTakeoverNotPossible reports whether at least one node in the cluster
+// has ha.takeover.state == "not_possible".
+func anyNodeTakeoverNotPossible(nodes []vsa.NodeHealthStatus) bool {
+	for _, node := range nodes {
+		if node.Ha != nil && node.Ha.Takeover != nil && node.Ha.Takeover.State == vsa.TakeoverStateNotPossible {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldTriggerTakeoverCheck reports whether SyncVSAClusterHealthTask should
+// issue the takeover_check PATCH for this cycle.
+//
+// The PATCH is needed only when BOTH conditions hold:
+//  1. At least one node reports ha.takeover.state == "not_possible" -- the only
+//     state where ONTAP needs the simulation to populate ha.takeover_check.reasons.
+//  2. The ONTAP version is < JSwapVersionThreshold (9.18.1). ONTAP >= 9.18.1
+//     performs JSWAP dynamically, so VCP no longer needs the reasons[] list to
+//     drive the manual JSWAP decision -- the GET response alone is sufficient
+//     for keeping the pool's DEGRADED/READY DB state in sync.
+//
+// When the version is unknown (GetONTAPVersion returned an error) or the version
+// feature flag is disabled, fall back to issuing the PATCH on the not_possible
+// signal to preserve correctness on pre-9.18.1 clusters.
+func shouldTriggerTakeoverCheck(clusterHealth *vsa.ClusterHealthStatusResponse, ontapVersion *string) bool {
+	if clusterHealth == nil || !anyNodeTakeoverNotPossible(clusterHealth.Records) {
+		return false
+	}
+	if !enableJSwapVersionCheck || ontapVersion == nil {
+		return true
+	}
+	return IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
+}
+
 // shouldJSwapToDiskForTakeoverStates checks for problematic takeover states
 func shouldJSwapToDiskForTakeoverStates(nodes []vsa.NodeHealthStatus, poolUUID string, logger log.Logger, correlationID string) bool {
 	for _, node := range nodes {
@@ -266,11 +316,12 @@ func shouldJSwapToDiskForTakeoverStates(nodes []vsa.NodeHealthStatus, poolUUID s
 	return false
 }
 
-// shouldJSwapToDiskForTakeoverNotPossible checks if any node has takeover_possible false
+// shouldJSwapToDiskForTakeoverNotPossible checks if any node reports a non-healthy
+// takeover state (anything other than "not_attempted").
 func shouldJSwapToDiskForTakeoverNotPossible(nodes []vsa.NodeHealthStatus, poolUUID string, logger log.Logger, correlationID string) bool {
 	for _, node := range nodes {
-		if node.Ha != nil && node.Ha.TakeoverCheck != nil && !node.Ha.TakeoverCheck.TakeoverPossible {
-			logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Node %s takeover_possible is false → JSWAP to ephemeral_disk", correlationID, poolUUID, node.UUID)
+		if node.Ha != nil && node.Ha.Takeover != nil && node.Ha.Takeover.State != "" && node.Ha.Takeover.State != vsa.TakeoverStateNotAttempted {
+			logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Node %s takeover state %q (not 'not_attempted') → JSWAP to ephemeral_disk", correlationID, poolUUID, node.UUID, node.Ha.Takeover.State)
 			return true
 		}
 	}
@@ -299,20 +350,22 @@ func shouldJSwapToDiskForUnplannedFailover(nodes []vsa.NodeHealthStatus, poolUUI
 	return false
 }
 
-// shouldJSwapToMemoryForTakeoverPossible checks if both nodes have takeover_possible true
+// shouldJSwapToMemoryForTakeoverPossible reports whether all nodes are in the
+// healthy takeover state (ha.takeover.state == "not_attempted").
 func shouldJSwapToMemoryForTakeoverPossible(nodes []vsa.NodeHealthStatus, poolUUID string, logger log.Logger, correlationID string) bool {
 	if len(nodes) == 0 {
 		return false
 	}
 
 	for _, node := range nodes {
-		// If any node doesn't have the required fields or takeover_possible is not true, return false
-		if node.Ha == nil || node.Ha.TakeoverCheck == nil || !node.Ha.TakeoverCheck.TakeoverPossible {
+		// If any node doesn't have the required fields or its takeover state is
+		// anything other than "not_attempted", the cluster is not fully healthy.
+		if node.Ha == nil || node.Ha.Takeover == nil || node.Ha.Takeover.State != vsa.TakeoverStateNotAttempted {
 			return false
 		}
 	}
 
-	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Both nodes takeover_possible is true → JSWAP to ephemeral_memory", correlationID, poolUUID)
+	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - All nodes report takeover state 'not_attempted' → JSWAP to ephemeral_memory", correlationID, poolUUID)
 	return true
 }
 

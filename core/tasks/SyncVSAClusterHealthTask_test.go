@@ -64,13 +64,16 @@ func TestDetermineJSwapAction(t *testing.T) {
 			expected: JSwapActionToDisk,
 		},
 		{
-			name: "Should swap to disk when takeover_possible is false",
+			name: "Should swap to disk when takeover state is not 'not_attempted' (takeover not possible)",
 			clusterHealth: &vsa.ClusterHealthStatusResponse{
 				Records: []vsa.NodeHealthStatus{
 					{
 						UUID: "node1",
 						Name: "node1",
 						Ha: &vsa.HAHealthInfo{
+							Takeover: &vsa.TakeoverState{
+								State: vsa.TakeoverStateNotPossible,
+							},
 							TakeoverCheck: &vsa.TakeoverCheck{
 								TakeoverPossible: false,
 								Reasons:          []string{"Negotiated takeover is not possible. Partner is not UP."},
@@ -174,16 +177,15 @@ func TestDetermineJSwapAction(t *testing.T) {
 			expected: JSwapActionToDisk,
 		},
 		{
-			name: "Should swap to memory when takeover_possible is true for both nodes",
+			name: "Should swap to memory when all nodes report takeover state 'not_attempted'",
 			clusterHealth: &vsa.ClusterHealthStatusResponse{
 				Records: []vsa.NodeHealthStatus{
 					{
 						UUID: "node1",
 						Name: "node1",
 						Ha: &vsa.HAHealthInfo{
-							TakeoverCheck: &vsa.TakeoverCheck{
-								TakeoverPossible: true,
-								Reasons:          []string{},
+							Takeover: &vsa.TakeoverState{
+								State: vsa.TakeoverStateNotAttempted,
 							},
 						},
 						NVLog: &vsa.NVLog{
@@ -194,9 +196,8 @@ func TestDetermineJSwapAction(t *testing.T) {
 						UUID: "node2",
 						Name: "node2",
 						Ha: &vsa.HAHealthInfo{
-							TakeoverCheck: &vsa.TakeoverCheck{
-								TakeoverPossible: true,
-								Reasons:          []string{},
+							Takeover: &vsa.TakeoverState{
+								State: vsa.TakeoverStateNotAttempted,
 							},
 						},
 						NVLog: &vsa.NVLog{
@@ -230,15 +231,14 @@ func TestShouldJSwapToDiskForTakeoverNotPossible(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "Should return true when takeover_possible is false",
+			name: "Should return true when takeover state is 'not_possible'",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: false,
-							Reasons:          []string{"Negotiated takeover is not possible. Partner is not UP."},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
 						},
 					},
 				},
@@ -246,15 +246,83 @@ func TestShouldJSwapToDiskForTakeoverNotPossible(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "Should return false when takeover_possible is true",
+			name: "Should return true when takeover state is 'in_takeover'",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: true,
-							Reasons:          []string{},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateInTakeover,
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return true when takeover state is 'in_progress'",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateInProgress,
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return true when takeover state is 'failed'",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateFailed,
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return true when one of multiple nodes is unhealthy",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
+						},
+					},
+				},
+				{
+					UUID: "node2",
+					Name: "node2",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return false when takeover state is 'not_attempted'",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
 						},
 					},
 				},
@@ -262,13 +330,28 @@ func TestShouldJSwapToDiskForTakeoverNotPossible(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Should return false when TakeoverCheck is nil",
+			name: "Should return false when Takeover.State is empty (defensively skip uninitialised fields)",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: nil,
+						Takeover: &vsa.TakeoverState{
+							State: "",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Should return false when Takeover is nil",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: nil,
 					},
 				},
 			},
@@ -312,15 +395,14 @@ func TestShouldJSwapToMemoryForTakeoverNotPossible(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "Should return true when both nodes have takeover_possible true",
+			name: "Should return true when both nodes have takeover state 'not_attempted'",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: true,
-							Reasons:          []string{},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
 						},
 					},
 				},
@@ -328,9 +410,8 @@ func TestShouldJSwapToMemoryForTakeoverNotPossible(t *testing.T) {
 					UUID: "node2",
 					Name: "node2",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: true,
-							Reasons:          []string{},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
 						},
 					},
 				},
@@ -338,15 +419,14 @@ func TestShouldJSwapToMemoryForTakeoverNotPossible(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "Should return false when one node has takeover_possible false",
+			name: "Should return false when one node is in 'not_possible'",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: true,
-							Reasons:          []string{},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
 						},
 					},
 				},
@@ -354,9 +434,8 @@ func TestShouldJSwapToMemoryForTakeoverNotPossible(t *testing.T) {
 					UUID: "node2",
 					Name: "node2",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: false, // This node has false
-							Reasons:          []string{"Partner is not UP."},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
 						},
 					},
 				},
@@ -364,13 +443,52 @@ func TestShouldJSwapToMemoryForTakeoverNotPossible(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Should return false when TakeoverCheck is nil",
+			name: "Should return false when one node is 'in_takeover'",
 			nodes: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: nil,
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotAttempted,
+						},
+					},
+				},
+				{
+					UUID: "node2",
+					Name: "node2",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateInTakeover,
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Should return false when Takeover is nil",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: nil,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Should return false when Takeover.State is empty (defensive)",
+			nodes: []vsa.NodeHealthStatus{
+				{
+					UUID: "node1",
+					Name: "node1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: "",
+						},
 					},
 				},
 			},
@@ -1097,20 +1215,25 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		mockRESTClient := ontapRest.NewMockRESTClient(t)
 		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil).Times(2)
 
-		// Mock nodes for TriggerTakeoverCheck - called once per pool (2 pools = 2 calls)
+		// Nodes used by TriggerTakeoverCheckUnit. On a healthy cluster the unit is
+		// not entered (the new state-based gate skips it), but we still register the
+		// stub as Maybe() so the test stays stable if the cluster fixture later
+		// changes to an unhealthy state.
 		vsaNodes := []*vsa.Node{
 			{ExternalUUID: "node-1"},
 			{ExternalUUID: "node-2"},
 		}
-		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil).Times(2)
+		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil).Maybe()
 
-		// TriggerTakeoverCheckWithClient - called for each node in each pool
-		// Since the function returns early when one succeeds, use Maybe() to handle race conditions
-		// Each pool has 2 nodes, so potentially 2 calls per pool = 4 total, but due to early return, fewer may execute
+		// TriggerTakeoverCheckWithClient should NOT be called on the healthy path.
+		// Keep these Maybe() so a stray call still gets a deterministic response
+		// during the test rather than panicking, while assertions below verify
+		// it was never invoked.
 		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Maybe().Return(true, nil)
 		mockProvider.On("TriggerTakeoverCheckWithClient", "node-2", mock.Anything).Maybe().Return(true, nil)
 
-		// GetClusterHealthStatusWithClient - called once per pool (2 pools = 2 calls)
+		// GetClusterHealthStatusWithClient - called once per pool on the healthy
+		// path (no PATCH means no re-fetch). 2 pools = 2 calls.
 		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(clusterHealthResponse, nil).Times(2)
 
 		// GetONTAPVersion - called once per pool (2 pools = 2 calls)
@@ -1157,22 +1280,287 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 
 		// Verify call counts for methods that should be called exactly 2 times (once per pool)
 		mockProvider.AssertNumberOfCalls(t, "CreateRESTClient", 2)
-		mockProvider.AssertNumberOfCalls(t, "GetNodesWithClient", 2)
 		mockProvider.AssertNumberOfCalls(t, "GetClusterHealthStatusWithClient", 2)
 
-		// For TriggerTakeoverCheckWithClient, verify at least 2 calls were made (one per pool)
-		// The exact distribution depends on timing since the function returns early on first success
-		// We use Maybe() for the expectations, so we verify the count manually
+		// With the EMS-flood fix, the takeover_check PATCH must NOT be invoked on
+		// healthy clusters (state == not_attempted on all nodes). Verify that
+		// GetNodesWithClient and TriggerTakeoverCheckWithClient were not called.
+		mockProvider.AssertNumberOfCalls(t, "GetNodesWithClient", 0)
 		triggerCalls := 0
 		for _, call := range mockProvider.Calls {
 			if call.Method == "TriggerTakeoverCheckWithClient" {
 				triggerCalls++
 			}
 		}
-		assert.GreaterOrEqual(t, triggerCalls, 2, "Expected at least 2 calls to TriggerTakeoverCheckWithClient (one per pool)")
+		assert.Equal(t, 0, triggerCalls, "Expected zero TriggerTakeoverCheckWithClient calls on a healthy cluster (state==not_attempted); got %d", triggerCalls)
+	})
 
-		// Don't use AssertExpectations on mockProvider since TriggerTakeoverCheckWithClient uses Maybe()
-		// which makes strict assertion unreliable
+	t.Run("SyncVSAClusterHealth_Triggers_TakeoverCheck_PATCH_When_State_NotPossible", func(t *testing.T) {
+		// Arrange: simulate a degraded cluster where one node reports
+		// ha.takeover.state == "not_possible". The state-based gate must trip and
+		// invoke TriggerTakeoverCheckWithClient (the EMS-emitting PATCH) so that
+		// ha.takeover_check.reasons is refreshed for downstream JSWAP-to-disk
+		// decisioning.
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		correlationID := "test-correlation-id-degraded"
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "pool-degraded", AccountID: int64(1)},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-degraded",
+				},
+				State: datamodel.LifeCycleStateREADY,
+				PoolCredentials: &datamodel.PoolCredentials{
+					SecretID: "test-secret",
+					Password: "test-password",
+					AuthType: 1,
+				},
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "node-1",
+				},
+				Name:            "node-1",
+				State:           "READY",
+				EndpointAddress: "192.168.1.10",
+				PoolID:          1,
+				AccountID:       1,
+			},
+		}
+
+		// First GET response: one node reports state == not_possible (no reasons
+		// yet, since they only get populated by the takeover_check PATCH).
+		unhealthyHealth := &vsa.ClusterHealthStatusResponse{
+			Records: []vsa.NodeHealthStatus{
+				{
+					UUID: "node-1",
+					Name: "node-1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
+						},
+					},
+					NVLog: &vsa.NVLog{
+						BackingType: string(vsa.JSWAPBackingTypeEphemeralMemory),
+					},
+				},
+			},
+			NumRecords: 1,
+		}
+
+		// Second GET response (after PATCH): now ha.takeover_check.reasons has
+		// been refreshed with a required reason so downstream selects JSWAP-to-disk.
+		unhealthyHealthAfterPatch := &vsa.ClusterHealthStatusResponse{
+			Records: []vsa.NodeHealthStatus{
+				{
+					UUID: "node-1",
+					Name: "node-1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
+						},
+						TakeoverCheck: &vsa.TakeoverCheck{
+							TakeoverPossible: false,
+							Reasons:          []string{"disabled"},
+						},
+					},
+					NVLog: &vsa.NVLog{
+						BackingType: string(vsa.JSWAPBackingTypeEphemeralMemory),
+					},
+				},
+			},
+			NumRecords: 1,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil).Times(1)
+
+		// Two GETs expected: one before PATCH (decision gate), one after PATCH
+		// (refresh) for downstream decisioning.
+		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(unhealthyHealth, nil).Once()
+		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(unhealthyHealthAfterPatch, nil).Once()
+
+		// TriggerTakeoverCheckUnit fan-out helpers.
+		vsaNodes := []*vsa.Node{{ExternalUUID: "node-1"}}
+		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil).Once()
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Return(true, nil).Once()
+
+		// 9.17.1 is below JSwapVersionThreshold (9.18.1), so BOTH the
+		// takeover_check PATCH AND the manual JSWAP API are expected to fire.
+		ontapVersion := "9.17.1"
+		mockProvider.On("GetONTAPVersion").Return(&ontapVersion, nil).Once()
+
+		// JSWAP-to-disk is expected because the post-PATCH GET reports a
+		// required reason ("disabled") and the node's backing type is
+		// ephemeral_memory.
+		mockProvider.On("UpdateJSwapModeWithClient", "node-1", vsa.JSWAPBackingTypeEphemeralDisk, mock.Anything).Return(true, nil).Once()
+
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-degraded").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-degraded").Return(datamodel.LifeCycleStateREADY, nil)
+		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-degraded", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			state, ok := updates["state"].(string)
+			return ok && state == datamodel.LifeCycleStateDegraded
+		})).Return(nil)
+
+		convertedPool := database.ConvertPoolViewToPool(poolView)
+		mockStorage.On("GetPoolByUUID", mock.Anything, mock.Anything).Return(convertedPool, nil)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
+		mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return(nodes, nil)
+
+		originalFastTestConnection := ontapRest.FastTestConnection
+		defer func() { ontapRest.FastTestConnection = originalFastTestConnection }()
+		ontapRest.FastTestConnection = func(rc *ontapRest.OntapRestClient) error {
+			return nil
+		}
+
+		originalGetProviderByNodeWithFastConnection := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Act
+		SyncVSAClusterHealth(ctx, mockStorage, correlationID)
+
+		// Assert
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertNumberOfCalls(t, "CreateRESTClient", 1)
+		mockProvider.AssertNumberOfCalls(t, "GetClusterHealthStatusWithClient", 2)
+		mockProvider.AssertNumberOfCalls(t, "GetNodesWithClient", 1)
+		mockProvider.AssertNumberOfCalls(t, "TriggerTakeoverCheckWithClient", 1)
+		mockProvider.AssertNumberOfCalls(t, "UpdateJSwapModeWithClient", 1)
+	})
+
+	t.Run("SyncVSAClusterHealth_Skips_TakeoverCheck_PATCH_When_State_NotPossible_But_ONTAP_GE_Threshold", func(t *testing.T) {
+		// Arrange: same degraded-cluster fixture as the previous sub-test
+		// (one node reports ha.takeover.state == "not_possible"), but the
+		// ONTAP version is at the JSwapVersionThreshold (9.18.1). On 9.18.1+
+		// ONTAP performs JSWAP dynamically, so VCP must NOT issue the
+		// takeover_check PATCH (which would generate EMS noise) and must NOT
+		// call the manual JSWAP API. The pool state should still be moved to
+		// DEGRADED in the DB based on the single GET response.
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		correlationID := "test-correlation-id-degraded-918"
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "pool-degraded-918", AccountID: int64(1)},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-degraded-918",
+				},
+				State: datamodel.LifeCycleStateREADY,
+				PoolCredentials: &datamodel.PoolCredentials{
+					SecretID: "test-secret",
+					Password: "test-password",
+					AuthType: 1,
+				},
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "node-1",
+				},
+				Name:            "node-1",
+				State:           "READY",
+				EndpointAddress: "192.168.1.10",
+				PoolID:          1,
+				AccountID:       1,
+			},
+		}
+
+		unhealthyHealth := &vsa.ClusterHealthStatusResponse{
+			Records: []vsa.NodeHealthStatus{
+				{
+					UUID: "node-1",
+					Name: "node-1",
+					Ha: &vsa.HAHealthInfo{
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
+						},
+					},
+					NVLog: &vsa.NVLog{
+						BackingType: string(vsa.JSWAPBackingTypeEphemeralMemory),
+					},
+				},
+			},
+			NumRecords: 1,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		mockRESTClient := ontapRest.NewMockRESTClient(t)
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil).Times(1)
+
+		// Only ONE GET expected: no PATCH, so no re-fetch.
+		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(unhealthyHealth, nil).Once()
+
+		// 9.18.1 is at the JSwapVersionThreshold -> PATCH is skipped AND
+		// manual JSWAP API is skipped.
+		ontapVersion := "9.18.1"
+		mockProvider.On("GetONTAPVersion").Return(&ontapVersion, nil).Once()
+
+		// PATCH/JSWAP stubs registered with Maybe() so that if the gate ever
+		// regresses, the test fails on the assertions below rather than
+		// panicking inside the mock.
+		mockProvider.On("GetNodesWithClient", mock.Anything).Maybe().Return([]*vsa.Node{{ExternalUUID: "node-1"}}, nil)
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Maybe().Return(true, nil)
+		mockProvider.On("UpdateJSwapModeWithClient", "node-1", mock.Anything, mock.Anything).Maybe().Return(true, nil)
+
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-degraded-918").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-degraded-918").Return(datamodel.LifeCycleStateREADY, nil)
+		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-degraded-918", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			state, ok := updates["state"].(string)
+			return ok && state == datamodel.LifeCycleStateDegraded
+		})).Return(nil)
+
+		convertedPool := database.ConvertPoolViewToPool(poolView)
+		mockStorage.On("GetPoolByUUID", mock.Anything, mock.Anything).Return(convertedPool, nil)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
+		mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return(nodes, nil)
+
+		originalFastTestConnection := ontapRest.FastTestConnection
+		defer func() { ontapRest.FastTestConnection = originalFastTestConnection }()
+		ontapRest.FastTestConnection = func(rc *ontapRest.OntapRestClient) error {
+			return nil
+		}
+
+		originalGetProviderByNodeWithFastConnection := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Act
+		SyncVSAClusterHealth(ctx, mockStorage, correlationID)
+
+		// Assert: PATCH and manual JSWAP must NOT have fired; DB state still
+		// transitions to DEGRADED based on the single GET response.
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertNumberOfCalls(t, "CreateRESTClient", 1)
+		mockProvider.AssertNumberOfCalls(t, "GetClusterHealthStatusWithClient", 1)
+		mockProvider.AssertNumberOfCalls(t, "GetNodesWithClient", 0)
+		mockProvider.AssertNumberOfCalls(t, "TriggerTakeoverCheckWithClient", 0)
+		mockProvider.AssertNumberOfCalls(t, "UpdateJSwapModeWithClient", 0)
 	})
 
 	t.Run("SyncVSAClusterHealth with ListPoolUUIDs error", func(t *testing.T) {
@@ -2316,17 +2704,17 @@ func TestDetermineJSwapAction_EdgeCases(t *testing.T) {
 	correlationID := "test-correlation-id"
 
 	t.Run("prioritizes disk swap over memory swap", func(t *testing.T) {
-		// Test case where a node has both not_attempted state AND takeover_possible false
-		// Should prioritize disk swap due to takeover_possible false
+		// One node is unhealthy (state == not_possible) and the other healthy
+		// (state == not_attempted). Disk swap must win because the cluster as a
+		// whole is degraded.
 		clusterHealth := &vsa.ClusterHealthStatusResponse{
 			Records: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						TakeoverCheck: &vsa.TakeoverCheck{
-							TakeoverPossible: false, // Should trigger disk swap
-							Reasons:          []string{"Partner is not UP."},
+						Takeover: &vsa.TakeoverState{
+							State: vsa.TakeoverStateNotPossible,
 						},
 					},
 					NVLog: &vsa.NVLog{BackingType: "ephemeral_memory"},
@@ -2336,7 +2724,7 @@ func TestDetermineJSwapAction_EdgeCases(t *testing.T) {
 					Name: "node2",
 					Ha: &vsa.HAHealthInfo{
 						Takeover: &vsa.TakeoverState{
-							State: vsa.TakeoverStateNotAttempted, // Would trigger memory swap
+							State: vsa.TakeoverStateNotAttempted,
 						},
 					},
 					NVLog: &vsa.NVLog{BackingType: "ephemeral_memory"},
@@ -2349,18 +2737,17 @@ func TestDetermineJSwapAction_EdgeCases(t *testing.T) {
 		assert.Equal(t, JSwapActionToDisk, result)
 	})
 
-	t.Run("returns none when no action needed", func(t *testing.T) {
-		// All nodes are healthy with no issues - no TakeoverCheck means no action needed
+	t.Run("returns none when only Ha is set without takeover state", func(t *testing.T) {
+		// Defensive corner: GET returned a node with Ha present but neither
+		// Takeover.State populated nor TakeoverCheck present. Detectors should
+		// all bail out and the decision must be JSwapActionNone.
 		clusterHealth := &vsa.ClusterHealthStatusResponse{
 			Records: []vsa.NodeHealthStatus{
 				{
 					UUID: "node1",
 					Name: "node1",
 					Ha: &vsa.HAHealthInfo{
-						Takeover: &vsa.TakeoverState{
-							State: vsa.TakeoverStateNotPossible,
-						},
-						// No TakeoverCheck means no action needed
+						Takeover: &vsa.TakeoverState{State: ""},
 					},
 					NVLog: &vsa.NVLog{BackingType: "ephemeral_memory"},
 				},
@@ -3183,4 +3570,172 @@ func TestJSwapUnit_ErrorCases(t *testing.T) {
 		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
+}
+
+// TestAnyNodeTakeoverNotPossible validates the new state-based gate that drives
+// the takeover_check PATCH decision. The helper must return true if any node
+// reports ha.takeover.state == "not_possible" and false otherwise, including the
+// uninitialised / nil corners that may appear with an empty GET response.
+func TestAnyNodeTakeoverNotPossible(t *testing.T) {
+	tests := []struct {
+		name     string
+		nodes    []vsa.NodeHealthStatus
+		expected bool
+	}{
+		{
+			name:     "Empty nodes slice returns false",
+			nodes:    []vsa.NodeHealthStatus{},
+			expected: false,
+		},
+		{
+			name: "All nodes 'not_attempted' returns false (healthy)",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+			},
+			expected: false,
+		},
+		{
+			name: "Single node 'not_possible' returns true",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotPossible}}},
+			},
+			expected: true,
+		},
+		{
+			name: "One of multiple nodes 'not_possible' returns true",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotPossible}}},
+			},
+			expected: true,
+		},
+		{
+			name: "'in_takeover' is NOT 'not_possible' (handled by other detector) - returns false",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateInTakeover}}},
+			},
+			expected: false,
+		},
+		{
+			name: "'in_progress' is NOT 'not_possible' - returns false",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateInProgress}}},
+			},
+			expected: false,
+		},
+		{
+			name: "'failed' is NOT 'not_possible' - returns false",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateFailed}}},
+			},
+			expected: false,
+		},
+		{
+			name: "Nil Ha returns false (defensive)",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: nil},
+			},
+			expected: false,
+		},
+		{
+			name: "Nil Takeover returns false (defensive)",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: nil}},
+			},
+			expected: false,
+		},
+		{
+			name: "Empty Takeover.State returns false (defensive)",
+			nodes: []vsa.NodeHealthStatus{
+				{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: ""}}},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := anyNodeTakeoverNotPossible(tt.nodes)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestShouldTriggerTakeoverCheck exercises the version-aware PATCH gate.
+// The takeover_check PATCH must fire only when BOTH conditions hold:
+//
+//	(a) at least one node reports state == "not_possible", and
+//	(b) ONTAP version < JSwapVersionThreshold (9.18.1), because on >= 9.18.1
+//	    JSWAP is dynamic and VCP no longer needs the simulation's reasons[].
+func TestShouldTriggerTakeoverCheck(t *testing.T) {
+	healthyHealth := &vsa.ClusterHealthStatusResponse{
+		Records: []vsa.NodeHealthStatus{
+			{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+			{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+		},
+		NumRecords: 2,
+	}
+	unhealthyHealth := &vsa.ClusterHealthStatusResponse{
+		Records: []vsa.NodeHealthStatus{
+			{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotAttempted}}},
+			{Ha: &vsa.HAHealthInfo{Takeover: &vsa.TakeoverState{State: vsa.TakeoverStateNotPossible}}},
+		},
+		NumRecords: 2,
+	}
+
+	ver9171 := "9.17.1"
+	ver9181 := "9.18.1"
+	ver9182 := "9.18.2"
+
+	tests := []struct {
+		name          string
+		clusterHealth *vsa.ClusterHealthStatusResponse
+		ontapVersion  *string
+		expected      bool
+	}{
+		{
+			name:          "Healthy cluster (no node 'not_possible') -> skip PATCH regardless of version",
+			clusterHealth: healthyHealth,
+			ontapVersion:  &ver9171,
+			expected:      false,
+		},
+		{
+			name:          "not_possible + ONTAP 9.17.1 (< threshold) -> trigger PATCH",
+			clusterHealth: unhealthyHealth,
+			ontapVersion:  &ver9171,
+			expected:      true,
+		},
+		{
+			name:          "not_possible + ONTAP 9.18.1 (== threshold) -> skip PATCH (JSWAP dynamic)",
+			clusterHealth: unhealthyHealth,
+			ontapVersion:  &ver9181,
+			expected:      false,
+		},
+		{
+			name:          "not_possible + ONTAP 9.18.2 (> threshold) -> skip PATCH (JSWAP dynamic)",
+			clusterHealth: unhealthyHealth,
+			ontapVersion:  &ver9182,
+			expected:      false,
+		},
+		{
+			name:          "not_possible + unknown ONTAP version -> fall back to PATCH (safer for < 9.18.1)",
+			clusterHealth: unhealthyHealth,
+			ontapVersion:  nil,
+			expected:      true,
+		},
+		{
+			name:          "nil clusterHealth -> skip PATCH (defensive)",
+			clusterHealth: nil,
+			ontapVersion:  &ver9171,
+			expected:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldTriggerTakeoverCheck(tt.clusterHealth, tt.ontapVersion)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }
