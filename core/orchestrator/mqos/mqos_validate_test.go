@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -627,7 +628,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			IsShared:  false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
 		assert.NoError(tt, err)
@@ -638,7 +639,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 
@@ -651,7 +652,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(1), nil)
 
@@ -664,7 +665,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(5), nil)
 
@@ -677,7 +678,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 0},
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
 		assert.NoError(tt, err)
@@ -688,7 +689,7 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), errors.New("db error"))
 

@@ -18253,7 +18253,7 @@ func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
 	}
 	{
 		{
-			s.IsShared = true
+			s.AllocationType.SetFake()
 		}
 	}
 	{
@@ -18266,6 +18266,11 @@ func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
 			s.Labels.SetFake()
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupCreateV1betaAllocationType) SetFake() {
+	*s = VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -18348,7 +18353,7 @@ func (s *VolumePerformanceGroupV1beta) SetFake() {
 	}
 	{
 		{
-			s.IsShared = true
+			s.AllocationType.SetFake()
 		}
 	}
 	{
@@ -18376,6 +18381,11 @@ func (s *VolumePerformanceGroupV1beta) SetFake() {
 			s.Labels.SetFake()
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupV1betaAllocationType) SetFake() {
+	*s = VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.

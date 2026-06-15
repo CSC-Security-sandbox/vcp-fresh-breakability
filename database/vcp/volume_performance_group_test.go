@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 )
@@ -27,7 +28,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -38,7 +39,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.NotNil(tt, created)
 	})
 
-	t.Run("WhenIsSharedFalse_PersistsCorrectly", func(tt *testing.T) {
+	t.Run("WhenAllocationTypePerVolume_PersistsCorrectly", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
 		wrapper := gormwrapper.New(db)
@@ -54,7 +55,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-shared-false"},
 			PoolID:           pool.ID,
 			Name:             "vpg-not-shared",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -63,11 +64,11 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		created, err := store.CreateVolumePerformanceGroup(context.Background(), vpg)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, created)
-		assert.False(tt, created.IsShared, "IsShared should be false on the returned create result")
+		assert.Equal(tt, models.AllocationTypePerVolume, created.AllocationType, "allocationType should be PER_VOLUME on the returned create result")
 
 		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-shared-false")
 		assert.NoError(tt, err)
-		assert.False(tt, got.IsShared, "IsShared should be false after reading back from DB")
+		assert.Equal(tt, models.AllocationTypePerVolume, got.AllocationType, "allocationType should be PER_VOLUME after reading back from DB")
 		assert.Equal(tt, "vpg-not-shared", got.Name)
 		assert.Equal(tt, int64(64), got.ThroughputMibps)
 		assert.Equal(tt, int64(1000), got.Iops)
@@ -89,7 +90,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dupname"},
 			PoolID:           pool.ID,
 			Name:             "duplicate-name",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -102,7 +103,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dupname-2"},
 			PoolID:           pool.ID,
 			Name:             "duplicate-name",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -130,7 +131,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		vpg1 := &datamodel.VolumePerformanceGroup{
 			PoolID:           pool1.ID,
 			Name:             "same-name",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -146,7 +147,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		vpg2 := &datamodel.VolumePerformanceGroup{
 			PoolID:           pool2.ID,
 			Name:             "same-name",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -180,7 +181,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-err"},
 			PoolID:           pool.ID,
 			Name:             "vpg-err",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  16,
 			Iops:             100,
@@ -204,7 +205,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-invalid-pool"},
 			PoolID:           999999, // Non-existent pool ID
 			Name:             "vpg-invalid-pool",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -243,7 +244,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -307,7 +308,7 @@ func TestGetVolumePerformanceGroupByID(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-id"},
 			PoolID:           pool.ID,
 			Name:             "vpg-id",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -350,7 +351,7 @@ func TestGetVolumePerformanceGroupByPoolAndName(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-uuid"},
 			PoolID:           pool.ID,
 			Name:             "my-vpg-name",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -399,7 +400,7 @@ func TestGetVolumePerformanceGroupByPoolAndName(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "row-uuid-vpg-pool-a"},
 			PoolID:    poolA.ID,
 			Name:      "shared-name",
-			IsShared:  true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		assert.NoError(tt, store.db.Create(vpgInA).Error())
 
@@ -426,7 +427,7 @@ func TestHardDeleteVolumePerformanceGroup(t *testing.T) {
 		BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-hard"},
 		PoolID:           pool.ID,
 		Name:             "vpg-hard",
-		IsShared:         true,
+		AllocationType: models.AllocationTypeShared,
 		IsAutoGen:        true,
 		ThroughputMibps:  64,
 		Iops:             1000,
@@ -462,7 +463,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-1"},
 			PoolID:           pool1.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -474,7 +475,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-2"},
 			PoolID:           pool1.ID,
 			Name:             "vpg-2",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -487,7 +488,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-3"},
 			PoolID:           pool2.ID,
 			Name:             "vpg-1", // Same name as vpg1 but different pool
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  32,
 			Iops:             500,
@@ -566,7 +567,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-count-explicit"},
 			PoolID:           pool.ID,
 			Name:             "vpg-explicit",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -578,7 +579,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-count-auto-1"},
 			PoolID:           pool.ID,
 			Name:             "autoGenerated-vol-1",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  100,
 			Iops:             2000,
@@ -590,7 +591,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-count-auto-2"},
 			PoolID:           pool.ID,
 			Name:             "autoGenerated-vol-2",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  200,
 			Iops:             3000,
@@ -621,7 +622,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{UUID: fmt.Sprintf("row-uuid-vpg-count-active-%d", i)},
 				PoolID:           pool.ID,
 				Name:             fmt.Sprintf("vpg-active-%d", i),
-				IsShared:         true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:        false,
 				ThroughputMibps:  64,
 				Iops:             1000,
@@ -636,7 +637,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{UUID: fmt.Sprintf("row-uuid-vpg-count-deleted-%d", i)},
 				PoolID:           pool.ID,
 				Name:             fmt.Sprintf("vpg-deleted-%d", i),
-				IsShared:         true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:        false,
 				ThroughputMibps:  64,
 				Iops:             1000,
@@ -671,7 +672,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{UUID: fmt.Sprintf("row-uuid-vpg-count-iso-a-%d", i)},
 				PoolID:           poolA.ID,
 				Name:             fmt.Sprintf("vpg-iso-a-%d", i),
-				IsShared:         true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:        false,
 				ThroughputMibps:  64,
 				Iops:             1000,
@@ -684,7 +685,7 @@ func TestCountVolumePerformanceGroupsByPoolID(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{UUID: fmt.Sprintf("row-uuid-vpg-count-iso-b-%d", i)},
 				PoolID:           poolB.ID,
 				Name:             fmt.Sprintf("vpg-iso-b-%d", i),
-				IsShared:         true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:        false,
 				ThroughputMibps:  64,
 				Iops:             1000,
@@ -738,7 +739,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -764,7 +765,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, int64(2000), got.Iops)
 		// Verify immutable fields are not changed
 		assert.Equal(tt, pool.ID, got.PoolID)
-		assert.Equal(tt, true, got.IsShared)
+		assert.Equal(tt, models.AllocationTypeShared, got.AllocationType)
 	})
 
 	t.Run("WhenVPGIsUpdatedWithOntapQosPolicyID", func(tt *testing.T) {
@@ -783,7 +784,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-ontap"},
 			PoolID:           pool.ID,
 			Name:             "vpg-ontap",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -869,7 +870,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "vpg-update-err"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -909,7 +910,7 @@ func TestUpdateVolumePerformanceGroupState(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-state"},
 			PoolID:           pool.ID,
 			Name:             "vpg-state",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			ThroughputMibps:  64,
 			Iops:             1000,
 			OntapQosPolicyID: "ontap-qos-policy-uuid-state",
@@ -971,7 +972,7 @@ func TestUpdateVolumePerformanceGroup_WithDescriptionAndLabels(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-desc"},
 			PoolID:           pool.ID,
 			Name:             "vpg-desc",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			ThroughputMibps:  64,
 			Iops:             1000,
 			OntapQosPolicyID: "ontap-qos-policy-desc",
@@ -1010,7 +1011,7 @@ func TestUpdateVolumePerformanceGroup_WithDescriptionAndLabels(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-labels"},
 			PoolID:           pool.ID,
 			Name:             "vpg-labels",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			ThroughputMibps:  64,
 			Iops:             1000,
 			OntapQosPolicyID: "ontap-qos-policy-labels",
@@ -1049,7 +1050,7 @@ func TestUpdateVolumePerformanceGroup_WithDescriptionAndLabels(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-state-upd"},
 			PoolID:           pool.ID,
 			Name:             "vpg-state-upd",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			ThroughputMibps:  64,
 			Iops:             1000,
 			OntapQosPolicyID: "ontap-qos-policy-state-upd",
@@ -1093,7 +1094,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -1153,7 +1154,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "vpg-delete-err"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -1190,7 +1191,7 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 
 		pool := mkPool(tt, store, "under")
 		got, err := store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-under", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-under", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, 5)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, got)
@@ -1212,13 +1213,13 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		const cap = 3
 		for i := 0; i < cap; i++ {
 			_, err := store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-				PoolID: pool.ID, Name: fmt.Sprintf("vpg-%d", i), IsShared: true, ThroughputMibps: 64, Iops: 1000,
+				PoolID: pool.ID, Name: fmt.Sprintf("vpg-%d", i), AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 			}, cap)
 			assert.NoError(tt, err)
 		}
 
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-overflow", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-overflow", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, cap)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "maximum number of Volume Performance Groups")
@@ -1240,11 +1241,11 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			assert.NoError(tt, store.db.Create(&datamodel.VolumePerformanceGroup{
 				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("seeded-%d", i)},
-				PoolID:    pool.ID, Name: fmt.Sprintf("seeded-%d", i), IsShared: true, ThroughputMibps: 64, Iops: 1000,
+				PoolID:    pool.ID, Name: fmt.Sprintf("seeded-%d", i), AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 			}).Error())
 		}
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-extra", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-extra", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, 3)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "maximum number of Volume Performance Groups")
@@ -1261,11 +1262,11 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			assert.NoError(tt, store.db.Create(&datamodel.VolumePerformanceGroup{
 				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("disabled-zero-%d", i)},
-				PoolID:    pool.ID, Name: fmt.Sprintf("disabled-zero-%d", i), IsShared: true, ThroughputMibps: 64, Iops: 1000,
+				PoolID:    pool.ID, Name: fmt.Sprintf("disabled-zero-%d", i), AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 			}).Error())
 		}
 		got, err := store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-allowed", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-allowed", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, 0)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, got)
@@ -1280,7 +1281,7 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 
 		pool := mkPool(tt, store, "disabled-neg")
 		got, err := store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-neg-cap", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-neg-cap", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, -1)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, got)
@@ -1294,7 +1295,7 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: 9999, Name: "vpg-orphan", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: 9999, Name: "vpg-orphan", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, 100)
 		assert.Error(tt, err)
 	})
@@ -1308,12 +1309,12 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 
 		pool := mkPool(tt, store, "dup")
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "shared-name", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "shared-name", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, 100)
 		assert.NoError(tt, err)
 
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "shared-name", IsShared: false, ThroughputMibps: 128, Iops: 2000,
+			PoolID: pool.ID, Name: "shared-name", AllocationType: models.AllocationTypePerVolume, ThroughputMibps: 128, Iops: 2000,
 		}, 100)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "already exists")
@@ -1341,7 +1342,7 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		const cap = 2
 		for i := 0; i < cap; i++ {
 			_, err := store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-				PoolID: pool.ID, Name: fmt.Sprintf("vpg-%d", i), IsShared: true, ThroughputMibps: 64, Iops: 1000,
+				PoolID: pool.ID, Name: fmt.Sprintf("vpg-%d", i), AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 			}, cap)
 			assert.NoError(tt, err)
 		}
@@ -1351,7 +1352,7 @@ func TestCreateVolumePerformanceGroupWithCap(t *testing.T) {
 		assert.NoError(tt, store.DeleteVolumePerformanceGroup(context.Background(), toDelete))
 
 		_, err = store.CreateVolumePerformanceGroupWithCap(context.Background(), &datamodel.VolumePerformanceGroup{
-			PoolID: pool.ID, Name: "vpg-after-delete", IsShared: true, ThroughputMibps: 64, Iops: 1000,
+			PoolID: pool.ID, Name: "vpg-after-delete", AllocationType: models.AllocationTypeShared, ThroughputMibps: 64, Iops: 1000,
 		}, cap)
 		assert.NoError(tt, err)
 	})

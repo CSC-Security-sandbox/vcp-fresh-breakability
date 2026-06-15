@@ -725,13 +725,13 @@ paths:
                     poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
                     throughputMibps: 200
                     iops: 20
-                    isShared: true
+                    allocationType: SHARED
                   - volumePerformanceGroupId: 5fca0679-4638-11e7-9bdb-020073ca7774
                     resourceId: another-performance-group
                     poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
                     throughputMibps: 150
                     iops: 15
-                    isShared: false
+                    allocationType: PER_VOLUME
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -783,7 +783,7 @@ paths:
                 poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
                 throughputMibps: 200
                 iops: 20
-                isShared: true
+                allocationType: SHARED
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -843,7 +843,7 @@ paths:
                 poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
                 throughputMibps: 200
                 iops: 20
-                isShared: true
+                allocationType: SHARED
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -12391,7 +12391,7 @@ components:
         - poolId
         - throughputMibps
         - iops
-        - isShared
+        - allocationType
       type: object
       properties:
         resourceId:
@@ -12433,12 +12433,16 @@ components:
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
-        isShared:
-          title: isShared
-          type: boolean
-          description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
-          default: true
-          example: true
+        allocationType:
+          title: allocationType
+          type: string
+          description: Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the cap collectively; PER_VOLUME = each member gets the full cap individually.
+          enum:
+            - ALLOCATION_TYPE_UNSPECIFIED
+            - SHARED
+            - PER_VOLUME
+          default: SHARED
+          example: SHARED
         created:
           title: created
           type: string
@@ -12487,7 +12491,7 @@ components:
         - resourceId
         - throughputMibps
         - iops
-        - isShared
+        - allocationType
       type: object
       properties:
         resourceId:
@@ -12513,12 +12517,16 @@ components:
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
-        isShared:
-          title: isShared
-          type: boolean
-          description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
-          default: true
-          example: true
+        allocationType:
+          title: allocationType
+          type: string
+          description: Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the cap collectively; PER_VOLUME = each member gets the full cap individually.
+          enum:
+            - ALLOCATION_TYPE_UNSPECIFIED
+            - SHARED
+            - PER_VOLUME
+          default: SHARED
+          example: SHARED
         description:
           title: description
           maxLength: 2048

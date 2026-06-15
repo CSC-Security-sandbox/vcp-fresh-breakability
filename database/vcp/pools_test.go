@@ -10,6 +10,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -4704,7 +4705,7 @@ func TestListPoolsForMetrics(t *testing.T) {
 			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
 			Name:            "test_vpg",
 			PoolID:          pool.ID,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 			ThroughputMibps: 100,
 			Iops:            1000,
 		}
@@ -4773,7 +4774,7 @@ func TestListPoolsForMetrics(t *testing.T) {
 			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "shared-vpg-uuid"},
 			Name:            "shared_vpg",
 			PoolID:          pool.ID,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 			ThroughputMibps: 200,
 			Iops:            2000,
 		}

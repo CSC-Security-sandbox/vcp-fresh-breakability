@@ -353,11 +353,11 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 			CASE
 				WHEN p.qos_type = 'manual' THEN
 					-- Sum throughput for non-shared VPGs (each volume gets full VPG throughput)
-					COALESCE(SUM(vpg.throughput_mibps) FILTER (WHERE vpg.is_shared = false), 0) +
+					COALESCE(SUM(vpg.throughput_mibps) FILTER (WHERE vpg.allocation_type = 'PER_VOLUME'), 0) +
 					-- Sum throughput for shared VPGs (divided by volume count per VPG)
 					COALESCE(SUM(
 						CASE
-							WHEN vpg.is_shared = true AND vpg.id IS NOT NULL THEN
+							WHEN vpg.allocation_type = 'SHARED' AND vpg.id IS NOT NULL THEN
 								vpg.throughput_mibps / NULLIF((
 									SELECT COUNT(*) FROM volumes v2
 									WHERE v2.volume_performance_group_id = vpg.id
@@ -374,11 +374,11 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 			CASE
 				WHEN p.qos_type = 'manual' THEN
 					-- Sum IOPS for non-shared VPGs (each volume gets full VPG IOPS)
-					COALESCE(SUM(vpg.iops) FILTER (WHERE vpg.is_shared = false), 0) +
+					COALESCE(SUM(vpg.iops) FILTER (WHERE vpg.allocation_type = 'PER_VOLUME'), 0) +
 					-- Sum IOPS for shared VPGs (divided by volume count per VPG)
 					COALESCE(SUM(
 						CASE
-							WHEN vpg.is_shared = true AND vpg.id IS NOT NULL THEN
+							WHEN vpg.allocation_type = 'SHARED' AND vpg.id IS NOT NULL THEN
 								vpg.iops / NULLIF((
 									SELECT COUNT(*) FROM volumes v2
 									WHERE v2.volume_performance_group_id = vpg.id

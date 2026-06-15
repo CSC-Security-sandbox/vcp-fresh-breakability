@@ -2510,7 +2510,7 @@ func runPoolQosTypeTransitionAutoToManual(
 		PoolID:          dbPool.ID,
 		ThroughputMibps: dbPool.PoolAttributes.ThroughputMibps,
 		Iops:            dbPool.PoolAttributes.Iops,
-		IsShared:        true,
+		AllocationType:  models.AllocationTypeShared,
 		IsAutoGen:       false,
 	}
 	var qosPolicyID string

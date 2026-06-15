@@ -49,9 +49,9 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 		p.*,
 		coalesce(
 			CASE
-				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = false
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.allocation_type = 'PER_VOLUME'
 					THEN sum(vpg.throughput_mibps)
-				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = true
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.allocation_type = 'SHARED'
 					THEN sum(vpg.throughput_mibps) / NULLIF((
 						SELECT COUNT(*) FROM volumes v2 WHERE v2.volume_performance_group_id = vpg.id AND v2.deleted_at IS NULL), 0)
 				ELSE sum(v.throughput)
@@ -60,9 +60,9 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 		) as throughput,
 		coalesce(
 			CASE
-				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = false
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.allocation_type = 'PER_VOLUME'
 					THEN sum(vpg.iops)
-				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = true
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.allocation_type = 'SHARED'
 					THEN sum(vpg.iops) / NULLIF((
 						SELECT COUNT(*) FROM volumes v2 WHERE v2.volume_performance_group_id = vpg.id AND v2.deleted_at IS NULL), 0)
 				ELSE 0

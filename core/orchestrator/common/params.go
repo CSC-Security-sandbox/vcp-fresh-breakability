@@ -1171,7 +1171,7 @@ type CreateVolumePerformanceGroupParams struct {
 	Name            string // resourceId
 	ThroughputMibps int64
 	Iops            int64
-	IsShared        bool
+	AllocationType  string
 	Description     string
 	Labels          *datamodel.JSONB
 }

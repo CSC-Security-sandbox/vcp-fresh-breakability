@@ -5,9 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -44,8 +45,8 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-				DeploymentName:  "test-deployment",
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "test-deployment",
 				PoolCredentials: &datamodel.PoolCredentials{Password: "pwd"},
 			},
 		}
@@ -72,13 +73,13 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 			Iops:                     &iops,
 		}
 		vpg := &datamodel.VolumePerformanceGroup{
-			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
-			Name:             "old-name",
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			Name:            "old-name",
 			OntapQosPolicyID: "old-name",
-			PoolID:           1,
+			PoolID:          1,
 			ThroughputMibps:  100,
-			Iops:             500,
-			IsShared:         true,
+			Iops:            500,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		env.ExecuteWorkflow(UpdateVolumePerformanceGroupWorkflow, params, vpg)
@@ -114,8 +115,8 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-				DeploymentName:  "test-deployment",
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "test-deployment",
 				PoolCredentials: &datamodel.PoolCredentials{Password: "pwd"},
 			},
 		}
@@ -142,13 +143,13 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 			Iops:                     nil, // use vpg.Iops
 		}
 		vpg := &datamodel.VolumePerformanceGroup{
-			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
-			Name:             "current-name",
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			Name:            "current-name",
 			OntapQosPolicyID: "current-name",
-			PoolID:           1,
+			PoolID:          1,
 			ThroughputMibps:  100,
-			Iops:             500,
-			IsShared:         true,
+			Iops:            500,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		env.ExecuteWorkflow(UpdateVolumePerformanceGroupWorkflow, params, vpg)
@@ -220,7 +221,7 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 			PoolID:           1,
 			ThroughputMibps:  100,
 			Iops:             500,
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			Description:      "old description",
 		}
 

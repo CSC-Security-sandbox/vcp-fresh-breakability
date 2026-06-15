@@ -37,7 +37,7 @@ func (h Handler) V1betaCreateVolumePerformanceGroup(ctx context.Context, req *gc
 		Name:            req.ResourceId,
 		ThroughputMibps: req.ThroughputMibps,
 		Iops:            req.Iops,
-		IsShared:        req.IsShared,
+		AllocationType:  fromAPIAllocationType(req.AllocationType),
 	}
 	if req.Description.IsSet() {
 		createParams.Description = req.Description.Value
@@ -314,7 +314,7 @@ func convertModelToVCPVolumePerformanceGroup(vpg *models.VolumePerformanceGroup,
 		VolumePerformanceGroupId: vpg.UUID,
 		ThroughputMibps:          vpg.ThroughputMibps,
 		Iops:                     vpg.Iops,
-		IsShared:                 vpg.IsShared,
+		AllocationType:           toAPIAllocationType(vpg.AllocationType),
 		Created:                  gcpgenserver.NewOptDateTime(vpg.CreatedAt),
 		Description:              gcpgenserver.NewOptNilString(vpg.Description),
 	}
@@ -329,6 +329,29 @@ func convertModelToVCPVolumePerformanceGroup(vpg *models.VolumePerformanceGroup,
 	}
 
 	return res
+}
+
+func fromAPIAllocationType(t gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationType) string {
+	switch t {
+	case gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME:
+		return models.AllocationTypePerVolume
+	case gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED,
+		gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypeSHARED:
+		return models.AllocationTypeShared
+	default:
+		return models.AllocationTypeShared
+	}
+}
+
+func toAPIAllocationType(allocationType string) gcpgenserver.VolumePerformanceGroupV1betaAllocationType {
+	switch allocationType {
+	case models.AllocationTypePerVolume:
+		return gcpgenserver.VolumePerformanceGroupV1betaAllocationTypePERVOLUME
+	case models.AllocationTypeShared:
+		return gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED
+	default:
+		return gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
+	}
 }
 
 func toVPGState(state string) gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupState {

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -7248,7 +7249,7 @@ func TestPersistenceStore_VpgWrapperMethods(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "vpg-wrapper"},
 		PoolID:    pool.ID,
 		Name:      "vpg-wrapper",
-		IsShared:  true,
+		AllocationType: models.AllocationTypeShared,
 		IsAutoGen: true,
 	}
 	require.NoError(t, store.DB().Create(vpg).Error)
@@ -7322,7 +7323,7 @@ func TestPersistenceStore_DereferencePoolVolumesFromVPGs(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "vpg-deref-pool"},
 		PoolID:    pool.ID,
 		Name:      "vpg-deref-pool",
-		IsShared:  true,
+		AllocationType: models.AllocationTypeShared,
 	}
 	require.NoError(t, store.DB().Create(vpg).Error)
 
@@ -7442,7 +7443,7 @@ func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7471,7 +7472,7 @@ func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dup"},
 			PoolID:           pool.ID,
 			Name:             "vpg-dup",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7486,7 +7487,7 @@ func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dup"},
 			PoolID:           pool.ID,
 			Name:             "vpg-dup-2",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -7510,7 +7511,7 @@ func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-invalid-pool"},
 			PoolID:           999999, // Non-existent pool ID
 			Name:             "vpg-invalid-pool",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7552,7 +7553,7 @@ func TestGetVolumePerformanceGroupByPoolAndName_PersistenceStore(t *testing.T) {
 		BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-byname"},
 		PoolID:           createdPool.ID,
 		Name:             "my-vpg-by-pool-and-name",
-		IsShared:         true,
+		AllocationType: models.AllocationTypeShared,
 		IsAutoGen:        false,
 		ThroughputMibps:  128,
 		Iops:             2000,
@@ -7588,7 +7589,7 @@ func TestGetVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7635,7 +7636,7 @@ func TestListVolumePerformanceGroups_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-1"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7648,7 +7649,7 @@ func TestListVolumePerformanceGroups_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-2"},
 			PoolID:           pool.ID,
 			Name:             "vpg-2",
-			IsShared:         false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:        true,
 			ThroughputMibps:  128,
 			Iops:             2000,
@@ -7687,7 +7688,7 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7713,7 +7714,7 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 		assert.Equal(tt, int64(2000), got.Iops)
 		// Verify immutable fields are not changed
 		assert.Equal(tt, pool.ID, got.PoolID)
-		assert.Equal(tt, true, got.IsShared)
+		assert.Equal(tt, models.AllocationTypeShared, got.AllocationType)
 	})
 
 	t.Run("WhenVPGNotFound", func(tt *testing.T) {
@@ -7733,7 +7734,7 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 		assert.Contains(tt, err.Error(), "not found", "Error should indicate VPG was not found")
 	})
 
-	t.Run("WhenUpdateFailsToChangeIsShared", func(tt *testing.T) {
+	t.Run("WhenUpdateFailsToChangeAllocationType", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
 		wrapper := gormwrapper.New(db)
@@ -7746,12 +7747,12 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-immutable"}, Name: "pool-vpg-immutable", AccountID: account.ID, Account: account}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
-		// Create VPG with IsShared = true
+		// Create VPG with allocationType SHARED
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-immutable"},
 			PoolID:           pool.ID,
 			Name:             "vpg-immutable",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7759,20 +7760,20 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 		}
 		assert.NoError(tt, store.db.Create(vpg).Error())
 
-		// Try to update IsShared field (should be ignored)
+		// Try to update allocationType field (should be ignored)
 		updatedVPG := &datamodel.VolumePerformanceGroup{
 			BaseModel: datamodel.BaseModel{UUID: "row-uuid-vpg-immutable"},
 			Name:      "vpg-immutable-updated",
-			IsShared:  false, // Try to change from true to false
+			AllocationType: models.AllocationTypePerVolume, // Try to change SHARED to PER_VOLUME
 		}
 		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
 		assert.NoError(tt, err)
 
-		// Verify IsShared was NOT changed (should still be true)
+		// Verify allocationType was NOT changed (should still be SHARED)
 		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-immutable")
 		assert.NoError(tt, err)
 		assert.Equal(tt, "vpg-immutable-updated", got.Name, "Name should be updated")
-		assert.Equal(tt, true, got.IsShared, "IsShared should remain unchanged (true)")
+		assert.Equal(tt, models.AllocationTypeShared, got.AllocationType, "allocationType should remain unchanged (SHARED)")
 	})
 
 	t.Run("WhenUpdateFailsToChangePoolID", func(tt *testing.T) {
@@ -7795,7 +7796,7 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-poolid"},
 			PoolID:           pool1.ID,
 			Name:             "vpg-poolid",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,
@@ -7868,7 +7869,7 @@ func TestDeleteVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
 			PoolID:           pool.ID,
 			Name:             "vpg-1",
-			IsShared:         true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:        false,
 			ThroughputMibps:  64,
 			Iops:             1000,

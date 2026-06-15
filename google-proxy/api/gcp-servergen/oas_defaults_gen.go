@@ -477,16 +477,16 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 // setDefaults set default value of fields.
 func (s *VolumePerformanceGroupCreateV1beta) setDefaults() {
 	{
-		val := bool(true)
-		s.IsShared = val
+		val := VolumePerformanceGroupCreateV1betaAllocationType("SHARED")
+		s.AllocationType = val
 	}
 }
 
 // setDefaults set default value of fields.
 func (s *VolumePerformanceGroupV1beta) setDefaults() {
 	{
-		val := bool(true)
-		s.IsShared = val
+		val := VolumePerformanceGroupV1betaAllocationType("SHARED")
+		s.AllocationType = val
 	}
 }
 

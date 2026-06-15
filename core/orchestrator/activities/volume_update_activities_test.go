@@ -5844,7 +5844,7 @@ func TestUpdateVolumePerformanceGroupInDB_Success(t *testing.T) {
 		PoolID:           1,
 		ThroughputMibps:  200,
 		Iops:             1000,
-		IsShared:         false,
+		AllocationType:   models.AllocationTypePerVolume,
 		IsAutoGen:        true,
 		OntapQosPolicyID: "policy-uuid-456",
 	}
@@ -5885,7 +5885,7 @@ func TestUpdateVolumePerformanceGroupInDB_DatabaseError(t *testing.T) {
 		PoolID:           1,
 		ThroughputMibps:  200,
 		Iops:             1000,
-		IsShared:         false,
+		AllocationType:   models.AllocationTypePerVolume,
 		IsAutoGen:        true,
 		OntapQosPolicyID: "policy-uuid-456",
 	}

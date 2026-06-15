@@ -23987,6 +23987,17 @@ func (s *VolumePerformanceGroupCreateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.AllocationType.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "allocationType",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Description.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
@@ -24016,6 +24027,19 @@ func (s *VolumePerformanceGroupCreateV1beta) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s VolumePerformanceGroupCreateV1betaAllocationType) Validate() error {
+	switch s {
+	case "ALLOCATION_TYPE_UNSPECIFIED":
+		return nil
+	case "SHARED":
+		return nil
+	case "PER_VOLUME":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *VolumePerformanceGroupUpdateV1beta) Validate() error {
@@ -24240,6 +24264,17 @@ func (s *VolumePerformanceGroupV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.AllocationType.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "allocationType",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.VolumePerformanceGroupState.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -24287,6 +24322,19 @@ func (s *VolumePerformanceGroupV1beta) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s VolumePerformanceGroupV1betaAllocationType) Validate() error {
+	switch s {
+	case "ALLOCATION_TYPE_UNSPECIFIED":
+		return nil
+	case "SHARED":
+		return nil
+	case "PER_VOLUME":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s VolumePerformanceGroupV1betaVolumePerformanceGroupState) Validate() error {

@@ -36645,9 +36645,9 @@ type VolumePerformanceGroupCreateV1beta struct {
 	ThroughputMibps int64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
 	Iops int64 `json:"iops"`
-	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
-	// throughput available to the parent pool.
-	IsShared bool `json:"isShared"`
+	// Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the
+	// cap collectively; PER_VOLUME = each member gets the full cap individually.
+	AllocationType VolumePerformanceGroupCreateV1betaAllocationType `json:"allocationType"`
 	// Description of the volume performance group.
 	Description OptNilString `json:"description"`
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
@@ -36669,9 +36669,9 @@ func (s *VolumePerformanceGroupCreateV1beta) GetIops() int64 {
 	return s.Iops
 }
 
-// GetIsShared returns the value of IsShared.
-func (s *VolumePerformanceGroupCreateV1beta) GetIsShared() bool {
-	return s.IsShared
+// GetAllocationType returns the value of AllocationType.
+func (s *VolumePerformanceGroupCreateV1beta) GetAllocationType() VolumePerformanceGroupCreateV1betaAllocationType {
+	return s.AllocationType
 }
 
 // GetDescription returns the value of Description.
@@ -36699,9 +36699,9 @@ func (s *VolumePerformanceGroupCreateV1beta) SetIops(val int64) {
 	s.Iops = val
 }
 
-// SetIsShared sets the value of IsShared.
-func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val bool) {
-	s.IsShared = val
+// SetAllocationType sets the value of AllocationType.
+func (s *VolumePerformanceGroupCreateV1beta) SetAllocationType(val VolumePerformanceGroupCreateV1betaAllocationType) {
+	s.AllocationType = val
 }
 
 // SetDescription sets the value of Description.
@@ -36712,6 +36712,56 @@ func (s *VolumePerformanceGroupCreateV1beta) SetDescription(val OptNilString) {
 // SetLabels sets the value of Labels.
 func (s *VolumePerformanceGroupCreateV1beta) SetLabels(val OptVolumePerformanceGroupCreateV1betaLabels) {
 	s.Labels = val
+}
+
+// Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the
+// cap collectively; PER_VOLUME = each member gets the full cap individually.
+type VolumePerformanceGroupCreateV1betaAllocationType string
+
+const (
+	VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED VolumePerformanceGroupCreateV1betaAllocationType = "ALLOCATION_TYPE_UNSPECIFIED"
+	VolumePerformanceGroupCreateV1betaAllocationTypeSHARED                    VolumePerformanceGroupCreateV1betaAllocationType = "SHARED"
+	VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME                 VolumePerformanceGroupCreateV1betaAllocationType = "PER_VOLUME"
+)
+
+// AllValues returns all VolumePerformanceGroupCreateV1betaAllocationType values.
+func (VolumePerformanceGroupCreateV1betaAllocationType) AllValues() []VolumePerformanceGroupCreateV1betaAllocationType {
+	return []VolumePerformanceGroupCreateV1betaAllocationType{
+		VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED,
+		VolumePerformanceGroupCreateV1betaAllocationTypeSHARED,
+		VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumePerformanceGroupCreateV1betaAllocationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumePerformanceGroupCreateV1betaAllocationTypeSHARED:
+		return []byte(s), nil
+	case VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumePerformanceGroupCreateV1betaAllocationType) UnmarshalText(data []byte) error {
+	switch VolumePerformanceGroupCreateV1betaAllocationType(data) {
+	case VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
+		return nil
+	case VolumePerformanceGroupCreateV1betaAllocationTypeSHARED:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypeSHARED
+		return nil
+	case VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
@@ -36816,9 +36866,9 @@ type VolumePerformanceGroupV1beta struct {
 	ThroughputMibps int64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
 	Iops int64 `json:"iops"`
-	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
-	// throughput available to the parent pool.
-	IsShared bool `json:"isShared"`
+	// Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the
+	// cap collectively; PER_VOLUME = each member gets the full cap individually.
+	AllocationType VolumePerformanceGroupV1betaAllocationType `json:"allocationType"`
 	// Creation date of the resource.
 	Created OptDateTime `json:"created"`
 	// The current lifecycle state of the resource.
@@ -36856,9 +36906,9 @@ func (s *VolumePerformanceGroupV1beta) GetIops() int64 {
 	return s.Iops
 }
 
-// GetIsShared returns the value of IsShared.
-func (s *VolumePerformanceGroupV1beta) GetIsShared() bool {
-	return s.IsShared
+// GetAllocationType returns the value of AllocationType.
+func (s *VolumePerformanceGroupV1beta) GetAllocationType() VolumePerformanceGroupV1betaAllocationType {
+	return s.AllocationType
 }
 
 // GetCreated returns the value of Created.
@@ -36911,9 +36961,9 @@ func (s *VolumePerformanceGroupV1beta) SetIops(val int64) {
 	s.Iops = val
 }
 
-// SetIsShared sets the value of IsShared.
-func (s *VolumePerformanceGroupV1beta) SetIsShared(val bool) {
-	s.IsShared = val
+// SetAllocationType sets the value of AllocationType.
+func (s *VolumePerformanceGroupV1beta) SetAllocationType(val VolumePerformanceGroupV1betaAllocationType) {
+	s.AllocationType = val
 }
 
 // SetCreated sets the value of Created.
@@ -36943,6 +36993,56 @@ func (s *VolumePerformanceGroupV1beta) SetLabels(val OptVolumePerformanceGroupV1
 
 func (*VolumePerformanceGroupV1beta) v1betaCreateVolumePerformanceGroupRes()   {}
 func (*VolumePerformanceGroupV1beta) v1betaDescribeVolumePerformanceGroupRes() {}
+
+// Specifies how the VPG's throughput/IOPS limits apply to member volumes. SHARED = members share the
+// cap collectively; PER_VOLUME = each member gets the full cap individually.
+type VolumePerformanceGroupV1betaAllocationType string
+
+const (
+	VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED VolumePerformanceGroupV1betaAllocationType = "ALLOCATION_TYPE_UNSPECIFIED"
+	VolumePerformanceGroupV1betaAllocationTypeSHARED                    VolumePerformanceGroupV1betaAllocationType = "SHARED"
+	VolumePerformanceGroupV1betaAllocationTypePERVOLUME                 VolumePerformanceGroupV1betaAllocationType = "PER_VOLUME"
+)
+
+// AllValues returns all VolumePerformanceGroupV1betaAllocationType values.
+func (VolumePerformanceGroupV1betaAllocationType) AllValues() []VolumePerformanceGroupV1betaAllocationType {
+	return []VolumePerformanceGroupV1betaAllocationType{
+		VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED,
+		VolumePerformanceGroupV1betaAllocationTypeSHARED,
+		VolumePerformanceGroupV1betaAllocationTypePERVOLUME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumePerformanceGroupV1betaAllocationType) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaAllocationTypeSHARED:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaAllocationTypePERVOLUME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumePerformanceGroupV1betaAllocationType) UnmarshalText(data []byte) error {
+	switch VolumePerformanceGroupV1betaAllocationType(data) {
+	case VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		*s = VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
+		return nil
+	case VolumePerformanceGroupV1betaAllocationTypeSHARED:
+		*s = VolumePerformanceGroupV1betaAllocationTypeSHARED
+		return nil
+	case VolumePerformanceGroupV1betaAllocationTypePERVOLUME:
+		*s = VolumePerformanceGroupV1betaAllocationTypePERVOLUME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
 type VolumePerformanceGroupV1betaLabels map[string]string

@@ -81937,8 +81937,8 @@ func (s *VolumePerformanceGroupCreateV1beta) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Iops)
 	}
 	{
-		e.FieldStart("isShared")
-		e.Bool(s.IsShared)
+		e.FieldStart("allocationType")
+		s.AllocationType.Encode(e)
 	}
 	{
 		if s.Description.Set {
@@ -81958,7 +81958,7 @@ var jsonFieldsNameOfVolumePerformanceGroupCreateV1beta = [6]string{
 	0: "resourceId",
 	1: "throughputMibps",
 	2: "iops",
-	3: "isShared",
+	3: "allocationType",
 	4: "description",
 	5: "labels",
 }
@@ -82009,17 +82009,15 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
-		case "isShared":
+		case "allocationType":
 			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				v, err := d.Bool()
-				s.IsShared = bool(v)
-				if err != nil {
+				if err := s.AllocationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isShared\"")
+				return errors.Wrap(err, "decode field \"allocationType\"")
 			}
 		case "description":
 			if err := func() error {
@@ -82093,6 +82091,48 @@ func (s *VolumePerformanceGroupCreateV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumePerformanceGroupCreateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupCreateV1betaAllocationType as json.
+func (s VolumePerformanceGroupCreateV1betaAllocationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumePerformanceGroupCreateV1betaAllocationType from json.
+func (s *VolumePerformanceGroupCreateV1betaAllocationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupCreateV1betaAllocationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumePerformanceGroupCreateV1betaAllocationType(v) {
+	case VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
+	case VolumePerformanceGroupCreateV1betaAllocationTypeSHARED:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypeSHARED
+	case VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME:
+		*s = VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME
+	default:
+		*s = VolumePerformanceGroupCreateV1betaAllocationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupCreateV1betaAllocationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupCreateV1betaAllocationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -82370,8 +82410,8 @@ func (s *VolumePerformanceGroupV1beta) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Iops)
 	}
 	{
-		e.FieldStart("isShared")
-		e.Bool(s.IsShared)
+		e.FieldStart("allocationType")
+		s.AllocationType.Encode(e)
 	}
 	{
 		if s.Created.Set {
@@ -82411,7 +82451,7 @@ var jsonFieldsNameOfVolumePerformanceGroupV1beta = [11]string{
 	2:  "poolId",
 	3:  "throughputMibps",
 	4:  "iops",
-	5:  "isShared",
+	5:  "allocationType",
 	6:  "created",
 	7:  "volumePerformanceGroupState",
 	8:  "volumePerformanceGroupStateDetails",
@@ -82489,17 +82529,15 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
-		case "isShared":
+		case "allocationType":
 			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Bool()
-				s.IsShared = bool(v)
-				if err != nil {
+				if err := s.AllocationType.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isShared\"")
+				return errors.Wrap(err, "decode field \"allocationType\"")
 			}
 		case "created":
 			if err := func() error {
@@ -82604,6 +82642,48 @@ func (s *VolumePerformanceGroupV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumePerformanceGroupV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupV1betaAllocationType as json.
+func (s VolumePerformanceGroupV1betaAllocationType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumePerformanceGroupV1betaAllocationType from json.
+func (s *VolumePerformanceGroupV1betaAllocationType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupV1betaAllocationType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumePerformanceGroupV1betaAllocationType(v) {
+	case VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED:
+		*s = VolumePerformanceGroupV1betaAllocationTypeALLOCATIONTYPEUNSPECIFIED
+	case VolumePerformanceGroupV1betaAllocationTypeSHARED:
+		*s = VolumePerformanceGroupV1betaAllocationTypeSHARED
+	case VolumePerformanceGroupV1betaAllocationTypePERVOLUME:
+		*s = VolumePerformanceGroupV1betaAllocationTypePERVOLUME
+	default:
+		*s = VolumePerformanceGroupV1betaAllocationType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupV1betaAllocationType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupV1betaAllocationType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

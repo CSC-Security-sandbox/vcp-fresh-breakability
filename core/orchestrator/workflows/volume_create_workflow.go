@@ -32,7 +32,7 @@ var (
 	volumeStartToCloseTimeoutSec   = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
 	volumeStartToCloseTimeoutSecLV = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC_LV", 1800) // 30 minutes for large volumes
 	volumeHeartbeatTimeoutSec      = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
-	dbHeartbeatTimeoutSec          = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
+	dbHeartbeatTimeoutSec          = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 30)
 	enableKerberos                 = env.GetBool("ENABLE_KERBEROS", false)
 	workflowSleep                  = workflow.Sleep // Variable for testing
 )
@@ -1036,7 +1036,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			PoolID:          dbVolume.Pool.ID,
 			ThroughputMibps: *createVolumeParams.ThroughputMibps,
 			Iops:            *createVolumeParams.Iops,
-			IsShared:        true,
+			AllocationType:  models.AllocationTypeShared,
 			IsAutoGen:       true,
 		}
 		err = workflow.ExecuteActivity(ctx, vpgActivity.CreateQoSPolicyInONTAP, vpg, node).Get(ctx, &qosPolicyID)

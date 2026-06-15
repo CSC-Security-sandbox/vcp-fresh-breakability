@@ -202,7 +202,7 @@ func ShouldSubtractCurrentVpgContribution(ctx context.Context, se database.Stora
 	if volume == nil || volume.VolumePerformanceGroup == nil {
 		return false, nil
 	}
-	if !volume.VolumePerformanceGroup.IsShared {
+	if volume.VolumePerformanceGroup.IsPerVolume() {
 		return true, nil
 	}
 	if volume.VolumePerformanceGroup.ID == 0 {
@@ -251,7 +251,7 @@ func ShouldAddNewVpgContribution(ctx context.Context, se database.Storage, vpg *
 	if vpg == nil {
 		return false, nil
 	}
-	if !vpg.IsShared {
+	if vpg.IsPerVolume() {
 		return true, nil
 	}
 	if vpg.ID == 0 {

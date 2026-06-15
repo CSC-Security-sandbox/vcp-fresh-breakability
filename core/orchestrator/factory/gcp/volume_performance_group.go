@@ -53,12 +53,17 @@ func (o *GCPOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, para
 		return nil, err
 	}
 
+	if err := validatePoolLimitsForVPGCreate(pool, params.ThroughputMibps, params.Iops); err != nil {
+		logger.Error("VPG pool limit validation failed", "error", err, "pool_id", pool.ID)
+		return nil, err
+	}
+
 	vpg, err := mqos.CreateVolumePerformanceGroupAtomic(ctx, se, &datamodel.VolumePerformanceGroup{
 		Name:            params.Name,
 		PoolID:          pool.ID,
 		ThroughputMibps: params.ThroughputMibps,
 		Iops:            params.Iops,
-		IsShared:        params.IsShared,
+		AllocationType:  params.AllocationType,
 		IsAutoGen:       false,
 		Description:     params.Description,
 		State:           datamodel.LifeCycleStateCreating,
@@ -189,7 +194,7 @@ func convertDatastoreVPGToModel(vpg *datamodel.VolumePerformanceGroup) *models.V
 		PoolID:                strconv.FormatInt(vpg.PoolID, 10),
 		ThroughputMibps:       vpg.ThroughputMibps,
 		Iops:                  vpg.Iops,
-		IsShared:              vpg.IsShared,
+		AllocationType:        vpg.AllocationType,
 		Description:           vpg.Description,
 		LifeCycleState:        vpg.State,
 		LifeCycleStateDetails: vpg.StateDetails,
@@ -197,29 +202,44 @@ func convertDatastoreVPGToModel(vpg *datamodel.VolumePerformanceGroup) *models.V
 	}
 }
 
-// validatePoolCapacityForVPGUpdate checks that updating the VPG's throughput/IOPS would not exceed the pool's total capacity.
-// It accounts for the VPG's isShared state and the number of volumes assigned to this VPG: when isShared is true,
-// the VPG contributes vpg.throughput/vpg.iops once; when isShared is false, each volume gets its own allocation so
-// pool total is vpg.throughput * numVolumes (pre) and newThroughput * numVolumes (post).
-func validatePoolCapacityForVPGUpdate(ctx context.Context, se database.Storage, pool *datamodel.PoolView, vpg *datamodel.VolumePerformanceGroup, newThroughputMibps *int64, newIops *int64) error {
-	if pool == nil || pool.PoolAttributes == nil || pool.PoolAttributes.ThroughputMibps == 0 {
+// validatePoolLimitsForVPGCreate enforces the per-VPG declared limits contract:
+// a single VPG's declared throughput/IOPS must not exceed the parent pool's total limits.
+// This check is intentionally independent of any existing VPGs or assigned volumes in the pool.
+// It is used for:
+//  1) create-time validation of empty VPGs, and
+//  2) brownfield update-time validation so no VPG (with or without assigned volumes) can declare limits above pool totals.
+func validatePoolLimitsForVPGCreate(pool *datamodel.PoolView, throughputMibps, iops int64) error {
+	if pool == nil || pool.PoolAttributes == nil {
 		return nil
-	}
-	numVolumes, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
-	if err != nil {
-		return err
-	}
-	// When no volumes are assigned, the VPG consumes no pool capacity regardless of isShared.
-	volumesPresent := int64(0)
-	if numVolumes > 0 {
-		volumesPresent = 1
 	}
 
 	totalPoolThroughput := pool.PoolAttributes.ThroughputMibps
 	totalPoolIops := pool.PoolAttributes.Iops
 
-	// Pre-update: this VPG's current contribution to pool configured throughput/IOPS.
-	// When isShared is true, the VPG contributes once (or zero if no volumes). When false, each volume gets its own, so pool consumption = vpg * numVolumes.
+	if totalPoolThroughput > 0 && throughputMibps > totalPoolThroughput {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
+			"VPG throughput (%d MiBps) exceeds pool's total throughput (%d MiBps)",
+			throughputMibps, totalPoolThroughput))
+	}
+	if totalPoolIops > 0 && iops > totalPoolIops {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
+			"VPG IOPS (%d) exceeds pool's total IOPS (%d)",
+			iops, totalPoolIops))
+	}
+	return nil
+}
+
+// validatePoolCapacityForVPGUpdate checks update-time capacity constraints.
+// It first enforces the per-VPG declared-limit guard (independent of other VPGs/volumes),
+// then validates aggregate pool configured capacity after applying this VPG's delta.
+// It accounts for the VPG's allocationType and the number of volumes assigned to this VPG: when allocationType is SHARED,
+// the VPG contributes vpg.throughput/vpg.iops once; when allocationType is PER_VOLUME, each volume gets its own allocation so
+// pool total is vpg.throughput * numVolumes (pre) and newThroughput * numVolumes (post).
+func validatePoolCapacityForVPGUpdate(ctx context.Context, se database.Storage, pool *datamodel.PoolView, vpg *datamodel.VolumePerformanceGroup, newThroughputMibps *int64, newIops *int64) error {
+	if pool == nil || pool.PoolAttributes == nil || pool.PoolAttributes.ThroughputMibps == 0 {
+		return nil
+	}
+
 	newTput := vpg.ThroughputMibps
 	if newThroughputMibps != nil {
 		newTput = *newThroughputMibps
@@ -229,8 +249,29 @@ func validatePoolCapacityForVPGUpdate(ctx context.Context, se database.Storage, 
 		newIopsVal = *newIops
 	}
 
+	// Update should never allow a VPG's declared limits to exceed the parent pool totals,
+	// even when the VPG currently has no assigned volumes.
+	if err := validatePoolLimitsForVPGCreate(pool, newTput, newIopsVal); err != nil {
+		return err
+	}
+
+	numVolumes, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
+	if err != nil {
+		return err
+	}
+	// When no volumes are assigned, the VPG consumes no pool capacity regardless of allocationType.
+	volumesPresent := int64(0)
+	if numVolumes > 0 {
+		volumesPresent = 1
+	}
+
+	totalPoolThroughput := pool.PoolAttributes.ThroughputMibps
+	totalPoolIops := pool.PoolAttributes.Iops
+
+	// Pre-update: this VPG's current contribution to pool configured throughput/IOPS.
+	// When allocationType is SHARED, the VPG contributes once (or zero if no volumes). When PER_VOLUME, each volume gets its own, so pool consumption = vpg * numVolumes.
 	var preThroughput, preIops, postThroughput, postIops int64
-	if vpg.IsShared {
+	if vpg.IsShared() {
 		preThroughput = vpg.ThroughputMibps * volumesPresent
 		preIops = vpg.Iops * volumesPresent
 		postThroughput = newTput * volumesPresent

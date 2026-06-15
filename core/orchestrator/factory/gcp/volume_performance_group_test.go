@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -40,7 +41,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:       false,
 		}
 
@@ -54,8 +55,8 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.MatchedBy(func(vpg *datamodel.VolumePerformanceGroup) bool {
 			return vpg != nil && vpg.Name == "test-vpg" && vpg.PoolID == 1 && vpg.ThroughputMibps == 100 &&
-				vpg.Iops == 1000 && !vpg.IsShared && !vpg.IsAutoGen
-		}), mock.AnythingOfType("int")).Return(createdVPG, nil)
+				vpg.Iops == 1000 && vpg.IsPerVolume() && !vpg.IsAutoGen
+		}), mock.Anything).Return(createdVPG, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, nil)
 
 		params := &common.CreateVolumePerformanceGroupParams{
@@ -64,7 +65,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -74,7 +75,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, "test-vpg", result.Name)
 		assert.Equal(tt, int64(100), result.ThroughputMibps)
 		assert.Equal(tt, int64(1000), result.Iops)
-		assert.False(tt, result.IsShared)
+		assert.Equal(tt, models.AllocationTypePerVolume, result.AllocationType)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -100,7 +101,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:       false,
 		}
 
@@ -112,7 +113,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
-		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(createdVPG, nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.Anything).Return(createdVPG, nil)
 		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
 
@@ -122,7 +123,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -149,7 +150,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -181,7 +182,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -221,7 +222,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -262,7 +263,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -299,7 +300,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -333,7 +334,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
-		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(nil, errors.New("db create failed"))
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("db create failed"))
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName:     "test-account",
@@ -341,7 +342,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -351,12 +352,15 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("VSCP_6089_RejectsWhenAtCap_NoCreateNoWorkflow", func(tt *testing.T) {
+	t.Run("VSCP_6089_WhenAtVPGCap_ReturnsCapExceededError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
 
-		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
@@ -364,6 +368,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 				QosType:   utils.QosTypeManual,
 			},
 		}
+
 		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -371,18 +376,22 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
-		// Pool at default cap (12000); AssertExpectations catches any unintended Create/Workflow call.
 		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(12000), nil)
 
 		params := &common.CreateVolumePerformanceGroupParams{
-			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
-			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "maximum number of Volume Performance Groups")
 		assert.Contains(tt, err.Error(), "12000")
 		assert.Contains(tt, err.Error(), "Delete unused VPGs")
 		mockStorage.AssertExpectations(tt)
@@ -412,7 +421,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
-			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+			ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -446,7 +455,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
-			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+			ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
@@ -455,6 +464,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.False(tt, utilErrors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "db: connection lost")
 		mockStorage.AssertExpectations(tt)
+		mockStorage.AssertNotCalled(tt, "CreateVolumePerformanceGroupWithCap", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("DeferLogsErrorWhenWorkflowFailsAndDeleteVPGFails", func(tt *testing.T) {
@@ -479,7 +489,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:       false,
 		}
 		originalGetAccountWithName := getAccountWithName
@@ -490,7 +500,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
-		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(createdVPG, nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.Anything).Return(createdVPG, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
 		// Defer runs and tries to delete VPG; delete also fails (covers logger.Error in defer)
 		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(errors.New("delete vpg failed"))
@@ -501,13 +511,155 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-vpg",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6580_RejectsWhenThroughputExceedsPoolTotal", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     datamodel.LifeCycleStateREADY,
+				QosType:   utils.QosTypeManual,
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 100,
+					Iops:            1600,
+				},
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
+			ThroughputMibps: 101, Iops: 800, AllocationType: models.AllocationTypePerVolume,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "throughput")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6580_RejectsWhenIopsExceedsPoolTotal", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     datamodel.LifeCycleStateREADY,
+				QosType:   utils.QosTypeManual,
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 100,
+					Iops:            1600,
+				},
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
+			ThroughputMibps: 50, Iops: 1601, AllocationType: models.AllocationTypeShared,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "IOPS")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestValidatePoolLimitsForVPGCreate(t *testing.T) {
+	t.Run("ReturnsNilWhenPoolHasNoCustomPerformance", func(t *testing.T) {
+		pool := &datamodel.PoolView{Throughput: 100, Iops: 500}
+		err := validatePoolLimitsForVPGCreate(pool, 999, 9999)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ReturnsErrorWhenThroughputExceedsPoolTotal", func(t *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1600},
+			},
+		}
+		err := validatePoolLimitsForVPGCreate(pool, 101, 800)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "throughput")
+	})
+
+	t.Run("ReturnsErrorWhenIopsExceedsPoolTotal", func(t *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1600},
+			},
+		}
+		err := validatePoolLimitsForVPGCreate(pool, 50, 1601)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "IOPS")
+	})
+
+	t.Run("ReturnsNilWhenLimitsEqualPoolTotal", func(t *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1600},
+			},
+		}
+		err := validatePoolLimitsForVPGCreate(pool, 100, 1600)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ReturnsNilWhenLimitsWithinPoolTotal", func(t *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1600},
+			},
+		}
+		err := validatePoolLimitsForVPGCreate(pool, 50, 800)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Brownfield_PriorPoolConsumptionDoesNotAffectPerVPGDeclaredLimitCheck", func(t *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1600},
+			},
+			// Simulate brownfield pool with other existing VPGs/volumes already consuming capacity.
+			Throughput: 95,
+			Iops:       1500,
+		}
+		// Per-VPG guard only compares against pool totals, not current consumption by other VPGs.
+		err := validatePoolLimitsForVPGCreate(pool, 100, 1600)
+		assert.NoError(t, err)
 	})
 }
 
@@ -534,7 +686,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 				PoolID:          1,
 				ThroughputMibps: 1000,
 				Iops:            5000,
-				IsShared:        true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:       false,
 			},
 			{
@@ -543,7 +695,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 				PoolID:          1,
 				ThroughputMibps: 2000,
 				Iops:            10000,
-				IsShared:        false,
+				AllocationType: models.AllocationTypePerVolume,
 				IsAutoGen:       false,
 			},
 			{
@@ -552,7 +704,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 				PoolID:          1,
 				ThroughputMibps: 500,
 				Iops:            2500,
-				IsShared:        true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:       true, // This should be filtered out
 			},
 		}
@@ -583,8 +735,8 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		assert.Equal(tt, int64(2000), result[1].ThroughputMibps)
 		assert.Equal(tt, int64(5000), result[0].Iops)
 		assert.Equal(tt, int64(10000), result[1].Iops)
-		assert.True(tt, result[0].IsShared)
-		assert.False(tt, result[1].IsShared)
+		assert.Equal(tt, models.AllocationTypeShared, result[0].AllocationType)
+		assert.Equal(tt, models.AllocationTypePerVolume, result[1].AllocationType)
 	})
 
 	t.Run("ReturnsEmptyListWhenNoVPGs", func(tt *testing.T) {
@@ -642,7 +794,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 				PoolID:          1,
 				ThroughputMibps: 500,
 				Iops:            2500,
-				IsShared:        true,
+				AllocationType: models.AllocationTypeShared,
 				IsAutoGen:       true,
 			},
 			{
@@ -651,7 +803,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 				PoolID:          1,
 				ThroughputMibps: 750,
 				Iops:            3750,
-				IsShared:        false,
+				AllocationType: models.AllocationTypePerVolume,
 				IsAutoGen:       true,
 			},
 		}
@@ -811,7 +963,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 1500,
 			Iops:            7500,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		originalGetAccountWithName := getAccountWithName
@@ -836,7 +988,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, "vpg-uuid", result.UUID)
 		assert.Equal(tt, int64(1500), result.ThroughputMibps)
 		assert.Equal(tt, int64(7500), result.Iops)
-		assert.True(tt, result.IsShared)
+		assert.Equal(tt, models.AllocationTypeShared, result.AllocationType)
 	})
 
 	t.Run("ReturnsErrorWhenVPGNotFound", func(tt *testing.T) {
@@ -893,7 +1045,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 			PoolID:          2, // Different pool ID
 			ThroughputMibps: 1500,
 			Iops:            7500,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		originalGetAccountWithName := getAccountWithName
@@ -987,7 +1139,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 1500,
 			Iops:            0, // Zero IOPS
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		originalGetAccountWithName := getAccountWithName
@@ -1024,7 +1176,7 @@ func TestConvertDatastoreVPGToModel(t *testing.T) {
 			PoolID:          9,
 			ThroughputMibps: 3000,
 			Iops:            9000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		result := convertDatastoreVPGToModel(vpg)
@@ -1034,7 +1186,7 @@ func TestConvertDatastoreVPGToModel(t *testing.T) {
 		assert.Equal(tt, "vpg-name", result.Name)
 		assert.Equal(tt, int64(3000), result.ThroughputMibps)
 		assert.Equal(tt, int64(9000), result.Iops)
-		assert.True(tt, result.IsShared)
+		assert.Equal(tt, models.AllocationTypeShared, result.AllocationType)
 	})
 }
 
@@ -1051,7 +1203,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 	t.Run("ReturnsNilWhenPoolHasNoCustomPerformance", func(tt *testing.T) {
 		// Pool has no PoolAttributes (or zero throughput), so we return nil before calling storage
 		pool := &datamodel.PoolView{Throughput: 100, Iops: 500}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 200, IsShared: true}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 200, AllocationType: models.AllocationTypeShared}
 		se := database.NewMockStorage(tt) // GetVolumeCountByVolumePerformanceGroupID not called (early return)
 		throughput := int64(100)
 		iops := int64(500)
@@ -1067,9 +1219,9 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, IsShared: true}
-		se := mockStorageWithVPGCount(tt, 1, 1)
-		// With isShared and 1 volume: pre=50, post=110 → total 50-50+110=110 > 100
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, AllocationType: models.AllocationTypeShared}
+		se := database.NewMockStorage(tt)
+		// With SHARED allocation and 1 volume: pre=50, post=110 → total 50-50+110=110 > 100
 		throughputExceed := int64(110)
 		iops := int64(500)
 		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &throughputExceed, &iops)
@@ -1085,8 +1237,8 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, IsShared: true}
-		se := mockStorageWithVPGCount(tt, 1, 1)
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, AllocationType: models.AllocationTypeShared}
+		se := database.NewMockStorage(tt)
 		throughput := int64(50)
 		iopsExceed := int64(1100)
 		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &throughput, &iopsExceed)
@@ -1102,7 +1254,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, IsShared: true}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, AllocationType: models.AllocationTypeShared}
 		se := mockStorageWithVPGCount(tt, 1, 1)
 		throughput := int64(40)
 		iops := int64(400)
@@ -1110,8 +1262,8 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 
-	// When no volumes are assigned, the VPG consumes no pool capacity (pre=0, post=0) regardless of isShared.
-	t.Run("ReturnsNilWhenNoVolumesAssigned_SharedVPG", func(tt *testing.T) {
+	// When no volumes are assigned, pool-capacity deltas are zero; however, declared limits must still not exceed pool totals.
+	t.Run("ReturnsErrorWhenNoVolumesAssigned_SharedVPGAndDeclaredLimitsExceedPoolTotals", func(tt *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1000},
@@ -1119,15 +1271,16 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 999, Iops: 9999, IsShared: true}
-		se := mockStorageWithVPGCount(tt, 1, 0) // no volumes
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 999, Iops: 9999, AllocationType: models.AllocationTypeShared}
+		se := database.NewMockStorage(tt)
 		newThroughput := int64(999)
 		newIops := int64(9999)
 		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &newThroughput, &newIops)
-		assert.NoError(tt, err) // pre=0, post=0 → total unchanged, within capacity
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "throughput")
 	})
 
-	t.Run("ReturnsNilWhenNoVolumesAssigned_NonSharedVPG", func(tt *testing.T) {
+	t.Run("ReturnsErrorWhenNoVolumesAssigned_NonSharedVPGAndDeclaredLimitsExceedPoolTotals", func(tt *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1000},
@@ -1135,16 +1288,33 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 2}, ThroughputMibps: 500, Iops: 5000, IsShared: false}
-		se := mockStorageWithVPGCount(tt, 2, 0) // no volumes
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 2}, ThroughputMibps: 500, Iops: 5000, AllocationType: models.AllocationTypePerVolume}
+		se := database.NewMockStorage(tt)
 		newThroughput := int64(600)
 		newIops := int64(6000)
 		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &newThroughput, &newIops)
-		assert.NoError(tt, err) // pre=0, post=0 → total unchanged
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "throughput")
+	})
+
+	t.Run("ReturnsNilWhenNoVolumesAssignedAndDeclaredLimitsWithinPoolTotals", func(tt *testing.T) {
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 100, Iops: 1000},
+			},
+			Throughput: 50,
+			Iops:       500,
+		}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 3}, ThroughputMibps: 80, Iops: 800, AllocationType: models.AllocationTypeShared}
+		se := mockStorageWithVPGCount(tt, 3, 0)
+		newThroughput := int64(90)
+		newIops := int64(900)
+		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &newThroughput, &newIops)
+		assert.NoError(tt, err)
 	})
 
 	t.Run("AccountsForNonSharedVPGWithMultipleVolumes", func(tt *testing.T) {
-		// Pool 1000 MiBps; 3 volumes on this VPG, isShared=false → pre = 100*3 = 300. Other = 1000-300 = 700. Post = 200*3 = 600. Total = 700+600 = 1300 > 1000 → error
+		// Pool 1000 MiBps; 3 volumes on this VPG, PER_VOLUME → pre = 100*3 = 300. Other = 1000-300 = 700. Post = 200*3 = 600. Total = 700+600 = 1300 > 1000 → error
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 1000, Iops: 10000},
@@ -1152,7 +1322,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 1000, // current utilized (includes this VPG's 300)
 			Iops:       10000,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 10}, ThroughputMibps: 100, Iops: 1000, IsShared: false}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 10}, ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypePerVolume}
 		se := mockStorageWithVPGCount(tt, 10, 3)
 		newThroughput := int64(200) // 200*3 = 600 post; 1000 - 300 + 600 = 1300 > 1000
 		newIops := int64(2000)
@@ -1171,7 +1341,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 100,
 			Iops:       1000,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 5}, ThroughputMibps: 100, Iops: 1000, IsShared: true}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 5}, ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypeShared}
 		se := mockStorageWithVPGCount(tt, 5, 5)
 		newThroughput := int64(120)
 		newIops := int64(1200)
@@ -1180,17 +1350,17 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 	})
 
 	t.Run("SharedVPGWithMultipleVolumes_ExceedsThroughput", func(tt *testing.T) {
-		// Pool 500; shared VPG pre=100, post=450 → total 100-100+450=450 ≤ 500. Use post=501 → 501 > 500
+		// Pool 500; shared VPG pre=100, post=450 with pool configured=400 -> total 400-100+450=750 > 500.
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 500, Iops: 5000},
 			},
-			Throughput: 100,
+			Throughput: 400,
 			Iops:       1000,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 5}, ThroughputMibps: 100, Iops: 1000, IsShared: true}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 5}, ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypeShared}
 		se := mockStorageWithVPGCount(tt, 5, 5)
-		newThroughput := int64(501)
+		newThroughput := int64(450)
 		newIops := int64(1000)
 		err := validatePoolCapacityForVPGUpdate(ctx, se, pool, vpg, &newThroughput, &newIops)
 		assert.Error(tt, err)
@@ -1199,7 +1369,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 
 	// Non-shared VPG: pre/post = vpg * numVolumes. Update to lower value can stay within capacity.
 	t.Run("NonSharedVPGWithMultipleVolumes_WithinCapacity", func(tt *testing.T) {
-		// Pool 500; 2 volumes, isShared=false. pre=100*2=200, post=80*2=160. total=200-200+160=160 ≤ 500
+		// Pool 500; 2 volumes, PER_VOLUME. pre=100*2=200, post=80*2=160. total=200-200+160=160 ≤ 500
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 500, Iops: 5000},
@@ -1207,7 +1377,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 200,
 			Iops:       2000,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 7}, ThroughputMibps: 100, Iops: 1000, IsShared: false}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 7}, ThroughputMibps: 100, Iops: 1000, AllocationType: models.AllocationTypePerVolume}
 		se := mockStorageWithVPGCount(tt, 7, 2)
 		newThroughput := int64(80)
 		newIops := int64(800)
@@ -1223,7 +1393,7 @@ func TestValidatePoolCapacityForVPGUpdate(t *testing.T) {
 			Throughput: 50,
 			Iops:       500,
 		}
-		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, IsShared: true}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1}, ThroughputMibps: 50, Iops: 500, AllocationType: models.AllocationTypeShared}
 		mockStorage := database.NewMockStorage(tt)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), errors.New("db error"))
 		err := validatePoolCapacityForVPGUpdate(ctx, mockStorage, pool, vpg, nil, nil)
@@ -1408,7 +1578,52 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		assert.Contains(tt, err.Error(), "only manually created volume performance groups can be updated")
 	})
 
-	t.Run("ReturnsErrorWhenPoolCapacityExceeded", func(tt *testing.T) {
+	t.Run("ReturnsErrorWhenAggregatePoolCapacityWouldBeExceeded", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: nil}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				QosType:        "manual",
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 1000, Iops: 10000},
+			},
+			Throughput: 900,
+			Iops:       9000,
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			PoolID:          1,
+			ThroughputMibps: 50,
+			Iops:            500,
+			AllocationType: models.AllocationTypeShared,
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(1), nil)
+		// Declared limits stay under pool totals (200 <= 1000), but aggregate configured throughput would exceed:
+		// 900 - 50 + 200 = 1050 > 1000
+		throughputExceedAggregate := int64(200)
+		params := &common.UpdateVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "test-pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+			ThroughputMibps:          &throughputExceedAggregate,
+		}
+		result, _, err := orchestrator.UpdateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Sum of configured throughput")
+	})
+
+	t.Run("ReturnsErrorWhenUpdatedDeclaredLimitsExceedPoolTotalsEvenWithoutAssignedVolumes", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: nil}
 
@@ -1427,7 +1642,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 			PoolID:          1,
 			ThroughputMibps: 50,
 			Iops:            500,
-			IsShared:        true,
+			AllocationType:  models.AllocationTypeShared,
 		}
 		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1437,8 +1652,6 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
-		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(1), nil)
-
 		throughputExceed := int64(110)
 		params := &common.UpdateVolumePerformanceGroupParams{
 			AccountName:              "test-account",
@@ -1473,7 +1686,7 @@ func TestUpdateVolumePerformanceGroup_SuccessfullyStartsWorkflow(t *testing.T) {
 		PoolID:           1,
 		ThroughputMibps:  100,
 		Iops:             500,
-		IsShared:         true,
+		AllocationType: models.AllocationTypeShared,
 		OntapQosPolicyID: "ontap-id",
 	}
 	createdJob := &datamodel.Job{
@@ -1532,7 +1745,7 @@ func TestUpdateVolumePerformanceGroup_SetUpdatingStateFails(t *testing.T) {
 		PoolID:           1,
 		ThroughputMibps:  100,
 		Iops:             500,
-		IsShared:         true,
+		AllocationType: models.AllocationTypeShared,
 		OntapQosPolicyID: "ontap-id",
 	}
 	createdJob := &datamodel.Job{
@@ -1586,7 +1799,7 @@ func TestUpdateVolumePerformanceGroup_WorkflowFails_RollbackAlsoFails(t *testing
 		PoolID:           1,
 		ThroughputMibps:  100,
 		Iops:             500,
-		IsShared:         true,
+		AllocationType: models.AllocationTypeShared,
 		OntapQosPolicyID: "ontap-id",
 	}
 	createdJob := &datamodel.Job{

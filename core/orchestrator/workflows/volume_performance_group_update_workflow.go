@@ -133,7 +133,7 @@ func (wf *vpgUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (int
 		BaseModel:        vpg.BaseModel,
 		Name:             newName,
 		PoolID:           vpg.PoolID,
-		IsShared:         vpg.IsShared,
+		AllocationType:   vpg.AllocationType,
 		IsAutoGen:        vpg.IsAutoGen,
 		ThroughputMibps:  newThroughput,
 		Iops:             newIops,

@@ -33,7 +33,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -65,7 +65,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -97,7 +97,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -131,7 +131,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "existing-vpg-name",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -166,7 +166,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 0,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -200,7 +200,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypeSHARED,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -240,7 +240,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -255,7 +255,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "test-performance-group",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -268,13 +268,13 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, "test-performance-group", vpgRes.ResourceId)
 		assert.Equal(tt, "pool-id", vpgRes.PoolId)
-		assert.True(tt, vpgRes.IsShared)
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, vpgRes.AllocationType)
 		assert.Equal(tt, int64(100), vpgRes.ThroughputMibps)
 		assert.Equal(tt, int64(1000), vpgRes.Iops)
 		assert.Equal(tt, "vpg-uuid-123", vpgRes.VolumePerformanceGroupId)
 	})
 
-	t.Run("WhenSuccessful_IsSharedFalse", func(tt *testing.T) {
+	t.Run("WhenSuccessful_AllocationTypePerVolume", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableVpgEndpoints := enableVpgEndpoints
 		defer func() {
@@ -290,7 +290,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			ResourceId:      "vpg-not-shared",
 			ThroughputMibps: 200,
 			Iops:            2000,
-			IsShared:        false,
+			AllocationType: gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypePERVOLUME,
 		}
 		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
 			ProjectNumber: "12345",
@@ -305,12 +305,12 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 			Name:            "vpg-not-shared",
 			ThroughputMibps: 200,
 			Iops:            2000,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.CreateVolumePerformanceGroupParams) bool {
-			return p != nil && !p.IsShared && p.Name == "vpg-not-shared"
+			return p != nil && p.AllocationType == models.AllocationTypePerVolume && p.Name == "vpg-not-shared"
 		})).Return(expectedVPG, nil)
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
@@ -320,7 +320,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, "vpg-not-shared", vpgRes.ResourceId)
 		assert.Equal(tt, "pool-id", vpgRes.PoolId)
-		assert.False(tt, vpgRes.IsShared, "IsShared should be false in API response")
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypePERVOLUME, vpgRes.AllocationType, "allocationType should be PER_VOLUME in API response")
 		assert.Equal(tt, int64(200), vpgRes.ThroughputMibps)
 		assert.Equal(tt, int64(2000), vpgRes.Iops)
 		assert.Equal(tt, "vpg-uuid-not-shared", vpgRes.VolumePerformanceGroupId)
@@ -527,13 +527,13 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 				BaseModel: models.BaseModel{UUID: "vpg-uuid-1"},
 				Name:      "vpg-1",
 				Iops:      1000,
-				IsShared:  true,
+				AllocationType: models.AllocationTypeShared,
 			},
 			{
 				BaseModel: models.BaseModel{UUID: "vpg-uuid-2"},
 				Name:      "vpg-2",
 				Iops:      2000,
-				IsShared:  false,
+				AllocationType: models.AllocationTypePerVolume,
 			},
 		}
 
@@ -550,10 +550,10 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		assert.Equal(tt, "vpg-1", okRes.VolumePerformanceGroups[0].ResourceId)
 		assert.Equal(tt, "pool-id", okRes.VolumePerformanceGroups[0].PoolId)
 		assert.Equal(tt, int64(1000), okRes.VolumePerformanceGroups[0].Iops)
-		assert.True(tt, okRes.VolumePerformanceGroups[0].IsShared)
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, okRes.VolumePerformanceGroups[0].AllocationType)
 		assert.Equal(tt, "vpg-2", okRes.VolumePerformanceGroups[1].ResourceId)
 		assert.Equal(tt, int64(2000), okRes.VolumePerformanceGroups[1].Iops)
-		assert.False(tt, okRes.VolumePerformanceGroups[1].IsShared)
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypePERVOLUME, okRes.VolumePerformanceGroups[1].AllocationType)
 	})
 }
 
@@ -726,7 +726,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Name:            "vpg-name",
 			ThroughputMibps: 500,
 			Iops:            1500,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -743,7 +743,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.Equal(tt, "vpg-uuid-123", descRes.VolumePerformanceGroupId)
 		assert.Equal(tt, int64(500), descRes.ThroughputMibps)
 		assert.Equal(tt, int64(1500), descRes.Iops)
-		assert.True(tt, descRes.IsShared)
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, descRes.AllocationType)
 	})
 }
 
@@ -870,7 +870,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Name:            "new-vpg-name",
 			ThroughputMibps: 200,
 			Iops:            600,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -892,7 +892,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.Equal(t, "vpg-uuid", vpgBody.VolumePerformanceGroupId)
 		assert.Equal(t, int64(200), vpgBody.ThroughputMibps)
 		assert.Equal(t, int64(600), vpgBody.Iops)
-		assert.True(t, vpgBody.IsShared)
+		assert.Equal(t, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, vpgBody.AllocationType)
 	})
 
 	t.Run("WhenSuccessful_WithoutResourceId", func(tt *testing.T) {
@@ -922,7 +922,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Name:            "existing-name",
 			ThroughputMibps: 150,
 			Iops:            500,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -944,7 +944,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.Equal(t, "vpg-uuid", vpgBody.VolumePerformanceGroupId)
 		assert.Equal(t, int64(150), vpgBody.ThroughputMibps)
 		assert.Equal(t, int64(500), vpgBody.Iops)
-		assert.True(t, vpgBody.IsShared)
+		assert.Equal(t, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, vpgBody.AllocationType)
 	})
 
 	t.Run("WhenNotFound_ReturnsBadRequest", func(tt *testing.T) {
@@ -1150,7 +1150,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Name:            "vpg-name",
 			ThroughputMibps: 100,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -1274,7 +1274,7 @@ func TestConvertModelToVCPVolumePerformanceGroup(t *testing.T) {
 			Name:                  "test-vpg",
 			ThroughputMibps:       128,
 			Iops:                  1000,
-			IsShared:              true,
+			AllocationType: models.AllocationTypeShared,
 			Description:           "my description",
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "Ready for use",
@@ -1288,7 +1288,7 @@ func TestConvertModelToVCPVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, "vpg-uuid-123", res.VolumePerformanceGroupId)
 		assert.Equal(tt, int64(128), res.ThroughputMibps)
 		assert.Equal(tt, int64(1000), res.Iops)
-		assert.True(tt, res.IsShared)
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaAllocationTypeSHARED, res.AllocationType)
 		assert.True(tt, res.Created.IsSet())
 		assert.Equal(tt, createdAt, res.Created.Value)
 		assert.True(tt, res.Description.IsSet())
@@ -1347,7 +1347,7 @@ func TestV1betaCreateVolumePerformanceGroup_WithMetadata(t *testing.T) {
 			ResourceId:      "test-vpg",
 			ThroughputMibps: 128,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: gcpgenserver.VolumePerformanceGroupCreateV1betaAllocationTypeSHARED,
 			Description:     gcpgenserver.NewOptNilString("my description"),
 			Labels: gcpgenserver.NewOptVolumePerformanceGroupCreateV1betaLabels(
 				gcpgenserver.VolumePerformanceGroupCreateV1betaLabels{"env": "dev"}),

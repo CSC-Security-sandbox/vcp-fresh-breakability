@@ -161,7 +161,7 @@ func validatePoolCapacityForVPGVolumeCreate(ctx context.Context, se database.Sto
 		return err
 	}
 
-	if vpg.IsShared {
+	if vpg.IsShared() {
 		volumeCount, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
 		if err != nil {
 			return err

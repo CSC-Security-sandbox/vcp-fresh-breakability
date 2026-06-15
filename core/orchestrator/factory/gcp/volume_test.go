@@ -345,7 +345,7 @@ func TestGetVolume(t *testing.T) {
 			PoolID:          pool.ID,
 			ThroughputMibps: 200,
 			Iops:            1000,
-			IsShared:        true,
+			AllocationType: models.AllocationTypeShared,
 			IsAutoGen:       true,
 		}
 		err = store.DB().Create(vpg).Error
@@ -493,7 +493,7 @@ func TestGetVolume(t *testing.T) {
 			PoolID:          pool.ID,
 			ThroughputMibps: 100,
 			Iops:            500,
-			IsShared:        false,
+			AllocationType: models.AllocationTypePerVolume,
 			IsAutoGen:       false,
 		}
 		err = store.DB().Create(vpg).Error
@@ -19277,19 +19277,23 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 				BaseModel:       datamodel.BaseModel{ID: vpgID, UUID: fmt.Sprintf("vpg-%d", vpgID)},
 				ThroughputMibps: throughputMibps,
 				Iops:            iops,
-				IsShared:        false,
+				AllocationType: models.AllocationTypePerVolume,
 				IsAutoGen:       false,
 			},
 		}
 	}
 
 	createVPG := func(id int64, uuid string, poolID int64, throughputMibps, iops int64, isShared, isAutoGen bool) *datamodel.VolumePerformanceGroup {
+		allocationType := models.AllocationTypeShared
+		if !isShared {
+			allocationType = models.AllocationTypePerVolume
+		}
 		return &datamodel.VolumePerformanceGroup{
 			BaseModel:       datamodel.BaseModel{ID: id, UUID: uuid},
 			PoolID:          poolID,
 			ThroughputMibps: throughputMibps,
 			Iops:            iops,
-			IsShared:        isShared,
+			AllocationType:  allocationType,
 			IsAutoGen:       isAutoGen,
 		}
 	}
@@ -20054,7 +20058,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-autogen-1"},
 				ThroughputMibps:  20,
 				Iops:             300,
-				IsShared:         false,
+				AllocationType:   models.AllocationTypePerVolume,
 				IsAutoGen:        true,
 				OntapQosPolicyID: "policy-1",
 			},
@@ -37235,12 +37239,16 @@ func TestValidatePoolCapacityForVPGVolumeCreate(t *testing.T) {
 	}
 
 	makeVPG := func(id int64, uuid string, throughput, iops int64, isShared bool) *datamodel.VolumePerformanceGroup {
+		allocationType := models.AllocationTypeShared
+		if !isShared {
+			allocationType = models.AllocationTypePerVolume
+		}
 		return &datamodel.VolumePerformanceGroup{
 			BaseModel:       datamodel.BaseModel{ID: id, UUID: uuid},
 			PoolID:          1,
 			ThroughputMibps: throughput,
 			Iops:            iops,
-			IsShared:        isShared,
+			AllocationType:  allocationType,
 		}
 	}
 

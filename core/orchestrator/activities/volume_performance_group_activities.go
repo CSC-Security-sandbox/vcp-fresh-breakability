@@ -88,13 +88,14 @@ func (a *VolumePerformanceGroupActivity) CreateQoSPolicyInONTAP(
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	isShared := vpg.IsShared()
 	// Create the QoS policy in ONTAP
 	createQosParams := vsa.CreateQoSGroupPolicyParams{
 		Name:          vpg.Name,
 		SvmName:       svm.Name,
 		MaxThroughput: vpg.ThroughputMibps,
 		MaxIOPS:       vpg.Iops,
-		IsShared:      nillable.GetBoolPtr(vpg.IsShared),
+		IsShared:      nillable.GetBoolPtr(isShared),
 	}
 
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating QoS policy: %s", vpg.Name))

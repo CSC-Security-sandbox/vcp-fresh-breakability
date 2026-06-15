@@ -739,7 +739,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				BaseModel:        volume.VolumePerformanceGroup.BaseModel,
 				Name:             volume.VolumePerformanceGroup.Name,
 				PoolID:           volume.VolumePerformanceGroup.PoolID,
-				IsShared:         volume.VolumePerformanceGroup.IsShared,
+				AllocationType:   volume.VolumePerformanceGroup.AllocationType,
 				IsAutoGen:        volume.VolumePerformanceGroup.IsAutoGen,
 				ThroughputMibps:  volume.VolumePerformanceGroup.ThroughputMibps,
 				Iops:             volume.VolumePerformanceGroup.Iops,
@@ -769,7 +769,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			newAutoGenVPG := &datamodel.VolumePerformanceGroup{
 				Name:             newQosPolicy.Name,
 				PoolID:           volume.PoolID,
-				IsShared:         false,
+				AllocationType:   models.AllocationTypePerVolume,
 				IsAutoGen:        true,
 				ThroughputMibps:  newThroughput,
 				Iops:             newIops,

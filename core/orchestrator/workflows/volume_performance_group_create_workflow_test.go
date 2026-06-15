@@ -6,8 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -58,7 +59,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success(t *testing.T) {
 		PoolID:          poolID,
 		ThroughputMibps: 100,
 		Iops:            1000,
-		IsShared:        true,
+		AllocationType: models.AllocationTypeShared,
 	}
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{ID: poolID},
@@ -98,7 +99,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success(t *testing.T) {
 	assert.Equal(t, qosPolicyID, result.OntapQosPolicyID)
 }
 
-func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T) {
+func TestCreateVolumePerformanceGroupWorkflow_Success_AllocationTypePerVolume(t *testing.T) {
 	env := setupVPGWorkflowEnv(t)
 
 	vpgUUID := "vpg-uuid-not-shared"
@@ -109,7 +110,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T
 		PoolID:          poolID,
 		ThroughputMibps: 200,
 		Iops:            2000,
-		IsShared:        false,
+		AllocationType: models.AllocationTypePerVolume,
 	}
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{ID: poolID},
@@ -126,7 +127,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T
 		PoolID:           poolID,
 		ThroughputMibps:  200,
 		Iops:             2000,
-		IsShared:         false,
+		AllocationType: models.AllocationTypePerVolume,
 		OntapQosPolicyID: qosPolicyID,
 	}
 
@@ -148,7 +149,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T
 	err := env.GetWorkflowResult(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.False(t, result.IsShared, "IsShared should be false in workflow result")
+	assert.Equal(t, models.AllocationTypePerVolume, result.AllocationType, "allocationType should be PER_VOLUME in workflow result")
 	assert.Equal(t, qosPolicyID, result.OntapQosPolicyID)
 }
 

@@ -19240,6 +19240,47 @@ func TestVolumePerformanceGroupCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ2 VolumePerformanceGroupCreateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumePerformanceGroupCreateV1betaAllocationType_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupCreateV1betaAllocationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupCreateV1betaAllocationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupCreateV1betaAllocationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"SHARED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupCreateV1betaAllocationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupCreateV1betaAllocationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestVolumePerformanceGroupCreateV1betaLabels_EncodeDecode(t *testing.T) {
 	var typ VolumePerformanceGroupCreateV1betaLabels
 	typ = make(VolumePerformanceGroupCreateV1betaLabels)
@@ -19360,7 +19401,7 @@ func TestVolumePerformanceGroupV1beta_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"iops\":20,\"isShared\":true,\"poolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"resourceId\":\"some-volume-performance-group-name\",\"throughputMibps\":200,\"volumePerformanceGroupId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}"},
+		{Input: "{\"allocationType\":\"SHARED\",\"iops\":20,\"poolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"resourceId\":\"some-volume-performance-group-name\",\"throughputMibps\":200,\"volumePerformanceGroupId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
@@ -19379,6 +19420,47 @@ func TestVolumePerformanceGroupV1beta_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 VolumePerformanceGroupV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestVolumePerformanceGroupV1betaAllocationType_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupV1betaAllocationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupV1betaAllocationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupV1betaAllocationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"SHARED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupV1betaAllocationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupV1betaAllocationType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}

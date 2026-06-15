@@ -85,7 +85,7 @@ func isPostgresDialect(db *gorm.DB) bool {
 // Always-written fields: Name, ThroughputMibps, Iops, IsAutoGen.
 // Conditionally-written fields: OntapQosPolicyID (when non-empty), State/StateDetails (when State is non-empty),
 // Description (when changed from current DB value), Labels (when non-nil).
-// IsShared and PoolID cannot be updated.
+// AllocationType and PoolID cannot be updated.
 func (d *DataStoreRepository) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	return updateVolumePerformanceGroup(d.db.GORM().WithContext(ctx), ctx, vpg)
 }
@@ -224,7 +224,7 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 		return err
 	}
 
-	// Map-based update so GORM doesn't skip boolean zero-values. IsShared/PoolID are immutable.
+	// Map-based update so GORM doesn't skip zero-values. AllocationType/PoolID are immutable.
 	updates := map[string]interface{}{
 		"updated_at":       time.Now(),
 		"name":             vpg.Name,

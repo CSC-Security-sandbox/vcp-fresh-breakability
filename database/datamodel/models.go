@@ -358,7 +358,7 @@ type VolumePerformanceGroup struct {
 	Name             string `gorm:"column:name"`
 	PoolID           int64  `gorm:"column:pool_id"`
 	Pool             *Pool  `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	IsShared         bool   `gorm:"column:is_shared;not null"`
+	AllocationType   string `gorm:"column:allocation_type;not null"`
 	IsAutoGen        bool   `gorm:"column:is_auto_gen;not null;default:false"`
 	ThroughputMibps  int64  `gorm:"column:throughput_mibps"`
 	Iops             int64  `gorm:"column:iops"`
@@ -367,6 +367,19 @@ type VolumePerformanceGroup struct {
 	State            string `gorm:"column:state"`
 	StateDetails     string `gorm:"column:state_details;type:text"`
 	Labels           *JSONB `json:"labels" gorm:"column:labels;type:jsonb"`
+}
+
+const (
+	AllocationTypeShared    = "SHARED"
+	AllocationTypePerVolume = "PER_VOLUME"
+)
+
+func (v *VolumePerformanceGroup) IsShared() bool {
+	return v != nil && v.AllocationType == AllocationTypeShared
+}
+
+func (v *VolumePerformanceGroup) IsPerVolume() bool {
+	return v != nil && v.AllocationType == AllocationTypePerVolume
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
