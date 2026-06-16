@@ -167,6 +167,22 @@ func TestOciPrepareRequestMiddleware_SkipsMetrics(t *testing.T) {
 	require.Equal(t, "", rr.Header().Get(opcRequestIDHTTPHeader))
 }
 
+func TestOciPrepareRequestMiddleware_SkipsHealth(t *testing.T) {
+	called := false
+	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	require.True(t, called)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "", rr.Header().Get(opcRequestIDHTTPHeader))
+}
+
 func TestOciPrepareRequestMiddleware_DoesNotSetXRequestID(t *testing.T) {
 	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Empty(t, r.Header.Get(log.RequestID))

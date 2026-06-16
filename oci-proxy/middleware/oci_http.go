@@ -17,7 +17,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-const metricsPath = "/metrics"
+const (
+	metricsPath = "/metrics"
+	healthPath  = "/health"
+)
+
+func isOpcRequestIDExempt(path string) bool {
+	return path == metricsPath || path == healthPath
+}
 
 const (
 	errMsgOpcRequestIDRequired   = "Opc-Request-Id header is required"
@@ -27,9 +34,10 @@ const (
 // WrapWithOCIAndLogging wires the OCI HTTP stack (outer → inner):
 //  1. ociMetricsMiddleware — Prometheus counter + duration histogram; outermost so latency
 //     covers the full middleware chain (request-prep, logging, handler).
-//  2. ociPrepareRequestMiddleware — requires a valid UUID opc-request-id, x-correlation-id = opc,
+//  2. ociPrepareRequestMiddleware — for non-exempt endpoints, requires a valid UUID opc-request-id,
+//     sets x-correlation-id = opc-request-id, and echoes opc-request-id on the response.
+//     Exempt endpoints (/metrics, /health) bypass this middleware and won't get an opc-request-id response header.
 //     HeaderContextKey, ContextSLoggerKey and TemporalSLoggerKey share the same requestFields map,
-//     opc-request-id on response.
 //  3. httphelpers.LoggingHttpHandler — access logs (default logger; does not read ContextSLoggerKey).
 //
 // Apply auth and recover outside this wrapper.
@@ -44,19 +52,20 @@ func WrapWithOCIAndLogging(api http.Handler) http.Handler {
 // request logger (ContextSLoggerKey), and propagates the same fields on TemporalSLoggerKey for workflows.
 func ociPrepareRequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == metricsPath {
-			next.ServeHTTP(w, r)
-			return
-		}
+		exempt := isOpcRequestIDExempt(r.URL.Path)
 
 		opcID := strings.TrimSpace(r.Header.Get(string(utilsmiddleware.OPCRequestIDHeaderName)))
-		if err := validateOpcRequestID(opcID); err != nil {
-			writeOpcRequestIDBadRequest(w, opcID, err.Error())
-			return
+		if !exempt {
+			if err := validateOpcRequestID(opcID); err != nil {
+				writeOpcRequestIDBadRequest(w, opcID, err.Error())
+				return
+			}
 		}
-		r.Header.Set(string(utilsmiddleware.OPCRequestIDHeaderName), opcID)
-		// Align with GCNV: x-correlation-id is the same as opc-request-id for tracing / GetCoRelationIDFromContext.
-		r.Header.Set(log.RequestCorrelationID, opcID)
+		if opcID != "" {
+			r.Header.Set(string(utilsmiddleware.OPCRequestIDHeaderName), opcID)
+			// Align with GCNV: x-correlation-id is the same as opc-request-id for tracing / GetCoRelationIDFromContext.
+			r.Header.Set(log.RequestCorrelationID, opcID)
+		}
 
 		requestFields := log.Fields{
 			"requestCorrelationID": opcID,
@@ -111,7 +120,9 @@ func (w *opcRequestIDResponseWriter) ensureHeader() {
 	if w.headerAdded {
 		return
 	}
-	w.ResponseWriter.Header().Set(string(utilsmiddleware.OPCRequestIDHeaderName), w.opcID)
+	if w.opcID != "" {
+		w.ResponseWriter.Header().Set(string(utilsmiddleware.OPCRequestIDHeaderName), w.opcID)
+	}
 	w.headerAdded = true
 }
 
