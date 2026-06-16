@@ -805,6 +805,10 @@ func (s *PersistenceStore) GetSvmsByPoolID(ctx context.Context, poolID int64) ([
 	return s.dataStore.GetSvmsByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error) {
+	return s.dataStore.ActiveSvmExistsByPoolID(ctx, poolID)
+}
+
 func (s *PersistenceStore) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	return s.dataStore.GetNextSVMIndexByPoolID(ctx, poolID)
 }

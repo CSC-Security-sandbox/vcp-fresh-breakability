@@ -123,6 +123,53 @@ func TestGetSvmsByPoolID(t *testing.T) {
 	})
 }
 
+func TestActiveSvmExistsByPoolID(t *testing.T) {
+	t.Run("ReturnsTrueWhenActiveSvmExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		require.NoError(tt, store.db.Create(&datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "active-svm-uuid"},
+			Name:      "active-svm",
+			PoolID:    1234,
+			State:     datamodel.LifeCycleStateREADY,
+		}).Error())
+
+		exists, err := store.ActiveSvmExistsByPoolID(context.Background(), 1234)
+		require.NoError(tt, err)
+		assert.True(tt, exists)
+	})
+
+	t.Run("ReturnsFalseForDeletedAndSoftDeletedSvms", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		require.NoError(tt, store.db.Create(&datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "deleted-state-svm-uuid"},
+			Name:      "deleted-state-svm",
+			PoolID:    1234,
+			State:     datamodel.LifeCycleStateDeleted,
+		}).Error())
+		require.NoError(tt, store.db.Create(&datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "soft-deleted-svm-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name:   "soft-deleted-svm",
+			PoolID: 1234,
+			State:  datamodel.LifeCycleStateREADY,
+		}).Error())
+
+		exists, err := store.ActiveSvmExistsByPoolID(context.Background(), 1234)
+		require.NoError(tt, err)
+		assert.False(tt, exists)
+	})
+}
+
 func TestGetNextSVMIndexByPoolID(t *testing.T) {
 	t.Run("WhenSvmsExist", func(tt *testing.T) {
 		db, err := SetupTestDB()

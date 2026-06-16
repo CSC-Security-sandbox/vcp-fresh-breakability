@@ -575,6 +575,72 @@ func TestGetWorkflow(t *testing.T) {
 			"clusterIP must read as absent (not empty string) until VLM assigns the RBAC LIF — the schema documents this contract for clients")
 	})
 
+	t.Run("GetWorkflow surfaces mediator and pool-level iops/throughput", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					Vms: []workflowquery.OCICreatePoolVMMetadata{{Name: "vm-01"}},
+					Mediator: &workflowquery.OCICreatePoolMediatorMetadata{
+						Name:   "mediator-01",
+						IP:     "10.20.27.35",
+						HAPair: "ha_pair-1",
+					},
+					IOPS:           15248,
+					ThroughputGBps: 1.5,
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-mediator"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+
+		mediator, ok := meta.Mediator.Get()
+		assert.True(tt, ok, "mediator must be set when the pool has a mediator configured")
+		assert.Equal(tt, "mediator-01", mediator.Name,
+			"mediator name must propagate unchanged from the workflow query result")
+		assert.Equal(tt, "10.20.27.35", mediator.IP,
+			"mediator ip must propagate unchanged from the workflow query result")
+		assert.Equal(tt, "ha_pair-1", mediator.HaPair,
+			"mediator haPair label must propagate unchanged")
+
+		assert.Equal(tt, int64(15248), meta.Iops, "pool-level iops must be set")
+		assert.Equal(tt, 1.5, meta.ThroughputGBps, "pool-level throughputGBps must be set")
+	})
+
+	t.Run("GetWorkflow omits mediator and returns zero iops/throughput when absent", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					Vms: []workflowquery.OCICreatePoolVMMetadata{{Name: "vm-01"}},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-no-mediator"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+		assert.False(tt, meta.Mediator.IsSet(), "mediator must be absent when the pool has none configured")
+		assert.Equal(tt, int64(0), meta.Iops, "iops must be present with zero when not reported")
+		assert.Equal(tt, float64(0), meta.ThroughputGBps, "throughputGBps must be present with zero when not reported")
+	})
+
 	t.Run("GetWorkflow maps SVM metadata when query returns SVM result", func(tt *testing.T) {
 		orig := workflowQueryFn
 		haPair := "ha_pair-1"
@@ -947,7 +1013,11 @@ func TestGetWorkflow_NodeUUIDEnrichment(t *testing.T) {
 		mockOrchestrator.EXPECT().
 			GetNodesByPoolUUID(mock.Anything, "pool-uuid-enriched").
 			Return([]*datamodel.Node{
-				{BaseModel: datamodel.BaseModel{UUID: "node-uuid-1"}, Name: "vm-01"},
+				{
+					BaseModel:      datamodel.BaseModel{UUID: "node-uuid-1"},
+					Name:           "vm-01",
+					NodeAttributes: &datamodel.NodeDetails{ExternalUUID: "ontap-uuid-1"},
+				},
 			}, nil)
 
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -961,10 +1031,12 @@ func TestGetWorkflow_NodeUUIDEnrichment(t *testing.T) {
 		if assert.Len(tt, meta.Vms, 1) {
 			assert.Equal(tt, "vm-01", meta.Vms[0].Name)
 			assert.Equal(tt, "node-uuid-1", meta.Vms[0].NodeUUID)
+			assert.Equal(tt, "ontap-uuid-1", meta.Vms[0].OntapNodeUUID,
+				"ontapNodeUUID must be sourced from node_attributes.external_uuid")
 		}
 	})
 
-	t.Run("NodeUUIDEmptyWhenOrchestratorLookupFails", func(tt *testing.T) {
+	t.Run("GetWorkflowReturnsErrorWhenNodeUUIDLookupFails", func(tt *testing.T) {
 		orig := workflowQueryFn
 		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
 			return workflowquery.Result{
@@ -989,14 +1061,11 @@ func TestGetWorkflow_NodeUUIDEnrichment(t *testing.T) {
 		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-fail"})
 
 		assert.NoError(tt, err)
-		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		headers, ok := res.(*ociserver.GetWorkflowInternalServerError)
 		assert.True(tt, ok)
-		meta, ok := headers.Response.PoolMetadata.Get()
-		assert.True(tt, ok)
-		if assert.Len(tt, meta.Vms, 1) {
-			assert.Equal(tt, "vm-01", meta.Vms[0].Name)
-			assert.Empty(tt, meta.Vms[0].NodeUUID, "nodeUUID should be empty when lookup fails")
-		}
+		assert.Equal(tt, opcWf, headers.OpcRequestID)
+		assert.Contains(tt, headers.Response.ErrorMessage, "node UUID enrichment failed")
+		assert.Contains(tt, headers.Response.ErrorMessage, "db down")
 	})
 }
 

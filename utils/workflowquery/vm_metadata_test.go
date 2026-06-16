@@ -29,7 +29,7 @@ func TestVMMetadata_InterclusterAndNodemgmtInternal(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 	require.Equal(t, []string{"10.38.25.146", "10.38.1.218"}, interclusterIPsFromEmbed(&cfg))
 	require.Equal(t, []string{"10.38.18.182", "10.38.5.224"}, nodemgmtInternalIPsFromEmbed(&cfg))
@@ -61,7 +61,7 @@ func TestInterclusterIPsFromEmbed_NilAndDedup(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(dupSnippet), &cfg))
 	require.Equal(t, []string{"10.0.0.1"}, interclusterIPsFromEmbed(&cfg))
 	require.Equal(t, []string{"10.0.2.1"}, nodemgmtInternalIPsFromEmbed(&cfg))
@@ -102,9 +102,10 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
-	expectedThroughputGBps := float64(1908) / MiBpsPerGBps
+	// Per-VM iops/throughput are no longer surfaced; only SizeInGiB is derived
+	// from data_disks. iops/throughput are pool-level (from spconfig).
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{
 			Name:            "vm-01",
@@ -113,8 +114,6 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
 			InterclusterIP:  "10.38.25.146",
 			HAPair:          "ha_pair-1",
 			SizeInGiB:       100,
-			IOPS:            3000,
-			ThroughputGBps:  expectedThroughputGBps,
 		},
 		{
 			Name:            "vm-02",
@@ -123,10 +122,38 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
 			InterclusterIP:  "10.38.1.218",
 			HAPair:          "ha_pair-1",
 			SizeInGiB:       100,
-			IOPS:            3000,
-			ThroughputGBps:  expectedThroughputGBps,
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
+}
+
+// TestPoolSPConfigFromEmbed pins the pool-level iops/throughput sourced from the
+// VLM config's spconfig block. iops is surfaced as-is; tput (MiBps) is converted
+// to GBps. These replace the former per-VM data-disk aggregates (always 0 on OCI).
+func TestPoolSPConfigFromEmbed(t *testing.T) {
+	t.Parallel()
+	require.Zero(t, poolIOPSFromEmbed(nil))
+	require.Zero(t, poolThroughputGBpsFromEmbed(nil))
+
+	const snippet = `{
+  "cloud": { "ha_pair": [] },
+  "deployment": {
+    "spconfig": {
+      "size": "5500Gi",
+      "iops": 15248,
+      "tput": 954
+    }
+  }
+}`
+	var cfg vlmConfig
+	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
+	require.Equal(t, int64(15248), poolIOPSFromEmbed(&cfg))
+	require.Equal(t, float64(954)/MiBpsPerGBps, poolThroughputGBpsFromEmbed(&cfg))
+
+	const noSP = `{ "cloud": { "ha_pair": [] } }`
+	var cfg2 vlmConfig
+	require.NoError(t, json.Unmarshal([]byte(noSP), &cfg2))
+	require.Zero(t, poolIOPSFromEmbed(&cfg2))
+	require.Zero(t, poolThroughputGBpsFromEmbed(&cfg2))
 }
 
 func TestPoolVMMetadataFromEmbed_NoDataDisks(t *testing.T) {
@@ -149,7 +176,7 @@ func TestPoolVMMetadataFromEmbed_NoDataDisks(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{
@@ -160,6 +187,49 @@ func TestPoolVMMetadataFromEmbed_NoDataDisks(t *testing.T) {
 			HAPair:          "ha_pair-1",
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
+}
+
+// TestMediatorFromEmbed pins that the pool surfaces the first non-empty
+// mediator name and its 1-indexed HA-pair label from cloud.ha_pair[*].mediator.
+// Mediators are not VSA data nodes (excluded from vms), so only name + haPair
+// are exposed.
+func TestMediatorFromEmbed(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, mediatorFromEmbed(nil), "nil cfg returns no mediator")
+
+	// Mediator lives on the second HA pair: its label must be ha_pair-2.
+	const withMediator = `{
+  "cloud": {
+    "ha_pair": [
+      {
+        "vm1": { "name": "vm-01", "lifs": { "intercluster": { "ip": "10.0.0.1" } } },
+        "vm2": { "name": "vm-02", "lifs": { "intercluster": { "ip": "10.0.0.2" } } }
+      },
+      {
+        "vm1": { "name": "vm-03", "lifs": { "intercluster": { "ip": "10.0.0.3" } } },
+        "vm2": { "name": "vm-04", "lifs": { "intercluster": { "ip": "10.0.0.4" } } },
+        "mediator": { "name": "FsnIdocnv-mediator-01", "is_mediator": true, "lifs": { "rsm": { "ip": "10.20.27.35" } } }
+      }
+    ]
+  }
+}`
+	var cfg vlmConfig
+	require.NoError(t, json.Unmarshal([]byte(withMediator), &cfg))
+	mediator := mediatorFromEmbed(&cfg)
+	require.NotNil(t, mediator)
+	require.Equal(t, "FsnIdocnv-mediator-01", mediator.Name)
+	require.Equal(t, "10.20.27.35", mediator.IP, "mediator ip must be sourced from cloud.ha_pair[*].mediator.lifs.rsm.ip")
+	require.Equal(t, "ha_pair-2", mediator.HAPair, "mediator on the 2nd HA pair must report the 1-indexed label ha_pair-2")
+
+	// Mediator must not leak into the VM list.
+	for _, vm := range poolVMMetadataFromEmbed(&cfg) {
+		require.NotEqual(t, "FsnIdocnv-mediator-01", vm.Name, "mediator must never appear as a VSA VM entry")
+	}
+
+	const noMediator = `{ "cloud": { "ha_pair": [ { "vm1": { "name": "vm-01" } } ] } }`
+	var cfg2 vlmConfig
+	require.NoError(t, json.Unmarshal([]byte(noMediator), &cfg2))
+	require.Nil(t, mediatorFromEmbed(&cfg2), "missing mediator returns nil so callers omit the field")
 }
 
 func TestPoolUUIDFromEmbed(t *testing.T) {
@@ -176,12 +246,12 @@ func TestPoolUUIDFromEmbed(t *testing.T) {
     }
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(withLabels), &cfg))
 	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", poolUUIDFromEmbed(&cfg))
 
 	const withoutLabels = `{ "cloud": { "ha_pair": [] } }`
-	var cfg2 vlmConfigIPEmbed
+	var cfg2 vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(withoutLabels), &cfg2))
 	require.Empty(t, poolUUIDFromEmbed(&cfg2), "missing deployment.labels returns empty UUID")
 }
@@ -202,12 +272,12 @@ func TestPoolOCIDFromEmbed(t *testing.T) {
     }
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(withLabels), &cfg))
 	require.Equal(t, "ocid1.pool.oc1.ashburn-1.testpool", poolOCIDFromEmbed(&cfg))
 
 	const withoutLabels = `{ "cloud": { "ha_pair": [] } }`
-	var cfg2 vlmConfigIPEmbed
+	var cfg2 vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(withoutLabels), &cfg2))
 	require.Empty(t, poolOCIDFromEmbed(&cfg2), "missing deployment.labels returns empty OCID")
 }
@@ -226,7 +296,7 @@ func TestClusterIPFromEmbed(t *testing.T) {
 		"vm1":{"lifs":{"rbac":{"ip":""}}},
 		"vm2":{"lifs":{"rbac":{"ip":""}}}
 	}]}}`
-	var cfgEmpty vlmConfigIPEmbed
+	var cfgEmpty vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(noRbacAssigned), &cfgEmpty))
 	require.Empty(t, clusterIPFromEmbed(&cfgEmpty),
 		"every rbac.ip empty means the LIF has not been provisioned yet — omit the field rather than emit an empty string")
@@ -237,7 +307,7 @@ func TestClusterIPFromEmbed(t *testing.T) {
 		"vm1":{"lifs":{"rbac":{"ip":"10.38.23.99"}}},
 		"vm2":{"lifs":{"rbac":{"ip":""}}}
 	}]}}`
-	var cfg1 vlmConfigIPEmbed
+	var cfg1 vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(vm1Active), &cfg1))
 	require.Equal(t, "10.38.23.99", clusterIPFromEmbed(&cfg1))
 
@@ -247,7 +317,7 @@ func TestClusterIPFromEmbed(t *testing.T) {
 		{"vm1":{"lifs":{"rbac":{"ip":""}}},"vm2":{"lifs":{"rbac":{"ip":""}}}},
 		{"vm1":{"lifs":{"rbac":{"ip":""}}},"vm2":{"lifs":{"rbac":{"ip":"10.0.0.5"}}}}
 	]}}`
-	var cfg2 vlmConfigIPEmbed
+	var cfg2 vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(lateLIF), &cfg2))
 	require.Equal(t, "10.0.0.5", clusterIPFromEmbed(&cfg2))
 }
@@ -272,7 +342,7 @@ func TestPoolVMMetadataFromEmbed_HAPairIndexing(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 	got := poolVMMetadataFromEmbed(&cfg)
 	require.Len(t, got, 4)
@@ -307,7 +377,7 @@ func TestPoolVMMetadataFromEmbed_RBACOnlyVMOmitted(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 
 	got := poolVMMetadataFromEmbed(&cfg)
@@ -347,7 +417,7 @@ func TestPoolVMMetadataFromEmbed_VM2Omitted(t *testing.T) {
     ]
   }
 }`
-	var cfg vlmConfigIPEmbed
+	var cfg vlmConfig
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{

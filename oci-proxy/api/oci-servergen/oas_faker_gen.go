@@ -313,6 +313,25 @@ func (s *OCICreatePoolWorkflowCredentials) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OCICreatePoolWorkflowMediator) SetFake() {
+	{
+		{
+			s.Name = "string"
+		}
+	}
+	{
+		{
+			s.IP = "string"
+		}
+	}
+	{
+		{
+			s.HaPair = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	{
 		{
@@ -334,6 +353,21 @@ func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 				}
 				s.Vms = append(s.Vms, elem)
 			}
+		}
+	}
+	{
+		{
+			s.Mediator.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops = int64(0)
+		}
+	}
+	{
+		{
+			s.ThroughputGBps = float64(0)
 		}
 	}
 	{
@@ -372,22 +406,17 @@ func (s *OCICreatePoolWorkflowVM) SetFake() {
 	}
 	{
 		{
+			s.OntapNodeUUID = "string"
+		}
+	}
+	{
+		{
 			s.HaPair = "string"
 		}
 	}
 	{
 		{
 			s.SizeInGiB = int64(0)
-		}
-	}
-	{
-		{
-			s.Iops = int64(0)
-		}
-	}
-	{
-		{
-			s.ThroughputGBps = float64(0)
 		}
 	}
 }
@@ -464,6 +493,15 @@ func (s *OptInt64) SetFake() {
 	var elem int64
 	{
 		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptOCICreatePoolWorkflowMediator) SetFake() {
+	var elem OCICreatePoolWorkflowMediator
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }

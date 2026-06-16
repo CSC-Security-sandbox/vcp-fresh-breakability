@@ -36,8 +36,10 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 							},
 						},
 						"mediator": map[string]interface{}{
+							"name": "FsnIdocnv-mediator-01",
 							"lifs": map[string]interface{}{
 								"intercluster": map[string]interface{}{"ip": ""},
+								"rsm":          map[string]interface{}{"ip": "10.20.27.35"},
 							},
 						},
 					},
@@ -47,6 +49,11 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 				"labels": map[string]interface{}{
 					"pool_uuid": "b5fb9baf-953b-9c65-19d5-31e3365cc2e3",
 					"pool_ocid": "ocid1.pool.oc1.ashburn-1.testpool",
+				},
+				"spconfig": map[string]interface{}{
+					"size": "5500Gi",
+					"iops": 15248,
+					"tput": 954,
 				},
 			},
 		},
@@ -60,6 +67,18 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", out.PoolUUID)
 	require.Equal(t, "ocid1.pool.oc1.ashburn-1.testpool", out.PoolOCID,
 		"PoolOCID must be sourced from deployment.labels[pool_ocid] so the API response can echo the customer-provided pool OCID")
+
+	require.Equal(t, int64(15248), out.IOPS,
+		"pool-level IOPS must be sourced from deployment.spconfig.iops, not per-VM data_disks")
+	require.Equal(t, float64(954)/MiBpsPerGBps, out.ThroughputGBps,
+		"pool-level throughput must be converted from deployment.spconfig.tput (MiBps) to GBps")
+	require.NotNil(t, out.Mediator, "mediator must be present when configured")
+	require.Equal(t, "FsnIdocnv-mediator-01", out.Mediator.Name,
+		"mediator name must be sourced from cloud.ha_pair[*].mediator.name (mediators are excluded from vms)")
+	require.Equal(t, "10.20.27.35", out.Mediator.IP,
+		"mediator ip must be sourced from cloud.ha_pair[*].mediator.lifs.rsm.ip")
+	require.Equal(t, "ha_pair-1", out.Mediator.HAPair,
+		"mediator on the first HA pair must report the 1-indexed label ha_pair-1")
 
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{

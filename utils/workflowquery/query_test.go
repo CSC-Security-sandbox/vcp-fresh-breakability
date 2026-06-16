@@ -399,7 +399,19 @@ func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
 								"nodemgmtinternal": map[string]interface{}{"ip": "10.0.0.12"},
 							},
 						},
+						"mediator": map[string]interface{}{
+							"name": "mediator-1",
+							"lifs": map[string]interface{}{
+								"rsm": map[string]interface{}{"ip": "10.20.27.35"},
+							},
+						},
 					},
+				},
+			},
+			"deployment": map[string]interface{}{
+				"spconfig": map[string]interface{}{
+					"iops": 15248,
+					"tput": 954,
 				},
 			},
 		},
@@ -449,6 +461,17 @@ func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
 	require.NotNil(t, poolMeta)
 	require.Len(t, poolMeta.Vms, 1)
 	require.Equal(t, "vm-1", poolMeta.Vms[0].Name)
+	require.Equal(t, int64(15248), poolMeta.IOPS,
+		"pool-level IOPS from spconfig.iops must survive the child-metadata merge")
+	require.Equal(t, float64(954)/MiBpsPerGBps, poolMeta.ThroughputGBps,
+		"pool-level throughput from spconfig.tput must survive the child-metadata merge")
+	require.NotNil(t, poolMeta.Mediator, "mediator must survive the child-metadata merge")
+	require.Equal(t, "mediator-1", poolMeta.Mediator.Name,
+		"mediator name must survive the child-metadata merge")
+	require.Equal(t, "10.20.27.35", poolMeta.Mediator.IP,
+		"mediator ip must survive the child-metadata merge")
+	require.Equal(t, "ha_pair-1", poolMeta.Mediator.HAPair,
+		"mediator haPair must survive the child-metadata merge")
 	require.NotNil(t, poolMeta.Credentials)
 	require.NotNil(t, poolMeta.Credentials.Secret)
 	require.Equal(t, "ocid1.vaultsecret.oc1..ontapadmin", poolMeta.Credentials.Secret.Ocid)

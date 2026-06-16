@@ -497,28 +497,40 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		resp.Error = ociserver.NewOptWorkflowStatusError(workflowErr)
 	}
 	if res.PoolMetadata != nil {
-		nodeUUIDByName := h.nodeUUIDsByName(ctx, res.PoolMetadata.PoolUUID)
+		nodeUUIDsByName, err := h.nodeUUIDsByName(ctx, res.PoolMetadata.PoolUUID)
+		if err != nil {
+			return mapGetWorkflowQueryError(opcRequestID, err), nil
+		}
 		vms := make([]ociserver.OCICreatePoolWorkflowVM, 0, len(res.PoolMetadata.Vms))
 		for _, vm := range res.PoolMetadata.Vms {
+			nodeUUIDs := nodeUUIDsByName[vm.Name]
 			vms = append(vms, ociserver.OCICreatePoolWorkflowVM{
 				Name:            vm.Name,
 				SerialNumber:    vm.SerialNumber,
 				VsaManagementIP: vm.VSAManagementIP,
 				InterclusterIP:  vm.InterclusterIP,
-				NodeUUID:        nodeUUIDByName[vm.Name],
+				NodeUUID:        nodeUUIDs.vcp,
+				OntapNodeUUID:   nodeUUIDs.ontap,
 				HaPair:          vm.HAPair,
 				SizeInGiB:       vm.SizeInGiB,
-				Iops:            vm.IOPS,
-				ThroughputGBps:  vm.ThroughputGBps,
 			})
 		}
 		poolMeta := ociserver.OCICreatePoolWorkflowMetadata{
-			PoolOCID:    res.PoolMetadata.PoolOCID,
-			Vms:         vms,
-			Credentials: buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
+			PoolOCID:       res.PoolMetadata.PoolOCID,
+			Vms:            vms,
+			Iops:           res.PoolMetadata.IOPS,
+			ThroughputGBps: res.PoolMetadata.ThroughputGBps,
+			Credentials:    buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
 		}
 		if res.PoolMetadata.ClusterIP != "" {
 			poolMeta.ClusterIP = ociserver.NewOptString(res.PoolMetadata.ClusterIP)
+		}
+		if res.PoolMetadata.Mediator != nil {
+			poolMeta.Mediator = ociserver.NewOptOCICreatePoolWorkflowMediator(ociserver.OCICreatePoolWorkflowMediator{
+				Name:   res.PoolMetadata.Mediator.Name,
+				IP:     res.PoolMetadata.Mediator.IP,
+				HaPair: res.PoolMetadata.Mediator.HAPair,
+			})
 		}
 		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(poolMeta)
 	}
@@ -581,22 +593,30 @@ func buildWorkflowCredentialsResponse(creds *workflowquery.OCICreatePoolCredenti
 	return out
 }
 
-func (h *Handler) nodeUUIDsByName(ctx context.Context, poolUUID string) map[string]string {
-	if h.Orchestrator == nil || strings.TrimSpace(poolUUID) == "" {
-		return nil
+type nodeUUIDs struct {
+	vcp   string
+	ontap string
+}
+
+func (h *Handler) nodeUUIDsByName(ctx context.Context, poolUUID string) (map[string]nodeUUIDs, error) {
+	if poolUUID == "" {
+		return nil, nil
 	}
 	nodes, err := h.Orchestrator.GetNodesByPoolUUID(ctx, poolUUID)
 	if err != nil {
-		util.GetLogger(ctx).Warn("nodeUUID enrichment skipped: GetNodesByPoolUUID failed", "poolUUID", poolUUID, "error", err)
-		return nil
+		return nil, fmt.Errorf("node UUID enrichment failed for pool %q: %w", poolUUID, err)
 	}
-	out := make(map[string]string, len(nodes))
+	uuidsByName := make(map[string]nodeUUIDs, len(nodes))
 	for _, n := range nodes {
 		if n != nil && n.Name != "" {
-			out[n.Name] = n.UUID
+			uuids := nodeUUIDs{vcp: n.UUID}
+			if n.NodeAttributes != nil {
+				uuids.ontap = n.NodeAttributes.ExternalUUID
+			}
+			uuidsByName[n.Name] = uuids
 		}
 	}
-	return out
+	return uuidsByName, nil
 }
 
 func mapGetWorkflowQueryError(opcRequestID string, err error) ociserver.GetWorkflowRes {

@@ -26,6 +26,63 @@ func (_m *MockDataStore) EXPECT() *MockDataStore_Expecter {
 	return &MockDataStore_Expecter{mock: &_m.Mock}
 }
 
+// ActiveSvmExistsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ActiveSvmExistsByPoolID")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (bool, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) bool); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ActiveSvmExistsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ActiveSvmExistsByPoolID'
+type MockDataStore_ActiveSvmExistsByPoolID_Call struct {
+	*mock.Call
+}
+
+// ActiveSvmExistsByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockDataStore_Expecter) ActiveSvmExistsByPoolID(ctx interface{}, poolID interface{}) *MockDataStore_ActiveSvmExistsByPoolID_Call {
+	return &MockDataStore_ActiveSvmExistsByPoolID_Call{Call: _e.mock.On("ActiveSvmExistsByPoolID", ctx, poolID)}
+}
+
+func (_c *MockDataStore_ActiveSvmExistsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ActiveSvmExistsByPoolID_Call) Return(_a0 bool, _a1 error) *MockDataStore_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ActiveSvmExistsByPoolID_Call) RunAndReturn(run func(context.Context, int64) (bool, error)) *MockDataStore_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddKeyToServiceAccount provides a mock function with given fields: ctx, serviceAccountUUID, key
 func (_m *MockDataStore) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
 	ret := _m.Called(ctx, serviceAccountUUID, key)
@@ -21240,6 +21297,7 @@ func (_c *MockDataStore_UpdateNodesInstanceType_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// UpdateNodesSizeAndInstanceType provides a mock function with given fields: ctx, poolID, updatesByNodeName
 func (_m *MockDataStore) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
 	ret := _m.Called(ctx, poolID, updatesByNodeName)
 
@@ -21257,10 +21315,15 @@ func (_m *MockDataStore) UpdateNodesSizeAndInstanceType(ctx context.Context, poo
 	return r0
 }
 
+// MockDataStore_UpdateNodesSizeAndInstanceType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodesSizeAndInstanceType'
 type MockDataStore_UpdateNodesSizeAndInstanceType_Call struct {
 	*mock.Call
 }
 
+// UpdateNodesSizeAndInstanceType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - updatesByNodeName map[string]datamodel.NodeDetails
 func (_e *MockDataStore_Expecter) UpdateNodesSizeAndInstanceType(ctx interface{}, poolID interface{}, updatesByNodeName interface{}) *MockDataStore_UpdateNodesSizeAndInstanceType_Call {
 	return &MockDataStore_UpdateNodesSizeAndInstanceType_Call{Call: _e.mock.On("UpdateNodesSizeAndInstanceType", ctx, poolID, updatesByNodeName)}
 }

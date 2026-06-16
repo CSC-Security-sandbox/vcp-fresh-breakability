@@ -765,6 +765,17 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", poolView.State))
 	}
 
+	if !resume {
+		activeSvmExists, svmErr := se.ActiveSvmExistsByPoolID(ctx, poolView.ID)
+		if svmErr != nil {
+			logger.Error("Failed to check for existing SVMs before pool deletion", "poolUUID", poolView.UUID, "error", svmErr)
+			return nil, "", svmErr
+		}
+		if activeSvmExists {
+			return nil, "", customerrors.NewConflictErr("pool cannot be deleted while it has existing SVMs; delete the SVMs first")
+		}
+	}
+
 	pool := database.ConvertPoolViewToPool(poolView)
 	pool.WorkflowID = workflowID
 

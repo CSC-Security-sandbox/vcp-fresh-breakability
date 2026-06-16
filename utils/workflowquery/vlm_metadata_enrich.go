@@ -22,15 +22,18 @@ func vsaClusterChildMetadataFromPayloads(payloads []*commonpb.Payload) *OCICreat
 		return nil
 	}
 
-	var ipCfg vlmConfigIPEmbed
+	var ipCfg vlmConfig
 	if err := json.Unmarshal(top.VlmConfig, &ipCfg); err != nil {
 		return nil
 	}
 
 	return &OCICreatePoolMetadata{
-		PoolUUID:  poolUUIDFromEmbed(&ipCfg),
-		PoolOCID:  poolOCIDFromEmbed(&ipCfg),
-		ClusterIP: clusterIPFromEmbed(&ipCfg),
-		Vms:       poolVMMetadataFromEmbed(&ipCfg),
+		PoolUUID:       poolUUIDFromEmbed(&ipCfg),
+		PoolOCID:       poolOCIDFromEmbed(&ipCfg),
+		ClusterIP:      clusterIPFromEmbed(&ipCfg),
+		Vms:            poolVMMetadataFromEmbed(&ipCfg),
+		IOPS:           poolIOPSFromEmbed(&ipCfg),
+		ThroughputGBps: poolThroughputGBpsFromEmbed(&ipCfg),
+		Mediator:       mediatorFromEmbed(&ipCfg),
 	}
 }

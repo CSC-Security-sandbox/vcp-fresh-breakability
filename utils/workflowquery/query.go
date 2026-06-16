@@ -51,8 +51,6 @@ type OCICreatePoolVMMetadata struct {
 	VSAManagementIP string
 	InterclusterIP  string
 	HAPair          string
-	IOPS            int64
-	ThroughputGBps  float64
 	SizeInGiB       int64
 }
 
@@ -68,11 +66,20 @@ type OCICreatePoolCredentialsMetadata struct {
 	Certificate *OCICredentialRefMetadata `json:"certificate,omitempty"`
 }
 
+type OCICreatePoolMediatorMetadata struct {
+	Name   string `json:"name"`
+	IP     string `json:"ip"`
+	HAPair string `json:"haPair"`
+}
+
 type OCICreatePoolMetadata struct {
-	PoolUUID  string                    `json:"poolUUID,omitempty"`
-	PoolOCID  string                    `json:"poolOCID,omitempty"`
-	ClusterIP string                    `json:"clusterIP,omitempty"`
-	Vms       []OCICreatePoolVMMetadata `json:"vms,omitempty"`
+	PoolUUID       string                         `json:"poolUUID,omitempty"`
+	PoolOCID       string                         `json:"poolOCID,omitempty"`
+	ClusterIP      string                         `json:"clusterIP,omitempty"`
+	Vms            []OCICreatePoolVMMetadata      `json:"vms,omitempty"`
+	IOPS           int64                          `json:"iops,omitempty"`
+	ThroughputGBps float64                        `json:"throughputGBps,omitempty"`
+	Mediator       *OCICreatePoolMediatorMetadata `json:"mediator,omitempty"`
 	// Credentials surfaces OCI Vault references captured from the
 	// CreateOnTapCredentialsForOCI activity completion event. It is populated
 	// only after the parent OCICreatePoolWorkflow has terminated successfully.
@@ -270,6 +277,9 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 				m.PoolOCID = childMeta.PoolOCID
 				m.ClusterIP = childMeta.ClusterIP
 				m.Vms = childMeta.Vms
+				m.IOPS = childMeta.IOPS
+				m.ThroughputGBps = childMeta.ThroughputGBps
+				m.Mediator = childMeta.Mediator
 			}
 
 		case enums.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:

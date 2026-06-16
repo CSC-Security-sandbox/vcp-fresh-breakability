@@ -28,6 +28,63 @@ func (_m *MockStorage) EXPECT() *MockStorage_Expecter {
 	return &MockStorage_Expecter{mock: &_m.Mock}
 }
 
+// ActiveSvmExistsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ActiveSvmExistsByPoolID")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (bool, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) bool); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ActiveSvmExistsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ActiveSvmExistsByPoolID'
+type MockStorage_ActiveSvmExistsByPoolID_Call struct {
+	*mock.Call
+}
+
+// ActiveSvmExistsByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockStorage_Expecter) ActiveSvmExistsByPoolID(ctx interface{}, poolID interface{}) *MockStorage_ActiveSvmExistsByPoolID_Call {
+	return &MockStorage_ActiveSvmExistsByPoolID_Call{Call: _e.mock.On("ActiveSvmExistsByPoolID", ctx, poolID)}
+}
+
+func (_c *MockStorage_ActiveSvmExistsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ActiveSvmExistsByPoolID_Call) Return(_a0 bool, _a1 error) *MockStorage_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ActiveSvmExistsByPoolID_Call) RunAndReturn(run func(context.Context, int64) (bool, error)) *MockStorage_ActiveSvmExistsByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddKeyToServiceAccount provides a mock function with given fields: ctx, serviceAccountUUID, key
 func (_m *MockStorage) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
 	ret := _m.Called(ctx, serviceAccountUUID, key)
@@ -21563,6 +21620,7 @@ func (_c *MockStorage_UpdateNodesInstanceType_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// UpdateNodesSizeAndInstanceType provides a mock function with given fields: ctx, poolID, updatesByNodeName
 func (_m *MockStorage) UpdateNodesSizeAndInstanceType(ctx context.Context, poolID int64, updatesByNodeName map[string]datamodel.NodeDetails) error {
 	ret := _m.Called(ctx, poolID, updatesByNodeName)
 
@@ -21580,10 +21638,15 @@ func (_m *MockStorage) UpdateNodesSizeAndInstanceType(ctx context.Context, poolI
 	return r0
 }
 
+// MockStorage_UpdateNodesSizeAndInstanceType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodesSizeAndInstanceType'
 type MockStorage_UpdateNodesSizeAndInstanceType_Call struct {
 	*mock.Call
 }
 
+// UpdateNodesSizeAndInstanceType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - updatesByNodeName map[string]datamodel.NodeDetails
 func (_e *MockStorage_Expecter) UpdateNodesSizeAndInstanceType(ctx interface{}, poolID interface{}, updatesByNodeName interface{}) *MockStorage_UpdateNodesSizeAndInstanceType_Call {
 	return &MockStorage_UpdateNodesSizeAndInstanceType_Call{Call: _e.mock.On("UpdateNodesSizeAndInstanceType", ctx, poolID, updatesByNodeName)}
 }

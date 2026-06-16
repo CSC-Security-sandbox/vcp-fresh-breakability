@@ -172,6 +172,7 @@ func TestDeletePool_UsesSuppliedWorkflowID(t *testing.T) {
 			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		},
 	}, nil)
+	mockStorage.EXPECT().ActiveSvmExistsByPoolID(mock.Anything, mock.Anything).Return(false, nil)
 
 	var deletingPool *datamodel.Pool
 	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).
@@ -226,6 +227,46 @@ func TestDeletePool_ResumesWhenDeletingRowMatchesWorkflowID(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, testSuppliedWorkflowID, workflowID)
+	mockStorage.AssertNotCalled(t, "DeletingPool", mock.Anything, mock.Anything)
+}
+
+// TestDeletePool_ResumeBypassesSvmGuard verifies that the live-SVM guard does
+// NOT run on a crash-resume (pool already DELETING with a matching workflowID).
+// Re-running the SVM check on resume could reject the resume on a stray/legacy
+// live SVM and strand the pool in DELETING, so resume must re-drive the
+// in-flight deletion without consulting SVMs. ActiveSvmExistsByPoolID is intentionally
+// not stubbed: if the code called it, the mock would fail the test.
+func TestDeletePool_ResumeBypassesSvmGuard(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..del"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..del").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			State:          datamodel.LifeCycleStateDeleting,
+			WorkflowID:     testSuppliedWorkflowID,
+			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
+		},
+	}, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+	_, workflowID, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
+		AccountName: "ocid1.tenancy..del",
+		PoolOCID:    "ocid1.pool.oc1..del",
+		WorkflowID:  testSuppliedWorkflowID,
+	})
+	assert.NoError(t, err, "a crash-resume must not be blocked by the SVM guard")
+	assert.Equal(t, testSuppliedWorkflowID, workflowID)
+	mockStorage.AssertNotCalled(t, "ActiveSvmExistsByPoolID", mock.Anything, mock.Anything)
 	mockStorage.AssertNotCalled(t, "DeletingPool", mock.Anything, mock.Anything)
 }
 

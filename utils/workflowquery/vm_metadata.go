@@ -15,13 +15,16 @@ func haPairLabel(i int) string {
 	return fmt.Sprintf("ha_pair-%d", i+1)
 }
 
-type lifIPEmbed struct {
+type lifIP struct {
 	IP string `json:"ip"`
 }
 type dataDisk struct {
-	Size           int64 `json:"size"`
-	DiskIOPS       int64 `json:"disk_iops"`
-	DiskThroughput int64 `json:"disk_throughput"`
+	Size int64 `json:"size"`
+}
+
+type spConfig struct {
+	IOPS int64 `json:"iops"`
+	Tput int64 `json:"tput"`
 }
 
 type vmMetadata struct {
@@ -29,28 +32,67 @@ type vmMetadata struct {
 	SerialNumber    string `json:"serial_number"`
 	VSAManagementIP string `json:"vsa_management_ip"`
 	Lifs            struct {
-		Intercluster     lifIPEmbed `json:"intercluster"`
-		Nodemgmtinternal lifIPEmbed `json:"nodemgmtinternal"`
-		Rbac             lifIPEmbed `json:"rbac"`
+		Intercluster     lifIP `json:"intercluster"`
+		Nodemgmtinternal lifIP `json:"nodemgmtinternal"`
+		Rbac             lifIP `json:"rbac"`
 	} `json:"lifs"`
 	DataDisks []dataDisk `json:"data_disks"`
 }
 
-type haPairIPEmbed struct {
-	VM1 vmMetadata `json:"vm1"`
-	VM2 vmMetadata `json:"vm2"`
+type mediator struct {
+	Name string `json:"name"`
+	Lifs struct {
+		Rsm lifIP `json:"rsm"`
+	} `json:"lifs"`
 }
 
-type vlmConfigIPEmbed struct {
+type haPairIPEmbed struct {
+	VM1      vmMetadata `json:"vm1"`
+	VM2      vmMetadata `json:"vm2"`
+	Mediator *mediator  `json:"mediator,omitempty"`
+}
+
+type vlmConfig struct {
 	Cloud struct {
 		HAPairs []haPairIPEmbed `json:"ha_pair"`
 	} `json:"cloud"`
 	Deployment struct {
-		Labels map[string]string `json:"labels"`
+		Labels   map[string]string `json:"labels"`
+		SpConfig spConfig          `json:"spconfig"`
 	} `json:"deployment"`
 }
 
-func poolUUIDFromEmbed(cfg *vlmConfigIPEmbed) string {
+func poolIOPSFromEmbed(cfg *vlmConfig) int64 {
+	if cfg == nil {
+		return 0
+	}
+	return cfg.Deployment.SpConfig.IOPS
+}
+
+func poolThroughputGBpsFromEmbed(cfg *vlmConfig) float64 {
+	if cfg == nil || cfg.Deployment.SpConfig.Tput == 0 {
+		return 0
+	}
+	return float64(cfg.Deployment.SpConfig.Tput) / MiBpsPerGBps
+}
+
+func mediatorFromEmbed(cfg *vlmConfig) *OCICreatePoolMediatorMetadata {
+	if cfg == nil {
+		return nil
+	}
+	for i, pair := range cfg.Cloud.HAPairs {
+		if pair.Mediator != nil {
+			return &OCICreatePoolMediatorMetadata{
+				Name:   pair.Mediator.Name,
+				IP:     pair.Mediator.Lifs.Rsm.IP,
+				HAPair: haPairLabel(i),
+			}
+		}
+	}
+	return nil
+}
+
+func poolUUIDFromEmbed(cfg *vlmConfig) string {
 	if cfg == nil {
 		return ""
 	}
@@ -61,14 +103,14 @@ func poolUUIDFromEmbed(cfg *vlmConfigIPEmbed) string {
 // deployment labels. Returns "" when cfg is nil or the label is missing/empty,
 // so callers can rely on the `omitempty` JSON tag to drop the field from the
 // poolMetadata response when the value is unavailable.
-func poolOCIDFromEmbed(cfg *vlmConfigIPEmbed) string {
+func poolOCIDFromEmbed(cfg *vlmConfig) string {
 	if cfg == nil {
 		return ""
 	}
 	return cfg.Deployment.Labels["pool_ocid"]
 }
 
-func interclusterIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
+func interclusterIPsFromEmbed(cfg *vlmConfig) []string {
 	if cfg == nil {
 		return nil
 	}
@@ -91,7 +133,7 @@ func interclusterIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
 	return ips
 }
 
-func clusterIPFromEmbed(cfg *vlmConfigIPEmbed) string {
+func clusterIPFromEmbed(cfg *vlmConfig) string {
 	if cfg == nil {
 		return ""
 	}
@@ -106,7 +148,7 @@ func clusterIPFromEmbed(cfg *vlmConfigIPEmbed) string {
 	return ""
 }
 
-func nodemgmtInternalIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
+func nodemgmtInternalIPsFromEmbed(cfg *vlmConfig) []string {
 	if cfg == nil {
 		return nil
 	}
@@ -135,18 +177,14 @@ func vmMetadataIsEmpty(vm vmMetadata) bool {
 		len(vm.DataDisks) == 0
 }
 
-func dataDiskTotals(disks []dataDisk) (sizeInGiB, iops int64, throughputGBps float64) {
-	var throughputMiBps int64
+func dataDiskSizeTotal(disks []dataDisk) (sizeInGiB int64) {
 	for _, d := range disks {
 		sizeInGiB += d.Size
-		iops += d.DiskIOPS
-		throughputMiBps += d.DiskThroughput
 	}
-	throughputGBps = float64(throughputMiBps) / MiBpsPerGBps
 	return
 }
 
-func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
+func poolVMMetadataFromEmbed(cfg *vlmConfig) []OCICreatePoolVMMetadata {
 	if cfg == nil {
 		return nil
 	}
@@ -155,29 +193,23 @@ func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
 	for i, pair := range cfg.Cloud.HAPairs {
 		label := haPairLabel(i)
 		if !vmMetadataIsEmpty(pair.VM1) {
-			sizeInGiB, iops, throughputGBps := dataDiskTotals(pair.VM1.DataDisks)
 			vms = append(vms, OCICreatePoolVMMetadata{
 				Name:            pair.VM1.Name,
 				SerialNumber:    pair.VM1.SerialNumber,
 				VSAManagementIP: pair.VM1.VSAManagementIP,
 				InterclusterIP:  pair.VM1.Lifs.Intercluster.IP,
 				HAPair:          label,
-				SizeInGiB:       sizeInGiB,
-				IOPS:            iops,
-				ThroughputGBps:  throughputGBps,
+				SizeInGiB:       dataDiskSizeTotal(pair.VM1.DataDisks),
 			})
 		}
 		if !vmMetadataIsEmpty(pair.VM2) {
-			sizeInGiB, iops, throughputGBps := dataDiskTotals(pair.VM2.DataDisks)
 			vms = append(vms, OCICreatePoolVMMetadata{
 				Name:            pair.VM2.Name,
 				SerialNumber:    pair.VM2.SerialNumber,
 				VSAManagementIP: pair.VM2.VSAManagementIP,
 				InterclusterIP:  pair.VM2.Lifs.Intercluster.IP,
 				HAPair:          label,
-				SizeInGiB:       sizeInGiB,
-				IOPS:            iops,
-				ThroughputGBps:  throughputGBps,
+				SizeInGiB:       dataDiskSizeTotal(pair.VM2.DataDisks),
 			})
 		}
 	}

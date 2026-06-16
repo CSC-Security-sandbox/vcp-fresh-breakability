@@ -332,6 +332,70 @@ func TestDeletePool_ConflictWhenAlreadyDeleting(t *testing.T) {
 	assert.Equal(t, "", wf)
 }
 
+// TestDeletePool_RejectedWhenSvmExists verifies that an OCI pool still owning
+// an SVM cannot be deleted: the request is rejected with a conflict, the pool
+// is never transitioned to DELETING, and no workflow is started.
+func TestDeletePool_RejectedWhenSvmExists(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.compartment..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.compartment..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			Name:      "p1",
+			State:     datamodel.LifeCycleStateREADY,
+		},
+	}, nil)
+	mockStorage.EXPECT().ActiveSvmExistsByPoolID(mock.Anything, int64(42)).Return(true, nil)
+	// DeletingPool / ExecuteWorkflow must NOT be called; the mocks would fail if they were.
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	pool, wf, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
+		AccountName: "ocid1.compartment..x",
+		PoolOCID:    "ocid1.pool.oc1..y",
+	})
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err), "deleting a pool that still owns an SVM must be a conflict")
+	assert.Contains(t, err.Error(), "existing SVMs")
+	assert.Nil(t, pool)
+	assert.Equal(t, "", wf)
+}
+
+// TestDeletePool_AllowedWhenSvmsDeletedOrSoftDeleted verifies that SVMs which
+// are already gone do not block pool deletion: an SVM in the DELETED lifecycle
+// state and a soft-deleted SVM are both ignored, so the pool proceeds to
+// DELETING and the workflow starts.
+func TestDeletePool_AllowedWhenSvmsDeletedOrSoftDeleted(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.compartment..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.compartment..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			Name:           "p1",
+			State:          datamodel.LifeCycleStateREADY,
+			PoolAttributes: &datamodel.PoolAttributes{},
+		},
+	}, nil)
+	mockStorage.EXPECT().ActiveSvmExistsByPoolID(mock.Anything, int64(42)).Return(false, nil)
+	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).Return(nil)
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	pool, wf, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
+		AccountName: "ocid1.compartment..x",
+		PoolOCID:    "ocid1.pool.oc1..y",
+	})
+	assert.NoError(t, err, "DELETED-state and soft-deleted SVMs must not block pool deletion")
+	assert.NotNil(t, pool)
+	assert.NotEqual(t, "", wf)
+}
+
 func TestDeletePool_TransitionalStateConflict(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -363,6 +427,7 @@ func TestDeletePool_DeletingPoolFails(t *testing.T) {
 			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
+	mockStorage.EXPECT().ActiveSvmExistsByPoolID(mock.Anything, mock.Anything).Return(false, nil)
 	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).Return(errors.New("state transition failed"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.DeletePool(ctx, &commonparams.DeletePoolParams{
@@ -386,6 +451,7 @@ func TestDeletePool_ExecuteWorkflowFails(t *testing.T) {
 			State:     datamodel.LifeCycleStateREADY,
 		},
 	}, nil)
+	mockStorage.EXPECT().ActiveSvmExistsByPoolID(mock.Anything, mock.Anything).Return(false, nil)
 	mockStorage.EXPECT().DeletingPool(mock.Anything, mock.Anything).Return(nil)
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().

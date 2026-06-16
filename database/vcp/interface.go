@@ -186,6 +186,7 @@ type (
 		CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 		CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 		GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
+		ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error)
 		GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error)
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
 		UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error)

@@ -1631,10 +1631,9 @@ components:
         - vsaManagementIP
         - interclusterIP
         - nodeUUID
+        - ontapNodeUUID
         - haPair
         - sizeInGiB
-        - iops
-        - throughputGBps
       properties:
         name:
           type: string
@@ -1651,6 +1650,9 @@ components:
         nodeUUID:
           type: string
           description: UUID of the corresponding node
+        ontapNodeUUID:
+          type: string
+          description: ONTAP node UUID of the corresponding node
         haPair:
           type: string
           description: |
@@ -1665,19 +1667,6 @@ components:
           description: |
             Aggregated capacity for this VM in GiB, computed as the sum of
             `size` across all entries in the VM's `data_disks` from VLM config.
-        iops:
-          type: integer
-          format: int64
-          description: |
-            Aggregated IOPS for this VM, computed as the sum of `disk_iops`
-            across all entries in the VM's `data_disks` from VLM config.
-        throughputGBps:
-          type: number
-          format: double
-          description: |
-            Aggregated throughput for this VM in GBps, computed as the sum of
-            `disk_throughput` (MiBps) across all entries in the VM's `data_disks`
-            from VLM config and converted from MiBps to GBps.
 
     OCICreatePoolWorkflowMetadata:
       type: object
@@ -1685,6 +1674,8 @@ components:
         - vms
         - credentials
         - poolOCID
+        - iops
+        - throughputGBps
       properties:
         poolOCID:
           type: string
@@ -1698,8 +1689,52 @@ components:
           description: VM metadata for OCI pool nodes.
           items:
             $ref: '#/components/schemas/OCICreatePoolWorkflowVM'
+        mediator:
+          $ref: '#/components/schemas/OCICreatePoolWorkflowMediator'
+          description: |
+            Mediator node for the pool's HA pair. The mediator is not a VSA
+            node (excluded from `vms`). Omitted when
+            the pool has no mediator configured.
+        iops:
+          type: integer
+          format: int64
+          description: |
+            Pool-level IOPS sourced from the VLM config's `spconfig.iops`.
+            Always pool-level (also in heterogeneous mode where only per-node
+            size diverges).
+        throughputGBps:
+          type: number
+          format: double
+          description: |
+            Pool-level throughput in GBps, converted from the VLM config's
+            `spconfig.tput` value which is reported in MiBps
+            (`MiBps / 953.67431640625`).
         credentials:
           $ref: '#/components/schemas/OCICreatePoolWorkflowCredentials'
+
+    OCICreatePoolWorkflowMediator:
+      type: object
+      description: Mediator node metadata for an OCI pool
+      required:
+        - name
+        - ip
+        - haPair
+      properties:
+        name:
+          type: string
+          description: |
+            Mediator node name from the VLM config
+            (`cloud.ha_pair[*].mediator.name`).
+        ip:
+          type: string
+          description: Mediator IP from the VLM config
+        haPair:
+          type: string
+          description: |
+            Identifier of the HA pair this mediator arbitrates, formatted as
+            `ha_pair-<index>` where `<index>` is **1-based** (e.g. `ha_pair-1`).
+            Matches the `haPair` label on the VMs in the same pair.
+          example: "ha_pair-1"
 
     OCICreatePoolWorkflowCredentials:
       type: object

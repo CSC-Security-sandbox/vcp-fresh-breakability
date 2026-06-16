@@ -40,6 +40,22 @@ func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64)
 	return svms, nil
 }
 
+func (d *DataStoreRepository) ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error) {
+	var svm datamodel.Svm
+	err := d.db.GORM().WithContext(ctx).
+		Select("id").
+		Where("pool_id = ? AND state <> ?", poolID, datamodel.LifeCycleStateDeleted).
+		Limit(1).
+		First(&svm).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return true, nil
+}
+
 // GetNextSVMIndexByPoolID retrieves the next SVM index (count + 1) by pool ID
 func (d *DataStoreRepository) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var count int64

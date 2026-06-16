@@ -1212,6 +1212,50 @@ func (s *OCICreatePoolWorkflowCredentials) SetCertificate(val OCIOCIDVersionRef)
 	s.Certificate = val
 }
 
+// Mediator node metadata for an OCI pool.
+// Ref: #/components/schemas/OCICreatePoolWorkflowMediator
+type OCICreatePoolWorkflowMediator struct {
+	// Mediator node name from the VLM config
+	// (`cloud.ha_pair[*].mediator.name`).
+	Name string `json:"name"`
+	// Mediator IP from the VLM config.
+	IP string `json:"ip"`
+	// Identifier of the HA pair this mediator arbitrates, formatted as
+	// `ha_pair-<index>` where `<index>` is **1-based** (e.g. `ha_pair-1`).
+	// Matches the `haPair` label on the VMs in the same pair.
+	HaPair string `json:"haPair"`
+}
+
+// GetName returns the value of Name.
+func (s *OCICreatePoolWorkflowMediator) GetName() string {
+	return s.Name
+}
+
+// GetIP returns the value of IP.
+func (s *OCICreatePoolWorkflowMediator) GetIP() string {
+	return s.IP
+}
+
+// GetHaPair returns the value of HaPair.
+func (s *OCICreatePoolWorkflowMediator) GetHaPair() string {
+	return s.HaPair
+}
+
+// SetName sets the value of Name.
+func (s *OCICreatePoolWorkflowMediator) SetName(val string) {
+	s.Name = val
+}
+
+// SetIP sets the value of IP.
+func (s *OCICreatePoolWorkflowMediator) SetIP(val string) {
+	s.IP = val
+}
+
+// SetHaPair sets the value of HaPair.
+func (s *OCICreatePoolWorkflowMediator) SetHaPair(val string) {
+	s.HaPair = val
+}
+
 // Ref: #/components/schemas/OCICreatePoolWorkflowMetadata
 type OCICreatePoolWorkflowMetadata struct {
 	// OCI pool resource OCID.
@@ -1219,8 +1263,20 @@ type OCICreatePoolWorkflowMetadata struct {
 	// RBAC LIF IP for the cluster.
 	ClusterIP OptString `json:"clusterIP"`
 	// VM metadata for OCI pool nodes.
-	Vms         []OCICreatePoolWorkflowVM        `json:"vms"`
-	Credentials OCICreatePoolWorkflowCredentials `json:"credentials"`
+	Vms []OCICreatePoolWorkflowVM `json:"vms"`
+	// Mediator node for the pool's HA pair. The mediator is not a VSA
+	// node (excluded from `vms`). Omitted when
+	// the pool has no mediator configured.
+	Mediator OptOCICreatePoolWorkflowMediator `json:"mediator"`
+	// Pool-level IOPS sourced from the VLM config's `spconfig.iops`.
+	// Always pool-level (also in heterogeneous mode where only per-node
+	// size diverges).
+	Iops int64 `json:"iops"`
+	// Pool-level throughput in GBps, converted from the VLM config's
+	// `spconfig.tput` value which is reported in MiBps
+	// (`MiBps / 953.67431640625`).
+	ThroughputGBps float64                          `json:"throughputGBps"`
+	Credentials    OCICreatePoolWorkflowCredentials `json:"credentials"`
 }
 
 // GetPoolOCID returns the value of PoolOCID.
@@ -1236,6 +1292,21 @@ func (s *OCICreatePoolWorkflowMetadata) GetClusterIP() OptString {
 // GetVms returns the value of Vms.
 func (s *OCICreatePoolWorkflowMetadata) GetVms() []OCICreatePoolWorkflowVM {
 	return s.Vms
+}
+
+// GetMediator returns the value of Mediator.
+func (s *OCICreatePoolWorkflowMetadata) GetMediator() OptOCICreatePoolWorkflowMediator {
+	return s.Mediator
+}
+
+// GetIops returns the value of Iops.
+func (s *OCICreatePoolWorkflowMetadata) GetIops() int64 {
+	return s.Iops
+}
+
+// GetThroughputGBps returns the value of ThroughputGBps.
+func (s *OCICreatePoolWorkflowMetadata) GetThroughputGBps() float64 {
+	return s.ThroughputGBps
 }
 
 // GetCredentials returns the value of Credentials.
@@ -1258,6 +1329,21 @@ func (s *OCICreatePoolWorkflowMetadata) SetVms(val []OCICreatePoolWorkflowVM) {
 	s.Vms = val
 }
 
+// SetMediator sets the value of Mediator.
+func (s *OCICreatePoolWorkflowMetadata) SetMediator(val OptOCICreatePoolWorkflowMediator) {
+	s.Mediator = val
+}
+
+// SetIops sets the value of Iops.
+func (s *OCICreatePoolWorkflowMetadata) SetIops(val int64) {
+	s.Iops = val
+}
+
+// SetThroughputGBps sets the value of ThroughputGBps.
+func (s *OCICreatePoolWorkflowMetadata) SetThroughputGBps(val float64) {
+	s.ThroughputGBps = val
+}
+
 // SetCredentials sets the value of Credentials.
 func (s *OCICreatePoolWorkflowMetadata) SetCredentials(val OCICreatePoolWorkflowCredentials) {
 	s.Credentials = val
@@ -1275,6 +1361,8 @@ type OCICreatePoolWorkflowVM struct {
 	InterclusterIP string `json:"interclusterIP"`
 	// UUID of the corresponding node.
 	NodeUUID string `json:"nodeUUID"`
+	// ONTAP node UUID of the corresponding node.
+	OntapNodeUUID string `json:"ontapNodeUUID"`
 	// Identifier of the HA pair this VM belongs to within the pool,
 	// formatted as `ha_pair-<index>` where `<index>` is **1-based**
 	// (e.g. `ha_pair-1`, `ha_pair-2`). The first HA pair is
@@ -1283,13 +1371,6 @@ type OCICreatePoolWorkflowVM struct {
 	// Aggregated capacity for this VM in GiB, computed as the sum of
 	// `size` across all entries in the VM's `data_disks` from VLM config.
 	SizeInGiB int64 `json:"sizeInGiB"`
-	// Aggregated IOPS for this VM, computed as the sum of `disk_iops`
-	// across all entries in the VM's `data_disks` from VLM config.
-	Iops int64 `json:"iops"`
-	// Aggregated throughput for this VM in GBps, computed as the sum of
-	// `disk_throughput` (MiBps) across all entries in the VM's `data_disks`
-	// from VLM config and converted from MiBps to GBps.
-	ThroughputGBps float64 `json:"throughputGBps"`
 }
 
 // GetName returns the value of Name.
@@ -1317,6 +1398,11 @@ func (s *OCICreatePoolWorkflowVM) GetNodeUUID() string {
 	return s.NodeUUID
 }
 
+// GetOntapNodeUUID returns the value of OntapNodeUUID.
+func (s *OCICreatePoolWorkflowVM) GetOntapNodeUUID() string {
+	return s.OntapNodeUUID
+}
+
 // GetHaPair returns the value of HaPair.
 func (s *OCICreatePoolWorkflowVM) GetHaPair() string {
 	return s.HaPair
@@ -1325,16 +1411,6 @@ func (s *OCICreatePoolWorkflowVM) GetHaPair() string {
 // GetSizeInGiB returns the value of SizeInGiB.
 func (s *OCICreatePoolWorkflowVM) GetSizeInGiB() int64 {
 	return s.SizeInGiB
-}
-
-// GetIops returns the value of Iops.
-func (s *OCICreatePoolWorkflowVM) GetIops() int64 {
-	return s.Iops
-}
-
-// GetThroughputGBps returns the value of ThroughputGBps.
-func (s *OCICreatePoolWorkflowVM) GetThroughputGBps() float64 {
-	return s.ThroughputGBps
 }
 
 // SetName sets the value of Name.
@@ -1362,6 +1438,11 @@ func (s *OCICreatePoolWorkflowVM) SetNodeUUID(val string) {
 	s.NodeUUID = val
 }
 
+// SetOntapNodeUUID sets the value of OntapNodeUUID.
+func (s *OCICreatePoolWorkflowVM) SetOntapNodeUUID(val string) {
+	s.OntapNodeUUID = val
+}
+
 // SetHaPair sets the value of HaPair.
 func (s *OCICreatePoolWorkflowVM) SetHaPair(val string) {
 	s.HaPair = val
@@ -1370,16 +1451,6 @@ func (s *OCICreatePoolWorkflowVM) SetHaPair(val string) {
 // SetSizeInGiB sets the value of SizeInGiB.
 func (s *OCICreatePoolWorkflowVM) SetSizeInGiB(val int64) {
 	s.SizeInGiB = val
-}
-
-// SetIops sets the value of Iops.
-func (s *OCICreatePoolWorkflowVM) SetIops(val int64) {
-	s.Iops = val
-}
-
-// SetThroughputGBps sets the value of ThroughputGBps.
-func (s *OCICreatePoolWorkflowVM) SetThroughputGBps(val float64) {
-	s.ThroughputGBps = val
 }
 
 // SVM metadata returned when an OCICreateSVMWorkflow completes successfully.
@@ -1629,6 +1700,52 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOCICreatePoolWorkflowMediator returns new OptOCICreatePoolWorkflowMediator with value set to v.
+func NewOptOCICreatePoolWorkflowMediator(v OCICreatePoolWorkflowMediator) OptOCICreatePoolWorkflowMediator {
+	return OptOCICreatePoolWorkflowMediator{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOCICreatePoolWorkflowMediator is optional OCICreatePoolWorkflowMediator.
+type OptOCICreatePoolWorkflowMediator struct {
+	Value OCICreatePoolWorkflowMediator
+	Set   bool
+}
+
+// IsSet returns true if OptOCICreatePoolWorkflowMediator was set.
+func (o OptOCICreatePoolWorkflowMediator) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOCICreatePoolWorkflowMediator) Reset() {
+	var v OCICreatePoolWorkflowMediator
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOCICreatePoolWorkflowMediator) SetTo(v OCICreatePoolWorkflowMediator) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOCICreatePoolWorkflowMediator) Get() (v OCICreatePoolWorkflowMediator, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOCICreatePoolWorkflowMediator) Or(d OCICreatePoolWorkflowMediator) OCICreatePoolWorkflowMediator {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -1956,6 +1956,22 @@ func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*da
 	return var0, err
 }
 
+func (re *retryEngine) ActiveSvmExistsByPoolID(ctx context.Context, poolID int64) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ActiveSvmExistsByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("ActiveSvmExistsByPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
