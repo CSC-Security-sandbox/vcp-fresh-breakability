@@ -18,5 +18,5 @@ database:
 images:
   ociProxy:
     name: oci-proxy
-    tag: "ak02062026"
+    tag: "ak17062026"
     digest: ""
