@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	ociserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/api/oci-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/metrics"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -18,7 +20,7 @@ import (
 var opcRequestIDHTTPHeader = string(utilsmiddleware.OPCRequestIDHeaderName)
 
 func TestOciPrepareRequestMiddleware_EchoesClientOPC(t *testing.T) {
-	const clientID = "client-opc-id-123"
+	const clientID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -34,22 +36,123 @@ func TestOciPrepareRequestMiddleware_EchoesClientOPC(t *testing.T) {
 	require.Equal(t, clientID, req.Header.Get(log.RequestCorrelationID))
 }
 
-func TestOciPrepareRequestMiddleware_GeneratesOPCWhenMissing(t *testing.T) {
-	var seen string
+func TestOciPrepareRequestMiddleware_RejectsMissingOPCOnGet(t *testing.T) {
+	called := false
 	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen = r.Header.Get(opcRequestIDHTTPHeader)
-		require.NotEmpty(t, seen)
-		require.Equal(t, seen, r.Header.Get(log.RequestCorrelationID))
-		w.WriteHeader(http.StatusCreated)
+		called = true
+		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "/v1/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/workRequests/wf-1", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
+	require.False(t, called)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Empty(t, rr.Header().Get(opcRequestIDHTTPHeader))
+	require.Contains(t, rr.Body.String(), errMsgOpcRequestIDRequired)
+}
+
+func TestOciPrepareRequestMiddleware_RejectsNonUUIDOPCOnGet(t *testing.T) {
+	called := false
+	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/workRequests/wf-1", nil)
+	req.Header.Set(opcRequestIDHTTPHeader, "not-a-uuid")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	require.False(t, called)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, "not-a-uuid", rr.Header().Get(opcRequestIDHTTPHeader))
+	require.Contains(t, rr.Body.String(), errMsgOpcRequestIDInvalidFmt)
+}
+
+func TestOciPrepareRequestMiddleware_RejectsMissingOPCOnCRUD(t *testing.T) {
+	called := false
+	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	require.False(t, called)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Empty(t, rr.Header().Get(opcRequestIDHTTPHeader))
+	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+	var body ociserver.Error
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+	require.Equal(t, float64(http.StatusBadRequest), body.Code)
+	require.Equal(t, errMsgOpcRequestIDRequired, body.Message)
+}
+
+func TestOciPrepareRequestMiddleware_RejectsNonUUIDOPCOnCRUD(t *testing.T) {
+	called := false
+	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPut, "/v1beta/pools/ocid1.pool.oc1..abc", nil)
+	req.Header.Set(opcRequestIDHTTPHeader, "not-a-uuid")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	require.False(t, called)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, "not-a-uuid", rr.Header().Get(opcRequestIDHTTPHeader))
+	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+	var body ociserver.Error
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+	require.Equal(t, float64(http.StatusBadRequest), body.Code)
+	require.Equal(t, errMsgOpcRequestIDInvalidFmt, body.Message)
+}
+
+func TestOciPrepareRequestMiddleware_AcceptsValidUUIDOnCRUD(t *testing.T) {
+	const opc = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+	called := false
+	h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		require.Equal(t, opc, r.Header.Get(opcRequestIDHTTPHeader))
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	req.Header.Set(opcRequestIDHTTPHeader, opc)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	require.True(t, called)
 	require.Equal(t, http.StatusCreated, rr.Code)
-	require.NotEmpty(t, rr.Header().Get(opcRequestIDHTTPHeader))
-	require.Equal(t, seen, rr.Header().Get(opcRequestIDHTTPHeader))
+	require.Equal(t, opc, rr.Header().Get(opcRequestIDHTTPHeader))
+}
+
+func TestOciPrepareRequestMiddleware_RejectsMissingOPCOnAllMethods(t *testing.T) {
+	for _, method := range []string{http.MethodOptions, http.MethodHead, http.MethodDelete, http.MethodPatch} {
+		t.Run(method, func(tt *testing.T) {
+			called := false
+			h := ociPrepareRequestMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+
+			req := httptest.NewRequest(method, "/v1beta/pools", nil)
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, req)
+
+			require.False(tt, called)
+			require.Equal(tt, http.StatusBadRequest, rr.Code)
+			require.Contains(tt, rr.Body.String(), errMsgOpcRequestIDRequired)
+		})
+	}
 }
 
 func TestOciPrepareRequestMiddleware_SkipsMetrics(t *testing.T) {
@@ -69,7 +172,8 @@ func TestOciPrepareRequestMiddleware_DoesNotSetXRequestID(t *testing.T) {
 		require.Empty(t, r.Header.Get(log.RequestID))
 		w.WriteHeader(http.StatusOK)
 	}))
-	req := httptest.NewRequest(http.MethodPost, "/v1/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	req.Header.Set(opcRequestIDHTTPHeader, "33333333-3333-3333-3333-333333333333")
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)

@@ -1009,12 +1009,15 @@ components:
     opcRequestIdHeader:
       name: Opc-Request-Id
       in: header
-      required: false
+      required: true
       description: |
-        Optional correlation ID for the request. If omitted, the server generates one and returns it in the response.
-        When provided, use the same value when contacting support.
+        Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+        workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+        valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+        use the same value when contacting support.
       schema:
         type: string
+        format: uuid
     tenancyOCIDHeader:
       name: Tenancy-Ocid
       in: header

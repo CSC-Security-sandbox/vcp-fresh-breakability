@@ -81,7 +81,7 @@ func mediatorFromEmbed(cfg *vlmConfig) *OCICreatePoolMediatorMetadata {
 		return nil
 	}
 	for i, pair := range cfg.Cloud.HAPairs {
-		if pair.Mediator != nil {
+		if pair.Mediator != nil && pair.Mediator.Name != "" {
 			return &OCICreatePoolMediatorMetadata{
 				Name:   pair.Mediator.Name,
 				IP:     pair.Mediator.Lifs.Rsm.IP,

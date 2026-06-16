@@ -2,11 +2,15 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	ociserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/api/oci-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/metrics"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
@@ -15,10 +19,15 @@ import (
 
 const metricsPath = "/metrics"
 
+const (
+	errMsgOpcRequestIDRequired   = "Opc-Request-Id header is required"
+	errMsgOpcRequestIDInvalidFmt = "Opc-Request-Id must be a valid UUID"
+)
+
 // WrapWithOCIAndLogging wires the OCI HTTP stack (outer → inner):
 //  1. ociMetricsMiddleware — Prometheus counter + duration histogram; outermost so latency
 //     covers the full middleware chain (request-prep, logging, handler).
-//  2. ociPrepareRequestMiddleware — opc-request-id (or generate), x-correlation-id = opc,
+//  2. ociPrepareRequestMiddleware — requires a valid UUID opc-request-id, x-correlation-id = opc,
 //     HeaderContextKey, ContextSLoggerKey and TemporalSLoggerKey share the same requestFields map,
 //     opc-request-id on response.
 //  3. httphelpers.LoggingHttpHandler — access logs (default logger; does not read ContextSLoggerKey).
@@ -40,11 +49,12 @@ func ociPrepareRequestMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		opcID := r.Header.Get(string(utilsmiddleware.OPCRequestIDHeaderName))
-		if opcID == "" {
-			opcID = uuid.NewString()
-			r.Header.Set(string(utilsmiddleware.OPCRequestIDHeaderName), opcID)
+		opcID := strings.TrimSpace(r.Header.Get(string(utilsmiddleware.OPCRequestIDHeaderName)))
+		if err := validateOpcRequestID(opcID); err != nil {
+			writeOpcRequestIDBadRequest(w, opcID, err.Error())
+			return
 		}
+		r.Header.Set(string(utilsmiddleware.OPCRequestIDHeaderName), opcID)
 		// Align with GCNV: x-correlation-id is the same as opc-request-id for tracing / GetCoRelationIDFromContext.
 		r.Header.Set(log.RequestCorrelationID, opcID)
 
@@ -64,6 +74,28 @@ func ociPrepareRequestMiddleware(next http.Handler) http.Handler {
 			opcID:          opcID,
 		}
 		next.ServeHTTP(rw, r.WithContext(ctx))
+	})
+}
+
+func validateOpcRequestID(opcID string) error {
+	if opcID == "" {
+		return errors.New(errMsgOpcRequestIDRequired)
+	}
+	if _, err := uuid.Parse(opcID); err != nil {
+		return errors.New(errMsgOpcRequestIDInvalidFmt)
+	}
+	return nil
+}
+
+func writeOpcRequestIDBadRequest(w http.ResponseWriter, opcID, message string) {
+	if opcID != "" {
+		w.Header().Set(string(utilsmiddleware.OPCRequestIDHeaderName), opcID)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(ociserver.Error{
+		Code:    float64(http.StatusBadRequest),
+		Message: message,
 	})
 }
 

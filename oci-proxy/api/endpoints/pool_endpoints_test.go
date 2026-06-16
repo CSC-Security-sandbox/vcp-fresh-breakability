@@ -1669,9 +1669,8 @@ func TestUpdatePool(t *testing.T) {
 		assert.Equal(tt, poolOCID, headers.Response.PoolOCID)
 	})
 
-	t.Run("returns 202 when neither nodeCapacities nor dataEndpointCount provided", func(tt *testing.T) {
+	t.Run("returns 400 when neither nodeCapacities nor dataEndpointCount nor any other field provided", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{}, "wf-empty", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -1679,11 +1678,47 @@ func TestUpdatePool(t *testing.T) {
 		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
 
 		assert.NoError(tt, err)
-		headers, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, defaultTestOPC, headers.OpcRequestID)
-		assert.Equal(tt, poolOCID, headers.Response.PoolOCID)
-		assert.Equal(tt, "wf-empty", headers.Response.WorkflowId)
+		assert.Equal(tt, defaultTestOPC, bad.OpcRequestID)
+		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
+		assert.Equal(tt, errMsgNoUpdatableFields, bad.Response.ErrorMessage)
+	})
+
+	t.Run("returns 400 when only empty nodeCapacities provided", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			NodeCapacities: []ociserver.NodeCapacity{},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, defaultTestOPC, bad.OpcRequestID)
+		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
+		assert.Equal(tt, errMsgNoUpdatableFields, bad.Response.ErrorMessage)
+	})
+
+	t.Run("returns 202 when only empty nsgIds provided to clear NSGs", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+			return p != nil && p.NsgIds != nil && len(p.NsgIds) == 0
+		})).Return(&models.Pool{}, "wf-nsg-clear-only", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+		req := &ociserver.UpdatePoolRequest{
+			NsgIds: []string{},
+		}
+		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
+
+		res, err := h.UpdatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := res.(*ociserver.UpdatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok)
 	})
 
 	t.Run("metadata-only kmsKeyId reaches OCI update pool workflow without throughput", func(tt *testing.T) {

@@ -28,6 +28,7 @@ const (
 	errMsgAdminPasswordVersionLessThanOne  = "ociAdminPassword.version must be greater than or equal to 1"
 	errMsgOddDataEndpointCount             = "dataEndpointCount must be a multiple of 2"
 	errMsgBothNodeCapacitiesAndDEC         = "nodeCapacities and dataEndpointCount are mutually exclusive; provide only one"
+	errMsgNoUpdatableFields                = "request body must contain at least one updatable field"
 	errMsgNeitherNodeCapacitiesNorDEC      = "one of nodeCapacities or dataEndpointCount must be provided"
 	errMsgThroughputGBpsNotPositive        = "throughputGBps must be greater than 0"
 	errMsgThroughputGBpsNotFinite          = "throughputGBps must be a finite number"
@@ -838,8 +839,20 @@ func validateUpdatePoolNodeCapacityRequiredFields(req *ociserver.UpdatePoolReque
 	return ""
 }
 
+func updatePoolHasUpdatableFields(req *ociserver.UpdatePoolRequest) bool {
+	return req.ThroughputGBps.Set ||
+		req.DataEndpointCount.Set ||
+		len(req.NodeCapacities) > 0 ||
+		req.OciAdminPassword.Set ||
+		req.KmsKeyId.Set ||
+		req.NsgIds != nil ||
+		req.SecurityAttributes.Set
+}
+
 func validateUpdatePoolRequest(req *ociserver.UpdatePoolRequest, hasNodeCapacities, hasDataEndpointCount bool) (errMsg string) {
 	switch {
+	case !updatePoolHasUpdatableFields(req):
+		return errMsgNoUpdatableFields
 	case hasNodeCapacities && hasDataEndpointCount:
 		return errMsgBothNodeCapacitiesAndDEC
 	case validateUpdatePoolUnitConversionInputs(req) != "":

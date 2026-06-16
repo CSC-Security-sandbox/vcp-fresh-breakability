@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
+	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -16,10 +17,11 @@ import (
 
 // CreatePoolParams is parameters of createPool operation.
 type CreatePoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 }
@@ -30,9 +32,7 @@ func unpackCreatePoolParams(packed middleware.Parameters) (params CreatePoolPara
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -54,28 +54,23 @@ func decodeCreatePoolParams(args [0]string, argsEscaped bool, r *http.Request) (
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -124,10 +119,11 @@ func decodeCreatePoolParams(args [0]string, argsEscaped bool, r *http.Request) (
 
 // CreateSvmByPoolParams is parameters of createSvmByPool operation.
 type CreateSvmByPoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -140,9 +136,7 @@ func unpackCreateSvmByPoolParams(packed middleware.Parameters) (params CreateSvm
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -171,28 +165,23 @@ func decodeCreateSvmByPoolParams(args [1]string, argsEscaped bool, r *http.Reque
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -286,10 +275,11 @@ func decodeCreateSvmByPoolParams(args [1]string, argsEscaped bool, r *http.Reque
 
 // DeletePoolParams is parameters of deletePool operation.
 type DeletePoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -302,9 +292,7 @@ func unpackDeletePoolParams(packed middleware.Parameters) (params DeletePoolPara
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -333,28 +321,23 @@ func decodeDeletePoolParams(args [1]string, argsEscaped bool, r *http.Request) (
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -448,10 +431,11 @@ func decodeDeletePoolParams(args [1]string, argsEscaped bool, r *http.Request) (
 
 // DeleteSvmParams is parameters of deleteSvm operation.
 type DeleteSvmParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -466,9 +450,7 @@ func unpackDeleteSvmParams(packed middleware.Parameters) (params DeleteSvmParams
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -504,28 +486,23 @@ func decodeDeleteSvmParams(args [2]string, argsEscaped bool, r *http.Request) (p
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -664,10 +641,11 @@ func decodeDeleteSvmParams(args [2]string, argsEscaped bool, r *http.Request) (p
 
 // GetWorkflowParams is parameters of getWorkflow operation.
 type GetWorkflowParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Work request identifier (e.g. value returned in opc-work-request-id from Create Pool / Delete
 	// Pool).
 	WorkRequestId string
@@ -679,9 +657,7 @@ func unpackGetWorkflowParams(packed middleware.Parameters) (params GetWorkflowPa
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -703,28 +679,23 @@ func decodeGetWorkflowParams(args [1]string, argsEscaped bool, r *http.Request) 
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -784,10 +755,11 @@ func decodeGetWorkflowParams(args [1]string, argsEscaped bool, r *http.Request) 
 
 // RbacRefreshPoolParams is parameters of rbacRefreshPool operation.
 type RbacRefreshPoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -800,9 +772,7 @@ func unpackRbacRefreshPoolParams(packed middleware.Parameters) (params RbacRefre
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -831,28 +801,23 @@ func decodeRbacRefreshPoolParams(args [1]string, argsEscaped bool, r *http.Reque
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -946,10 +911,11 @@ func decodeRbacRefreshPoolParams(args [1]string, argsEscaped bool, r *http.Reque
 
 // RotateFabricPoolKeysParams is parameters of rotateFabricPoolKeys operation.
 type RotateFabricPoolKeysParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -962,9 +928,7 @@ func unpackRotateFabricPoolKeysParams(packed middleware.Parameters) (params Rota
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -993,28 +957,23 @@ func decodeRotateFabricPoolKeysParams(args [1]string, argsEscaped bool, r *http.
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -1108,10 +1067,11 @@ func decodeRotateFabricPoolKeysParams(args [1]string, argsEscaped bool, r *http.
 
 // UpdatePoolParams is parameters of updatePool operation.
 type UpdatePoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -1124,9 +1084,7 @@ func unpackUpdatePoolParams(packed middleware.Parameters) (params UpdatePoolPara
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -1155,28 +1113,23 @@ func decodeUpdatePoolParams(args [1]string, argsEscaped bool, r *http.Request) (
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -1270,10 +1223,11 @@ func decodeUpdatePoolParams(args [1]string, argsEscaped bool, r *http.Request) (
 
 // UpgradePoolParams is parameters of upgradePool operation.
 type UpgradePoolParams struct {
-	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
-	// the response.
-	// When provided, use the same value when contacting support.
-	OpcRequestID OptString
+	// Correlation ID for the request, formatted as a UUID. It is reused verbatim as the asynchronous
+	// workflow id, so it is mandatory for all operations (including read-only GET requests) and must be a
+	// valid UUID; requests that omit it or supply a non-UUID value are rejected with 400. When provided,
+	// use the same value when contacting support.
+	OpcRequestID uuid.UUID
 	// Tenant OCID for the request context.
 	TenancyOcid string
 	// Pool OCID path parameter.
@@ -1286,9 +1240,7 @@ func unpackUpgradePoolParams(packed middleware.Parameters) (params UpgradePoolPa
 			Name: "Opc-Request-Id",
 			In:   "header",
 		}
-		if v, ok := packed[key]; ok {
-			params.OpcRequestID = v.(OptString)
-		}
+		params.OpcRequestID = packed[key].(uuid.UUID)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -1317,28 +1269,23 @@ func decodeUpgradePoolParams(args [1]string, argsEscaped bool, r *http.Request) 
 		}
 		if err := h.HasParam(cfg); err == nil {
 			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOpcRequestIDVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotOpcRequestIDVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.OpcRequestID = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
