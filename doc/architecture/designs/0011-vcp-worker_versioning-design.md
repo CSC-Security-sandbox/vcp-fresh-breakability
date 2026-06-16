@@ -117,6 +117,8 @@ The reason we followed this sort of versioning for VLM is listed below, as agree
 **Important Note:**
 - Whenever upgrading an env, ensure the above field are correct & up-to-date. They can come from the chart defaults or overrides file, if required.
 
+**Reconciler:** To scale inactive `vlm-worker-*` Deployments to 0 after upgrade, see [0029-vlm-worker-reconciler-design.md](./0029-vlm-worker-reconciler-design.md).
+
 ## Cleanup Mechanism
 
 1. The VCP & VLM worker deployments can be cleaned by removing them from the versions supported field.

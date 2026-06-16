@@ -103,6 +103,54 @@ workerConfig:
 #Enabling or Disabling Secret Manager for Microservice Secrets
 secretManagerEnabled: false
 
-# Pod affinity configuration  
-podAffinity:  
+# Pod affinity configuration
+podAffinity:
   enabled: true
+
+# VLM Worker Reconciler — post-upgrade/post-install hook Job that scales inactive
+# vlm-worker Deployments to 0 based on active ONTAP versions in the VCP database.
+vlmWorkerReconciler:
+  # Master feature flag. Set to true in staging before enabling in production.
+  enabled: false
+  # When true the Job logs intended scale actions but makes no changes to replicas.
+  # Enable first in each environment to validate logic before going live.
+  dryRun: true
+
+  image:
+    name: "vlm-worker-reconciler"
+    tag: "v1.2.0"
+    digest: "sha256:857206c79798d7891aca808ba1a4a983ff781d620fa427db85b7e66e849fde4b"
+    # secondary: true — image lives in the secondary (GAR) registry, not ghcr.io
+    secondary: true
+    pullPolicy: IfNotPresent
+
+  database:
+    host: ""
+    port: "5432"
+    name: "vcp"
+    user: ""
+    password: ""
+    sslMode: "disable"
+    secretName: "vlm-worker-reconciler-db-secret"
+
+  externalSecrets:
+    dbUsername:
+      secretName: ""
+      property: ""
+    dbPassword:
+      secretName: ""
+      property: ""
+
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+  # Maximum time the Job is allowed to run before Kubernetes terminates it.
+  activeDeadlineSeconds: 300
+  # No retries — a failed reconcile leaves workers at replicas=1 (safe default).
+  # The next helm upgrade will trigger a fresh attempt.
+  backoffLimit: 0

@@ -2,6 +2,9 @@ imageVersion ?= latest
 IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
 IMAGE_TAG_IAM_LIFECYCLE := vcp-iam-lifecycle:${imageVersion}
 IMAGE_TAG_GOOGLE_CLOUD_RUN:= vcp-cloudrun-deployer:${imageVersion}
+IMAGE_TAG_VLM_WORKER_RECONCILER := vlm-worker-reconciler:${imageVersion}
+GAR_REGISTRY ?= us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us
+GAR_IMAGE_TAG_VLM_WORKER_RECONCILER := $(GAR_REGISTRY)/vlm-worker-reconciler:${imageVersion}
 GHVSA_PAT := ${GHVSA_PAT}
 
 # Tool versions
@@ -92,6 +95,15 @@ vcp-cloudrun-deployer-linux-image: vcp-cloudrun-deployer-linux
 .PHONY: vcp-cloudrun-deployer-linux
 vcp-cloudrun-deployer-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vcp-core/build/linux/bin/vcp-cloudrun-deployer ./tools/telemetry-deployer
+
+.PHONY: vlm-worker-reconciler-image
+vlm-worker-reconciler-image:
+	docker buildx build -t ${IMAGE_TAG_VLM_WORKER_RECONCILER} --platform linux/amd64 -f tools/vlm-worker-reconciler/Dockerfile .
+
+.PHONY: vlm-worker-reconciler-push
+vlm-worker-reconciler-push: vlm-worker-reconciler-image
+	docker tag ${IMAGE_TAG_VLM_WORKER_RECONCILER} ${GAR_IMAGE_TAG_VLM_WORKER_RECONCILER}
+	docker push ${GAR_IMAGE_TAG_VLM_WORKER_RECONCILER}
 
 .PHONY: generate-google-proxy
 generate-google-proxy:

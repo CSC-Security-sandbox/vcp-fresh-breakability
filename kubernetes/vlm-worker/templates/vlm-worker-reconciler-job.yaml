@@ -1,0 +1,65 @@
+{{- if .Values.vlmWorkerReconciler.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vlm-worker-reconciler
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    {{- /*
+      before-hook-creation only (no hook-succeeded): the finished Job and its logs
+      persist until the next helm upgrade triggers a new Job, at which point the
+      previous one is deleted just before the new one is created.
+    */}}
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.vlmWorkerReconciler.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.vlmWorkerReconciler.activeDeadlineSeconds }}
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: 'false'
+      labels:
+        app: vlm-worker-reconciler
+        sidecar.istio.io/inject: 'false'
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      restartPolicy: Never
+      containers:
+        - name: reconciler
+          image: "{{- include "containerImage" (list . (dict "vlmImageName" .Values.vlmWorkerReconciler.image.name "vlmImageTag" .Values.vlmWorkerReconciler.image.tag "vlmImageDigest" .Values.vlmWorkerReconciler.image.digest "secondary" .Values.vlmWorkerReconciler.image.secondary)) | trim -}}"
+          imagePullPolicy: {{ .Values.vlmWorkerReconciler.image.pullPolicy }}
+          resources:
+            limits:
+              cpu: {{ .Values.vlmWorkerReconciler.resources.limits.cpu }}
+              memory: {{ .Values.vlmWorkerReconciler.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.vlmWorkerReconciler.resources.requests.cpu }}
+              memory: {{ .Values.vlmWorkerReconciler.resources.requests.memory }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: DRY_RUN
+              value: {{ .Values.vlmWorkerReconciler.dryRun | quote }}
+            - name: DB_HOST
+              value: {{ .Values.vlmWorkerReconciler.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.vlmWorkerReconciler.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.vlmWorkerReconciler.database.name | quote }}
+            - name: DB_SSL_MODE
+              value: {{ .Values.vlmWorkerReconciler.database.sslMode | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.vlmWorkerReconciler.database.secretName }}
+                  key: DB_USER
+                  optional: true
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.vlmWorkerReconciler.database.secretName }}
+                  key: DB_PASSWORD
+                  optional: true
+{{- end }}
