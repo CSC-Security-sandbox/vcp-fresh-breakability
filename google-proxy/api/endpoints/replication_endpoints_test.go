@@ -191,6 +191,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, 1, len(result.(*gcpgenserver.V1betaGetMultipleReplicationsOK).Replications))
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithBadRequest", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -233,6 +234,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithUnauthorized", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -276,6 +278,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsUnauthorized).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithForbidden", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -318,6 +321,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsForbidden).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithNotFound", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -361,6 +365,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsNotFound).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -403,6 +408,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsTooManyRequests).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithDefault", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -447,6 +453,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsInternalServerError).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsResponseIsNil", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -482,6 +489,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, "unknown error during the get multiple replications", result.(*gcpgenserver.V1betaGetMultipleReplicationsInternalServerError).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsSucceeds", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -548,6 +556,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ReplicationId.Value)
 	})
 	t.Run("WhenGetMultipleReplicationsSucceedsWithBlankReplId", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -601,6 +610,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ResourceId.Value)
 	})
 	t.Run("WhenVolumeResourceIdInvalidForCVP", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
@@ -623,6 +633,90 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, 0, len(result.(*gcpgenserver.V1betaGetMultipleReplicationsOK).Replications))
+	})
+	t.Run("WhenCVPHostIsNotConfigured_VCPPartial_ReturnsVCPOnly", func(tt *testing.T) {
+		setTestCVPHost(tt, "")
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{
+				"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-1",
+				"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-2",
+			},
+		}
+
+		replicationId := "vcp-replication-id-1"
+		resourceId := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
+			{
+				ReplicationId: &replicationId,
+				ResourceId:    &resourceId,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		// CVP client must not be reached when CVP_HOST is unset.
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			tt.Fatal("createClient should not be called when CVP_HOST is not configured")
+			return cvpapi.Cvp{}
+		}
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaGetMultipleReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 1, len(successResult.Replications))
+		assert.Equal(tt, "vcp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+	})
+	t.Run("WhenCVPHostIsNotConfigured_VCPEmpty_ReturnsEmpty", func(tt *testing.T) {
+		setTestCVPHost(tt, "")
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-1"},
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
+		// CVP client must not be reached when CVP_HOST is unset.
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			tt.Fatal("createClient should not be called when CVP_HOST is not configured")
+			return cvpapi.Cvp{}
+		}
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaGetMultipleReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 0, len(successResult.Replications))
 	})
 }
 
@@ -2571,6 +2665,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 
 func TestV1betaListReplications(t *testing.T) {
 	t.Run("WhenVCPGetMultipleReplicationsReturnsError", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2605,6 +2700,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithBadRequest", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2644,6 +2740,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithUnauthorized", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2683,6 +2780,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithForbidden", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2722,6 +2820,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2761,6 +2860,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithDefault", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2800,6 +2900,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListReplicationsFailsWithUnexpectedError", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2841,6 +2942,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenBothVCPAndCVPSucceed", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2905,6 +3007,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyVCPSucceeds", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -2952,6 +3055,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyCVPSucceeds", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -3004,6 +3108,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenBothVCPAndCVPReturnEmpty", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -3041,6 +3146,7 @@ func TestV1betaListReplications(t *testing.T) {
 	})
 
 	t.Run("WhenBothCallsExecuteInParallel", func(tt *testing.T) {
+		setTestCVPHost(tt, "http://test-cvp-host")
 		mockClient := replications.NewMockClientService(tt)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
@@ -3109,6 +3215,74 @@ func TestV1betaListReplications(t *testing.T) {
 		}
 		assert.True(tt, replicationIDs["cvp-replication-id-1"], "CVP replication should be present")
 		assert.True(tt, replicationIDs["vcp-replication-id-1"], "VCP replication should be present")
+	})
+
+	t.Run("WhenCVPHostIsNotConfigured_SkipsCVPAndReturnsVCPOnly", func(tt *testing.T) {
+		setTestCVPHost(tt, "")
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		replicationId1 := "vcp-replication-id-1"
+		resourceId1 := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
+			{
+				ReplicationId: &replicationId1,
+				ResourceId:    &resourceId1,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		// CVP client must not be invoked when CVP_HOST is unset; deliberately install
+		// a client whose call would fail the test if it were reached.
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			tt.Fatal("createClient should not be called when CVP_HOST is not configured")
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 1, len(successResult.Replications))
+		assert.Equal(tt, "vcp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+	})
+
+	t.Run("WhenCVPHostIsNotConfigured_VCPError_Returns500", func(tt *testing.T) {
+		setTestCVPHost(tt, "")
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(nil, errors.New("VCP DB down"))
+
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Code)
+		assert.Equal(tt, "Error retrieving replications from VCP", result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Message)
 	})
 }
 

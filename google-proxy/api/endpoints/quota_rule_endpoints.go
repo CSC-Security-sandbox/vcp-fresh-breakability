@@ -761,6 +761,14 @@ func (h Handler) V1betaGetMultipleQuotaRules(ctx context.Context, req *gcpgenser
 		// When volume or account does not exist in VCP, fallback to CVP
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) && customErr.IsError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP) {
+			// SDE gate: skip CVP fallback when CVP_HOST is not configured.
+			if !utils.IsCVPHostConfigured() {
+				logger.Info("CVP_HOST is not configured, skipping CVP call",
+					"volumeId", params.VolumeId, "projectNumber", params.ProjectNumber)
+				return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{
+					QuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+				}, nil
+			}
 			return getMultipleQuotaRulesFromCVP(ctx, req, params, []gcpgenserver.QuotaRulesV1beta{})
 		}
 		logger.Error("Failed to fetch quota rules", "error", err.Error())

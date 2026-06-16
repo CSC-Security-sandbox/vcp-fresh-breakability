@@ -163,6 +163,17 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 		return &gcpgenserver.V1betaGetMultipleReplicationsOK{Replications: reps}, nil
 	}
 
+	// SDE gate: when CVP_HOST is not configured, skip the CVP fallback for any
+	// URIs not found in VCP and return only what VCP has (possibly empty).
+	if !utils.IsCVPHostConfigured() {
+		logger.Info("CVP_HOST is not configured, skipping CVP call",
+			"projectNumber", params.ProjectNumber, "locationId", params.LocationId,
+			"volumeResourceId", params.VolumeResourceId)
+		return &gcpgenserver.V1betaGetMultipleReplicationsOK{
+			Replications: convertCommonReplicationV1betaToGcp(vcpReplications),
+		}, nil
+	}
+
 	// If not all replications are found in VCP, proceed with CVP API call
 
 	// check volumeResourceId pattern (as it is different in sde)
@@ -1154,6 +1165,24 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 		XCorrelationID:  params.XCorrelationID.Value,
 	}
 
+	// SDE gate: when CVP_HOST is not configured, skip the CVP call entirely
+	// and return only VCP results.
+	if !utils.IsCVPHostConfigured() {
+		logger.Info("CVP_HOST is not configured, skipping CVP call",
+			"projectNumber", params.ProjectNumber, "locationId", params.LocationId)
+		vcpReplications, vcpErr := h.Orchestrator.GetMultipleReplications(ctx, getReplicationParams)
+		if vcpErr != nil {
+			logger.Errorf("Error getting replications from VCP: %v", vcpErr)
+			return &gcpgenserver.V1betaListReplicationsInternalServerError{
+				Code:    500,
+				Message: "Error retrieving replications from VCP",
+			}, nil
+		}
+		return &gcpgenserver.V1betaListReplicationsOK{
+			Replications: convertCommonReplicationV1betaToGcp(vcpReplications),
+		}, nil
+	}
+
 	// Prepare CVP API call parameters
 	var xCorrelationID *string
 	if params.XCorrelationID.Set {
@@ -1164,6 +1193,7 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: xCorrelationID,
 	}
+
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	// Validate cvpClient and Replications are not nil

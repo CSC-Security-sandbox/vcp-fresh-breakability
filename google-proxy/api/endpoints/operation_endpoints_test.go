@@ -145,6 +145,7 @@ func TestV1betaDescribeOperation_CVPErrorCases(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run("CVPError_"+c.name, func(t *testing.T) {
+			setTestCVPHost(t, "http://test-cvp-host")
 			ctx := context.Background()
 			logger := &log.MockLogger{}
 			ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -312,6 +313,7 @@ func TestReturnsOperationForJobStateDone(t *testing.T) {
 	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
 }
 func TestV1betaDescribeOperationError(t *testing.T) {
+	setTestCVPHost(t, "http://test-cvp-host")
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -340,7 +342,39 @@ func TestV1betaDescribeOperationError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.IsType(t, &gcpgenserver.V1betaDescribeOperationInternalServerError{}, result)
 }
+func TestV1betaDescribeOperation_CVPHostEmpty_ReturnsNotFound(t *testing.T) {
+	setTestCVPHost(t, "")
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	logger.On("Info", "CVP_HOST is not configured, skipping CVP call",
+		"operationId", "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+		"projectNumber", "proj").Return()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(nil, nil)
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+	assert.NoError(t, err)
+	notFound, ok := result.(*gcpgenserver.V1betaDescribeOperationNotFound)
+	assert.True(t, ok)
+	assert.Equal(t, float64(404), notFound.Code)
+	assert.Equal(t, "operation not found", notFound.Message)
+}
+
 func TestV1betaDescribeOperationSuccess(t *testing.T) {
+	setTestCVPHost(t, "http://test-cvp-host")
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)

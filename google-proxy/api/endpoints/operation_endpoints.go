@@ -211,10 +211,22 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			}, nil
 		}
 	} else {
-		// If the job is not found, we will check the CVP operation
-		// Create a CVP client to check the operation
+		// If the job is not found, we will check the CVP operation.
+		// SDE gate: when CVP_HOST is not configured, do not fall back to CVP.
+		// The job is not in VCP and there is no CVP backend to query, so the
+		// operation does not exist for this deployment - return 404. This must
+		// run before JWT/CVP-client/request construction so we never build a
+		// client against an empty host.
+		if !utils.IsCVPHostConfigured() {
+			logger.Info("CVP_HOST is not configured, skipping CVP call",
+				"operationId", params.OperationId, "projectNumber", params.ProjectNumber)
+			return &gcpgenserver.V1betaDescribeOperationNotFound{
+				Code:    404,
+				Message: "operation not found",
+			}, nil
+		}
+		// Build the CVP request and client only when the gate allows.
 		jwtToken := utils.GetJWTTokenFromContext(ctx)
-		logger := util.GetLogger(ctx)
 		cvpClient := createClient(logger, jwtToken)
 		operationUUID := utils.GetOperationUUID(params.OperationId)
 		operationParams := async.NewV1betaDescribeOperationParams()

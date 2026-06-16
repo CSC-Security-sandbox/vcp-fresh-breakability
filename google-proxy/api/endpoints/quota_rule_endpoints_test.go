@@ -2036,6 +2036,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenVCPReturnsNotFoundErr_TriggersCVPFallback", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2091,6 +2092,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsNotFound_ReturnsNotFound", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2141,6 +2143,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsBadRequest_ReturnsBadRequest", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2191,6 +2194,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsUnauthorized_ReturnsUnauthorized", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2241,6 +2245,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsForbidden_ReturnsForbidden", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2291,6 +2296,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsTooManyRequests_ReturnsTooManyRequests", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2341,6 +2347,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenCVPReturnsQuotaRules_ReturnsCVPQuotaRules", func(tt *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "http://test-cvp-host")
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
@@ -2392,6 +2399,54 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 		assert.Equal(tt, "cvp-quota-rule-1", ok.QuotaRules[0].ResourceId)
 		mockOrch.AssertExpectations(tt)
 		_ = cvpClient // avoid unused variable
+		getMultipleQuotaRulesFromCVP = originalGetMultipleQuotaRulesFromCVP
+	})
+
+	t.Run("WhenVCPReturnsNotFoundErr_AndCVPHostEmpty_SkipsCVPAndReturnsEmptyList", func(tt *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		setTestCVPHost(tt, "")
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
+		}()
+
+		params := gcpgenserver.V1betaGetMultipleQuotaRulesParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		req := &gcpgenserver.QuotaRuleIdListV1beta{
+			QuotaRuleUuids: []string{"quota-rule-uuid-1"},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		// Mock VCP to return volume/account not found in VCP. With CVP_HOST empty,
+		// the handler must skip the CVP fallback and return OK with an empty quota-rules list.
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
+
+		cvpCalled := false
+		originalGetMultipleQuotaRulesFromCVP := getMultipleQuotaRulesFromCVP
+		getMultipleQuotaRulesFromCVP = func(ctx context.Context, req *gcpgenserver.QuotaRuleIdListV1beta, params gcpgenserver.V1betaGetMultipleQuotaRulesParams, vcpQuotaRules []gcpgenserver.QuotaRulesV1beta) (gcpgenserver.V1betaGetMultipleQuotaRulesRes, error) {
+			cvpCalled = true
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{QuotaRules: []gcpgenserver.QuotaRulesV1beta{}}, nil
+		}
+
+		res, err := handler.V1betaGetMultipleQuotaRules(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.False(tt, cvpCalled, "CVP should not be called when CVP_HOST is empty")
+
+		ok, okType := res.(*gcpgenserver.V1betaGetMultipleQuotaRulesOK)
+		assert.True(tt, okType, "expected V1betaGetMultipleQuotaRulesOK, got %T", res)
+		assert.NotNil(tt, ok.QuotaRules)
+		assert.Len(tt, ok.QuotaRules, 0)
+		mockOrch.AssertExpectations(tt)
 		getMultipleQuotaRulesFromCVP = originalGetMultipleQuotaRulesFromCVP
 	})
 }
