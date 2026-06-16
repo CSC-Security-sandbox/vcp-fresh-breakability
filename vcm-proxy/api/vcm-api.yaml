@@ -1,0 +1,342 @@
+openapi: 3.0.3
+info:
+  title: VCM (VSA Cluster Manager) API
+  description: |
+    HTTP API for the VCM service.  VCM is a stateless, per-cluster component
+    in the GCNV North Star architecture that owns ONTAP lifecycle management and
+    VSA VM orchestration inside Google-managed tenant projects.
+
+    Callers are Google CLH components.  Validations and resource-metadata
+    persistence are handled upstream; VCM proceeds directly to cluster
+    provisioning workflows.
+  version: "1.0.0"
+tags:
+  - name: health
+    description: Health check operations
+  - name: clusters
+    description: VCM cluster lifecycle operations
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Service health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          $ref: "#/components/responses/StandardError-500"
+
+  /v1/pools:
+    post:
+      operationId: poolCreate_v1
+      tags: [clusters]
+      summary: Create a new ONTAP pool
+      description: |
+        Provisions a new ONTAP pool (HA pair + mediator) via the VCM
+        provisioning workflow.  Returns 202 Accepted; the caller polls
+        GET /v1/pools/{poolId} for completion status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+                $ref: "#/components/schemas/PoolCreate_V1"
+      responses:
+        "202":
+          description: Cluster creation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationResponse"
+        "400":
+          $ref: "#/components/responses/StandardError-400"
+        "500":
+          $ref: "#/components/responses/StandardError-500"
+        "501":
+          $ref: "#/components/responses/StandardError-501"
+
+  /v1/pools/{poolId}:
+    get:
+      operationId: poolGet_v1
+      tags: [clusters]
+      summary: Get pool state
+      parameters:
+        - $ref: "#/components/parameters/poolIdPath"
+      responses:
+        "200":
+          description: Cluster details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationResponse"
+        "404":
+          $ref: "#/components/responses/StandardError-404"
+        "500":
+          $ref: "#/components/responses/StandardError-500"
+        "501":
+          $ref: "#/components/responses/StandardError-501"
+
+components:
+  parameters:
+    poolIdPath:
+      name: poolId
+      in: path
+      required: true
+      description: Uuid v4 used to identify the pool.
+      schema:
+        type: string
+        minLength: 36
+        maxLength: 36
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  responses:
+    StandardError-400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: 400
+            message: Bad Request or Input
+    StandardError-404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: 404
+            message: The resource was not found
+    StandardError-500:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: 500
+            message: Internal server error
+    StandardError-501:
+      description: Not implemented
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: 501
+            message: Not Implemented
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          title: healthStatus
+          type: string
+          readOnly: true
+          description: Server health status
+          example: healthy
+
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: number
+          format: double
+          nullable: false
+        message:
+          type: string
+          nullable: false
+      description: Error response
+      example:
+        code: 1994.0
+        message: Out of cheese error! Please reboot the Universe
+
+    OperationResponse:
+      type: object
+      required: [operationID, done]
+      properties:
+        operationID:
+          type: string
+          description: Operation identifier for async cluster workflow tracking.
+          minLength: 36
+          maxLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        done:
+          type: boolean
+          description: True when the long-running operation has completed.
+
+    # -----------------------------------------------------------------------
+    # PoolCreate_V1 — all fields that CLH passes to VCM
+    # -----------------------------------------------------------------------
+    PoolCreate_V1:
+      type: object
+      required:
+        - poolId
+        - accountName
+        - totalThroughputMibps
+        - forwardingRuleIp
+        - ontapAdminCredentials
+        - mode
+        - deploymentConfig
+      properties:
+        poolId:
+          type: string
+          description: Unique identifier for the storage pool (maps to cluster).
+          minLength: 36
+          maxLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        accountName:
+          type: string
+          description: Google project number / VCP account identifier.
+        resourceId:
+          type: string
+          description: Human-readable resource name within the project.
+        totalThroughputMibps:
+          type: integer
+          format: int64
+          description: Aggregate cluster throughput cap in MiB/s.
+        totalIops:
+          type: integer
+          format: int64
+          description: Aggregate cluster IOPS cap.
+        qosType:
+          type: string
+          description: QoS policy type (e.g. FIXED or ADAPTIVE).
+        qosPolicyName:
+          type: string
+          description: Name of the ONTAP QoS policy to apply.
+        forwardingRuleIp:
+          type: string
+          description: GCP internal load-balancer forwarding-rule IP for ONTAP management.
+        mode:
+          type: string
+          enum: [DEFAULT, ONTAP]
+          description: |
+            DEFAULT — fully managed cluster (Google-owned credentials).
+            ONTAP — expert / bring-your-own-credentials mode.
+        svmName:
+          type: string
+          description: Name for the ONTAP SVM created inside the cluster.
+        largeCapacity:
+          type: boolean
+          default: false
+          description: Enable large-capacity pool feature flags.
+        allowAutoTiering:
+          type: boolean
+          default: false
+          description: Allow ONTAP auto-tiering to object storage.
+        ontapAdminCredentials:
+          $ref: "#/components/schemas/OntapAdminCredentials"
+        kmsConfig:
+          $ref: "#/components/schemas/KmsConfig_V1"
+        expertMode:
+          $ref: "#/components/schemas/ExpertModeConfig"
+        deploymentConfig:
+          type: object
+          additionalProperties: true
+          description: Flexible deployment configuration payload passed through to VLM.
+
+    OntapAdminCredentials:
+      type: object
+      required: [secretId, certificateId, caUri]
+      properties:
+        secretId:
+          type: string
+          description: GCP Secret Manager secret ID for the ONTAP admin password.
+        certificateId:
+          type: string
+          description: GCP Secret Manager secret ID for the ONTAP SSL certificate.
+        caUri:
+          type: string
+          description: URI of the CA bundle used to verify ONTAP TLS connections.
+
+    KmsConfig_V1:
+      type: object
+      required: [keyName, keyRingName, keyRingLocation, keyProjectId]
+      properties:
+        keyName:
+          type: string
+        keyRingName:
+          type: string
+        keyRingLocation:
+          type: string
+        keyProjectId:
+          type: string
+        saPasswordLocation:
+          type: string
+          description: Secret Manager path for the KMS service-account password.
+
+    ExpertModeConfig:
+      type: object
+      properties:
+        ontapExpertCredentials:
+          $ref: "#/components/schemas/ExpertModeCredentials"
+        RbacFileURL:
+          type: string
+          description: GCS URL of the RBAC bootstrap file.
+        RbacFileChecksum:
+          type: string
+          description: SHA-256 checksum of the RBAC bootstrap file.
+
+    ExpertModeCredentials:
+      type: object
+      properties:
+        username:
+          type: string
+        secretId:
+          type: string
+        certificateId:
+          type: string
+
+
+    NetConfig:
+      type: object
+      description: VPC/subnet assignments for each ONTAP network interface.
+      properties:
+        nodemgmt:
+          $ref: "#/components/schemas/NetInterface"
+        ic:
+          $ref: "#/components/schemas/NetInterface"
+        rsm:
+          $ref: "#/components/schemas/NetInterface"
+        intercluster:
+          $ref: "#/components/schemas/NetInterface"
+
+    NetInterface:
+      type: object
+      required: [vpc, subnet]
+      properties:
+        vpc:
+          type: string
+          description: Full VPC resource name (e.g. projects/P/global/networks/N).
+        subnet:
+          type: string
+          description: Full subnet resource name (e.g. projects/P/regions/R/subnetworks/S).
+
+    ZoneConfig:
+      type: object
+      required: [primaryZone, secondaryZone, mediatorZone]
+      properties:
+        primaryZone:
+          type: string
+          description: GCP zone for the primary ONTAP node (e.g. us-central1-a).
+        secondaryZone:
+          type: string
+          description: GCP zone for the secondary ONTAP node.
+        mediatorZone:
+          type: string
+          description: GCP zone for the ONTAP mediator.

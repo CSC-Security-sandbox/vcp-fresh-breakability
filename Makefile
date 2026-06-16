@@ -117,8 +117,12 @@ generate-retry-engine-wrapper:
 	cd cmd/retry-engine-generator; go run main.go metrics telemetry
 	cd scripts; ./generate-retry-engine.sh metrics telemetry
 
+.PHONY: generate-vcm-api
+generate-vcm-api:
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.15.1 --clean --package vcmserver --config vcm-proxy/api/.ogenserver.yml --target vcm-proxy/api/vcm-servergen vcm-proxy/api/vcm-api.yaml
+
 .PHONY: generate
-generate: generate-google-proxy generate-core-api generate-metrics-api generate-retry-engine-wrapper
+generate: generate-google-proxy generate-core-api generate-metrics-api generate-retry-engine-wrapper generate-vcm-api
 
 .PHONY: verify-generated
 verify-generated: generate

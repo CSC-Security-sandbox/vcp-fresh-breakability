@@ -1,0 +1,10 @@
+generator:
+  ignore_not_implemented: ["complex defaults"]
+  features:
+    enable:
+      - 'paths/server'
+      - 'server/response/validation'
+      - 'ogen/otel'
+      - 'ogen/unimplemented'
+      - 'debug/example_tests'
+    disable_all: true

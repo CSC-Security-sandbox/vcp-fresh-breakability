@@ -130,6 +130,7 @@ run:
     - oci-proxy/api/oci-servergen
     - telemetry/api/telemetry-servergen
     - ontap-proxy/api/ontap-proxy-servergen
+    - vcm-proxy/api/vcm-servergen
     - cicd/cmd/lint
     - tools/safesql
   skip-files:

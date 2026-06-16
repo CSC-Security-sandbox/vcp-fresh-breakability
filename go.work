@@ -7,5 +7,6 @@ use (
 	./database
 	./hyperscaler
 	./lib
+	./vcm-proxy
 	./vcp-core
 )

@@ -1,10 +1,11 @@
 package auth
 
 import (
+	"context"
+
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"github.com/googleapis/gax-go/v2"
-	"golang.org/x/net/context"
 )
 
 var (
