@@ -184,6 +184,7 @@ data:
   CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
   MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
+  ZONE_SWITCH_METRIC_ACTIVITY_START_TO_CLOSE_TIMEOUT : {{$.Values.workerConfig.zoneSwitchMetricActivityStartToCloseTimeout | quote }}
   # Default cancellation timeouts
   WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.workflowCancellationTimeout | quote }}
   WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.workflowForceCancelWaitTimeout | quote }}

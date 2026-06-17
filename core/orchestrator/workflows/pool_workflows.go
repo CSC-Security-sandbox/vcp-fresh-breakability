@@ -75,6 +75,7 @@ var (
 	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
 	createNasLifDuringPoolCreation    = env.GetBool("CREATE_NAS_LIF_DURING_POOL_CREATION", false)
 	poolSubnetSupervisorGracePeriod   = env.GetDuration("POOL_SUBNET_SUPERVISOR_GRACE_PERIOD", 30*time.Minute)
+	zoneSwitchMetricActivityTimeout   = env.GetDuration("ZONE_SWITCH_METRIC_ACTIVITY_START_TO_CLOSE_TIMEOUT", 5)
 )
 
 const (
@@ -85,6 +86,17 @@ const (
 	CancelSignalName  = "cancel-pool-creation"
 	ZoneSwitch        = "switch"
 	ZoneRevert        = "revert"
+
+	zoneSwitchMetricStatusSuccess   = "success"
+	zoneSwitchMetricStatusFailure   = "failure"
+	zoneSwitchMetricFailureStepNone = "none"
+
+	zoneSwitchFailureStepUpdateAttributes = "update_zone_switch_attributes"
+	zoneSwitchFailureStepParseVLMConfig   = "parse_vlm_config"
+	zoneSwitchFailureStepGetCredentials   = "get_ontap_credentials"
+	zoneSwitchFailureStepZoneSwitch       = "zone_switch"
+	zoneSwitchFailureStepNilResponse      = "zone_switch_nil_response"
+	zoneSwitchFailureStepPersistConfig    = "persist_pool_config"
 )
 
 type createPoolWorkflow struct {
@@ -949,22 +961,48 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			zoneSwitchAction = ZoneRevert
 		}
 
+		emitZoneSwitchMetric := func(status, failureStep string) {
+			metricAO := workflow.ActivityOptions{
+				StartToCloseTimeout: time.Duration(zoneSwitchMetricActivityTimeout) * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					MaximumAttempts: 1,
+				},
+			}
+			metricCtx := workflow.WithActivityOptions(ctx, metricAO)
+			_ = workflow.ExecuteActivity(metricCtx, backgroundactivities.EmitZoneSwitchWorkflowMetric,
+				dbPool.UUID, dbPool.Name, zoneSwitchAction, status, failureStep).Get(metricCtx, nil)
+		}
+
+		rollbackZoneSwitchPool := func() {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			if rbErr := workflow.ExecuteActivity(disconnectedCtx, poolActivity.UpdatedPool, pool).Get(disconnectedCtx, nil); rbErr != nil {
+				wf.Logger.Errorf("Failed to rollback pool after zone switch failure: %v", rbErr)
+			}
+		}
+
+		failZoneSwitch := func(failureStep string, failureErr error) *vsaerrors.CustomError {
+			emitZoneSwitchMetric(zoneSwitchMetricStatusFailure, failureStep)
+			rollbackZoneSwitchPool()
+			err = nil // rollback handled explicitly; avoid duplicate UpdatedPool in defer
+			return ConvertToVSAError(failureErr)
+		}
+
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateZoneSwitchPoolAttributes, dbPool, datamodel.ZoneSwitching).Get(ctx, nil)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, failZoneSwitch(zoneSwitchFailureStepUpdateAttributes, err)
 		}
 
 		// Retrieve the last known VLM config to be used for zone switching workflow.
 		vlmConfig := &vlm.VLMConfig{}
 		err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, failZoneSwitch(zoneSwitchFailureStepParseVLMConfig, err)
 		}
 
 		credentials := &vlm.OntapCredentials{}
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, failZoneSwitch(zoneSwitchFailureStepGetCredentials, err)
 		}
 
 		// Use post-batch deployment config (cluster already updated above).
@@ -972,11 +1010,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 		zoneSwitchResponse, err := vsaClientWorkflowManager.ZoneSwitch(ctx, zoneSwitchRequest)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
+			return nil, failZoneSwitch(zoneSwitchFailureStepZoneSwitch, err)
 		}
 		if zoneSwitchResponse == nil {
 			wf.Logger.Infof("zone switch returned nil response")
-			return nil, ConvertToVSAError(fmt.Errorf("zone switch returned nil response"))
+			return nil, failZoneSwitch(zoneSwitchFailureStepNilResponse, fmt.Errorf("zone switch returned nil response"))
 		}
 		wf.Logger.Info("Zone switch completed ", "response", zoneSwitchResponse)
 
@@ -993,7 +1031,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 		// Persist swapped zones (and same deployment snapshot as pre-switch persist; matches prior behavior).
 		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, zoneSwitchResponse.VLMConfig, updatePoolParams).Get(dbHbCtx, nil)
-		return nil, ConvertToVSAError(err)
+		if err != nil {
+			return nil, failZoneSwitch(zoneSwitchFailureStepPersistConfig, err)
+		}
+		emitZoneSwitchMetric(zoneSwitchMetricStatusSuccess, zoneSwitchMetricFailureStepNone)
+		return nil, nil
 	}
 
 	// Do not short-circuit when qosType is explicitly changing (auto↔manual); transition branch handles it.

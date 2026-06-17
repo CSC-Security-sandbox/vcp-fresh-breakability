@@ -842,3 +842,57 @@ func TestEmitKmsRotationFailure_MultipleCalls(t *testing.T) {
 		t.Error("KmsRotationFailureCounter metric not found after multiple calls")
 	}
 }
+
+func TestRegisterZoneSwitchWorkflowCounter(t *testing.T) {
+	prometheus.Unregister(ZoneSwitchWorkflowCounter)
+
+	RegisterZoneSwitchWorkflowCounter()
+	RegisterZoneSwitchWorkflowCounter()
+
+	if ZoneSwitchWorkflowCounter == nil {
+		t.Error("ZoneSwitchWorkflowCounter is nil after registration")
+	}
+}
+
+func TestEmitZoneSwitchWorkflowMetric(t *testing.T) {
+	RegisterZoneSwitchWorkflowCounter()
+
+	poolUUID := "test-pool-uuid-zone"
+	poolName := "test-pool-name-zone"
+	action := "switch"
+	status := "success"
+	failureStep := "none"
+
+	EmitZoneSwitchWorkflowMetric(poolUUID, poolName, action, status, failureStep)
+
+	metricsCollected, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Errorf("Failed to gather metrics: %v", err)
+		return
+	}
+
+	found := false
+	for _, mf := range metricsCollected {
+		if *mf.Name == "vcp_zone_switch_workflow_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"action":       action,
+					"status":       status,
+					"failure_step": failureStep,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("ZoneSwitchWorkflowCounter metric not found with expected labels")
+	}
+}

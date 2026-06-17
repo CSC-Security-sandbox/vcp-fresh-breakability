@@ -3434,6 +3434,7 @@ func TestUpdatePoolWorkflow_ZoneSwitch_Succeeds(t *testing.T) {
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	registerZoneSwitchMetricActivity(env)
 
 	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
 	throughput := int64(128)
@@ -3531,6 +3532,7 @@ func TestUpdatePoolWorkflow_ZoneRevert_Succeeds(t *testing.T) {
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	registerZoneSwitchMetricActivity(env)
 
 	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
 	throughput := int64(128)
@@ -3628,6 +3630,7 @@ func zoneSwitchWorkflowTestEnv(t *testing.T) (*testsuite.TestWorkflowEnvironment
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	registerZoneSwitchMetricActivity(env)
 
 	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
 	throughput := int64(128)
@@ -3677,9 +3680,13 @@ func zoneSwitchWorkflowTestEnv(t *testing.T) (*testsuite.TestWorkflowEnvironment
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(datamodel.JobsStateNEW),
 	}, nil).Maybe()
-	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	return env, mockVSAClientWorkflowManager, params, pool, cleanup
+}
+
+func registerZoneSwitchMetricActivity(env *testsuite.TestWorkflowEnvironment) {
+	env.RegisterActivity(backgroundactivities.EmitZoneSwitchWorkflowMetric)
+	env.OnActivity("EmitZoneSwitchWorkflowMetric", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 }
 
 func TestUpdatePoolWorkflow_ZoneSwitch_UpdateZoneSwitchPoolAttributesFails(t *testing.T) {
@@ -3687,6 +3694,7 @@ func TestUpdatePoolWorkflow_ZoneSwitch_UpdateZoneSwitchPoolAttributesFails(t *te
 	defer cleanup()
 
 	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, datamodel.ZoneSwitching).Return(errors.New("update zone switch attrs failed")).Once()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
@@ -3702,6 +3710,7 @@ func TestUpdatePoolWorkflow_ZoneSwitch_ParseVlmConfigFails(t *testing.T) {
 
 	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, datamodel.ZoneSwitching).Return(nil).Once()
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), errors.New("parse vlm config failed")).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
@@ -3720,6 +3729,7 @@ func TestUpdatePoolWorkflow_ZoneSwitch_GetOnTapCredentialsFails(t *testing.T) {
 		Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
 	}, nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return((*vlm.OntapCredentials)(nil), errors.New("get ontap credentials failed")).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
@@ -3744,6 +3754,8 @@ func TestUpdatePoolWorkflow_ZoneSwitch_ZoneSwitchClientFails(t *testing.T) {
 	mockVSA.On("ZoneSwitch", mock.Anything, mock.MatchedBy(func(req *vlm.ZoneSwitchRequest) bool {
 		return req != nil && req.Action == ZoneSwitch
 	})).Return(nil, errors.New("vlm zone switch failed")).Once()
+
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 

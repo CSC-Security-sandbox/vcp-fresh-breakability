@@ -306,6 +306,7 @@ workerConfig:
   splitVolumeRunContinueAsNewMinutes: "60" # Duration after which split volume workflow will run continue-as-new to avoid hitting workflow history size limit
   workflowGlobalTimeoutForReplicationMinutes: 20
   cmekGlobalProjectId: ""
+  zoneSwitchMetricActivityStartToCloseTimeout: "5" # Zone Switch Metric Activity Timeout (in seconds)
   # Default cancellation timeouts
   workflowCancellationTimeout: 5 # Default timeout (in minutes) for cancellation acknowledgment
   workflowForceCancelWaitTimeout: 30 # Default timeout (in seconds) for force termination acknowledgment

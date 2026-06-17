@@ -51,6 +51,15 @@ var PasswordRotationFailureCounter = prometheus.NewCounterVec(
 	[]string{"pool_uuid", "pool_name", "failure_type", "error_type"},
 )
 
+// Counter for regional HA zone switch workflow outcomes (scraped by OTEL → Google Cloud Monitoring).
+var ZoneSwitchWorkflowCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "vcp_zone_switch_workflow_total",
+		Help: "Total number of zone switch workflow attempts by outcome",
+	},
+	[]string{"pool_uuid", "pool_name", "action", "status", "failure_step"},
+)
+
 // KmsKeyLimitReachedCounter Counter for KMS key limit reached (rotation blocked due to too many keys)
 var KmsKeyLimitReachedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
@@ -244,6 +253,17 @@ func RegisterPasswordRotationFailureCounter() {
 	}
 }
 
+func RegisterZoneSwitchWorkflowCounter() {
+	err := prometheus.Register(ZoneSwitchWorkflowCounter)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			ZoneSwitchWorkflowCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			log.Printf("Failed to register ZoneSwitchWorkflowCounter: %v", err)
+		}
+	}
+}
+
 // EmitCertificateRotationFailure emits a metric when certificate rotation fails
 func EmitCertificateRotationFailure(poolUUID, poolName, failureType, errorType string) {
 	// Truncate error type if too long to avoid label cardinality issues
@@ -255,6 +275,17 @@ func EmitCertificateRotationFailure(poolUUID, poolName, failureType, errorType s
 		poolName,
 		failureType,
 		errorType,
+	).Inc()
+}
+
+// EmitZoneSwitchWorkflowMetric records a zone switch workflow success or failure.
+func EmitZoneSwitchWorkflowMetric(poolUUID, poolName, action, status, failureStep string) {
+	ZoneSwitchWorkflowCounter.WithLabelValues(
+		poolUUID,
+		poolName,
+		action,
+		status,
+		failureStep,
 	).Inc()
 }
 

@@ -23,6 +23,15 @@ func EmitPasswordRotationFailureMetric(ctx context.Context, poolUUID, poolName, 
 	return nil
 }
 
+// EmitZoneSwitchWorkflowMetric emits a Prometheus metric for zone switch workflow outcomes.
+func EmitZoneSwitchWorkflowMetric(ctx context.Context, poolUUID, poolName, action, status, failureStep string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Emitting zone switch workflow metric: poolUUID=%s, poolName=%s, action=%s, status=%s, failureStep=%s",
+		poolUUID, poolName, action, status, failureStep)
+	metrics.EmitZoneSwitchWorkflowMetric(poolUUID, poolName, action, status, failureStep)
+	return nil
+}
+
 // EmitKmsKeyLimitReachedMetric emits a Prometheus metric when KMS key rotation is blocked due to key limit
 func EmitKmsKeyLimitReachedMetric(ctx context.Context, kmsConfigUUID, limitType string) error {
 	logger := util.GetLogger(ctx)

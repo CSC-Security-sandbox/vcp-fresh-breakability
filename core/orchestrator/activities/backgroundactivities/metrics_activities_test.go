@@ -421,3 +421,53 @@ func TestEmitKmsRotationFailureMetric_MultipleCalls(t *testing.T) {
 
 	assert.True(t, found, "KmsRotationFailureCounter should be incremented multiple times")
 }
+
+func TestEmitZoneSwitchWorkflowMetric(t *testing.T) {
+	metrics.RegisterZoneSwitchWorkflowCounter()
+	defer prometheus.Unregister(metrics.ZoneSwitchWorkflowCounter)
+
+	ctx := context.Background()
+	poolUUID := "test-pool-uuid-zone"
+	poolName := "test-pool-name-zone"
+	action := "switch"
+	status := "success"
+	failureStep := "none"
+
+	err := EmitZoneSwitchWorkflowMetric(ctx, poolUUID, poolName, action, status, failureStep)
+	assert.NoError(t, err)
+
+	metricsCollected, err := prometheus.DefaultGatherer.Gather()
+	assert.NoError(t, err)
+
+	found := false
+	for _, mf := range metricsCollected {
+		if *mf.Name == "vcp_zone_switch_workflow_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"action":       action,
+					"status":       status,
+					"failure_step": failureStep,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	assert.True(t, found, "ZoneSwitchWorkflowCounter metric should be emitted with correct labels")
+}
+
+func TestEmitZoneSwitchWorkflowMetric_WithEmptyValues(t *testing.T) {
+	metrics.RegisterZoneSwitchWorkflowCounter()
+	defer prometheus.Unregister(metrics.ZoneSwitchWorkflowCounter)
+
+	ctx := context.Background()
+	err := EmitZoneSwitchWorkflowMetric(ctx, "", "", "", "", "")
+	assert.NoError(t, err)
+}
