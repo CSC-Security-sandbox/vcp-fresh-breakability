@@ -225,6 +225,10 @@ func (h Handler) V1PrivateCli(
 		output = cli.RemoveFieldsFromCLIOutput(output, rule.RemoveFields)
 	}
 
+	if rule != nil && len(rule.KeepFields) > 0 {
+		output = cli.KeepFieldsInCLIOutput(output, rule.KeepFields)
+	}
+
 	logger.InfoContext(ctx, "CLI command executed successfully", "command", cliCmd.FullCommand)
 
 	return &oasgenserver.CLIExecuteResponse{

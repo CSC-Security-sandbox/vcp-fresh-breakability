@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// keyValuePattern matches key-value lines such as "Field Name: value" or
+// "Field Name = value", including indented fields. The field name can contain
+// letters, numbers, spaces, dots, dashes, and underscores. Compiled once at
+// package init to avoid recompiling on every invocation.
+var keyValuePattern = regexp.MustCompile(`^\s*([\w\s\.\-_]+?)\s*[:=]\s*(.*)$`)
+
 // RemoveFieldsFromCLIOutput removes specified fields from CLI text output.
 // It supports two formats:
 //
@@ -123,10 +129,6 @@ func isTabularOutput(lines []string) bool {
 // Lines matching "Field Name: value" or "Field Name = value" are removed.
 func removeFieldsFromKeyValue(lines []string, fieldsToRemove []string) string {
 	var result []string
-	// Pattern to match key-value lines: "Field Name: value" or "Field Name = value"
-	// Also handles indented fields
-	// The field name can contain letters, numbers, spaces, dots, dashes, and underscores
-	kvPattern := regexp.MustCompile(`^\s*([\w\s\.\-_]+?)\s*[:=]\s*(.*)$`)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -138,7 +140,7 @@ func removeFieldsFromKeyValue(lines []string, fieldsToRemove []string) string {
 		}
 
 		// Check if this is a key-value line
-		matches := kvPattern.FindStringSubmatch(trimmed)
+		matches := keyValuePattern.FindStringSubmatch(trimmed)
 		if matches != nil {
 			fieldName := matches[1]
 			if fieldMatches(fieldName, fieldsToRemove) {
@@ -311,6 +313,113 @@ func removeColumnsFromLine(line string, columns []tableColumn, columnsToRemove m
 	}
 
 	return result.String()
+}
+
+// KeepFieldsInCLIOutput is the allow-list counterpart of RemoveFieldsFromCLIOutput:
+// it keeps only the specified fields and drops everything else. It is used where the
+// safe default is to hide all fields except an explicit set (for example, exposing only
+// the tiering footprint rows of "volume show-footprint").
+//
+// Unlike RemoveFieldsFromCLIOutput, matching here is EXACT on normalized field names (no
+// partial/substring matching). This prevents an entry like "Total Footprint" from also
+// keeping "Total Footprint Percent" or "Total Footprint Data Reduction". Blank lines are
+// preserved for readability; any non-matching or non key-value line is dropped.
+func KeepFieldsInCLIOutput(output string, fieldsToKeep []string) string {
+	if output == "" || len(fieldsToKeep) == 0 {
+		return output
+	}
+
+	// normalizeFieldName collapses underscores/dots/spaces but intentionally does not touch
+	// hyphens (changing the global normalizer could alter unrelated RemoveFields matching).
+	// Many ONTAP tabular headers are hyphenated (e.g. "Total-Footprint"), so register a
+	// hyphenated variant of each allowed field alongside the space-separated form. This keeps
+	// exact-match filtering working for both "Total Footprint" and "Total-Footprint".
+	keep := make(map[string]bool, len(fieldsToKeep)*2)
+	for _, field := range fieldsToKeep {
+		normalized := normalizeFieldName(field)
+		keep[normalized] = true
+		keep[strings.ReplaceAll(normalized, " ", "-")] = true
+	}
+
+	lines := strings.Split(output, "\n")
+	if isTabularOutput(lines) {
+		return keepFieldsInTabular(lines, keep)
+	}
+	return keepFieldsInKeyValue(lines, keep)
+}
+
+// keepFieldsInKeyValue keeps only key-value lines whose (normalized) field name exactly
+// matches one of the allowed fields. Blank lines are preserved; everything else is dropped.
+func keepFieldsInKeyValue(lines []string, fieldsToKeep map[string]bool) string {
+	var result []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			result = append(result, line)
+			continue
+		}
+
+		matches := keyValuePattern.FindStringSubmatch(trimmed)
+		if matches != nil && fieldsToKeep[normalizeFieldName(matches[1])] {
+			result = append(result, line)
+		}
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// keepFieldsInTabular keeps only the columns whose (normalized) header exactly matches one
+// of the allowed fields and removes the rest. Best-effort: multi-word headers are parsed by
+// whitespace, so this is primarily intended for the key-value (-instance) form.
+func keepFieldsInTabular(lines []string, fieldsToKeep map[string]bool) string {
+	if len(lines) == 0 {
+		return ""
+	}
+
+	headerIdx := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.Count(trimmed, "-") > len(trimmed)/2 {
+			if headerIdx == -1 && i > 0 {
+				headerIdx = i - 1
+			}
+			break
+		}
+		if headerIdx == -1 && !strings.Contains(trimmed, ":") {
+			headerIdx = i
+		}
+	}
+
+	if headerIdx == -1 {
+		return strings.Join(lines, "\n")
+	}
+
+	columns := parseTableColumns(lines[headerIdx])
+	columnsToRemove := make(map[int]bool)
+	for i, col := range columns {
+		if !fieldsToKeep[normalizeFieldName(col.name)] {
+			columnsToRemove[i] = true
+		}
+	}
+
+	if len(columnsToRemove) == 0 {
+		return strings.Join(lines, "\n")
+	}
+
+	var result []string
+	for i, line := range lines {
+		if i >= headerIdx {
+			result = append(result, removeColumnsFromLine(line, columns, columnsToRemove))
+		} else {
+			result = append(result, line)
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
 
 // MaskFieldsInCLIOutput replaces field values with asterisks for sensitive data.

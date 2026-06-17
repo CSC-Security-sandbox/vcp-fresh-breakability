@@ -172,21 +172,18 @@ func TestMatchCLIRule(t *testing.T) {
 		})
 	})
 
-	t.Run("volume show-footprint commands - denied", func(t *testing.T) {
+	t.Run("volume show-footprint commands - allowed with tiering keep-list", func(t *testing.T) {
 		tests := []struct {
-			name      string
-			input     string
-			wantAllow bool
+			name  string
+			input string
 		}{
 			{
-				name:      "volume show-footprint denied",
-				input:     "volume show-footprint -vserver vs1 -volume vol1",
-				wantAllow: false,
+				name:  "volume show-footprint allowed",
+				input: "volume show-footprint -vserver vs1 -volume vol1",
 			},
 			{
-				name:      "vol show-footprint denied",
-				input:     "vol show-footprint -vserver vs1",
-				wantAllow: false,
+				name:  "vol show-footprint allowed",
+				input: "vol show-footprint -vserver vs1",
 			},
 		}
 
@@ -202,16 +199,17 @@ func TestMatchCLIRule(t *testing.T) {
 					t.Error("Expected to find a matching rule")
 				}
 
-				if rule.Allow != tt.wantAllow {
-					t.Errorf("Allow = %v, want %v", rule.Allow, tt.wantAllow)
+				if !rule.Allow {
+					t.Error("Expected show-footprint to be allowed")
 				}
 
-				allowed, reason := EvaluateRule(rule, cmd)
-				if allowed {
-					t.Error("Expected command to be denied")
+				allowed, _ := EvaluateRule(rule, cmd)
+				if !allowed {
+					t.Error("Expected command to be allowed")
 				}
-				if reason != "not allowed" {
-					t.Errorf("Reason = %q, want %q", reason, "not allowed")
+
+				if len(rule.KeepFields) == 0 {
+					t.Error("Expected show-footprint to have a KeepFields allow-list")
 				}
 			})
 		}
@@ -1414,52 +1412,50 @@ func TestVolumeShowRemoveFields(t *testing.T) {
 	})
 }
 
-func TestVolumeShowFootprintDenied(t *testing.T) {
+func TestVolumeShowFootprintAllowedWithKeepFields(t *testing.T) {
 	rules := GetCLIRules()
 
-	t.Run("WhenVolumeShowFootprintRule_ShouldBeDenied", func(t *testing.T) {
-		var rule *CLIRule
-		for i := range rules {
-			if rules[i].Pattern == "volume show-footprint" {
-				rule = &rules[i]
-				break
-			}
-		}
-		if rule == nil {
-			t.Fatal("volume show-footprint rule not found")
-		}
-		if rule.Allow {
-			t.Error("volume show-footprint should be denied")
-		}
-		if rule.Reason != "not allowed" {
-			t.Errorf("Reason = %q, want %q", rule.Reason, "not allowed")
-		}
-		if len(rule.RemoveFields) != 0 {
-			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
-		}
-	})
+	expectedKeepFields := []string{
+		"Vserver",
+		"Volume Name",
+		"Total Footprint",
+		"Volume Footprint for bin0",
+		"Volume Footprint for bin1",
+	}
 
-	t.Run("WhenVolShowFootprintRule_ShouldBeDenied", func(t *testing.T) {
-		var rule *CLIRule
-		for i := range rules {
-			if rules[i].Pattern == "vol show-footprint" {
-				rule = &rules[i]
-				break
+	for _, pattern := range []string{"volume show-footprint", "vol show-footprint"} {
+		pattern := pattern
+		t.Run(pattern, func(t *testing.T) {
+			var rule *CLIRule
+			for i := range rules {
+				if rules[i].Pattern == pattern {
+					rule = &rules[i]
+					break
+				}
 			}
-		}
-		if rule == nil {
-			t.Fatal("vol show-footprint rule not found")
-		}
-		if rule.Allow {
-			t.Error("vol show-footprint should be denied")
-		}
-		if rule.Reason != "not allowed" {
-			t.Errorf("Reason = %q, want %q", rule.Reason, "not allowed")
-		}
-		if len(rule.RemoveFields) != 0 {
-			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
-		}
-	})
+			if rule == nil {
+				t.Fatalf("%s rule not found", pattern)
+			}
+			if !rule.Allow {
+				t.Errorf("%s should be allowed (tiering footprint exposure)", pattern)
+			}
+			if len(rule.RemoveFields) != 0 {
+				t.Errorf("%s should use KeepFields, not RemoveFields; got %d RemoveFields", pattern, len(rule.RemoveFields))
+			}
+			if len(rule.KeepFields) != len(expectedKeepFields) {
+				t.Fatalf("%s KeepFields length = %d, want %d", pattern, len(rule.KeepFields), len(expectedKeepFields))
+			}
+			for i, want := range expectedKeepFields {
+				if rule.KeepFields[i] != want {
+					t.Errorf("%s KeepFields[%d] = %q, want %q", pattern, i, rule.KeepFields[i], want)
+				}
+			}
+		})
+	}
+}
+
+func TestSetWildcardDenied(t *testing.T) {
+	rules := GetCLIRules()
 
 	t.Run("WhenSetWildcardRule_ShouldBeDenied", func(t *testing.T) {
 		var rule *CLIRule

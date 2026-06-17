@@ -682,6 +682,145 @@ func TestV1PrivateCli_DiagResponseFiltering(t *testing.T) {
 	})
 }
 
+func TestV1PrivateCli_KeepFieldsResponseFiltering(t *testing.T) {
+	h := Handler{}
+
+	t.Run("WhenVolumeShowFootprintRule_HasKeepFieldsConfigured", func(t *testing.T) {
+		cmd, err := cli.ParseCLICommand("volume show-footprint -volume vol1")
+		require.NoError(t, err)
+
+		rule, matched := cli.MatchCLIRule(cmd)
+		require.True(t, matched)
+		require.NotNil(t, rule)
+
+		assert.True(t, rule.Allow)
+		assert.Empty(t, rule.RemoveFields, "show-footprint should rely on KeepFields, not RemoveFields")
+		assert.NotEmpty(t, rule.KeepFields)
+		assert.Contains(t, rule.KeepFields, "Total Footprint")
+		assert.Contains(t, rule.KeepFields, "Vserver")
+	})
+
+	t.Run("WhenRuleHasKeepFields_ResponseIsFilteredToAllowList", func(t *testing.T) {
+		origEnabled := privateCliOperationEnabled
+		privateCliOperationEnabled = true
+		t.Cleanup(func() { privateCliOperationEnabled = origEnabled })
+
+		origSetup := setupCredentialsForPrivateCLI
+		origEnsure := ensureCertificateOrPasswordForCLI
+		origClient := newOntapClientFromContextForCLI
+		t.Cleanup(func() {
+			setupCredentialsForPrivateCLI = origSetup
+			ensureCertificateOrPasswordForCLI = origEnsure
+			newOntapClientFromContextForCLI = origClient
+		})
+
+		setupCredentialsForPrivateCLI = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return ctx, nil
+		}
+		ensureCertificateOrPasswordForCLI = func(context.Context) error { return nil }
+
+		// -instance (key-value) output mixing allowed footprint rows with rows that must be dropped.
+		rawOutput := `                      Vserver: vs1
+                  Volume Name: mdvol45
+                       Volume: mdvol45
+               Aggregate Name: aggr1
+                     Hostname: node1
+              Total Footprint: 1.20GB
+    Volume Footprint for bin0: 500MB
+    Volume Footprint for bin1: 700MB
+        Volume Data Footprint: 2.00GB
+               Tiering Policy: none`
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, mock.Anything).
+			Return(&handlers.CLIResponse{Output: rawOutput}, nil).
+			Once()
+		newOntapClientFromContextForCLI = func(context.Context) (handlers.OntapClient, error) {
+			return mockClient, nil
+		}
+
+		req := &oasgenserver.CLIExecuteRequest{Input: "volume show-footprint -volume mdvol45 -instance"}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
+		}
+
+		res, err := h.V1PrivateCli(context.Background(), req, params)
+		require.NoError(t, err)
+
+		resp, ok := res.(*oasgenserver.CLIExecuteResponse)
+		require.True(t, ok, "expected CLIExecuteResponse, got %T", res)
+		out := resp.Output.Or("")
+
+		// Allow-listed fields are retained.
+		assert.Contains(t, out, "Vserver")
+		assert.Contains(t, out, "Volume Name")
+		assert.Contains(t, out, "Total Footprint")
+		assert.Contains(t, out, "Volume Footprint for bin0")
+		assert.Contains(t, out, "Volume Footprint for bin1")
+
+		// Everything not in the allow-list is dropped.
+		assert.NotContains(t, out, "Aggregate Name")
+		assert.NotContains(t, out, "Hostname")
+		assert.NotContains(t, out, "Volume Data Footprint")
+		assert.NotContains(t, out, "Tiering Policy")
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenRuleHasNoKeepFields_OutputIsUnchanged", func(t *testing.T) {
+		origEnabled := privateCliOperationEnabled
+		privateCliOperationEnabled = true
+		t.Cleanup(func() { privateCliOperationEnabled = origEnabled })
+
+		origSetup := setupCredentialsForPrivateCLI
+		origEnsure := ensureCertificateOrPasswordForCLI
+		origClient := newOntapClientFromContextForCLI
+		t.Cleanup(func() {
+			setupCredentialsForPrivateCLI = origSetup
+			ensureCertificateOrPasswordForCLI = origEnsure
+			newOntapClientFromContextForCLI = origClient
+		})
+
+		setupCredentialsForPrivateCLI = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return ctx, nil
+		}
+		ensureCertificateOrPasswordForCLI = func(context.Context) error { return nil }
+
+		rawOutput := `Vserver: vs1
+Aggregate: aggr1`
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, mock.Anything).
+			Return(&handlers.CLIResponse{Output: rawOutput}, nil).
+			Once()
+		newOntapClientFromContextForCLI = func(context.Context) (handlers.OntapClient, error) {
+			return mockClient, nil
+		}
+
+		// "aggregate show" has no KeepFields, so the output must not be reduced to an allow-list.
+		req := &oasgenserver.CLIExecuteRequest{Input: "aggregate show"}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
+		}
+
+		res, err := h.V1PrivateCli(context.Background(), req, params)
+		require.NoError(t, err)
+
+		resp, ok := res.(*oasgenserver.CLIExecuteResponse)
+		require.True(t, ok, "expected CLIExecuteResponse, got %T", res)
+		out := resp.Output.Or("")
+
+		assert.Contains(t, out, "Vserver")
+		assert.Contains(t, out, "Aggregate", "without KeepFields, non-allow-listed rows must be retained")
+
+		mockClient.AssertExpectations(t)
+	})
+}
+
 func TestV1PrivateCli_ParseErrors(t *testing.T) {
 	original := privateCliOperationEnabled
 	privateCliOperationEnabled = true

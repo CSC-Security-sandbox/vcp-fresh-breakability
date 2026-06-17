@@ -1841,3 +1841,96 @@ func TestPrivateCliObjectStoreBucketCreateRule(t *testing.T) {
 		assert.True(t, allowed, reason)
 	})
 }
+
+func TestStorageVolumesResponseFiltering_AllowsTieringFootprint(t *testing.T) {
+	// The volume GET response must expose the tiering footprint fields while still stripping
+	// the other footprint/efficiency fields. Corresponds to the RemoveFields list on
+	// GET /api/storage/volumes in rule_map.go.
+	const body = `{` +
+		`"efficiency":{"savings":10},` +
+		`"space":{` +
+		`"size":1073741824,` +
+		`"physical_used":100,` +
+		`"footprint":200,` +
+		`"effective_total_footprint":300,` +
+		`"total_metadata_footprint":400,` +
+		`"total_footprint":500,` +
+		`"local_tier_footprint":600,` +
+		`"capacity_tier_footprint":700,` +
+		`"performance_tier_footprint":800` +
+		`}}`
+
+	makeResp := func(b string) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(bytes.NewBufferString(b)),
+		}
+	}
+
+	t.Run("WhenVolumeListing_ShouldRetainTieringFootprintAndStripOthers", func(t *testing.T) {
+		// Real ONTAP GET /api/storage/volumes returns a records[] envelope; RemoveFields must
+		// apply per-record so tiering fields survive inside records[*].space while the rest
+		// (efficiency, physical_used, footprint, etc.) are stripped from every record.
+		const listBody = `{"records":[` +
+			`{"name":"vol1","space":{"size":1073741824,"physical_used":100,"footprint":200,` +
+			`"effective_total_footprint":300,"total_metadata_footprint":400,"total_footprint":500,` +
+			`"local_tier_footprint":600,"capacity_tier_footprint":700,"performance_tier_footprint":800},` +
+			`"efficiency":{"savings":10}},` +
+			`{"name":"vol2","space":{"size":2147483648,"physical_used":101,"footprint":201,` +
+			`"effective_total_footprint":301,"total_metadata_footprint":401,"total_footprint":501,` +
+			`"local_tier_footprint":601,"capacity_tier_footprint":701,"performance_tier_footprint":801},` +
+			`"efficiency":{"savings":11}}` +
+			`],"num_records":2}`
+
+		rule := GetProxyRules()["/api/storage/volumes"]
+		resp := makeResp(listBody)
+
+		_, err := rule.GET.ProcessResponse(resp)
+		assert.NoError(t, err)
+
+		out, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		got := string(out)
+
+		// Tiering footprint fields are allowed through inside each record's space.
+		for _, want := range []string{
+			`"total_footprint":500`,
+			`"capacity_tier_footprint":700`, `"performance_tier_footprint":800`,
+			`"total_footprint":501`,
+			`"capacity_tier_footprint":701`, `"performance_tier_footprint":801`,
+		} {
+			assert.Contains(t, got, want)
+		}
+
+		// Other footprint/efficiency fields remain stripped from every record
+		// (local_tier_footprint is in the RemoveFields deny-list, so it is stripped too).
+		assert.NotContains(t, got, `"efficiency"`)
+		assert.NotContains(t, got, `"physical_used"`)
+		assert.NotContains(t, got, `"footprint":`)
+		assert.NotContains(t, got, `"local_tier_footprint"`)
+		assert.NotContains(t, got, `"effective_total_footprint"`)
+		assert.NotContains(t, got, `"total_metadata_footprint"`)
+	})
+
+	t.Run("WhenSpecificVolume_ShouldRetainTieringFootprintAndStripOthers", func(t *testing.T) {
+		rule := GetProxyRules()["/api/storage/volumes/{uuid}"]
+		resp := makeResp(body)
+
+		_, err := rule.GET.ProcessResponse(resp)
+		assert.NoError(t, err)
+
+		out, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		got := string(out)
+
+		assert.Contains(t, got, `"total_footprint":500`)
+		assert.Contains(t, got, `"capacity_tier_footprint":700`)
+		assert.Contains(t, got, `"performance_tier_footprint":800`)
+
+		assert.NotContains(t, got, `"efficiency"`)
+		assert.NotContains(t, got, `"footprint":`)
+		assert.NotContains(t, got, `"local_tier_footprint"`)
+		assert.NotContains(t, got, `"effective_total_footprint"`)
+	})
+}

@@ -45,7 +45,13 @@ type CLIRule struct {
 	InjectArguments map[string]string
 
 	// RemoveFields lists fields to remove from the CLI response
+	// RemoveFields lists fields to remove from the CLI response (deny-list, partial match).
 	RemoveFields []string
+
+	// KeepFields lists the only fields to retain in the CLI response (allow-list, exact
+	// match); everything else is dropped. Use this where the safe default is to hide all
+	// fields except an explicit set. Mutually exclusive with RemoveFields in practice.
+	KeepFields []string
 }
 
 // volumeShowRemoveFields lists fields removed from volume show output.
@@ -71,6 +77,25 @@ var volumeShowRemoveFields = []string{
 	"Performance Tier Inactive User Data",
 	"Volume Size Used by Snapshot Copies",
 	"Over Provisioned Size",
+}
+
+// volumeShowFootprintKeepFields is the allow-list for "volume show-footprint": only the
+// tiering footprint rows and the owning Vserver/Volume identifiers are exposed; every other
+// row (aggregate name/UUID, hostname, dedupe/metadata/efficiency footprints, data-reduction
+// savings, percentages, bin names) is dropped. These map to the REST volume space.* fields:
+//   - "Total Footprint"            -> space.total_footprint
+//   - "Volume Footprint for bin0"  -> space.performance_tier_footprint / space.local_tier_footprint
+//   - "Volume Footprint for bin1"  -> space.capacity_tier_footprint
+//
+// The detailed (-instance) form is what surfaces these rows. Matching is exact (see
+// KeepFieldsInCLIOutput), so percentage and data-reduction variants are not exposed; entries
+// that a given ONTAP version does not emit are simply no-ops.
+var volumeShowFootprintKeepFields = []string{
+	"Vserver",
+	"Volume Name",
+	"Total Footprint",
+	"Volume Footprint for bin0",
+	"Volume Footprint for bin1",
 }
 
 // advancedAllowedRules is the allowlist of commands permitted in advanced mode.
@@ -164,14 +189,14 @@ var cliRules = []CLIRule{
 		RemoveFields: volumeShowRemoveFields,
 	},
 	{
-		Pattern: "volume show-footprint",
-		Allow:   false,
-		Reason:  "not allowed",
+		Pattern:    "volume show-footprint",
+		Allow:      true,
+		KeepFields: volumeShowFootprintKeepFields,
 	},
 	{
-		Pattern: "vol show-footprint",
-		Allow:   false,
-		Reason:  "not allowed",
+		Pattern:    "vol show-footprint",
+		Allow:      true,
+		KeepFields: volumeShowFootprintKeepFields,
 	},
 	{
 		Pattern: "volume create",

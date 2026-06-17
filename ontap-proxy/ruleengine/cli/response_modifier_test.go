@@ -667,3 +667,255 @@ func TestRemoveColumnsFromLine(t *testing.T) {
 		}
 	})
 }
+
+func TestKeepFieldsInCLIOutput(t *testing.T) {
+	// Representative "vol show-footprint -instance" output. Only the tiering footprint rows
+	// and Vserver/Volume identifiers should survive the allow-list; everything else (aggregate,
+	// hostname, dedupe/metadata/efficiency footprints, percentages, data reductions) is dropped.
+	footprintOutput := `Vserver: gcnv-7d40d42db41d422-svm-01
+Volume Name: mdvol45
+Volume MSID: 2153175531
+Volume DSID: 1032
+Vserver UUID: 23c075d2-6308-11f1-8883-c7c998e131bc
+Aggregate Name: aggr1
+Aggregate UUID: a26d1a7e-6307-11f1-8883-c7c998e131bc
+Hostname: gcnv-7d40d42db41d422-01
+Deduplication Footprint: -
+Deduplication Footprint Percent: -
+Volume Data Footprint: 2.02MB
+Volume Data Footprint Percent: 0%
+Flexible Volume Metadata Footprint: 10.49MB
+Delayed Free Blocks: 9.67MB
+SnapMirror Destination Footprint: -
+Volume Guarantee: 0B
+File Operation Metadata: 4KB
+Total Footprint: 22.71MB
+Total Footprint Percent: 0%
+Local Tier Footprint: 22.71MB
+Containing Aggregate Size: 2.13TB
+Name for bin0: -
+Volume Footprint for bin0: 12.00MB
+Volume Footprint bin0 Percent: 0%
+Name for bin1: -
+Volume Footprint for bin1: 5.00MB
+Volume Footprint bin1 Percent: 0%
+Total Footprint Data Reduction: -
+Footprint Data Reduction by Capacity Tier: -
+Effective Total after Footprint Data Reduction: 22.71MB
+Total Metadata Footprint: 20.69MB`
+
+	keep := []string{
+		"Vserver",
+		"Volume Name",
+		"Total Footprint",
+		"Local Tier Footprint",
+		"Volume Footprint for bin0",
+		"Volume Footprint for bin1",
+	}
+
+	result := KeepFieldsInCLIOutput(footprintOutput, keep)
+
+	t.Run("WhenFieldsInAllowList_KeepsTieringRowsAndIdentifiers", func(t *testing.T) {
+		mustContain := []string{
+			"Vserver: gcnv-7d40d42db41d422-svm-01",
+			"Volume Name: mdvol45",
+			"Total Footprint: 22.71MB",
+			"Local Tier Footprint: 22.71MB",
+			"Volume Footprint for bin0: 12.00MB",
+			"Volume Footprint for bin1: 5.00MB",
+		}
+		for _, want := range mustContain {
+			if !strings.Contains(result, want) {
+				t.Errorf("expected output to retain %q\ngot:\n%s", want, result)
+			}
+		}
+	})
+
+	t.Run("WhenFieldNotInAllowList_DropsFieldWithNoPercentOrDataReductionLeakage", func(t *testing.T) {
+		mustNotContain := []string{
+			"Volume MSID",
+			"Volume DSID",
+			"Vserver UUID",
+			"Aggregate Name",
+			"Aggregate UUID",
+			"Hostname",
+			"Deduplication Footprint",
+			"Volume Data Footprint",
+			"Flexible Volume Metadata Footprint",
+			"Delayed Free Blocks",
+			"SnapMirror Destination Footprint",
+			"Volume Guarantee",
+			"File Operation Metadata",
+			"Total Footprint Percent",
+			"Containing Aggregate Size",
+			"Name for bin0",
+			"Name for bin1",
+			"Volume Footprint bin0 Percent",
+			"Volume Footprint bin1 Percent",
+			"Total Footprint Data Reduction",
+			"Footprint Data Reduction by Capacity Tier",
+			"Effective Total after Footprint Data Reduction",
+			"Total Metadata Footprint",
+		}
+		for _, notWant := range mustNotContain {
+			if strings.Contains(result, notWant) {
+				t.Errorf("expected output to drop %q\ngot:\n%s", notWant, result)
+			}
+		}
+	})
+
+	t.Run("WhenKeepListIsEmpty_OutputIsUnchanged", func(t *testing.T) {
+		if got := KeepFieldsInCLIOutput(footprintOutput, nil); got != footprintOutput {
+			t.Error("expected output unchanged when keep-list is empty")
+		}
+	})
+
+	t.Run("WhenHeaderIsHyphenated_MatchesSpaceSeparatedAllowListEntry", func(t *testing.T) {
+		// ONTAP may emit hyphenated headers (e.g. "Total-Footprint") for the same logical
+		// field the allow-list specifies with spaces ("Total Footprint").
+		hyphenated := `Vserver: gcnv-7d40d42db41d422-svm-01
+Total-Footprint: 22.71MB
+Local-Tier-Footprint: 22.71MB
+Aggregate-Name: aggr1`
+
+		got := KeepFieldsInCLIOutput(hyphenated, []string{"Vserver", "Total Footprint", "Local Tier Footprint"})
+
+		for _, want := range []string{
+			"Vserver: gcnv-7d40d42db41d422-svm-01",
+			"Total-Footprint: 22.71MB",
+			"Local-Tier-Footprint: 22.71MB",
+		} {
+			if !strings.Contains(got, want) {
+				t.Errorf("expected output to retain hyphenated field %q\ngot:\n%s", want, got)
+			}
+		}
+		if strings.Contains(got, "Aggregate-Name") {
+			t.Errorf("expected non-allow-listed hyphenated field to be dropped\ngot:\n%s", got)
+		}
+	})
+
+	t.Run("WhenOutputIsTabular_RoutesToTabularFiltering", func(t *testing.T) {
+		// A column-aligned (non key-value) output must be routed through the tabular
+		// allow-list path rather than the key-value path.
+		tabular := `Volume    Aggregate    Available
+vol1      aggr1        100GB`
+
+		got := KeepFieldsInCLIOutput(tabular, []string{"Volume", "Available"})
+
+		if !strings.Contains(got, "Volume") || !strings.Contains(got, "Available") {
+			t.Errorf("expected allow-listed columns to be retained\ngot:\n%s", got)
+		}
+		if strings.Contains(got, "Aggregate") || strings.Contains(got, "aggr1") {
+			t.Errorf("expected non-allow-listed column to be dropped\ngot:\n%s", got)
+		}
+	})
+}
+
+func TestKeepFieldsInKeyValue_EdgeCases(t *testing.T) {
+	keep := map[string]bool{"vserver": true, "total footprint": true}
+
+	t.Run("WhenBlankLinesPresent_ShouldPreserveThem", func(t *testing.T) {
+		lines := []string{
+			"Vserver: vs1",
+			"",
+			"Aggregate Name: aggr1",
+			"",
+			"Total Footprint: 22.71MB",
+		}
+
+		got := keepFieldsInKeyValue(lines, keep)
+
+		want := "Vserver: vs1\n\n\nTotal Footprint: 22.71MB"
+		if got != want {
+			t.Errorf("expected blank lines preserved and unmatched fields dropped\n got: %q\nwant: %q", got, want)
+		}
+	})
+
+	t.Run("WhenLineIsNotKeyValue_ShouldBeDropped", func(t *testing.T) {
+		lines := []string{
+			"This is your first recorded login.",
+			"Vserver: vs1",
+		}
+
+		got := keepFieldsInKeyValue(lines, keep)
+
+		if strings.Contains(got, "first recorded login") {
+			t.Errorf("expected non key-value line to be dropped\ngot:\n%s", got)
+		}
+		if !strings.Contains(got, "Vserver: vs1") {
+			t.Errorf("expected allow-listed field to be retained\ngot:\n%s", got)
+		}
+	})
+}
+
+func TestKeepFieldsInTabular_EdgeCases(t *testing.T) {
+	t.Run("WhenInputIsEmpty_ShouldReturnEmpty", func(t *testing.T) {
+		if got := keepFieldsInTabular(nil, map[string]bool{"volume": true}); got != "" {
+			t.Errorf("expected empty string for empty input, got %q", got)
+		}
+	})
+
+	t.Run("WhenNoHeaderIdentifiable_ShouldReturnUnchanged", func(t *testing.T) {
+		// Every non-empty line contains ":", so no header can be identified.
+		lines := []string{"foo: 1", "bar: 2"}
+
+		got := keepFieldsInTabular(lines, map[string]bool{"foo": true})
+
+		if want := "foo: 1\nbar: 2"; got != want {
+			t.Errorf("expected unchanged output when header is unidentifiable\n got: %q\nwant: %q", got, want)
+		}
+	})
+
+	t.Run("WhenAllColumnsAllowListed_ShouldReturnUnchanged", func(t *testing.T) {
+		lines := []string{"Volume Available", "vol1   100GB"}
+
+		got := keepFieldsInTabular(lines, map[string]bool{"volume": true, "available": true})
+
+		if want := strings.Join(lines, "\n"); got != want {
+			t.Errorf("expected unchanged output when every column is allow-listed\n got: %q\nwant: %q", got, want)
+		}
+	})
+
+	t.Run("WhenHeaderPrecededByOtherLines_ShouldKeepPreHeaderAndFilterColumns", func(t *testing.T) {
+		// The colon line is skipped during header detection and preserved as-is (pre-header),
+		// the first colon-free line becomes the header, and only allow-listed columns survive.
+		lines := []string{
+			"Footprint Report:",
+			"Volume Available Used",
+			"vol1   100GB     50GB",
+		}
+
+		got := keepFieldsInTabular(lines, map[string]bool{"volume": true, "used": true})
+
+		if !strings.Contains(got, "Footprint Report:") {
+			t.Errorf("expected pre-header line to be preserved\ngot:\n%s", got)
+		}
+		if !strings.Contains(got, "Volume") || !strings.Contains(got, "Used") {
+			t.Errorf("expected allow-listed columns to be retained\ngot:\n%s", got)
+		}
+		if strings.Contains(got, "Available") {
+			t.Errorf("expected non-allow-listed column to be dropped\ngot:\n%s", got)
+		}
+	})
+
+	t.Run("WhenSeparatorPresent_ShouldIdentifyHeaderFromIt", func(t *testing.T) {
+		// A leading blank line is skipped during header detection. The next line contains
+		// ":" so it is not picked as the header by the colon-free rule; the dashed separator
+		// that follows drives header identification.
+		lines := []string{
+			"",
+			"Name: hdr",
+			"----------",
+			"aaa bbb",
+		}
+
+		got := keepFieldsInTabular(lines, map[string]bool{"hdr": true})
+
+		if !strings.Contains(got, "hdr") {
+			t.Errorf("expected allow-listed column to be retained\ngot:\n%s", got)
+		}
+		if strings.Contains(got, "Name") {
+			t.Errorf("expected non-allow-listed column to be dropped\ngot:\n%s", got)
+		}
+	})
+}
