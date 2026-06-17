@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
@@ -11,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -43,6 +45,10 @@ var (
 	fetchRemoteBackupFromVCP    = _fetchRemoteBackupFromVCP
 	hydrateDeletedBackupsToCCFE = _hydrateDeletedBackupsToCCFE
 	hydrateCreatedBackupsToCCFE = _hydrateCreatedBackupsToCCFE
+
+	// Dependency injection hooks for unit tests.
+	getProviderByNode     = vsa.GetProviderByNode
+	createNodeForProvider = vsa.CreateNodeForProvider
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -849,7 +855,54 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 		}
 
 		if isLatest && count > 1 {
-			return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+			// Allow deletion of latest backups (of detached vaults) if there is no Active Snapmirror relationship with the corresponding Endpoint of the backup
+			hasSnapMirrorRelationship := false
+			bpEndpointUUID := strings.TrimSpace(endpointUUID)
+			if bpEndpointUUID != "" {
+				volume, volErr := se.GetVolume(ctx, backup.VolumeUUID)
+				if volErr != nil {
+					if !customerrors.IsNotFoundErr(volErr) {
+						return volErr
+					}
+				} else {
+					pool, poolErr := se.GetPoolByID(ctx, volume.PoolID)
+					if poolErr != nil {
+						return poolErr
+					}
+					dbNodes, nodeErr := se.GetNodesByPoolID(ctx, volume.PoolID)
+					if nodeErr != nil {
+						return nodeErr
+					}
+					node := createNodeForProvider(vsa.NodeProviderInput{
+						Nodes:            dbNodes,
+						DeploymentName:   pool.DeploymentName,
+						OntapCredentials: pool.PoolCredentials,
+					})
+
+					provider, provErr := getProviderByNode(ctx, node)
+					if provErr != nil {
+						return provErr
+					}
+
+					smDestinationPath, pathErr := activities.GetSmDestinationPath(backup.BackupVault, volume)
+					if pathErr != nil {
+						return pathErr
+					}
+					smSourcePath := activities.GetSmSourcePath(volume)
+
+					rel, relErr := provider.SnapmirrorRelationshipGet(smDestinationPath, smSourcePath)
+					if relErr != nil {
+						if !customerrors.IsNotFoundErr(relErr) {
+							return relErr
+						}
+					} else if rel != nil && rel.Destination != nil && rel.Destination.UUID != nil {
+						hasSnapMirrorRelationship = strings.EqualFold(rel.Destination.UUID.String(), bpEndpointUUID)
+					}
+				}
+			}
+			if hasSnapMirrorRelationship {
+				return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+			}
 		}
 	} else {
 		// check if backup is latest
