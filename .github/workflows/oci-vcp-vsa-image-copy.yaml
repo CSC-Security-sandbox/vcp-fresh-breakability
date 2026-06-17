@@ -1,0 +1,429 @@
+# GHCR → OCI Object Storage mirror (ReleaseManifest, binaries, Helm OCI charts, Dockerfiles).
+# Design: doc/architecture/designs/ghcr-to-oci-object-storage-mirror/DESIGN.md
+# WIF setup: doc/architecture/designs/ghcr-to-oci-object-storage-mirror/workload-identity-federation-github-oci.md
+#
+# Trigger with workflow_dispatch. Examples for release_manifest_ref:
+#   26051.0.0-DEV.24
+#   release-manifest:26051.0.0-DEV.24   (prefix before last ':' is ignored; version is the tag)
+#
+# Trigger from CLI (GitHub CLI; run from a clone of this repo, authenticated: gh auth login):
+#
+#   gh workflow run image-copy-vm.yml --ref main -f release_manifest_ref=26051.0.0-DEV.24
+#
+#   gh workflow run image-copy-vm.yml --ref main -f release_manifest_ref=release-manifest:26051.0.0-DEV.24
+#
+#   gh workflow run "GHCR release mirror to OCI Object Storage" --ref main \
+#     -f release_manifest_ref=26051.0.0-DEV.24 \
+#     -f manifest_image=ghcr.io/vcp-vsa-control-plane/oci_release_manifest/release-manifest
+#
+# List / watch runs: gh run list --workflow=image-copy-vm.yml --limit 5
+#                         gh run watch <run-id>
+#
+# Secrets (repository Settings → Secrets and variables → Actions):
+#   OIDC_CLIENT_IDENTIFIER — Identity Domain OAuth client_id:client_secret (token exchange)
+#   OCI_TENANCY              — tenancy OCID
+#   OCI_USER_OCID            — IAM user OCID (UPST profile; required by OCI CLI)
+#   GHVSA_PAT                — PAT with read:packages (pull manifest/binaries/charts from ghcr.io)
+#   OCI_USER_OCID_OPENLABCP  — source tenancy IAM user OCID (API key auth)
+#   OCI_TENANCY_OCID_OPENLABCP — source tenancy OCID
+#   OCI_FINGERPRINT_OPENLABCP — fingerprint for ENGOPENLABCP API key
+#   OCI_API_PRIVATE_KEY_OPENLABCP — PEM private key for ENGOPENLABCP profile
+#   OCI_API_KEY_PASSPHRASE_OPENLABCP — pass phrase for source profile key (if encrypted)
+#
+# Variables / workflow env:
+#   DOMAIN_BASE_URL, OCI_BUCKET_NAME, OCI_COMPARTMENT_OCID, OCI_REGION — adjust for your tenancy.
+#   OCI_BUCKET_NAME must already exist; the workflow fails if the bucket is missing (no auto-create).
+#
+# Checkout: workflow uses two checkouts — default ref has .github/scripts (release tags may not);
+#           release tag is cloned under release-ref/ for Dockerfile paths (Design §8 Option B).
+
+name: GHCR release mirror to OCI Object Storage
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_manifest_ref:
+        description: >
+          Version tag (e.g. 26051.0.0-DEV.24) or label-style release-manifest:26051.0.0-DEV.24
+        required: true
+        type: string
+      manifest_image:
+        description: GHCR repository for the release manifest image (without tag)
+        required: false
+        default: ghcr.io/vcp-vsa-control-plane/oci_release_manifest/release-manifest
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ghcr-mirror-${{ github.workflow }}-${{ inputs.release_manifest_ref }}
+  cancel-in-progress: false
+
+env:
+  OCI_REGION: us-ashburn-1
+  DOMAIN_BASE_URL: https://idcs-60e752bc29624b79a53d9e919db10e3d.identity.oraclecloud.com:443
+  OCI_BUCKET_NAME: oci-vcp-vsa-artifacts
+  OCI_COMPARTMENT_OCID: ocid1.compartment.oc1..aaaaaaaadxo3ceqjel6uudftxvol4yysmjgxbrjngx76bdpdfczguhkfvk5q
+  VSA_SOURCE_BUCKET_NAME: OCI-VSA-VLM-Artifacts
+  VSA_SOURCE_NAMESPACE: idqogasfjw45
+  VSA_SOURCE_PREFIX_ROOT: releases
+  # Optional override: force source bucket ONTAP folder (for example: 9.19.1x26)
+  # even if manifest vsaArtifacts.ontapVersion differs (for example: 9.18.1).
+  VSA_SOURCE_ONTAP_FOLDER_OVERRIDE: 9.19.1x26
+  VSA_SOURCE_PROFILE: ENGOPENLABCP
+  ACTIONS_OCI_DEBUG: "true"
+  OCI_GITHUB_OIDC_AUDIENCE: ""
+  ORAS_VERSION: "1.2.2"
+
+jobs:
+  mirror:
+    runs-on: cvs-u24-andriej-02
+    timeout-minutes: 120
+    env:
+      TENANCY_OCID: ${{ secrets.OCI_TENANCY }}
+      # Standalone Python (includes venv + pip) when system python3-venv is unavailable (PEP 668 / no sudo).
+      PYTHON_BUILD_RELEASE: "20241016"
+      PYTHON_VERSION: "3.12.7"
+
+    steps:
+      - name: Resolve manifest version from input
+        id: pin
+        run: |
+          set -euo pipefail
+          REF="${{ inputs.release_manifest_ref }}"
+          if [[ "$REF" == *:* ]]; then
+            VER="${REF##*:}"
+          else
+            VER="$REF"
+          fi
+          if [[ -z "$VER" ]]; then
+            echo "Could not parse version from: ${{ inputs.release_manifest_ref }}" >&2
+            exit 1
+          fi
+          echo "MANIFEST_VERSION=${VER}" >> "${GITHUB_ENV}"
+          echo "version=${VER}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved manifest tag/version: ${VER}"
+
+      - name: Checkout workflow ref (scripts and workflow YAML)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout release tag for Dockerfiles (nested)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pin.outputs.version }}
+          path: release-ref
+          fetch-depth: 0
+
+      - name: Verify workspace path and WIF script exists
+        run: |
+          set -euo pipefail
+          cd "${{ github.workspace }}"
+          echo "github.workspace=${{ github.workspace }}"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-<unset>}"
+          echo "PWD=$(pwd)"
+          echo "WIF script resolved path: $(pwd)/.github/scripts/oci-github-wif-token-exchange.sh"
+          test -f .github/scripts/oci-github-wif-token-exchange.sh
+          test -f .github/scripts/mirror-release-to-oci.sh
+          ls -la .github/scripts/
+          echo "release-ref checkout (Dockerfiles):"
+          ls -la release-ref/.github 2>/dev/null || echo "(no .github in tag checkout — expected)"
+
+      - name: Install jq locally (if missing)
+        env:
+          JQ_VERSION: 1.7.1
+        run: |
+          set -euo pipefail
+          if command -v jq >/dev/null; then
+            jq --version
+            exit 0
+          fi
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/jq" \
+            "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-amd64"
+          chmod +x "$HOME/.local/bin/jq"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/jq" --version
+
+
+      - name: Install ORAS locally
+        env:
+          ORAS_VERSION: ${{ env.ORAS_VERSION }}
+        run: |
+          set -euo pipefail
+          if command -v oras >/dev/null; then
+            oras version
+            exit 0
+          fi
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o /tmp/oras.tgz "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/oras.tgz -C /tmp
+          install -m 0755 /tmp/oras "$HOME/.local/bin/oras"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/oras" version
+
+      - name: Install Helm locally
+        env:
+          HELM_VERSION: "v3.16.3"
+        run: |
+          set -euo pipefail
+          if command -v helm >/dev/null; then
+            helm version --short
+            exit 0
+          fi
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o /tmp/helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          tar -xzf /tmp/helm.tgz -C /tmp
+          install -m 0755 /tmp/linux-amd64/helm "$HOME/.local/bin/helm"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/helm" version --short
+
+      - name: Set up local Python with venv (no sudo)
+        env:
+          PYTHON_BUILD_RELEASE: ${{ env.PYTHON_BUILD_RELEASE }}
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+        run: |
+          set -euo pipefail
+
+          VCP_PYTHON_HOME="${HOME}/.local/vcp-python"
+          STANDALONE_BIN="${VCP_PYTHON_HOME}/bin/python3"
+
+          standalone_ready() {
+            [[ -x "${STANDALONE_BIN}" ]] || return 1
+            "${STANDALONE_BIN}" -m venv --help >/dev/null 2>&1
+          }
+
+          if standalone_ready; then
+            echo "Using cached standalone Python: ${STANDALONE_BIN}"
+            VENV_PYTHON="${STANDALONE_BIN}"
+          elif command -v python3 >/dev/null 2>&1 && python3 -m venv "${RUNNER_TEMP}/.venv-probe" 2>/dev/null; then
+            rm -rf "${RUNNER_TEMP}/.venv-probe"
+            VENV_PYTHON="$(command -v python3)"
+            echo "Using system Python (python3-venv available): ${VENV_PYTHON}"
+          else
+            echo "System python3 lacks venv (PEP 668 / no python3-venv); installing standalone Python ${PYTHON_VERSION} (release ${PYTHON_BUILD_RELEASE})"
+            rm -rf "${VCP_PYTHON_HOME}"
+            mkdir -p "${VCP_PYTHON_HOME}"
+            PYTHON_TARBALL="cpython-${PYTHON_VERSION}+${PYTHON_BUILD_RELEASE}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+            curl -fsSL -o /tmp/python-build-standalone.tar.gz \
+              "https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON_BUILD_RELEASE}/${PYTHON_TARBALL}"
+            tar -xzf /tmp/python-build-standalone.tar.gz -C "${VCP_PYTHON_HOME}" --strip-components=1
+            VENV_PYTHON="${STANDALONE_BIN}"
+            "${VENV_PYTHON}" --version
+          fi
+
+          echo "VCP_VENV_PYTHON=${VENV_PYTHON}" >> "${GITHUB_ENV}"
+
+      - name: Install OCI CLI locally
+        env:
+          OCI_CLI_VERSION: "3.68.1"
+        run: |
+          set -euo pipefail
+
+          OCI_CLI_VENV="${HOME}/.local/oci-cli-venv"
+          OCI_CLI_BIN_DIR="${HOME}/.local/bin"
+
+          if command -v oci >/dev/null; then
+            oci --version
+            exit 0
+          fi
+
+          VENV_PYTHON="${VCP_VENV_PYTHON:?Run the Python setup step first}"
+          "${VENV_PYTHON}" --version
+
+          if [[ ! -x "${OCI_CLI_VENV}/bin/python" ]]; then
+            "${VENV_PYTHON}" -m venv "${OCI_CLI_VENV}"
+          fi
+
+          if [[ ! -x "${OCI_CLI_VENV}/bin/oci" ]]; then
+            "${OCI_CLI_VENV}/bin/python" -m pip install --upgrade pip
+            "${OCI_CLI_VENV}/bin/pip" install "oci-cli==${OCI_CLI_VERSION}"
+          fi
+
+          mkdir -p "$OCI_CLI_BIN_DIR"
+          ln -sf "${OCI_CLI_VENV}/bin/oci" "$OCI_CLI_BIN_DIR/oci"
+
+          echo "$OCI_CLI_BIN_DIR" >> "$GITHUB_PATH"
+          "$OCI_CLI_BIN_DIR/oci" --version
+
+      - name: Get GitHub OIDC token (Oracle audience)
+        uses: actions/github-script@v8.0.0
+        env:
+          ACTIONS_OCI_DEBUG: ${{ env.ACTIONS_OCI_DEBUG }}
+          OCI_GITHUB_OIDC_AUDIENCE: ${{ env.OCI_GITHUB_OIDC_AUDIENCE }}
+        with:
+          script: |
+            const fs = require('fs');
+            const aud = (process.env.OCI_GITHUB_OIDC_AUDIENCE || '').trim() || 'https://cloud.oracle.com';
+            const token = await core.getIDToken(aud);
+            const p = `${process.env.RUNNER_TEMP}/github_oidc.jwt`;
+            fs.writeFileSync(p, token, { encoding: 'utf8' });
+            core.info(`Requested OIDC audience: ${aud}`);
+            if (process.env.ACTIONS_OCI_DEBUG === 'true') {
+              try {
+                const parts = token.split('.');
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+                core.info('GitHub OIDC claims (debug): ' + JSON.stringify({
+                  iss: payload.iss,
+                  aud: payload.aud,
+                  sub: payload.sub,
+                  repository: payload.repository,
+                  ref: payload.ref,
+                  workflow_ref: payload.workflow_ref,
+                  environment: payload.environment,
+                }, null, 2));
+              } catch (e) {
+                core.warning(`Could not decode JWT for debug: ${e.message}`);
+              }
+            }
+
+      - name: Exchange GitHub OIDC token for OCI UPST
+        env:
+          OIDC_CLIENT_IDENTIFIER: ${{ secrets.OIDC_CLIENT_IDENTIFIER }}
+          DOMAIN_BASE_URL: ${{ env.DOMAIN_BASE_URL }}
+          OCI_TENANCY: ${{ env.TENANCY_OCID }}
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_REGION: ${{ env.OCI_REGION }}
+          GITHUB_OIDC_JWT_FILE: ${{ runner.temp }}/github_oidc.jwt
+          DEBUG: ${{ env.ACTIONS_OCI_DEBUG }}
+        run: |
+          set -euo pipefail
+          cd "${{ github.workspace }}"
+          if [[ ! -f .github/scripts/oci-github-wif-token-exchange.sh ]]; then
+            echo "::error::Missing .github/scripts/oci-github-wif-token-exchange.sh. Run this workflow from a ref that includes the WIF scripts (e.g. merge latest main). ref=${{ github.ref }} sha=${{ github.sha }}"
+            ls -la .github/scripts 2>&1 || ls -la .github 2>&1 || true
+            exit 1
+          fi
+          bash .github/scripts/oci-github-wif-token-exchange.sh
+
+      - name: Verify Object Storage session
+        run: |
+          set -euo pipefail
+          oci os ns get --auth security_token
+
+      - name: Verify bucket exists
+        env:
+          COMPARTMENT_OCID: ${{ env.OCI_COMPARTMENT_OCID }}
+          BUCKET_NAME: ${{ env.OCI_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          NS="$(oci os ns get --auth security_token --query data --raw-output)"
+          echo "Listing buckets in compartment: ${COMPARTMENT_OCID}"
+          oci os bucket list \
+            --auth security_token \
+            --namespace-name "$NS" \
+            --compartment-id "$COMPARTMENT_OCID" \
+            --query "data[].name" --output table || true
+          if oci os bucket get --auth security_token --namespace-name "$NS" --bucket-name "$BUCKET_NAME" >/dev/null 2>&1; then
+            echo "Bucket exists: ${BUCKET_NAME}"
+          else
+            echo "Bucket does not exist or is not accessible: ${BUCKET_NAME} (namespace ${NS}). Create it in OCI and grant the mirror user object permissions; this workflow does not create buckets." >&2
+            exit 1
+          fi
+
+      - name: Configure source tenancy profile (ENGOPENLABCP)
+        env:
+          SRC_PROFILE: ${{ env.VSA_SOURCE_PROFILE }}
+          SRC_USER_OCID: ${{ secrets.OCI_USER_OCID_OPENLABCP }}
+          SRC_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID_OPENLABCP }}
+          SRC_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT_OPENLABCP }}
+          SRC_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY_OPENLABCP }}
+          SRC_PASSPHRASE: ${{ secrets.OCI_API_KEY_PASSPHRASE_OPENLABCP }}
+          SRC_REGION: ${{ env.OCI_REGION }}
+        run: |
+          set -euo pipefail
+          : "${SRC_PROFILE:?}"
+          : "${SRC_USER_OCID:?Missing ENGOPENLABCP_USER_OCID secret}"
+          : "${SRC_TENANCY_OCID:?Missing ENGOPENLABCP_TENANCY_OCID secret}"
+          : "${SRC_FINGERPRINT:?Missing ENGOPENLABCP_FINGERPRINT secret}"
+          : "${SRC_PRIVATE_KEY:?Missing ENGOPENLABCP_API_PRIVATE_KEY secret}"
+          : "${SRC_REGION:?}"
+
+          mkdir -p "${HOME}/.oci"
+          SRC_KEY_FILE="${HOME}/.oci/${SRC_PROFILE,,}_api_key.pem"
+          printf '%s\n' "${SRC_PRIVATE_KEY}" > "${SRC_KEY_FILE}"
+          chmod 600 "${SRC_KEY_FILE}"
+
+          if grep -q "^\[${SRC_PROFILE}\]$" "${HOME}/.oci/config" 2>/dev/null; then
+            awk -v p="${SRC_PROFILE}" '
+              BEGIN {skip=0}
+              $0 == "[" p "]" {skip=1; next}
+              /^\[/ && skip==1 {skip=0}
+              skip==0 {print}
+            ' "${HOME}/.oci/config" > "${HOME}/.oci/config.tmp"
+            mv "${HOME}/.oci/config.tmp" "${HOME}/.oci/config"
+          fi
+
+          {
+            echo ""
+            echo "[${SRC_PROFILE}]"
+            echo "user=${SRC_USER_OCID}"
+            echo "tenancy=${SRC_TENANCY_OCID}"
+            echo "region=${SRC_REGION}"
+            echo "fingerprint=${SRC_FINGERPRINT}"
+            echo "key_file=${SRC_KEY_FILE}"
+            if [[ -n "${SRC_PASSPHRASE:-}" ]]; then
+              echo "pass_phrase=${SRC_PASSPHRASE}"
+            fi
+          } >> "${HOME}/.oci/config"
+          chmod 600 "${HOME}/.oci/config"
+
+          oci os ns get --profile "${SRC_PROFILE}" --auth api_key >/dev/null
+          echo "Configured and verified source profile: ${SRC_PROFILE}"
+
+      - name: Login to ghcr.io (ORAS + Helm registry)
+        env:
+          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GHVSA_PAT:-}" ]]; then
+            echo "GHVSA_PAT secret is required (PAT with read:packages)." >&2
+            exit 1
+          fi
+          echo "${GHVSA_PAT}" | oras login ghcr.io -u "${GHCR_USERNAME:-${GITHUB_ACTOR}}" --password-stdin
+          echo "${GHVSA_PAT}" | helm registry login ghcr.io -u "${GHCR_USERNAME:-${GITHUB_ACTOR}}" --password-stdin
+
+      - name: Mirror manifest, binaries, Helm charts, Dockerfiles to bucket
+        env:
+          MANIFEST_VERSION: ${{ env.MANIFEST_VERSION }}
+          MANIFEST_IMAGE: ${{ inputs.manifest_image }}
+          OCI_BUCKET_NAME: ${{ env.OCI_BUCKET_NAME }}
+          DOCKERFILE_REPO_ROOT: ${{ github.workspace }}/release-ref
+          VSA_SOURCE_PROFILE: ${{ env.VSA_SOURCE_PROFILE }}
+          VSA_SOURCE_NAMESPACE: ${{ env.VSA_SOURCE_NAMESPACE }}
+          VSA_SOURCE_BUCKET_NAME: ${{ env.VSA_SOURCE_BUCKET_NAME }}
+          VSA_SOURCE_PREFIX_ROOT: ${{ env.VSA_SOURCE_PREFIX_ROOT }}
+          VSA_SOURCE_ONTAP_FOLDER_OVERRIDE: ${{ env.VSA_SOURCE_ONTAP_FOLDER_OVERRIDE }}
+          # OCI CLI bundles urllib3; suppress noisy FutureWarning on each oci invocation.
+          PYTHONWARNINGS: ignore::FutureWarning
+        run: |
+          set -euo pipefail
+          cd "${{ github.workspace }}"
+          if [[ ! -f .github/scripts/mirror-release-to-oci.sh ]]; then
+            echo "::error::Missing .github/scripts/mirror-release-to-oci.sh on ref=${{ github.ref }} sha=${{ github.sha }}"
+            exit 1
+          fi
+          bash .github/scripts/mirror-release-to-oci.sh
+
+      - name: Job summary
+        if: always()
+        env:
+          MANIFEST_VERSION: ${{ env.MANIFEST_VERSION }}
+          OCI_BUCKET_NAME: ${{ env.OCI_BUCKET_NAME }}
+        run: |
+          {
+            echo "## GHCR → OCI mirror"
+            echo ""
+            echo "- **Version**: ${MANIFEST_VERSION}"
+            echo "- **Bucket**: ${OCI_BUCKET_NAME}"
+            echo "- **Prefix**: \`vcp-releases/${MANIFEST_VERSION}/\`"
+            echo ""
+            echo "Layout: \`artifacts/<binary>/\` (blob + ORAS sidecars including \`*.sha256\` + matched Dockerfiles), \`helm/<chart>/\` (Helm OCI charts whose **name** contains \`oci\` only, via \`helm pull\`), \`dockerfiles/\` (unmatched), \`deploymentKit/\` (files listed in \`deploymentKit.files\` from manifest), \`build-context/\` (\`vcpArtifacts.buildContext.filename\`), \`VSA/<ontapVersion>/\` (source tenancy copy), \`RELEASED\`."
+            echo ""
+            echo "Validate a binary: manifest \`sha256\` must match the first field of the mirrored \`*.sha256\` sidecar; \`sha256sum <name>\` must print that same hash."
+            echo ""
+            echo "Integrity: ORAS digest pin + \`.sha256\` sidecar vs manifest + on-disk blob hash + size per binary (no Cosign in this workflow)."
+          } >> "${GITHUB_STEP_SUMMARY}"
