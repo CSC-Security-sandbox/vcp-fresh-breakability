@@ -17,7 +17,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -91,7 +90,7 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		}, err
 	}
 
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		createParams := convertCreateRequestToCreateBackupPolicyParams(req, params.LocationId, params.ProjectNumber)
 		createdBackupPolicy, err := h.Orchestrator.CreateBackupPolicy(ctx, createParams)
 		if err != nil {
@@ -336,7 +335,7 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		backupPolicy, err := h.Orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, params.BackupPolicyId, params.ProjectNumber)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
@@ -445,7 +444,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
 		if err != nil {
 			logger.Errorf("Failed to get backup policies and volume counts: %v", err)
@@ -595,7 +594,7 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, nil)
 		if err != nil {
 			logger.Errorf("Failed to list backup policies and volume counts: %v", err)

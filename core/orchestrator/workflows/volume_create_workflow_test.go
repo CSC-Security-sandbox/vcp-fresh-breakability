@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -24,7 +25,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1188,11 +1188,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPoli
 		AccountID: int64(1),
 	}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -1255,11 +1255,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPoli
 		AccountID: int64(1),
 	}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
@@ -1338,11 +1338,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPoli
 		AccountID: int64(1),
 	}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
@@ -1421,11 +1421,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_GetBackupP
 		},
 		AccountID: int64(1),
 	}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
@@ -1477,11 +1477,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_CheckSched
 		},
 		AccountID: int64(1),
 	}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -1541,11 +1541,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_CreateSche
 		},
 		AccountID: int64(1),
 	}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -1609,11 +1609,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_UnpauseSch
 		},
 		AccountID: int64(1),
 	}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -1728,6 +1728,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceeds() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
@@ -10385,6 +10389,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 
 // Test_CreateVolumeWorkflow_CancellationChecks covers multiple cancellation check lines
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}

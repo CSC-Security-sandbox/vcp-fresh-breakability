@@ -90,7 +90,6 @@ data:
   MIN_SIZE_GRANULARITY: "{{ index .Values "minSizeGranularity" }}"
   MIN_CUSTOM_THROUGHPUT: "{{ index .Values "minCustomThroughput" }}"
   CREATE_COMMON_RESOURCES_IN_VCP: "{{ index .Values "createCommonResourcesInVCP" }}"
-  USE_VCP_REGION: "{{ index .Values "useVCPRegion" }}"
   AD_CREATE_SYNC_SDE_ENABLED: "{{ index .Values "adCreateSyncFlow" }}"
   MIN_CUSTOM_IOPS: "{{ index .Values "minCustomIops" }}"
   MAX_CUSTOM_THROUGHPUT: "{{ index .Values "maxCustomThroughput" }}"

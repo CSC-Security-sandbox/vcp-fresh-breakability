@@ -9,7 +9,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -91,7 +91,7 @@ func (wf *backupVaultUpdateWorkflow) Setup(ctx workflow.Context, input interface
 func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
-	useVCPRegion := env.UseVCPRegion
+	useVCPRegion := !utils.IsCVPHostConfigured()
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -224,7 +224,7 @@ func (wf *backupVaultDeleteWorkflow) Setup(ctx workflow.Context, input interface
 func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
-	useVCPRegion := env.UseVCPRegion
+	useVCPRegion := !utils.IsCVPHostConfigured()
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -260,7 +260,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInVCP failed: %w", err))
 	}
 
-	// Step 2: Delete backup vault in SDE (if not cross-project, or if USE_VCP_REGION is enabled)
+	// Step 2: Delete backup vault in SDE (if not cross-project, or when CVP_HOST is not set, i.e. a VCP-only region)
 	if !useVCPRegion && backupVault.ServiceType != datamodel.ServiceTypeCrossProject {
 		var jwtToken string
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)

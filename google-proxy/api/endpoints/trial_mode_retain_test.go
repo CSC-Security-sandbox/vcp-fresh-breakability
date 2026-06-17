@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -14,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -29,15 +29,15 @@ func TestTrialMode_SecondCreateWithoutTrial_HandlerPaths(t *testing.T) {
 
 	t.Run("backup_policy", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParse()
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
@@ -88,15 +88,15 @@ func TestTrialMode_SecondCreateWithoutTrial_HandlerPaths(t *testing.T) {
 
 	t.Run("backup_vault", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParseEast4()
 
 		params := gcpgenserver.V1betaCreateBackupVaultParams{

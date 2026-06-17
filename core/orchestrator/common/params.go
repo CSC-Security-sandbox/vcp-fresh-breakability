@@ -80,7 +80,7 @@ type CreatePoolParams struct {
 	NsgIds             []string
 	SecurityAttributes map[string]map[string]interface{}
 	FabricPoolConfig   *FabricPoolConfig
-	WorkflowID string
+	WorkflowID         string
 }
 
 type FabricPoolConfig struct {
@@ -600,7 +600,7 @@ type BackupRetentionPolicyParams struct {
 	IsAdhocBackupImmutable                 *bool
 }
 
-// CreateBackupVaultParams describes parameters for creating a backup vault in VCP (USE_VCP_REGION path).
+// CreateBackupVaultParams describes parameters for creating a backup vault in VCP
 type CreateBackupVaultParams struct {
 	ResourceId               string
 	Description              string

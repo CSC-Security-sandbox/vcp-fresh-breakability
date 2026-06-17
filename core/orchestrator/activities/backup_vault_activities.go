@@ -543,7 +543,7 @@ func _updateBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 }
 
 // ApplyBackupVaultUpdateParams merges update params into the current backup vault and returns
-// the result. Used when USE_VCP_REGION is true so VCP is updated with the requested fields (description,
+// the result. Used in a VCP-only region (CVP_HOST not set) and cross-project vaults so VCP is updated with the requested fields (description,
 // retention policy, etc.) without calling SDE.
 func (j *BackupVaultActivity) ApplyBackupVaultUpdateParams(ctx context.Context, backupVault *datamodel.BackupVault, params *common.BackupVaultParams) (*datamodel.BackupVault, error) {
 	updated := &datamodel.BackupVault{
@@ -618,7 +618,7 @@ func (j *BackupVaultActivity) ApplyBackupVaultUpdateParams(ctx context.Context, 
 	return updated, nil
 }
 
-// CreateBackupVaultInVCP creates a backup vault entry in the VCP database (USE_VCP_REGION path).
+// CreateBackupVaultInVCP creates a backup vault entry in the VCP database
 func (j *BackupVaultActivity) CreateBackupVaultInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	created, err := j.SE.CreateBackupVaultEntryInVCP(ctx, bv)
 	if err != nil {

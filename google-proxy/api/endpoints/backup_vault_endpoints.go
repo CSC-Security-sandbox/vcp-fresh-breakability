@@ -322,8 +322,8 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, err
 	}
 
-	if env.UseVCPRegion || isCrossProjectVault {
-		// USE_VCP_REGION: create backup vault in VCP via workflow
+	if !utils.IsCVPHostConfigured() || isCrossProjectVault {
+		// VCP-only region (CVP_HOST not set): create backup vault in VCP via workflow
 		createParams := buildCreateBackupVaultParams(req, params, backupRegion)
 		vault, err := h.Orchestrator.CreateBackupVault(ctx, createParams)
 		if err != nil {
@@ -633,7 +633,7 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 	_, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				return &gcpgenserver.V1betaDeleteBackupVaultNotFound{
 					Code:    404,
 					Message: "Backup vault not found",
@@ -693,7 +693,7 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	vcpBackupVaultDetails, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
 				return &gcpgenserver.V1betaDescribeBackupVaultNotFound{
@@ -804,7 +804,7 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		vaultsDataModel, err := h.Orchestrator.GetMultipleBackupVaults(ctx, req.BackupVaultUuids)
 		if err != nil {
 			return &gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError{
@@ -922,7 +922,7 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		bvs, err := h.Orchestrator.ListBackupVaults(ctx, params.ProjectNumber)
 		if err != nil {
 			logger.Error("Failed to list backup vaults", "error", err)
@@ -1325,7 +1325,7 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 	backupVault, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				return &gcpgenserver.ErrorStatusCode{
 					StatusCode: 404,
 					Response:   gcpgenserver.Error{Code: 404, Message: "Backup vault not found"},
@@ -1682,7 +1682,7 @@ func (h Handler) V1betaRotateCmekBackups(ctx context.Context, req *gcpgenserver.
 	bv, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				return &gcpgenserver.V1betaRotateCmekBackupsNotFound{
 					Code:    404,
 					Message: "Backup vault not found",

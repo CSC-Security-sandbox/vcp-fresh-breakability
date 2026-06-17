@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
@@ -20,7 +21,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -2677,6 +2677,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CreateScheduleForBacku
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AttachBackupPolicySuccess() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
@@ -2742,11 +2746,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -2807,11 +2811,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
@@ -2888,11 +2892,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
 
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
@@ -2969,11 +2973,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ge
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
@@ -3023,11 +3027,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ch
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -3088,11 +3092,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Cr
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -3155,11 +3159,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Un
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
-	originalUseVCPRegion := env.UseVCPRegion
+	originalUseVCPRegion := cvp.CVP_HOST
 	defer func() {
-		env.UseVCPRegion = originalUseVCPRegion
+		cvp.CVP_HOST = originalUseVCPRegion
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{
 			UUID: "backup-policy-uuid",
@@ -3218,6 +3222,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Un
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_PauseBackupPolicyWhenDisabled() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
@@ -3294,6 +3302,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_PauseBackupPolicyWhenD
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_PauseBackupPolicyScheduleError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
@@ -6984,7 +6996,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NonAutogenToAutogen_Su
 		BaseModel:        datamodel.BaseModel{ID: 207, UUID: "new-autogen-vpg-uuid"},
 		Name:             newQosPolicy.Name,
 		PoolID:           1,
-		AllocationType: models.AllocationTypePerVolume,
+		AllocationType:   models.AllocationTypePerVolume,
 		IsAutoGen:        true,
 		ThroughputMibps:  200,
 		Iops:             2000,
@@ -7938,7 +7950,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NonAutogenToAutogen_Ro
 		BaseModel:        datamodel.BaseModel{ID: 207, UUID: "new-autogen-vpg-uuid"},
 		Name:             newQosPolicy.Name,
 		PoolID:           1,
-		AllocationType: models.AllocationTypePerVolume,
+		AllocationType:   models.AllocationTypePerVolume,
 		IsAutoGen:        true,
 		ThroughputMibps:  200,
 		Iops:             2000,
@@ -8054,7 +8066,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NonAutogenToAutogen_Ro
 		BaseModel:        datamodel.BaseModel{ID: 207, UUID: "new-autogen-vpg-uuid"},
 		Name:             newQosPolicy.Name,
 		PoolID:           1,
-		AllocationType: models.AllocationTypePerVolume,
+		AllocationType:   models.AllocationTypePerVolume,
 		IsAutoGen:        true,
 		ThroughputMibps:  200,
 		Iops:             2000,

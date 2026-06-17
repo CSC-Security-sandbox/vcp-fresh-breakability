@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -288,6 +289,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEBadRequestError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -353,6 +358,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEUnauthorizedError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -418,6 +427,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEForbiddenError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -483,6 +496,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDENotFoundError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -548,6 +565,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEInternalServerError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -613,6 +634,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseBackupPolicyScheduleFailure() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -676,6 +701,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseB
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBackupPolicyScheduleFailure() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -739,6 +768,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBac
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInVCPFailure() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -896,6 +929,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_GetAuthJ
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyInSDEFails() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -1038,6 +1075,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 
 // TestDeleteBackupPolicyWorkflow_RollbackBehavior tests that the rollback activity is called on errors
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_RollbackBehavior() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	// Test SDE deletion failure triggers state rollback
 	s.T().Run("SDE_deletion_failure_triggers_rollback", func(t *testing.T) {
 		// Create a fresh test environment for this subtest
@@ -1173,6 +1214,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 
 // TestDeleteBackupPolicyWorkflow_StateRollbackFailure tests when the state rollback itself fails
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowStateRollbackFailure() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	// Create a fresh test environment
 	env := s.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})

@@ -16,7 +16,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -106,7 +105,7 @@ func (o *GCPOrchestrator) DeleteBackupVaultInternal(ctx context.Context, params 
 		return "", err
 	}
 
-	if hydrationEnabled && (env.UseVCPRegion || remoteBv.ServiceType == datamodel.ServiceTypeCrossProject) {
+	if hydrationEnabled && (!utils.IsCVPHostConfigured() || remoteBv.ServiceType == datamodel.ServiceTypeCrossProject) {
 		err = hydrateDeletedBackupVaults(ctx, remoteBv, params)
 		if err != nil {
 			logger.Errorf("Failed to hydrate deleted backup vault to CCFE: %v", err)
@@ -542,7 +541,7 @@ func (o *GCPOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *d
 		return nil, err
 	}
 
-	if hydrationEnabled && (env.UseVCPRegion || createdBv.ServiceType == datamodel.ServiceTypeCrossProject) {
+	if hydrationEnabled && (!utils.IsCVPHostConfigured() || createdBv.ServiceType == datamodel.ServiceTypeCrossProject) {
 		err = hydrateCreatedBackupVaults(ctx, createdBv, params)
 		if err != nil {
 			logger.Errorf("Failed to hydrate created backup vault to CCFE: %v", err)

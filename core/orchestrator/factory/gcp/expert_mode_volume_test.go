@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
@@ -14,7 +15,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -3920,6 +3920,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("PolicyWithExistingVaultCarriedForward", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4125,6 +4129,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("BackupPolicyNotReadyRejected", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4151,6 +4159,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("ScheduledBackupEnabledRequiredWithPolicy", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4198,6 +4210,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("VaultSwitchNotAllowed_BackupsExist", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4420,6 +4436,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	// ── Immutable backup policy validation ────────────────────────────────────
 
 	t.Run("ImmutableBackup_ValidationFails_Rejected", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
@@ -4456,6 +4476,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("ImmutableBackup_BackupPolicyUpdating_ReturnsUnavailable", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
@@ -4492,6 +4516,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("ImmutableBackup_BackupVaultUpdating_ReturnsUnavailable", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
@@ -4528,6 +4556,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("ImmutableBackup_ValidationPasses_Proceeds", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
@@ -4570,6 +4602,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	t.Run("CreateJobError", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4590,6 +4626,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("WorkflowStartError", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4624,6 +4664,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	// ── State-management tests (new behaviour) ───────────────────────────────
 
 	t.Run("CreateJobFirst_VolumeStateNotChangedOnCreateJobFailure", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		// Job must be created BEFORE UpdateExpertModeVolume(UPDATING).
 		// If CreateJob fails, UpdateExpertModeVolume must never be called.
 		mockStorage := database.NewMockStorage(tt)
@@ -4648,6 +4692,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("UpdateToUpdatingFails_JobMarkedError_VolumeNotLaunched", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		// After CreateJob succeeds, setting volume to UPDATING fails.
 		// Defer 1 must mark the job as ERROR; workflow must not be launched.
 		mockStorage := database.NewMockStorage(tt)
@@ -4677,6 +4725,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("WorkflowLaunchFails_BothDefersFireCorrectly", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		// Workflow launch fails after UPDATING is set.
 		// Defer 1: job → ERROR. Defer 2: volume → ERROR.
 		mockStorage := database.NewMockStorage(tt)
@@ -4708,6 +4760,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Success_BackupConfigFieldsReturnedFromParams", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		// On success, the returned *DataProtection must reflect the params values.
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
@@ -4743,6 +4799,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Success", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockLogger := log.NewMockLogger(tt)
 		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
 		store, err := database.SetupStorageForTest(mockLogger)
@@ -4805,6 +4865,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Success_WithBackupPolicy", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4859,9 +4923,9 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── bv == nil && UseVCPRegion (line 124) ─────────────────────────────────
 	t.Run("BackupVaultNotFound_UseVCPRegion_ReturnsNotFound", func(tt *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = true
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		origUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
 
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
@@ -4912,6 +4976,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── GetBackupPolicyByUUIDAndOwnerID non-not-found error (line 158) ────────
 	t.Run("GetBackupPolicyDBError_ReturnsErr", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -4938,9 +5006,9 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── backupPolicy == nil && UseVCPRegion (line 163) ────────────────────────
 	t.Run("BackupPolicyNotFound_UseVCPRegion_ReturnsNotFound", func(tt *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = true
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		origUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
 
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
@@ -4970,6 +5038,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── ImmutableBackup UnavailableErr (line 181) ─────────────────────────────
 	t.Run("ImmutableBackup_UnavailableErr_ReturnsUnavailable", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
 
@@ -5006,6 +5078,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── Vault-switch GetBackupVault error (lines 206-207) ────────────────────
 	t.Run("VaultSwitchCheck_GetBackupVaultError", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -5036,6 +5112,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── Vault-switch GetBackupCountByVolumeAndVault error (lines 211-212) ────
 	t.Run("VaultSwitchCheck_GetBackupCountError", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName
@@ -5068,6 +5148,10 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 	// ── Deferred UpdateJob fails when workflow start fails (line 239) ─────────
 	t.Run("WorkflowStartError_UpdateJobAlsoFails_LogsButReturnsWorkflowErr", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
 		originalGetAccountWithName := getAccountWithName

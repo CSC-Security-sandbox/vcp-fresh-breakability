@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -17,7 +18,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -3411,6 +3411,10 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 	}
 
 	t.Run("WhenSuccessfulDelete_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
+
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &GCPOrchestrator{
 			storage: mockStorage,
@@ -3631,6 +3635,10 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultIDIsUpdatedInParams_VerifyParamsMutation", func(tt *testing.T) {
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
+
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &GCPOrchestrator{
 			storage: mockStorage,
@@ -3730,9 +3738,9 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		originalUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = false
-		defer func() { env.UseVCPRegion = originalUseVCPRegion }()
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
 
 		expectedError := errors.New("failed to hydrate deleted backup vault to CCFE")
 		originalHydrateDeletedBackupVaults := hydrateDeletedBackupVaults
@@ -3925,9 +3933,9 @@ func TestCreateBackupVaultEntryInVCP(t *testing.T) {
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		originalUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = false
-		defer func() { env.UseVCPRegion = originalUseVCPRegion }()
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
 
 		expectedErr := errors.New("hydrate created backup vaults failed")
 		originalHydrateCreatedBackupVaults := hydrateCreatedBackupVaults
@@ -3972,9 +3980,9 @@ func TestCreateBackupVaultEntryInVCP(t *testing.T) {
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		originalUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = false
-		defer func() { env.UseVCPRegion = originalUseVCPRegion }()
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
 
 		expectedErr := errors.New("hydrate created backup vaults failed")
 		originalHydrateCreatedBackupVaults := hydrateCreatedBackupVaults
@@ -4019,9 +4027,9 @@ func TestCreateBackupVaultEntryInVCP(t *testing.T) {
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		originalUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = false
-		defer func() { env.UseVCPRegion = originalUseVCPRegion }()
+		originalUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = "http://cvp-host"
+		defer func() { cvp.CVP_HOST = originalUseVCPRegion }()
 
 		originalHydrateCreatedBackupVaults := hydrateCreatedBackupVaults
 		hydrateCreatedBackupVaults = func(ctx context.Context, backupVault *datamodel.BackupVault, params *commonparams.BackupVaultParams) error {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -7645,9 +7646,9 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 	})
 
 	t.Run("GetAuthJWTTokenFailure", func(t *testing.T) {
-		origUseVCPRegion := appenv.UseVCPRegion
-		defer func() { appenv.UseVCPRegion = origUseVCPRegion }()
-		appenv.UseVCPRegion = false
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = "http://cvp-host"
 
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -8749,13 +8750,13 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 	t.Run("SFR_GetAuthJWTTokenWhenNotLocalAndNotVCPOnlyRegion", func(t *testing.T) {
 		origLocal := appenv.IsLocalEnv
-		origVCP := appenv.UseVCPRegion
+		origVCP := cvp.CVP_HOST
 		defer func() {
 			appenv.IsLocalEnv = origLocal
-			appenv.UseVCPRegion = origVCP
+			cvp.CVP_HOST = origVCP
 		}()
 		appenv.IsLocalEnv = func() bool { return false }
-		appenv.UseVCPRegion = false
+		cvp.CVP_HOST = "http://cvp-host"
 
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

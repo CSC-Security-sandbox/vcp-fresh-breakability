@@ -1198,7 +1198,7 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				return fmt.Errorf("backup vault '%s' not found", backupVaultUUID)
 			}
 			logger := util.GetLogger(ctx)
@@ -1628,13 +1628,13 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
 		}
 
-		// When USE_VCP_REGION is enabled, backup policy must exist in VCP
+		// In a VCP-only region (CVP_HOST not set), backup policy must exist in VCP
 		backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, params.DataProtection.BackupPolicyId, pool.Account.ID)
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
 		}
-		if backupPolicy == nil && env.UseVCPRegion {
-			util.GetLogger(ctx).Warn("Backup policy does not exist in VCP while USE_VCP_REGION is enabled; volume creation requires an existing VCP backup policy",
+		if backupPolicy == nil && !utils.IsCVPHostConfigured() {
+			util.GetLogger(ctx).Warn("Backup policy does not exist in VCP in a VCP-only region (SDE unavailable); volume creation requires an existing VCP backup policy",
 				"backupPolicyId", params.DataProtection.BackupPolicyId)
 			return customerrors.NewNotFoundErr(
 				fmt.Sprintf("Backup policy %s not found", params.DataProtection.BackupPolicyId),
@@ -3054,10 +3054,10 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
 		}
-		// When USE_VCP_REGION is enabled, backup policy must exist in VCP
-		if backupPolicy == nil && env.UseVCPRegion {
+		// In a VCP-only region (CVP_HOST not set), backup policy must exist in VCP
+		if backupPolicy == nil && !utils.IsCVPHostConfigured() {
 			return customerrors.NewNotFoundErr(
-				fmt.Sprintf("Backup policy %s does not exist in VCP. When USE_VCP_REGION is enabled, backup policies must exist in VCP before volume update", *params.DataProtection.BackupPolicyId),
+				fmt.Sprintf("Backup policy %s does not exist in VCP. In a VCP-only region (SDE unavailable), backup policies must exist in VCP before volume update", *params.DataProtection.BackupPolicyId),
 				nil,
 			)
 		}

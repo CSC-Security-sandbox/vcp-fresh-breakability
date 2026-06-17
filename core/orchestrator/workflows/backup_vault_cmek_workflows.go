@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -87,7 +87,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
 	primaryKeyVersion := args[2].(string)
-	useVCPRegion := env.UseVCPRegion
+	useVCPRegion := !utils.IsCVPHostConfigured()
 
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
@@ -212,7 +212,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	}
 
-	// Step 2: When not USE_VCP_REGION, start SDE rotation and wait for completion. When USE_VCP_REGION, only VCP rotation runs.
+	// Step 2: When CVP_HOST is set (SDE present), start SDE rotation and wait for completion. In a VCP-only region (CVP_HOST unset), only VCP rotation runs.
 	var sdeSucceeded bool = true
 	if !useVCPRegion && backupVault.ServiceType != datamodel.ServiceTypeCrossProject {
 		var jwtToken string

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -28,7 +29,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -345,7 +345,7 @@ func TestGetVolume(t *testing.T) {
 			PoolID:          pool.ID,
 			ThroughputMibps: 200,
 			Iops:            1000,
-			AllocationType: models.AllocationTypeShared,
+			AllocationType:  models.AllocationTypeShared,
 			IsAutoGen:       true,
 		}
 		err = store.DB().Create(vpg).Error
@@ -493,7 +493,7 @@ func TestGetVolume(t *testing.T) {
 			PoolID:          pool.ID,
 			ThroughputMibps: 100,
 			Iops:            500,
-			AllocationType: models.AllocationTypePerVolume,
+			AllocationType:  models.AllocationTypePerVolume,
 			IsAutoGen:       false,
 		}
 		err = store.DB().Create(vpg).Error
@@ -14107,6 +14107,10 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.Nil(tt, err)
 	})
 	tt.Run("WhenBackupPolicySetWithScheduledBackupEnabled", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		newMonkeyMockForValidateQos(tt)
 		// Create backup vault for this test
 		bv := &datamodel.BackupVault{
@@ -15982,6 +15986,10 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
 	})
 	t.Run("WhenUpdateVolumeFailsWithAttachingBackupPolicyOnDataProtectedVolume", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		oldAccount := poolView.Account
@@ -16070,6 +16078,10 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Equal(tt, err.Error(), "Internal server error")
 	})
 	t.Run("WhenUpdateVolumeSuccessWithBackupPolicy", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		oldAccount := poolView.Account
@@ -19277,7 +19289,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 				BaseModel:       datamodel.BaseModel{ID: vpgID, UUID: fmt.Sprintf("vpg-%d", vpgID)},
 				ThroughputMibps: throughputMibps,
 				Iops:            iops,
-				AllocationType: models.AllocationTypePerVolume,
+				AllocationType:  models.AllocationTypePerVolume,
 				IsAutoGen:       false,
 			},
 		}
@@ -28462,9 +28474,9 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 	})
 
 	t.Run("Error when backup vault not found in DB and UseVCPRegion", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		env.UseVCPRegion = true
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		origUseVCPRegion := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
 
 		mockStorage := database.NewMockStorage(t)
 

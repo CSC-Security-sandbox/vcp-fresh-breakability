@@ -3,15 +3,19 @@ package workflows
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_Success() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -58,9 +62,9 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_Success() {
 // Test_UpdateBackupVaultWorkflow_UseVCPRegion_ApplyBackupVaultUpdateParams_Success covers the
 // useVCPRegion branch: ApplyBackupVaultUpdateParams then UpdateBackupVaultInVCP (no SDE/JWT path).
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UseVCPRegion_ApplyBackupVaultUpdateParams_Success() {
-	origUseVCPRegion := env.UseVCPRegion
-	env.UseVCPRegion = true
-	defer func() { env.UseVCPRegion = origUseVCPRegion }()
+	origUseVCPRegion := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = origUseVCPRegion }()
 
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -291,6 +295,10 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_Success() {
 }
 
 func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteSDEError() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -752,6 +760,10 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_NonCrossRegion_SkipRemote
 }
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_Success() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -894,6 +906,10 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_UpdateRemoteE
 }
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_EmptyBackupRegionName() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -958,6 +974,10 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_CrossRegion_EmptyBackupRe
 }
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_NonCrossRegion_SkipRemoteUpdate() {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(s.T())
 	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},

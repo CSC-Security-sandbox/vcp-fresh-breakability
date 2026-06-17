@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -21,7 +22,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -29,6 +29,10 @@ import (
 
 // V1betaListBackupVaults
 func TestV1betaListBackupVaults(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -79,9 +83,9 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsInternalServerErrorWhenListFails", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaListBackupVaultsParams{
 			LocationId:     "test-location",
@@ -107,9 +111,9 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsConvertedBackupVaults", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaListBackupVaultsParams{
 			LocationId:     "us-east4",
@@ -140,9 +144,9 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsEmptyListWhenNoVaults", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaListBackupVaultsParams{
 			LocationId:     "test-location",
@@ -465,13 +469,13 @@ func TestBuildCreateBackupVaultParams(t *testing.T) {
 
 func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	params := gcpgenserver.V1betaListBackupVaultsParams{
 		LocationId:     "test-location",
@@ -494,6 +498,10 @@ func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 
 // V1betaDescribeBackupVault unittests
 func TestV1betaDescribeBackupVault(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -597,9 +605,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsNotFoundWhenBackupVaultMissing", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
@@ -626,9 +634,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsInternalServerErrorWhenGetFails", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
@@ -655,9 +663,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsBackupVaultFromVCP", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
@@ -1025,6 +1033,10 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 
 // V1betaGetMultipleBackupVaults unittests
 func TestV1betaGetMultipleBackupVaults(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -1091,9 +1103,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsInternalServerErrorWhenOrchestratorFails", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1122,9 +1134,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsConvertedBackupVaults", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "us-east4",
@@ -1166,9 +1178,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	})
 
 	t.Run("WhenUseVCPRegion_ReturnsEmptyListWhenNoVaults", func(t *testing.T) {
-		origUseVCPRegion := env.UseVCPRegion
-		defer func() { env.UseVCPRegion = origUseVCPRegion }()
-		env.UseVCPRegion = true
+		origUseVCPRegion := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origUseVCPRegion }()
+		cvp.CVP_HOST = ""
 
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1818,6 +1830,10 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 
 // TestV1betaCreateBackupVaultWithImmutableBackups tests backup vault creation with various immutable backup scenarios
 func TestV1betaCreateBackupVaultWithImmutableBackups2(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	origGCBDRVaultEnabled := GCBDRVaultEnabled
 	originalValue := utils.IsImmutableBackupEnabled()
@@ -2098,6 +2114,10 @@ func TestV1betaCreateBackupVaultWithImmutableBackups2(t *testing.T) {
 
 // TestV1betaUpdateBackupVaultWithImmutableBackups tests backup vault updates with immutable backup scenarios
 func TestV1betaUpdateBackupVaultWithImmutableBackups2(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	originalValue := utils.IsImmutableBackupEnabled()
 	defer func() {
@@ -2330,6 +2350,10 @@ func TestV1betaUpdateBackupVaultWithImmutableBackups2(t *testing.T) {
 
 // TestV1betaImmutableBackupEdgeCases tests various edge cases and error conditions
 func TestV1betaImmutableBackupEdgeCases2(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	originalValue := utils.IsImmutableBackupEnabled()
 	defer func() {
@@ -2600,6 +2624,10 @@ func TestV1betaImmutableBackupEdgeCases2(t *testing.T) {
 }
 
 func Test_CreateBackupVaultV1beta(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	t.Run("WhenNotEnabled", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "local",
@@ -2898,15 +2926,15 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 	})
 	t.Run("WhenUseVCPRegionCreateSucceeds_ReturnsDoneOperationWithVaultPayload", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
-		origUseVCPRegion := env.UseVCPRegion
+		origUseVCPRegion := cvp.CVP_HOST
 		origParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = origBackupEnabled
-			env.UseVCPRegion = origUseVCPRegion
+			cvp.CVP_HOST = origUseVCPRegion
 			parseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -2946,15 +2974,15 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 	})
 	t.Run("WhenUseVCPRegionCreateFails_ReturnsInternalServerError", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
-		origUseVCPRegion := env.UseVCPRegion
+		origUseVCPRegion := cvp.CVP_HOST
 		origParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = origBackupEnabled
-			env.UseVCPRegion = origUseVCPRegion
+			cvp.CVP_HOST = origUseVCPRegion
 			parseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -2989,17 +3017,17 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 	})
 	t.Run("WhenUseVCPRegionMarshalFails_ReturnsInternalServerError", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
-		origUseVCPRegion := env.UseVCPRegion
+		origUseVCPRegion := cvp.CVP_HOST
 		origParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		origJSONMarshal := jsonMarshal
 		defer func() {
 			backupEnabled = origBackupEnabled
-			env.UseVCPRegion = origUseVCPRegion
+			cvp.CVP_HOST = origUseVCPRegion
 			parseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 			jsonMarshal = origJSONMarshal
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -3811,6 +3839,10 @@ func TestConvertBackupRetentionPolicyToCvpModelForCreate(t *testing.T) {
 }
 
 func TestV1betaCreateBackupVaultWithKmsConfigResourcePathAndBackupsPrimaryKeyVersion(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	origGCBDRVaultEnabled := GCBDRVaultEnabled
 	defer func() {
@@ -4038,6 +4070,10 @@ func TestV1betaCreateBackupVaultWithKmsConfigResourcePathAndBackupsPrimaryKeyVer
 }
 
 func TestV1betaCreateBackupVaultWithEncryptionState(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	origGCBDRVaultEnabled := GCBDRVaultEnabled
 	defer func() {
@@ -4373,6 +4409,10 @@ func TestV1betaCreateBackupVaultWithEncryptionState(t *testing.T) {
 }
 
 func TestV1betaCreateBackupVaultWithKmsGrant(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	origGCBDRVaultEnabled := GCBDRVaultEnabled
 	defer func() {
@@ -4562,13 +4602,13 @@ func TestV1betaUpdateBackupVaultReturnsInvalidLocation(t *testing.T) {
 
 func TestV1betaUpdateBackupVaultReturnsNotFound(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = false
+	cvp.CVP_HOST = "http://cvp-host"
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -4631,13 +4671,13 @@ func TestV1betaUpdateBackupVaultReturnsError(t *testing.T) {
 
 func TestV1betaUpdateBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = false
+	cvp.CVP_HOST = "http://cvp-host"
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -4668,13 +4708,13 @@ func TestV1betaUpdateBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 
 func TestV1betaUpdateBackupVaultReturnsNotFoundWhenUseVCPRegion(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
@@ -5004,6 +5044,10 @@ func TestConvertBackupRetentionPolicyToCvpModelForUpdate(t *testing.T) {
 }
 
 func Test_updateBackupVaultInSDE(tt *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -5339,6 +5383,10 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 }
 
 func TestReturnsSuccessfulDeletion(tt *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -5714,13 +5762,13 @@ func TestV1betaDeleteBackupVaultNotEnabled(t *testing.T) {
 
 func TestV1betaDeleteBackupVaultReturnsNotFound(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = false
+	cvp.CVP_HOST = "http://cvp-host"
 	params := gcpgenserver.V1betaDeleteBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -5782,13 +5830,13 @@ func TestV1betaDeleteBackupVaultReturnsError(t *testing.T) {
 
 func TestV1betaDeleteBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = false
+	cvp.CVP_HOST = "http://cvp-host"
 	params := gcpgenserver.V1betaDeleteBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -5819,13 +5867,13 @@ func TestV1betaDeleteBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 
 func TestV1betaDeleteBackupVaultReturnsNotFoundWhenUseVCPRegion(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 	}()
 	backupEnabled = true
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	params := gcpgenserver.V1betaDeleteBackupVaultParams{
 		LocationId:    "valid-location",
@@ -6821,17 +6869,17 @@ func TestV1betaRotateCmekBackups_InternalServerErrorFromGetBackupVault(t *testin
 func TestV1betaRotateCmekBackups_NotFoundWhenUseVCPRegion(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	origCmekBackupEnabled := cmekBackupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	origParseAndValidate := parseAndValidateRegionAndZone
 	defer func() {
 		backupEnabled = origBackupEnabled
 		cmekBackupEnabled = origCmekBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 		parseAndValidateRegionAndZone = origParseAndValidate
 	}()
 	backupEnabled = true
 	cmekBackupEnabled = true
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 
 	params := gcpgenserver.V1betaRotateCmekBackupsParams{
 		LocationId:    "us-west1",
@@ -6966,6 +7014,10 @@ func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsUnauthorized(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7028,6 +7080,10 @@ func TestV1betaRotateCmekBackupsUnauthorized(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsForbidden(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7089,6 +7145,10 @@ func TestV1betaRotateCmekBackupsForbidden(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsNotFound(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7150,6 +7210,10 @@ func TestV1betaRotateCmekBackupsNotFound(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsConflict(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7211,6 +7275,10 @@ func TestV1betaRotateCmekBackupsConflict(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsUnprocessableEntity(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7272,6 +7340,10 @@ func TestV1betaRotateCmekBackupsUnprocessableEntity(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsTooManyRequests(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7333,6 +7405,10 @@ func TestV1betaRotateCmekBackupsTooManyRequests(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsDefaultError(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7394,6 +7470,10 @@ func TestV1betaRotateCmekBackupsDefaultError(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7451,6 +7531,10 @@ func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
 }
 
 func TestV1betaRotateCmekBackupsNotImplemented(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
@@ -7513,6 +7597,10 @@ func TestV1betaRotateCmekBackupsNotImplemented(t *testing.T) {
 }
 
 func TestV1betaListBackupVaultsErrors(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	t.Run("WhenListBackupVaultsFailsWithBadRequest", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		origBackupEnabled := backupEnabled

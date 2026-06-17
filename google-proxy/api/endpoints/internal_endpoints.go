@@ -17,7 +17,6 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -679,7 +678,7 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	backupVault := convertInternalBackupVaultToDataModel(req)
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		backupVault.UUID = utils.RandomUUID()
 		backupVault.Name = utils.ConvertSourceBackupVaultNameToRemoteBackupVaultName(req.ResourceId, req.BackupVaultId)
 		backupVault.CrossRegionBackupVaultName = nillable.ToPointer(

@@ -909,7 +909,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		}
 		return backupVault, nil
 	}
-	if env.UseVCPRegion {
+	if !utils.IsCVPHostConfigured() {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("backup vault with id %s not found", bvId)))
 	}
 	bvParams := &datamodel.BackupVault{}

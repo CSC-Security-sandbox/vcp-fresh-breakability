@@ -17,7 +17,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -134,9 +133,9 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return nil, "", err
 		}
-		// When USE_VCP_REGION is enabled, VCP is the sole source of truth: a vault absent from
+		// In a VCP-only region (CVP_HOST not set), VCP is the sole source of truth: a vault absent from
 		// the local DB is a hard not-found (no SDE/CVP fallback in the workflow).
-		if bv == nil && env.UseVCPRegion {
+		if bv == nil && !utils.IsCVPHostConfigured() {
 			return nil, "", customerrors.NewNotFoundErr("backup vault", params.BackupVaultID)
 		}
 		if bv != nil {
@@ -173,9 +172,9 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			if err != nil && !customerrors.IsNotFoundErr(err) {
 				return nil, "", err
 			}
-			// When USE_VCP_REGION is enabled, a policy absent from VCP is a hard not-found:
+			// In a VCP-only region (CVP_HOST not set), a policy absent from VCP is a hard not-found:
 			// the workflow must not fall back to SDE to import it.
-			if backupPolicy == nil && env.UseVCPRegion {
+			if backupPolicy == nil && !utils.IsCVPHostConfigured() {
 				return nil, "", customerrors.NewNotFoundErr("backup policy", params.BackupPolicyID)
 			}
 			if backupPolicy != nil && backupPolicy.LifeCycleState != datamodel.LifeCycleStateREADY {

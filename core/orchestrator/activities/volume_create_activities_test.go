@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
@@ -31,7 +32,6 @@ import (
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2924,13 +2924,13 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 }
 
 func TestBackupVaultExists_UseVCPRegion_ReturnsResourceNotFoundWhenVaultMissingInDB(t *testing.T) {
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	origGCBDR := activities.GCBDRVaultEnabled
 	defer func() {
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 		activities.GCBDRVaultEnabled = origGCBDR
 	}()
-	env.UseVCPRegion = true
+	cvp.CVP_HOST = ""
 	activities.GCBDRVaultEnabled = false
 
 	mockStorage := database.NewMockStorage(t)
@@ -2996,6 +2996,10 @@ func TestBackupVaultExists_ReturnsImmutableBVError(t *testing.T) {
 }
 
 func TestBackupVaultExistsSDE_ReturnsImmutableBVError(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -12358,6 +12362,10 @@ func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInDifferentRegion_Fro
 
 func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromCVP(t *testing.T) {
 	// Test for lines 679-680: When backup vault is fetched from CVP and is cross-region with BackupRegionName matching region
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -12421,6 +12429,10 @@ func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromCVP(
 
 func TestCheckBackupVaultExistsInVCP_BackupVaultNotFoundInList_FromCVP(t *testing.T) {
 	// Test for lines 688-690: When backup vault is not found in the list from CVP
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -12481,6 +12493,10 @@ func TestCheckBackupVaultExistsInVCP_BackupVaultNotFoundInList_FromCVP(t *testin
 
 func TestCheckBackupVaultExistsInVCP_EmptyBackupVaultList_FromCVP(t *testing.T) {
 	// Test for lines 688-690: When CVP returns an empty backup vault list
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -12536,6 +12552,10 @@ func TestCheckBackupVaultExistsInVCP_EmptyBackupVaultList_FromCVP(t *testing.T) 
 
 func TestCheckBackupVaultExistsInVCP_SuccessfullyFetchedAndCreatedFromCVP(t *testing.T) {
 	// Test successful path: vault found in CVP, not cross-region same region issue, and created in VCP
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -16452,6 +16472,10 @@ func TestUpdateBackupVaultWithBucketDetails_GCBDRDisabled_SkipsFallback(t *testi
 // ===== Tests for GCBDR fallback rejecting non-GCBDR (normal) vaults =====
 
 func TestCheckBackupVaultExistsInVCP_FallbackRejectsNonGCBDRVault(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	origFlag := activities.GCBDRVaultEnabled
 	defer func() { activities.GCBDRVaultEnabled = origFlag }()
 	activities.GCBDRVaultEnabled = true

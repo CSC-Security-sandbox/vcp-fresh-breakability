@@ -20,7 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -378,15 +377,15 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 
 	t.Run("ReturnsBadRequestWhenTrialModeInvalid", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParse()
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
@@ -408,15 +407,15 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 
 	t.Run("VCP_PersistsTrialAtHandlerBeforeCreate", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParse()
 
 		start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
@@ -452,17 +451,17 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 
 	t.Run("SDE_ReturnsBadRequestWhenTrialModeInvalid", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		oldCreateClient := createClient
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 			createClient = oldCreateClient
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = false
+		cvp.CVP_HOST = "http://cvp-host"
 		stubValidRegionParse()
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
@@ -484,15 +483,15 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 
 	t.Run("ReturnsInternalServerErrorWhenTrialPersistFails", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParse()
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
@@ -511,15 +510,15 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 
 	t.Run("VCP_ReturnsBadRequestWhenCreateBackupPolicyTrialInvalid", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
-		oldUseVCPRegion := env.UseVCPRegion
+		oldUseVCPRegion := cvp.CVP_HOST
 		oldParse := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
-			env.UseVCPRegion = oldUseVCPRegion
+			cvp.CVP_HOST = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldParse
 		}()
 		backupEnabled = true
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		stubValidRegionParse()
 
 		start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
@@ -715,11 +714,11 @@ func TestV1betaCreateHostGroup_TrialMode(t *testing.T) {
 func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	ctx := context.Background()
 	origBackupEnabled := backupEnabled
-	origUseVCPRegion := env.UseVCPRegion
+	origUseVCPRegion := cvp.CVP_HOST
 	origParse := parseAndValidateRegionAndZone
 	defer func() {
 		backupEnabled = origBackupEnabled
-		env.UseVCPRegion = origUseVCPRegion
+		cvp.CVP_HOST = origUseVCPRegion
 		parseAndValidateRegionAndZone = origParse
 	}()
 	backupEnabled = true
@@ -737,7 +736,7 @@ func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	}
 
 	t.Run("VCP_ReturnsBadRequestWhenTrialModeInvalid", func(t *testing.T) {
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().PersistAccountTrialMetadataIfSet(mock.Anything, "12345", mock.Anything).
 			Return(utilerrors.NewUserInputValidationErr("trialMode startTime must be before endTime"))
@@ -752,7 +751,7 @@ func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	})
 
 	t.Run("VCP_PersistsTrialAtHandlerBeforeCreate", func(t *testing.T) {
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
 		end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
 
@@ -776,7 +775,7 @@ func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	})
 
 	t.Run("SDE_ReturnsBadRequestWhenTrialModeInvalid", func(t *testing.T) {
-		env.UseVCPRegion = false
+		cvp.CVP_HOST = "http://cvp-host"
 		oldCvpCreateClient := cvpCreateClient
 		defer func() { cvpCreateClient = oldCvpCreateClient }()
 
@@ -794,7 +793,7 @@ func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	})
 
 	t.Run("ReturnsInternalServerErrorWhenTrialPersistFails", func(t *testing.T) {
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().PersistAccountTrialMetadataIfSet(mock.Anything, "12345", mock.Anything).
 			Return(errors.New("trial metadata persist failed"))
@@ -809,7 +808,7 @@ func TestV1betaCreateBackupVault_TrialMode(t *testing.T) {
 	})
 
 	t.Run("VCP_ReturnsBadRequestWhenCreateBackupVaultTrialInvalid", func(t *testing.T) {
-		env.UseVCPRegion = true
+		cvp.CVP_HOST = ""
 		start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
 		end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
 

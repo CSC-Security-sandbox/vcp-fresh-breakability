@@ -618,8 +618,8 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		if !backupPolicyExists {
 			// Check if VCP region should be used
-			if env.UseVCPRegion {
-				log.Warnf("Backup policy %s does not exist in VCP while USE_VCP_REGION is enabled; volume update requires an existing VCP backup policy", *params.DataProtection.BackupPolicyId)
+			if !utils.IsCVPHostConfigured() {
+				log.Warnf("Backup policy %s does not exist in VCP in a VCP-only region (SDE unavailable); volume update requires an existing VCP backup policy", *params.DataProtection.BackupPolicyId)
 				return nil, ConvertToVSAError(customerrors.NewNotFoundErr(
 					fmt.Sprintf("Backup policy %s not found", *params.DataProtection.BackupPolicyId),
 					nil,
@@ -646,7 +646,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 		} else {
 			// Backup policy exists in VCP - ensure schedule exists (create only once)
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				backupPolicyActivity := &activities.BackupPolicyActivity{}
 				// Get the backup policy from VCP
 				var vcpBackupPolicy *datamodel.BackupPolicy

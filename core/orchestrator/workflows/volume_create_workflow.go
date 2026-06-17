@@ -1409,8 +1409,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 				return nil, cancelErr
 			}
-			if env.UseVCPRegion {
-				log.Warnf("Backup policy %s does not exist in VCP while USE_VCP_REGION is enabled; volume creation requires an existing VCP backup policy", dbVolume.DataProtection.BackupPolicyID)
+			if !utils.IsCVPHostConfigured() {
+				log.Warnf("Backup policy %s does not exist in VCP in a VCP-only region (SDE unavailable); volume creation requires an existing VCP backup policy", dbVolume.DataProtection.BackupPolicyID)
 				return nil, ConvertToVSAError(customerrors.NewNotFoundErr(
 					fmt.Sprintf("Backup policy %s not found", dbVolume.DataProtection.BackupPolicyID),
 					nil,
@@ -1443,7 +1443,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 		} else {
 			// Backup policy exists in VCP - ensure schedule exists (create only once)
-			if env.UseVCPRegion {
+			if !utils.IsCVPHostConfigured() {
 				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 					return nil, cancelErr
 				}

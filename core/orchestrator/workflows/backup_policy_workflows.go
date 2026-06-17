@@ -6,7 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -125,7 +125,7 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, authToken)
 
 	// Check if VCP region should be used
-	if !env.UseVCPRegion {
+	if utils.IsCVPHostConfigured() {
 		var sdeBackupPolicy *cvpmodels.BackupPolicyV1beta
 		err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyInSDE, params).Get(ctx, &sdeBackupPolicy)
 		if err != nil {
@@ -254,7 +254,7 @@ func (wf *deleteBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, authToken)
 
 	// Check if VCP region should be used
-	if !env.UseVCPRegion {
+	if utils.IsCVPHostConfigured() {
 		err = workflow.ExecuteActivity(ctx, backupPolicyActivity.DeleteBackupPolicyInSDE, params).Get(ctx, nil)
 		if err != nil {
 			wf.Logger.Errorf("Failed to delete backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())

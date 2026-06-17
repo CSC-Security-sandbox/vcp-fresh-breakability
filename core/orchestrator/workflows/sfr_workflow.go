@@ -218,8 +218,8 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	log.Infof("Restoring %d unique files after deduplication", len(params.SourceFileList))
 
 	// Propagate customer JWT for CVP/SDE calls (e.g. FetchProtocolsForBackup on remote backup conversion).
-	// Skip in local env, and when USE_VCP_REGION is true (VCP-only region; no SDE/CVP dependency).
-	if !env.IsLocalEnv() && !env.UseVCPRegion {
+	// Skip in local env, and in a VCP-only region (CVP_HOST not set; no SDE/CVP dependency).
+	if !env.IsLocalEnv() && utils.IsCVPHostConfigured() {
 		var token string
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, volume.Account.Name).Get(ctx, &token)
 		if err != nil {
