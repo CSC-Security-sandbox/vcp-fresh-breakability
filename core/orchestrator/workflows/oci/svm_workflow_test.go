@@ -388,6 +388,10 @@ func TestOCICreateSVMWorkflow_VlmDeleteRollbackFiresOnLaterFailure(t *testing.T)
 	}
 
 	createdVlmCfg := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: &vlm.OCIConfig{}},
+			DevFlags:       vlm.DevFlags{ProviderDevFlags: vlm.ProviderDevFlagsWrapper{ProviderDevFlags: &vlm.OCIDevFlags{}}},
+		},
 		Svm: map[string]vlm.SvmConfig{"test-svm": {Svmname: "test-svm"}},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
@@ -563,7 +567,13 @@ func TestOCIDeleteSVMWorkflow_SoftDeleteFails_RollbackMarksError(t *testing.T) {
 func TestOCIDeleteSVMWorkflow_RequestShape_UsesPoolCredentialsPassword(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 	params, svm, pool, _ := deleteSVMTestFixtures()
-	vlmCfg := vlm.VLMConfig{Svm: map[string]vlm.SvmConfig{"test-svm": {Svmname: "test-svm"}}}
+	vlmCfg := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: &vlm.OCIConfig{}},
+			DevFlags:       vlm.DevFlags{ProviderDevFlags: vlm.ProviderDevFlagsWrapper{ProviderDevFlags: &vlm.OCIDevFlags{}}},
+		},
+		Svm: map[string]vlm.SvmConfig{"test-svm": {Svmname: "test-svm"}},
+	}
 
 	mockVlm := installMockVlmForDelete(t)
 	var captured *vlm.DeleteSVMRequest

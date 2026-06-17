@@ -674,7 +674,12 @@ func currentFabricPoolConfig(pool *datamodel.Pool) (*vlm.FabricPoolConfig, error
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError,
 			fmt.Errorf("failed to parse stored VLMConfig for pool %q: %w", pool.UUID, err))
 	}
-	fpc := cfg.Deployment.OCIConfig.FabricPoolConfig
+	ociCfg, err := cfg.Deployment.ProviderConfig.AsOCI()
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError,
+			fmt.Errorf("failed to extract OCI config from VLMConfig for pool %q: %w", pool.UUID, err))
+	}
+	fpc := ociCfg.FabricPoolConfig
 	if fpc == (vlm.FabricPoolConfig{}) {
 		return nil, nil
 	}

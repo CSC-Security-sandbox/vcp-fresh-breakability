@@ -28,6 +28,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 const (
 	testVSAImageOCID      = "ocid1.image.oc1.iad.aaaaaaaaef2bc4g6vf4rvsa4vd2e4pnqw2ot2qicxrjo5a3ohglr6i4exdjq"
 	testMediatorImageOCID = "ocid1.image.oc1.iad.aaaaaaaagakcrtyceuuvl6ts7xhqzzrdk3lv4z7tcqif3xpa6qsvppzflaaq"
@@ -505,7 +509,8 @@ func TestPrepareVLMConfig_AppliesDecisionFlipsAllFourOCIFields(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	oc := cfg.Deployment.OCIConfig
+	oc, err := cfg.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, err)
 	assert.Equal(t, "VM.DenseIO.Custom.Flex", oc.VSAInstanceShape,
 		"VMRS-chosen shape must land on OCIConfig.VSAInstanceShape")
 	assert.Equal(t, float32(40), oc.VSAFlexOcpus,
@@ -649,13 +654,17 @@ func TestOCIDeploymentConfig(t *testing.T) {
 			assert.Equal(tt, ociVSAInstanceType, got.VSAInstanceType)
 			assert.Equal(tt, ociMediatorInstanceType, got.MediatorInstanceType)
 			assert.Equal(tt, dataDiskCount, got.DataDiskCount)
-			assert.Equal(tt, ociConfig, got.OCIConfig)
+			gotOCI, ociErr := got.ProviderConfig.AsOCI()
+			require.NoError(tt, ociErr)
+			assert.Equal(tt, ociConfig, gotOCI)
 			assert.Equal(tt, "100Gi", got.SPConfig.Size)
 			assert.Equal(tt, int64(256), got.SPConfig.Throughput)
 			assert.Equal(tt, int64(8192), got.SPConfig.IOps)
 			assert.Equal(tt, extIPForNodeMgmt, got.DevFlags.ExtIPForNodeMgmt)
-			assert.Equal(tt, allowNonDenseShapeForVSA, got.DevFlags.AllowNonDenseShapeForVsa)
-			assert.Equal(tt, useSecondaryIPsForLIFs, got.DevFlags.UseSecondaryIPsForLIFs)
+			gotDevFlags, devFlagsErr := got.DevFlags.ProviderDevFlags.AsOCI()
+			require.NoError(tt, devFlagsErr)
+			assert.Equal(tt, allowNonDenseShapeForVSA, gotDevFlags.AllowNonDenseShapeForVsa)
+			assert.Equal(tt, useSecondaryIPsForLIFs, gotDevFlags.UseSecondaryIPsForLIFs)
 		})
 	}
 }
@@ -833,12 +842,15 @@ func TestPrepareOCIDeleteVSAClusterDeploymentRequest(t *testing.T) {
 	assert.Equal(t, vlm.OCICloud, req.CloudProvider)
 	assert.Equal(t, "dep-1", req.DeploymentID)
 	assert.Equal(t, "tenancy-ocid", req.ProjectID)
-	require.NotNil(t, req.HyperScalerConfig)
-	assert.Equal(t, "comp-from-pool", req.HyperScalerConfig.OCIConfig.CompartmentID)
+	ociCfg, err := req.ProviderConfig.AsOCI()
+	require.NoError(t, err)
+	assert.Equal(t, "comp-from-pool", ociCfg.CompartmentID)
 
 	pool.ClusterDetails.CompartmentOCID = "comp-updated"
 	prepareOCIDeleteVSAClusterDeploymentRequest(req, pool, "tenancy-2")
-	assert.Equal(t, "comp-updated", req.HyperScalerConfig.OCIConfig.CompartmentID)
+	ociCfg, err = req.ProviderConfig.AsOCI()
+	require.NoError(t, err)
+	assert.Equal(t, "comp-updated", ociCfg.CompartmentID)
 	assert.Equal(t, "tenancy-2", req.ProjectID)
 }
 
@@ -2309,6 +2321,15 @@ func TestDeriveUpdateTargetSPConfig_DoesNotMutateCurrentVlmConfig(t *testing.T) 
 		"deriveUpdateTargetSPConfig must treat currentVlmConfig as read-only so the workflow's pristine copy is never corrupted")
 }
 
+func testOCIProviderConfig() vlm.ProviderConfigWrapper {
+	return vlm.ProviderConfigWrapper{
+		ProviderConfig: &vlm.OCIConfig{
+			CompartmentID: "ocid1.compartment.oc1..test",
+			SubnetID:      "ocid1.subnet.oc1..test",
+		},
+	}
+}
+
 func storedVLMConfigWithHAPairs(n int) *vlm.VLMConfig {
 	haPairs := make([]vlm.HAPair, n)
 	for i := range haPairs {
@@ -2318,8 +2339,12 @@ func storedVLMConfigWithHAPairs(n int) *vlm.VLMConfig {
 		}
 	}
 	return &vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{NumHAPair: n},
-		Cloud:      vlm.CloudConfig{HAPairs: haPairs},
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       n,
+			VSAInstanceType: "VM.DenseIO.E5.Flex",
+			ProviderConfig:  testOCIProviderConfig(),
+		},
+		Cloud: vlm.CloudConfig{HAPairs: haPairs},
 	}
 }
 
@@ -2643,7 +2668,9 @@ func TestOCIUpdatePoolWorkflow_ScaleOutSetsTargetNumHAPair(t *testing.T) {
 			cp := *req
 			capturedReqs = append(capturedReqs, &cp)
 		}).
-		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{ProviderConfig: testOCIProviderConfig()},
+		}}, nil)
 	orig := workflows.GetNewVSAClientWorkflowManager
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
@@ -2705,7 +2732,9 @@ func TestOCIUpdatePoolWorkflow_VLMRequestFieldsFromStoredConfig(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedReqs = append(capturedReqs, args.Get(1).(*vlm.UpdateVSAClusterDeploymentRequest))
 		}).
-		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+		Return(&vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{ProviderConfig: testOCIProviderConfig()},
+		}}, nil)
 	orig := workflows.GetNewVSAClientWorkflowManager
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
@@ -2782,8 +2811,12 @@ func TestOCIUpdatePoolWorkflow_VLMConfigIsPristineOnTheWire(t *testing.T) {
 		Throughput: 256,
 	}
 	storedVlmConfig.Deployment.VSAInstanceType = "VM.DenseIO.E5.Flex"
-	storedVlmConfig.Deployment.OCIConfig.VSAFlexOcpus = 8
-	storedVlmConfig.Deployment.OCIConfig.VSAFlexMemoryInGBs = 96
+	storedVlmConfig.Deployment.ProviderConfig = vlm.ProviderConfigWrapper{
+		ProviderConfig: vlm.OCIConfig{
+			VSAFlexOcpus:      8,
+			VSAFlexMemoryInGBs: 96,
+		},
+	}
 	storedVlmConfig.DataAggr = []vlm.DataAggrConfig{
 		{Name: "aggr1", HomeNode: "vm1-ha0"},
 	}
@@ -2820,10 +2853,12 @@ func TestOCIUpdatePoolWorkflow_VLMConfigIsPristineOnTheWire(t *testing.T) {
 		"req.VLMConfig.Deployment.SPConfig.IOps must carry the DB-stored value")
 	assert.Equal(t, "VM.DenseIO.E5.Flex", captured.VLMConfig.Deployment.VSAInstanceType,
 		"req.VLMConfig.Deployment.VSAInstanceType must come from the stored config, not env/defaults")
-	assert.Equal(t, float32(8), captured.VLMConfig.Deployment.OCIConfig.VSAFlexOcpus,
-		"req.VLMConfig.Deployment.OCIConfig.VSAFlexOcpus must come from the stored config")
-	assert.Equal(t, float32(96), captured.VLMConfig.Deployment.OCIConfig.VSAFlexMemoryInGBs,
-		"req.VLMConfig.Deployment.OCIConfig.VSAFlexMemoryInGBs must come from the stored config")
+	capturedOCI, capturedOCIErr := captured.VLMConfig.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, capturedOCIErr)
+	assert.Equal(t, float32(8), capturedOCI.VSAFlexOcpus,
+		"req.VLMConfig.Deployment.ProviderConfig VSAFlexOcpus must come from the stored config")
+	assert.Equal(t, float32(96), capturedOCI.VSAFlexMemoryInGBs,
+		"req.VLMConfig.Deployment.ProviderConfig VSAFlexMemoryInGBs must come from the stored config")
 
 	// Top-level override is the ONLY place the update target appears.
 	assert.Equal(t, "3000Gi", captured.SPConfig.Size,
@@ -3338,9 +3373,9 @@ func TestOCIUpdatePoolWorkflow_FinalPersistUsesLastBatchVLMConfig(t *testing.T) 
 	// Make each batch return a distinguishable VLMConfig so we can assert that the
 	// per-batch persist captured THAT batch's response, not the seed/initial config.
 	batchVLMConfigs := []vlm.VLMConfig{
-		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-1"}},
-		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-2"}},
-		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-3"}},
+		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-1", ProviderConfig: testOCIProviderConfig()}},
+		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-2", ProviderConfig: testOCIProviderConfig()}},
+		{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-3", ProviderConfig: testOCIProviderConfig()}},
 	}
 	var batchCall int32
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
@@ -3413,7 +3448,9 @@ func TestOCIUpdatePoolWorkflow_BatchFailureLeavesVLMConfigUnchanged(t *testing.T
 				i := batchCall
 				batchCall++
 				if i == 0 {
-					return &vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-1"}}}
+					return &vlm.UpdateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{
+						Deployment: vlm.DeploymentConfig{DeploymentID: "after-batch-1", ProviderConfig: testOCIProviderConfig()},
+					}}
 				}
 				return nil
 			},
@@ -4704,12 +4741,15 @@ func TestComputeOCIVMRSInputForUpdate_RejectsInvalidInputs(t *testing.T) {
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilDecisionLeavesOverridesUnset(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Deployment: vlm.DeploymentConfig{
+			VSAInstanceType: "VM.DenseIO.E5.Flex",
+			ProviderConfig:  vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{}},
+		},
 	}
 	target := vlm.SPConfig{Size: "100Gi", IOps: 5000, Throughput: 128}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{}))
 
 	// VLMConfig is passed through near-pristine; only
 	// Deployment.SPConfig.HAPairConfigs is stripped on the wire (see fn
@@ -4748,7 +4788,10 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilDecisionLeavesOverridesU
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_DecisionPopulatesAllFourFields(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{VSAInstanceType: "VM.DenseIO.E5.Flex"},
+		Deployment: vlm.DeploymentConfig{
+			VSAInstanceType: "VM.DenseIO.E5.Flex",
+			ProviderConfig:  vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{}},
+		},
 	}
 	target := vlm.SPConfig{Size: "100Gi", IOps: 5000, Throughput: 128}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
@@ -4763,7 +4806,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_DecisionPopulatesAllFourFie
 		IOPS:      786600,
 	}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, decision, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, decision, &common.UpdatePoolParams{}))
 
 	assert.Equal(t, "VM.DenseIO.Custom.Flex", req.NewInstanceType,
 		"VMRS shape must land on NewInstanceType so VLM swaps the running VM")
@@ -4807,6 +4850,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PreservesStoredHAPairConfig
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			VSAInstanceType: "VM.DenseIO.E5.Flex",
+			ProviderConfig:  vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{}},
 			SPConfig: vlm.SPConfig{
 				Size:          "600Gi",
 				IOps:          15248,
@@ -4818,7 +4862,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PreservesStoredHAPairConfig
 	target := vlm.SPConfig{Size: "1000Gi", IOps: 25000, Throughput: 2000}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{}))
 
 	assert.Equal(t, storedHAPairs, req.VLMConfig.Deployment.SPConfig.HAPairConfigs,
 		"req.VLMConfig must carry the stored sp_ha_pair_config verbatim (current cluster state)")
@@ -4844,6 +4888,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_HeterogeneousTargetRidesOnS
 	}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{}},
 			SPConfig: vlm.SPConfig{
 				Size:          "600Gi",
 				HAPairConfigs: storedHAPairs,
@@ -4861,7 +4906,7 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_HeterogeneousTargetRidesOnS
 	}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{}))
 
 	assert.True(t, req.SPConfig.IsHeterogeneous)
 	assert.Equal(t, targetHAPairs, req.SPConfig.HAPairConfigs,
@@ -4883,45 +4928,49 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesCmekOcidAndOciCon
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			VSAInstanceType: "VM.DenseIO.E5.Flex",
-			OCIConfig:       savedOCIConfig,
+			ProviderConfig:  vlm.ProviderConfigWrapper{ProviderConfig: savedOCIConfig},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi", IOps: 5000, Throughput: 128}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 	const newCmek = "ocid1.key.oc1.iad.new-cmek"
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{KmsKeyId: newCmek})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 2, creds, nil, &common.UpdatePoolParams{KmsKeyId: newCmek}))
 
 	assert.Equal(t, newCmek, req.CmekOcid,
 		"kmsKeyId (UpdatePoolParams.KmsKeyId) must land on req.CmekOcid — the field VLM consumes to update the CMEK key")
-	assert.Equal(t, savedOCIConfig, req.OciConfig,
-		"the saved OCI config from the stored VLM config must be carried verbatim on req.OciConfig as reference data")
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, savedOCIConfig, gotOCI,
+		"the saved OCI config from the stored VLM config must be carried verbatim on req.ProviderConfig as reference data")
 }
 
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptyKmsKeyIdYieldsEmptyCmekOcid(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	savedOCIConfig := vlm.OCIConfig{CompartmentID: "ocid1.compartment.oc1..saved"}
 	current := vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{OCIConfig: savedOCIConfig},
+		Deployment: vlm.DeploymentConfig{ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: savedOCIConfig}},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{}))
 
 	assert.Empty(t, req.CmekOcid,
 		"empty kmsKeyId must leave req.CmekOcid empty; the workflow does not silently inject a default key")
-	assert.Equal(t, savedOCIConfig, req.OciConfig,
-		"the saved OCI config must still be carried on req.OciConfig even when no CMEK key is supplied")
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, savedOCIConfig, gotOCI,
+		"the saved OCI config must still be carried on req.ProviderConfig even when no CMEK key is supplied")
 }
 
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesNsgIdsOntoOciConfig(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
-			OCIConfig: vlm.OCIConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{
 				CustomerNSGs: []string{"ocid1.networksecuritygroup.oc1.iad.stored"},
-			},
+			}},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
@@ -4931,10 +4980,12 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesNsgIdsOntoOciConf
 		"ocid1.networksecuritygroup.oc1.iad.nsg-B",
 	}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: newNsgs})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: newNsgs}))
 
-	assert.Equal(t, newNsgs, req.OciConfig.CustomerNSGs,
-		"UpdatePoolParams.NsgIds must overwrite req.OciConfig.CustomerNSGs (order and values) so VLM applies the requested NSGs")
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, newNsgs, gotOCI.CustomerNSGs,
+		"UpdatePoolParams.NsgIds must overwrite ProviderConfig CustomerNSGs (order and values) so VLM applies the requested NSGs")
 }
 
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilNsgIdsPreservesStoredOciConfigNSGs(t *testing.T) {
@@ -4942,17 +4993,19 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilNsgIdsPreservesStoredOci
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
-			OCIConfig: vlm.OCIConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{
 				CustomerNSGs: stored,
-			},
+			}},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{}))
 
-	assert.Equal(t, stored, req.OciConfig.CustomerNSGs,
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, stored, gotOCI.CustomerNSGs,
 		"nil NsgIds on params must leave stored CustomerNSGs unchanged for VLM")
 }
 
@@ -4960,24 +5013,26 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptyNsgIdsClearsOciConfigN
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
-			OCIConfig: vlm.OCIConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{
 				CustomerNSGs: []string{"ocid1.networksecuritygroup.oc1.iad.stored"},
-			},
+			}},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: []string{}})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{NsgIds: []string{}}))
 
-	assert.Empty(t, req.OciConfig.CustomerNSGs,
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Empty(t, gotOCI.CustomerNSGs,
 		"explicit empty NsgIds must clear CustomerNSGs on the VLM request")
 }
 
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesSecurityAttributesOntoOciConfig(t *testing.T) {
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{OCIConfig: vlm.OCIConfig{}},
+		Deployment: vlm.DeploymentConfig{ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{}}},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
@@ -4987,10 +5042,12 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_PropagatesSecurityAttribute
 		},
 	}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{SecurityAttributes: attrs})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{SecurityAttributes: attrs}))
 
-	assert.Equal(t, attrs, req.OciConfig.CustomerSecurityAttributes,
-		"UpdatePoolParams.SecurityAttributes must land on req.OciConfig.CustomerSecurityAttributes verbatim; the workflow is a pass-through to VLM")
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, attrs, gotOCI.CustomerSecurityAttributes,
+		"UpdatePoolParams.SecurityAttributes must land on ProviderConfig CustomerSecurityAttributes verbatim; the workflow is a pass-through to VLM")
 }
 
 func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilSecurityAttributesPreservesStored(t *testing.T) {
@@ -5000,15 +5057,17 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_NilSecurityAttributesPreser
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
-			OCIConfig: vlm.OCIConfig{CustomerSecurityAttributes: stored},
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{CustomerSecurityAttributes: stored}},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{})
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{}))
 
-	assert.Equal(t, stored, req.OciConfig.CustomerSecurityAttributes,
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, stored, gotOCI.CustomerSecurityAttributes,
 		"nil SecurityAttributes on params must leave stored CustomerSecurityAttributes unchanged for VLM")
 }
 
@@ -5016,21 +5075,23 @@ func TestPrepareOCIUpdateVSAClusterDeploymentRequest_EmptySecurityAttributesClea
 	req := &vlm.UpdateVSAClusterDeploymentRequest{}
 	current := vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
-			OCIConfig: vlm.OCIConfig{
+			ProviderConfig: vlm.ProviderConfigWrapper{ProviderConfig: vlm.OCIConfig{
 				CustomerSecurityAttributes: map[string]map[string]interface{}{
 					"ns1": {"app": map[string]string{"value": "stored", "mode": "enforce"}},
 				},
-			},
+			}},
 		},
 	}
 	target := vlm.SPConfig{Size: "100Gi"}
 	creds := vlm.OntapCredentials{AdminPassword: "pw"}
 
-	prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{
+	require.NoError(t, prepareOCIUpdateVSAClusterDeploymentRequest(req, current, target, 1, creds, nil, &common.UpdatePoolParams{
 		SecurityAttributes: map[string]map[string]interface{}{},
-	})
+	}))
 
-	assert.Empty(t, req.OciConfig.CustomerSecurityAttributes,
+	gotOCI, ociErr := req.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Empty(t, gotOCI.CustomerSecurityAttributes,
 		"explicit empty SecurityAttributes must clear CustomerSecurityAttributes on the VLM request")
 }
 
@@ -5068,7 +5129,9 @@ func TestPrepareVLMConfig_PropagatesKmsKeyIdAsCmekOcid(t *testing.T) {
 		require.NoError(tt, err)
 		require.NotNil(tt, cfg)
 
-		assert.Equal(tt, cmek, cfg.Deployment.OCIConfig.CmekOcid,
+		ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+		require.NoError(tt, ociErr)
+		assert.Equal(tt, cmek, ociCfg.CmekOcid,
 			"CreatePoolParams.KmsKeyId (API-layer name) must round-trip into vlm.OCIConfig.CmekOcid (VLM-wire name) so VLM provisions BYOK-encrypted block volumes")
 	})
 
@@ -5080,7 +5143,9 @@ func TestPrepareVLMConfig_PropagatesKmsKeyIdAsCmekOcid(t *testing.T) {
 		cfg, err := prepareVLMConfig(params, pool, nil)
 		require.NoError(tt, err)
 
-		assert.Equal(tt, "", cfg.Deployment.OCIConfig.CmekOcid,
+		ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+		require.NoError(tt, ociErr)
+		assert.Equal(tt, "", ociCfg.CmekOcid,
 			"empty KmsKeyId must propagate as empty CmekOcid; the workflow does not silently inject a default key")
 	})
 }
@@ -5097,7 +5162,9 @@ func TestPrepareVLMConfig_PropagatesNsgIdsAsCustomerNSGs(t *testing.T) {
 	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, nsgs, cfg.Deployment.OCIConfig.CustomerNSGs,
+	ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, nsgs, ociCfg.CustomerNSGs,
 		"CreatePoolParams.NsgIds (API-layer name) must propagate verbatim (order and values) into vlm.OCIConfig.CustomerNSGs (VLM-wire name)")
 }
 
@@ -5114,7 +5181,9 @@ func TestPrepareVLMConfig_PropagatesSecurityAttributesAsCustomerSecurityAttribut
 	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, attrs, cfg.Deployment.OCIConfig.CustomerSecurityAttributes,
+	ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	assert.Equal(t, attrs, ociCfg.CustomerSecurityAttributes,
 		"CreatePoolParams.SecurityAttributes (API-layer name) must round-trip the wire-shape map verbatim into vlm.OCIConfig.CustomerSecurityAttributes (VLM-wire name); the workflow is a pass-through to VLM")
 }
 
@@ -5132,7 +5201,9 @@ func TestPrepareVLMConfig_FabricPoolConfigSet_PropagatesAllFields(t *testing.T) 
 	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 
-	got := cfg.Deployment.OCIConfig.FabricPoolConfig
+	ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	got := ociCfg.FabricPoolConfig
 	assert.Equal(t, fp.BucketName, got.BucketName, "BucketName must round-trip")
 	assert.Equal(t, fp.SecretOcid, got.SecretOcid, "SecretOcid must round-trip")
 	assert.Equal(t, fp.Namespace, got.Namespace, "Namespace must round-trip")
@@ -5147,7 +5218,9 @@ func TestPrepareVLMConfig_FabricPoolConfigNil_LeavesZeroValueFabricPool(t *testi
 	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 
-	got := cfg.Deployment.OCIConfig.FabricPoolConfig
+	ociCfg, ociErr := cfg.Deployment.ProviderConfig.AsOCI()
+	require.NoError(t, ociErr)
+	got := ociCfg.FabricPoolConfig
 	assert.Equal(t, vlm.FabricPoolConfig{}, got,
 		"nil FabricPoolConfig on params must leave vlm.OCIConfig.FabricPoolConfig as zero value (tiering disabled); "+
 			"the workflow guards the assignment with an explicit nil check")

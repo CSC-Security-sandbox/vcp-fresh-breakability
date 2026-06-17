@@ -22,6 +22,10 @@ import (
 	"gorm.io/gorm"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 // rotateCtx returns a context with the same slogger wiring the other OCI
 // orchestrator tests use, so structured-logging calls inside the function
 // under test don't panic on a nil logger.
@@ -33,9 +37,7 @@ func rotateCtx() context.Context {
 // has the given fabric-pool secret OCID, so the no-change short-circuit can
 // observe a non-empty "current" value.
 func poolWithFabricPoolSecret(state, currentSecretOcid string) *datamodel.PoolView {
-	cfg := vlm.VLMConfig{}
-	cfg.Deployment.OCIConfig.FabricPoolConfig.SecretOcid = currentSecretOcid
-	raw := fmt.Sprintf(`{"deployment":{"ociconfig":{"fabric_pool_config":{"secret_ocid":%q}}}}`, currentSecretOcid)
+	raw := fmt.Sprintf(`{"deployment":{"provider_config":{"fabric_pool_config":{"secret_ocid":%q}}}}`, currentSecretOcid)
 	return &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid", ID: 1},
@@ -356,8 +358,8 @@ func TestCurrentFabricPoolConfig_DegradedStates(t *testing.T) {
 		{name: "nil pool", pool: nil, want: ""},
 		{name: "empty config", pool: &datamodel.Pool{}, want: ""},
 		{name: "malformed json", pool: &datamodel.Pool{VLMConfig: "{not json"}, wantErr: true},
-		{name: "missing fabric_pool_config", pool: &datamodel.Pool{VLMConfig: `{"deployment":{"ociconfig":{}}}`}, want: ""},
-		{name: "present", pool: &datamodel.Pool{VLMConfig: `{"deployment":{"ociconfig":{"fabric_pool_config":{"secret_ocid":"ocid1.vaultsecret..x"}}}}`}, want: "ocid1.vaultsecret..x"},
+		{name: "missing fabric_pool_config", pool: &datamodel.Pool{VLMConfig: `{"deployment":{"provider_config":{}}}`}, want: ""},
+		{name: "present", pool: &datamodel.Pool{VLMConfig: `{"deployment":{"provider_config":{"fabric_pool_config":{"secret_ocid":"ocid1.vaultsecret..x"}}}}`}, want: "ocid1.vaultsecret..x"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(tt *testing.T) {

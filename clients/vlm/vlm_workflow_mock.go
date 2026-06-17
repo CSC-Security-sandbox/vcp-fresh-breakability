@@ -1,6 +1,8 @@
 package vlm
 
 import (
+	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/workflow"
 )
@@ -157,6 +159,11 @@ func (vlmManager *VSAClientWorkflowManagerMock) RotateFabricPoolKeys(ctx workflo
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock RotateFabricPoolKeys")
 	resp := &RotateFabricPoolKeysResponse{VLMConfig: req.VLMConfig}
-	resp.VLMConfig.Deployment.OCIConfig.FabricPoolConfig.SecretOcid = req.NewSecretOcid
+	ociCfg, err := resp.VLMConfig.Deployment.ProviderConfig.AsOCI()
+	if err != nil {
+		return nil, fmt.Errorf("mock RotateFabricPoolKeys: %w", err)
+	}
+	ociCfg.FabricPoolConfig.SecretOcid = req.NewSecretOcid
+	resp.VLMConfig.Deployment.ProviderConfig = ProviderConfigWrapper{ProviderConfig: ociCfg}
 	return resp, nil
 }

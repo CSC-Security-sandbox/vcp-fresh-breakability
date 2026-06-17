@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -20,6 +21,11 @@ import (
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
+
+func TestMain(m *testing.M) {
+	SetActiveProvider(OCICloud)
+	os.Exit(m.Run())
+}
 
 func TestWorkflowRetryPolicy(t *testing.T) {
 	t.Run("RetryPolicyCreation", func(t *testing.T) {

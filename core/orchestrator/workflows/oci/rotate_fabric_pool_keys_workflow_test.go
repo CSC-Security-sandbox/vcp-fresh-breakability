@@ -153,7 +153,11 @@ func TestOCIRotateFabricPoolKeysWorkflow_ValidateSecretFails(t *testing.T) {
 // post-rotation VLMConfig with the new SecretOcid programmed in.
 func vlmRotateResponse(newSecretOCID string) *vlm.RotateFabricPoolKeysResponse {
 	resp := &vlm.RotateFabricPoolKeysResponse{}
-	resp.VLMConfig.Deployment.OCIConfig.FabricPoolConfig.SecretOcid = newSecretOCID
+	resp.VLMConfig.Deployment.ProviderConfig = vlm.ProviderConfigWrapper{
+		ProviderConfig: vlm.OCIConfig{
+			FabricPoolConfig: vlm.FabricPoolConfig{SecretOcid: newSecretOCID},
+		},
+	}
 	return resp
 }
 
@@ -245,9 +249,15 @@ func TestOCIRotateFabricPoolKeysWorkflow_VLMRequestShape(t *testing.T) {
 func TestOCIRotateFabricPoolKeysWorkflow_PersistReceivesVLMConfig(t *testing.T) {
 	mockVlm := installMockVlmForRotate(t)
 	vlmReturned := &vlm.RotateFabricPoolKeysResponse{}
-	vlmReturned.VLMConfig.Deployment.OCIConfig.CompartmentID = "ocid1.compartment..vlm-says"
-	vlmReturned.VLMConfig.Deployment.OCIConfig.FabricPoolConfig.SecretOcid = "ocid1.vaultsecret..new"
-	vlmReturned.VLMConfig.Deployment.OCIConfig.FabricPoolConfig.BucketName = "tier-bucket"
+	vlmReturned.VLMConfig.Deployment.ProviderConfig = vlm.ProviderConfigWrapper{
+		ProviderConfig: vlm.OCIConfig{
+			CompartmentID: "ocid1.compartment..vlm-says",
+			FabricPoolConfig: vlm.FabricPoolConfig{
+				SecretOcid: "ocid1.vaultsecret..new",
+				BucketName: "tier-bucket",
+			},
+		},
+	}
 	mockVlm.EXPECT().RotateFabricPoolKeys(mock.Anything, mock.Anything).Return(vlmReturned, nil)
 
 	env := newRotateFabricPoolKeysTestEnv(t)
@@ -262,10 +272,14 @@ func TestOCIRotateFabricPoolKeysWorkflow_PersistReceivesVLMConfig(t *testing.T) 
 		mock.Anything,
 		mock.Anything,
 		mock.MatchedBy(func(cfg *vlm.VLMConfig) bool {
-			return cfg != nil &&
-				cfg.Deployment.OCIConfig.CompartmentID == "ocid1.compartment..vlm-says" &&
-				cfg.Deployment.OCIConfig.FabricPoolConfig.SecretOcid == "ocid1.vaultsecret..new" &&
-				cfg.Deployment.OCIConfig.FabricPoolConfig.BucketName == "tier-bucket"
+			if cfg == nil {
+				return false
+			}
+			oci, err := cfg.Deployment.ProviderConfig.AsOCI()
+			return err == nil &&
+				oci.CompartmentID == "ocid1.compartment..vlm-says" &&
+				oci.FabricPoolConfig.SecretOcid == "ocid1.vaultsecret..new" &&
+				oci.FabricPoolConfig.BucketName == "tier-bucket"
 		}),
 	).Return(&datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}}, nil)
 

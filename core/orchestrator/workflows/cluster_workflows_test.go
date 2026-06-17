@@ -23,6 +23,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 func TestAcceptClusterPeerWorkflow(t *testing.T) {
 	t.Run("TestAcceptClusterPeerWorkflow", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite

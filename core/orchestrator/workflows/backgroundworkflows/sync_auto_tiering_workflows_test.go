@@ -19,6 +19,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 func TestSyncVSAAutoTieringWorkflow_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

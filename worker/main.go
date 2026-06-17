@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -192,6 +193,17 @@ func main() {
 
 	cloudProvider := env.GetHyperscaler()
 	logger.Info("Cloud provider", "provider", cloudProvider)
+
+	switch cloudProvider {
+	case orchcommon.ProviderOCI:
+		vlm.SetActiveProvider(vlm.OCICloud)
+	case orchcommon.ProviderGCP:
+		vlm.SetActiveProvider(vlm.GCPCloud)
+	default:
+		logger.Error("Unsupported cloud provider, cannot initialize VLM provider factory", "provider", cloudProvider)
+		os.Exit(1)
+	}
+	logger.Info("VLM active provider set", "provider", cloudProvider)
 
 	switch workerType {
 	case workflowEngine.CustomerWorkerType:

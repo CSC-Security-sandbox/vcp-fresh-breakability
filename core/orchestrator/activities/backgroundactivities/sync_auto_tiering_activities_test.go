@@ -20,6 +20,10 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 	t.Run("UpdateAggregateInOntapSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)

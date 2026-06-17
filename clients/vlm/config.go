@@ -3,8 +3,11 @@
 package vlm
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,10 +45,17 @@ const (
 	ASUPTriggerWaitWorkflowName                = "vlm.ASUPTriggerWaitWorkflow"
 	ZoneSwitchWorkflowName                     = "vlm.ZoneSwitchWorkflow"
 	RotateFabricPoolKeysWorkflowName           = "vlm.RotateFabricPoolKeysWorkflow"
+	ExpandVSAClusterWorkflowName               = "vlm.ExpandVSAClusterWorkflow"
+	CleanupExpansionWorkflowName               = "vlm.CleanupExpansionWorkflow"
+	AggregateDeleteWorkflowName                = "vlm.AggregateDeleteWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
 	ONTAP_CREDENTIAL_ENCRYPT_KEY = "ONTAP_CREDENTIAL_ENCRYPT_KEY"
+
+	// Suffixes appended to DeploymentID to form the ONTAP cloud-target (object store) name.
+	GCPObjectStoreSuffix = "-gcp-object-store"
+	OCIObjectStoreSuffix = "-oci-object-store"
 
 	ErrorTypeVLMError       string = "VLMError"
 	ErrorTypeVLMClientError string = "VLMClientError"
@@ -79,7 +89,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	CreateVSAClusterDeploymentWorkflowName:     30 * time.Minute,
 	CreateVSASVMWorkflowName:                   15 * time.Minute,
 	ModifyVSASVMWorkflowName:                   15 * time.Minute,
-	DeleteVSASVMWorkflowName:                   15 * time.Minute,
+	DeleteVSASVMWorkflowName:                   25 * time.Minute,
 	DeleteVSAClusterDeploymentWorkflowName:     20 * time.Minute,
 	UpdateVSAClusterDeploymentWorkflowName:     120 * time.Minute,
 	UpgradeVSAClusterDeploymentWorkflowName:    300 * time.Minute,
@@ -90,9 +100,18 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	UpdateVSAMediatorWorkflowName:              30 * time.Minute,
 	UpdateLicenseWorkflowName:                  10 * time.Minute,
 	CreateVSAExpertModeUserWorkflowName:        30 * time.Minute,
-	ZoneSwitchWorkflowName:                     30 * time.Minute,
+	VSASvmUpgradeWorkflowName:                  10 * time.Minute,
+	ZoneSwitchWorkflowName:                     60 * time.Minute,
 	RotateFabricPoolKeysWorkflowName:           5 * time.Minute,
+	ExpandVSAClusterWorkflowName:               60 * time.Minute,
+	CleanupExpansionWorkflowName:               30 * time.Minute,
+	AggregateDeleteWorkflowName:                30 * time.Minute,
 }
+
+// MaxUpgradeWorkflowExecutionTimeout caps the HA-pair-scaled timeout for the
+// cluster upgrade workflow so that a wedged upgrade on large clusters cannot
+// run for many hours before failing.
+const MaxUpgradeWorkflowExecutionTimeout = 5 * time.Hour
 
 type VLMConfig struct {
 	Cloud      CloudConfig          `json:"cloud"`
@@ -104,11 +123,13 @@ type VLMConfig struct {
 }
 
 type CloudConfig struct {
-	HAPairs []HAPair `json:"ha_pair"` // sde need not fill this
+	HAPairs         []HAPair `json:"ha_pair"`            // sde need not fill this
+	LastMaxSeenNode int      `json:"last_max_seen_node"` // Highest node index ever assigned; new nodes start from here
 }
 
 type DeploymentConfigFlags struct {
-	EnableAAConfig             bool   `json:"enable_aa_config"`               // Enable AA Config for svm
+	EnableAASupportSvm         bool   `json:"enable_aa_support_svm"`          // Enable AA support for svm
+	EnableAAConfig             bool   `json:"enable_aa_config"`               // Enable AA Config for active-active deployments
 	EnableIlbSupport           bool   `json:"enable_ilb_support"`             // Enable ILB support
 	EnableNfsV364BitIdentifier string `json:"enable_nfs_v3_64bit_identifier"` // Enable NFS v3 64-bit identifier support
 	EnableNonLssdInstanceType  bool   `json:"enable_non_lssd_instance_type"`  // Enable Non LSSD instance type support
@@ -142,30 +163,29 @@ type DeploymentConfig struct {
 	VSASystemDiskConfig  map[OntapDiskType]DiskConfig `json:"vsa_system_disk_config"` // System disk configuration for VSA
 
 	// TODO: check if zone wise netconfig is required
-	NetConfig   map[VSALIFType]NetworkConfig `json:"net_config"`  // Network configuration for the deployment
-	GCPConfig   GCPConfig                    `json:"gcpconfig"`   // GCP specific configuration
-	OCIConfig   OCIConfig                    `json:"ociconfig"`   // OCI specific configuration
-	AzureConfig AzureConfig                  `json:"azureconfig"` // Azure specific configuration
-	SPConfig    SPConfig                     `json:"spconfig"`    // Storagepool specific configuration
-	DevFlags    DevFlags                     `json:"dev_flags"`   // Development flags
-	NTPServers  []string                     `json:"ntp_servers"` // NTP servers for time synchronization
-	DNSServers  []string                     `json:"dns_servers"` // DNS servers for name resolution
+	NetConfig      map[VSALIFType]NetworkConfig `json:"net_config"`      // Network configuration for the deployment
+	GCPConfig      GCPConfig                    `json:"gcpconfig"`       // GCP specific configuration
+	AzureConfig    AzureConfig                  `json:"azureconfig"`     // Azure specific configuration
+	ProviderConfig ProviderConfigWrapper        `json:"provider_config"` // Hyperscaler specific configuration
+	SPConfig       SPConfig                     `json:"spconfig"`        // Storagepool specific configuration
+	DevFlags       DevFlags                     `json:"dev_flags"`       // Development flags
+	NTPServers     []string                     `json:"ntp_servers"`     // NTP servers for time synchronization
+	DNSServers     []string                     `json:"dns_servers"`     // DNS servers for name resolution
 	// DeploymentConfigFlags added for future flags
 	DeploymentConfigFlags DeploymentConfigFlags `json:"additional_deployment_config_flags"`
 	PlacementPolicyConfig PlacementPolicyConfig `json:"placement_policy_config"`
 }
 
 type DevFlags struct {
-	ExtIPForNodeMgmt              bool `json:"ext_ip_for_node_mgmt"`          // External IP for node management
-	AllowNonDenseShapeForVsa      bool `json:"allow_non_dense_shape_for_vsa"` // Allow using non DenseIO shapes for VSA Node VMs
-	DisableDataNicTier1           bool `json:"disable_data_nic_tier1"`        // Disable Tier 1 for data NIC
-	EnablePremiumTierData         bool `json:"enable_premium_tier_data"`      // Enable Premium Tier for data NIC
-	DisableGVNIC                  bool
-	EnableNfsV3Support            bool `json:"enable_nfs_v3_support"`             // Enable NFS v3 support
-	EnableIlbSupport              bool `json:"enable_ilb_support"`                // Enable ILB support
-	DisableBootDiskSnapshotPolicy bool `json:"disable_boot_disk_snapshot_policy"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
-	DisableAzureVNetCreation      bool `json:"disable_azure_vnet_creation"`       // Skip Azure VNet/subnet/NSG creation and use existing network
-	UseSecondaryIPsForLIFs        bool `json:"use_secondary_ips_for_lifs"`        // OCI: use secondary IPs for all LIFs (movable between VMs); false = use primary IPs (existing behaviour)
+	ExtIPForNodeMgmt              bool                    `json:"ext_ip_for_node_mgmt,omitempty"`     // External IP for node management
+	DisableDataNicTier1           bool                    `json:"disable_data_nic_tier1,omitempty"`   // Disable Tier 1 for data NIC
+	EnablePremiumTierData         bool                    `json:"enable_premium_tier_data,omitempty"` // Enable Premium Tier for data NIC
+	DisableGVNIC                  bool                    `json:"disable_gvnic,omitempty"`
+	EnableNfsV3Support            bool                    `json:"enable_nfs_v3_support,omitempty"`             // Enable NFS v3 support
+	EnableIlbSupport              bool                    `json:"enable_ilb_support,omitempty"`                // Enable ILB support
+	DisableBootDiskSnapshotPolicy bool                    `json:"disable_boot_disk_snapshot_policy,omitempty"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
+	DisableAzureVNetCreation      bool                    `json:"disable_azure_vnet_creation,omitempty"`       // Skip Azure VNet/subnet/NSG creation and use existing network
+	ProviderDevFlags              ProviderDevFlagsWrapper `json:"provider_dev_flags,omitempty"`
 }
 
 type SnapshotConfig struct {
@@ -223,8 +243,8 @@ type AzureConfig struct {
 	AdminUsername        string     `json:"admin_username"`
 	AdminPassword        string     `json:"admin_password"`
 	SSHPublicKey         string     `json:"ssh_public_key"`
-	SharedHAType         string     `json:"shared_ha_type"`    // Valid values: lrs, zrs, pageblob
-	DataStorageType      string     `json:"data_storage_type"` // "esan", "pv2", or "both" (default: "both")
+	AvailabilityMode     string     `json:"availability_mode,omitempty"` // Azure availability mode: "zrs" (default) or "lrs".
+	DataStorageType      string     `json:"data_storage_type"`           // "esan", "pv2", or "both" (default: "both")
 	RootStorageType      string     `json:"root_storage_type"` // "esan", "pv2", or "both" (default: "both")
 	ESANConfig           ESANConfig `json:"esan_config"`
 }
@@ -232,9 +252,15 @@ type AzureConfig struct {
 // ESANConfig holds Azure Elastic SAN configuration.
 // Names are derived from deployment_id if not provided.
 type ESANConfig struct {
-	ESANName        string           `json:"esan_name"`         // derived: {deployment_id}-esan
-	VolumeGroupName string           `json:"volume_group_name"` // derived: {deployment_id}-vg
-	Volumes         []ESANVolumeInfo `json:"volumes"`           // populated after creation
+	ESANName                     string           `json:"esan_name"`                                    // derived: {deployment_id}-esan
+	VolumeGroupName              string           `json:"volume_group_name"`                            // derived: {deployment_id}-vg
+	CreatePrivateEndpoint        *bool            `json:"create_private_endpoint,omitempty"`
+	PrivateEndpointName          string           `json:"private_endpoint_name,omitempty"`               // name of the private endpoint
+	PrivateEndpointResourceGroup string           `json:"private_endpoint_resource_group,omitempty"`     // resource group for the private endpoint
+	PrivateEndpointSubnetID      string           `json:"private_endpoint_subnet_id,omitempty"`          // subnet for the private endpoint
+	PrivateEndpointID            string           `json:"private_endpoint_id,omitempty"`                 // set by the create workflow when CreatePrivateEndpoint is used
+	PrivateEndpointIPAddress     string           `json:"private_endpoint_ip_address,omitempty"`         // PE NIC private IP for iSCSI when using private link
+	Volumes                      []ESANVolumeInfo `json:"volumes"`                                      // populated after creation
 }
 
 // ESANVolumeInfo holds iSCSI target info for a single ESAN volume.
@@ -246,6 +272,12 @@ type ESANVolumeInfo struct {
 	SizeGiB          int64  `json:"size_gib"`
 	VolumeType       string `json:"volume_type"` // "data" or "root"
 }
+
+// AzureAvailabilityMode constants
+const (
+	AzureAvailabilityModeLRS = "lrs"
+	AzureAvailabilityModeZRS = "zrs"
+)
 
 // Storage type constants for Azure data/root disk configuration.
 const (
@@ -408,7 +440,8 @@ type VMConfig struct {
 	DataDisks             []DiskConfig             `json:"data_disks"`              // List of data disks for the VM
 	VSAManagementIP       string                   `json:"vsa_management_ip"`       // VSA management IP for the VM
 	AdditionalVmResources AdditionalVmResources    `json:"additional_vm_resources"` // additional resources
-	OCIVMInstanceID       string                   `json:"oci_vm_instance_id"`      // OCI VM instance ID
+	VMInstanceID          string                   `json:"vm_instance_id"`          // VM instance ID (cloud-agnostic)
+	BootDiskID            string                   `json:"boot_disk_id"`            // Boot disk ID (cloud-agnostic)
 }
 
 // GCP Only: Used for ZiZs workflow
@@ -438,9 +471,10 @@ const (
 type VSALIFType string
 
 const (
-	LIFTypeNodeMgmt         VSALIFType = "nodemgmt"
-	LIFTypeNodeMgmtInternal VSALIFType = "nodemgmtinternal"
-	LIFTypeIC               VSALIFType = "ic"
+	LIFTypeNodeMgmt          VSALIFType = "nodemgmt"
+	LIFTypeNodeMgmtInternal  VSALIFType = "nodemgmtinternal"
+	LIFTypeNodeMgmtSecondary VSALIFType = "nodemgmtsecondary"
+	LIFTypeIC                VSALIFType = "ic"
 	LIFTypeCluster          VSALIFType = "clus"
 	LIFTypeInterCluster     VSALIFType = "intercluster"
 	LIFTypeRSM              VSALIFType = "rsm"
@@ -463,23 +497,24 @@ type LIFConfig struct {
 }
 
 type NetworkConfig struct {
-	Subnet             string             `json:"subnet"`  //Subnet for the NIC
-	VPC                string             `json:"vpc"`     //VPC for the NIC
-	Gateway            string             `json:"gateway"` //Gateway for the subnet
-	Netmask            string             `json:"netmask"` //Netmask for the subnet
-	GCPNetworkConfig   GCPNetworkConfig   `json:"gcp_network_config"`
-	OCINetworkConfig   OCINetworkConfig   `json:"oci_network_config"`
-	AzureNetworkConfig AzureNetworkConfig `json:"azure_network_config"`
+	Subnet                string                       `json:"subnet,omitempty"`  //Subnet for the NIC
+	VPC                   string                       `json:"vpc,omitempty"`     //VPC for the NIC
+	Gateway               string                       `json:"gateway,omitempty"` //Gateway for the subnet
+	Netmask               string                       `json:"netmask,omitempty"` //Netmask for the subnet
+	GCPNetworkConfig      GCPNetworkConfig             `json:"gcp_network_config,omitempty"`
+	ProviderNetworkConfig ProviderNetworkConfigWrapper `json:"provider_network_config,omitempty"`
+	AzureNetworkConfig    AzureNetworkConfig           `json:"azure_network_config,omitempty"`
 }
 
 type VsaClusterConfig struct {
-	ClusterMgmtNetmask  string `json:"cluster_mgmt_netmask"`
-	ClusterMgmtGateway  string `json:"cluster_mgmt_gateway"`
-	CustBroadcastDomain string `json:"cust_broadcast_domain"`
-	CustIPSpace         string `json:"cust_ip_space"`
-	ObjectStoreName     string `json:"object_store_name"`
-	ClusterName         string `json:"cluster_name"` // Name of the VSA cluster
-	AutoTierThreshold   int64  `json:"auto_tier_threshold"`
+	ClusterMgmtNetmask    string `json:"cluster_mgmt_netmask"`
+	ClusterMgmtGateway    string `json:"cluster_mgmt_gateway"`
+	CustBroadcastDomain   string `json:"cust_broadcast_domain"`
+	CustIPSpace           string `json:"cust_ip_space"`
+	ObjectStoreName       string `json:"object_store_name"`
+	ClusterName           string `json:"cluster_name"` // Name of the VSA cluster
+	AutoTierThreshold     int64  `json:"auto_tier_threshold"`
+	AutoTierThresholdFlag bool   `json:"auto_tier_threshold_flag"`
 }
 
 type SvmLIFConfigs map[VSALIFType][]LIFConfig
@@ -500,16 +535,17 @@ type DataAggrConfig struct {
 }
 
 type DiskConfig struct {
-	Name           string        `json:"name"`
-	Size           uint64        `json:"size"`        // in GB
-	AccessMode     string        `json:"access_mode"` // READ_WRITE or READ_WRITE_MANY
-	Type           string        `json:"type"`        // Disk type (e.g., pd-standard, pd-ssd)
-	DiskIops       int64         `json:"disk_iops"`
-	DiskThroughput int64         `json:"disk_throughput"`
-	ResourceStatus string        `json:"resource_status"` // Status of the resource
-	Zone           string        `json:"zone"`            // Zone for the disk
-	GCPDiskConfig  GCPDiskConfig `json:"gcp_disk_config"` // GCP specific disk configuration
-	OCIDiskConfig  OCIDiskConfig `json:"oci_disk_config"` // OCI specific disk configuration
+	Name               string                    `json:"name,omitempty"`
+	Size               uint64                    `json:"size,omitempty"`        // in GB
+	AccessMode         string                    `json:"access_mode,omitempty"` // READ_WRITE or READ_WRITE_MANY
+	Type               string                    `json:"type,omitempty"`        // Disk type (e.g., pd-standard, pd-ssd)
+	DiskIops           int64                     `json:"disk_iops,omitempty"`
+	DiskThroughput     int64                     `json:"disk_throughput,omitempty"`
+	ResourceStatus     string                    `json:"resource_status,omitempty"` // Status of the resource
+	Zone               string                    `json:"zone,omitempty"`            // Zone for the disk
+	IsAttached         bool                      `json:"is_attached,omitempty"`     // True if the disk is currently attached to a VM instance
+	GCPDiskConfig      GCPDiskConfig             `json:"gcp_disk_config,omitempty"` // GCP specific disk configuration
+	ProviderDiskConfig ProviderDiskConfigWrapper `json:"provider_disk_config,omitempty"`
 	// TODO: Add resource status
 }
 
@@ -526,9 +562,9 @@ type OCIDiskConfig struct {
 	DevicePath          string                            `json:"device_path"`
 	DiskOciID           string                            `json:"disk_oci_id"`    // OCID for the disk
 	CompartmentID       string                            `json:"compartment_id"` // OCI Compartment ID
-	FreeFormTags        map[string]string                 `json:"freeform_tags"`  // Free form tags for OCI resources
-	DefinedTags         map[string]map[string]interface{} `json:"defined_tags"`   // Defined tags for OCI resources
-	// Add other OCI-specific fields here if needed
+	FreeFormTags        map[string]string                 `json:"freeform_tags"`       // Free form tags for OCI resources
+	DefinedTags         map[string]map[string]interface{} `json:"defined_tags"`        // Defined tags for OCI resources
+	CmekOcid            string                            `json:"cmek_ocid,omitempty"` // CMEK OCID to encrypt the disk if given.
 }
 
 type CreateSVMRequest struct {
@@ -565,23 +601,24 @@ type ModifySVMResponse struct {
 }
 
 type UpdateVSAClusterDeploymentRequest struct {
-	VLMConfig                VLMConfig          `json:"vlm_config"`                       // VLM configuration
-	NumHAPair                int                `json:"num_ha_pair"`                      // Number of HA pairs to be created
-	SPConfig                 SPConfig           `json:"spconfig"`                         // Storagepool specific configuration
-	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`                // ONTAP credentials for the VSA cluster
-	NewInstanceType          string             `json:"new_instance_type"`                // Instance type for the storage pool
-	DataDiskVpus             *int64             `json:"data_disk_vpus,omitempty"`         // OCI only: per-data-disk VPU override (1..120, step 10); nil = leave unchanged
-	VSAFlexOcpus             *float32           `json:"vsa_flex_ocpus,omitempty"`         // OCI only: VSA flex OCPUs for update (applied to VLMConfig when set); nil = leave unchanged
-	VSAFlexMemoryInGBs       *float32           `json:"vsa_flex_memory_in_gbs,omitempty"` // OCI only: VSA flex memory in GB for update (applied to VLMConfig when set); nil = leave unchanged
-	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                    // ONTAP upgrade configuration
-	HAPairIndices            []int              `json:"ha_pair_indices"`                  // Selected HA pair indices for targeted operations
-	ITCRecovery              bool               `json:"itc_recovery"`                     // Flag to indicate if this is a recovery operation (ITC)
-	BucketName               string             `json:"bucket_name"`                      // GCP Bucket Name
-	AutoTierThreshold        int64              `json:"auto_tier_threshold"`              // Auto tiering threshold percentage (0-100)
-	AllowHAPairLimitOverride bool               `json:"allow_ha_pair_limit_override"`     // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
-	AutoTierThresholdFlag    bool               `json:"auto_tier_threshold_flag"`         // Auto tiering threshold flag
-	OciConfig                OCIConfig          `json:"oci_config"`                       // OCI configuration
-	CmekOcid                 string             `json:"cmek_ocid"`                        // Update the CMEK encryption key
+	VLMConfig                VLMConfig             `json:"vlm_config"`                       // VLM configuration
+	NumHAPair                int                   `json:"num_ha_pair"`                      // Number of HA pairs to be created
+	SPConfig                 SPConfig              `json:"spconfig"`                         // Storagepool specific configuration
+	OntapCredentials         OntapCredentials      `json:"ontap_credentials"`                // ONTAP credentials for the VSA cluster
+	NewInstanceType          string                `json:"new_instance_type"`                // Instance type for the storage pool
+	DataDiskVpus             *int64                `json:"data_disk_vpus,omitempty"`         // OCI only: per-data-disk VPU override (1..120, step 10); nil = leave unchanged
+	VSAFlexOcpus             *float32              `json:"vsa_flex_ocpus,omitempty"`         // OCI only: VSA flex OCPUs for update (applied to VLMConfig when set); nil = leave unchanged
+	VSAFlexMemoryInGBs       *float32              `json:"vsa_flex_memory_in_gbs,omitempty"` // OCI only: VSA flex memory in GB for update (applied to VLMConfig when set); nil = leave unchanged
+	OntapUpgrade             OntapUpgradeConfig    `json:"ontap_upgrade"`                    // ONTAP upgrade configuration
+	HAPairIndices            []int                 `json:"ha_pair_indices"`                  // Selected HA pair indices for targeted operations
+	ITCRecovery              bool                  `json:"itc_recovery"`                     // Flag to indicate if this is a recovery operation (ITC)
+	DisableNativeITC         bool                  `json:"disable_native_itc"`               // GCP only: default false uses in-place native ITC; true selects VM-replacement ITC. Ignored on OCI.
+	BucketName               string                `json:"bucket_name"`                      // GCP Bucket Name
+	AutoTierThreshold        int64                 `json:"auto_tier_threshold"`              // Auto tiering threshold percentage (0-100)
+	AllowHAPairLimitOverride bool                  `json:"allow_ha_pair_limit_override"`     // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
+	AutoTierThresholdFlag    bool                  `json:"auto_tier_threshold_flag"`         // Auto tiering threshold flag
+	ProviderConfig           ProviderConfigWrapper `json:"provider_config,omitempty"`        // Hyperscaler-specific configuration
+	CmekOcid                 string                `json:"cmek_ocid"`                        // Update the CMEK encryption key
 }
 
 type UpdateMediatorRequest struct {
@@ -641,15 +678,10 @@ type UpgradeVSAClusterDeploymentResponse struct {
 }
 
 type DeleteVSAClusterDeploymentRequest struct {
-	CloudProvider     string             `json:"cloud_provider"`
-	DeploymentID      string             `json:"deployment_id"`
-	ProjectID         string             `json:"project_id"`
-	HyperScalerConfig *HyperScalerConfig `json:"hyper_scaler_config"`
-}
-
-type HyperScalerConfig struct {
-	GCPConfig GCPConfig `json:"gcp_config"`
-	OCIConfig OCIConfig `json:"oci_config"`
+	CloudProvider  string                `json:"cloud_provider,omitempty"`
+	DeploymentID   string                `json:"deployment_id,omitempty"`
+	ProjectID      string                `json:"project_id,omitempty"`
+	ProviderConfig ProviderConfigWrapper `json:"provider_config,omitempty"`
 }
 
 // DeployVSACluster deploys a VSA cluster using the provided deployment configuration.
@@ -667,6 +699,7 @@ type ZoneSwitchRequest struct {
 	VLMConfig        VLMConfig        `json:"vlm_config"`
 	OntapCredentials OntapCredentials `json:"ontap_credentials"`
 	Action           string           `json:"action"` // "switch" (VM1→VM2) or "revert" (VM2→VM1)
+	AggrNames        []string         `json:"aggr_names,omitempty"`
 }
 
 type ZoneSwitchResponse struct {
@@ -680,6 +713,44 @@ type RotateFabricPoolKeysRequest struct {
 }
 
 type RotateFabricPoolKeysResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+type SVMExpansionRequest struct {
+	VLMConfig                VLMConfig          `json:"vlm_config"`
+	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`
+	NewSPHAPairConfig        []SPHAPairConfig   `json:"new_sp_hapair_config"`                   // Aggregate configs for only the newly added HA pairs
+	AllocatedProbePortsBySVM map[string][]int32 `json:"allocated_probe_ports_by_svm,omitempty"` // Per-SVM ILB probe ports, keyed by SVM name.
+}
+
+type SVMExpansionResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+type ExpandVSAClusterRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	NewHAPairConfigs []SPHAPairConfig `json:"new_ha_pair_configs"` // Per-HA-pair configs for the new HA pairs only
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+}
+
+type ExpandVSAClusterResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+// CleanupExpansionResponse carries the pruned VLMConfig after a failed
+// expansion has been cleaned up. The new HA pairs, their cloud resources,
+// any partially-created aggregates, and associated config entries are removed.
+type CleanupExpansionResponse struct {
+	Error VLMClientError `json:"error,omitempty"`
+}
+
+type AggregateDeleteWorkflowRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+	AggrNames        []string         `json:"aggr_names"`
+}
+
+type AggregateDeleteWorkflowResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
@@ -737,5 +808,299 @@ type PlacementPolicyConfig struct {
 type GCPPlacementPolicyConfig struct {
 	PolicyConfig       string `json:"policy_config"`         // SPREAD_SINGLE, COMPACT_SINGLE, SPREAD_MULTI, COMPACT_MULTI
 	CompactMaxDistance int32  `json:"compact_max_distance"`  // Compact configs only: Max distance for COMPACT configs
-	SpreadMultiADCount int32  `json:"spread_multi_ad_count"` // SPREAD_MULTI config only: Number of availability domains for SPREAD_MULTI config
+	SpreadMultiADCount int32  `json:"spread_multi_ad_count"` // When > 0, copied into spread_ad_count via SyncSpreadADCountFromMulti
+	SpreadADCount      int32  `json:"spread_ad_count"`       // Canonical AD count used for all spread placement policies
+}
+
+// Cloud-agnostic provider config wrappers.
+//
+// Each wrapper hides the concrete provider type (GCP, OCI, Azure) behind an
+// interface so shared structs like DeploymentConfig don't leak provider-
+// specific fields. JSON round-tripping is handled by a factory registered
+// at startup via SetActiveProvider.
+//
+// Usage:
+//
+//	vlm.SetActiveProvider(vlm.OCICloud) // once, at process start
+//	oci, err := cfg.ProviderConfig.AsOCI()
+
+// providerFactory wires up constructors for the active cloud provider.
+// Registered once at startup; used by every wrapper's UnmarshalJSON.
+type providerFactory struct {
+	NewProviderConfig     func() interface{}
+	NewProviderDiskConfig func() interface{}
+	NewProviderNetConfig  func() interface{}
+	NewProviderDevFlags   func() interface{}
+}
+
+var (
+	activeFactory *providerFactory
+	factoryOnce   sync.Once
+)
+
+// SetActiveProvider registers the concrete types for the running cloud
+// provider. Must be called once at process startup before any JSON
+// unmarshalling of wrapper types (e.g. in main() or TestMain()).
+func SetActiveProvider(provider string) {
+	factories := map[string]*providerFactory{
+		OCICloud: {
+			NewProviderConfig:     func() interface{} { return &OCIConfig{} },
+			NewProviderDiskConfig: func() interface{} { return &OCIDiskConfig{} },
+			NewProviderNetConfig:  func() interface{} { return &OCINetworkConfig{} },
+			NewProviderDevFlags:   func() interface{} { return &OCIDevFlags{} },
+		},
+		GCPCloud: {
+			NewProviderConfig:     func() interface{} { return &GCPConfig{} },
+			NewProviderDiskConfig: func() interface{} { return &GCPDiskConfig{} },
+			NewProviderNetConfig:  func() interface{} { return &GCPNetworkConfig{} },
+			NewProviderDevFlags:   func() interface{} { return &GCPDevFlags{} },
+		},
+	}
+	f, ok := factories[provider]
+	if !ok {
+		return
+	}
+	factoryOnce.Do(func() {
+		activeFactory = f
+	})
+}
+
+// ResetActiveProvider tears down the factory so a different provider can be
+// set. Test-only -- production code calls SetActiveProvider exactly once.
+func ResetActiveProvider() {
+	factoryOnce = sync.Once{}
+	activeFactory = nil
+}
+
+func getFactory() (*providerFactory, error) {
+	if activeFactory == nil {
+		return nil, fmt.Errorf("vlm: no active provider set; call SetActiveProvider first")
+	}
+	return activeFactory, nil
+}
+
+func unmarshalWithFactory(newFn func() interface{}, data []byte) (interface{}, error) {
+	if newFn == nil {
+		return nil, fmt.Errorf("vlm: factory function is nil for this wrapper type")
+	}
+	v := newFn()
+	if err := json.Unmarshal(data, v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// AsProviderType extracts a concrete provider type from an interface value.
+// Handles both pointer and value receivers from the factory.
+func AsProviderType[T any](v interface{}) (T, error) {
+	if v == nil {
+		var zero T
+		return zero, fmt.Errorf("vlm: provider config is nil")
+	}
+	if ptr, ok := v.(*T); ok {
+		return *ptr, nil
+	}
+	if val, ok := v.(T); ok {
+		return val, nil
+	}
+	var zero T
+	return zero, fmt.Errorf("vlm: cannot convert %T to %T", v, zero)
+}
+
+// ProviderConfig abstracts hyperscaler-specific deployment configuration.
+// Implemented by GCPConfig, OCIConfig (and AzureConfig when onboarded).
+type ProviderConfig interface {
+	GetProvider() string
+}
+
+func (g GCPConfig) GetProvider() string { return GCPCloud }
+func (o OCIConfig) GetProvider() string { return OCICloud }
+
+// ProviderConfigWrapper holds a ProviderConfig with custom JSON handling
+// so the concrete type survives serialization across Temporal boundaries.
+type ProviderConfigWrapper struct {
+	ProviderConfig
+}
+
+func (w *ProviderConfigWrapper) UnmarshalJSON(data []byte) error {
+	f, err := getFactory()
+	if err != nil {
+		return err
+	}
+	v, err := unmarshalWithFactory(f.NewProviderConfig, data)
+	if err != nil {
+		return err
+	}
+	pc, ok := v.(ProviderConfig)
+	if !ok {
+		return fmt.Errorf("vlm: factory returned %T which does not implement ProviderConfig", v)
+	}
+	w.ProviderConfig = pc
+	return nil
+}
+
+func (w ProviderConfigWrapper) MarshalJSON() ([]byte, error) {
+	if w.ProviderConfig == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(w.ProviderConfig)
+}
+
+func (w ProviderConfigWrapper) AsOCI() (OCIConfig, error) {
+	return AsProviderType[OCIConfig](w.ProviderConfig)
+}
+
+func (w ProviderConfigWrapper) AsGCP() (GCPConfig, error) {
+	return AsProviderType[GCPConfig](w.ProviderConfig)
+}
+
+// ProviderDiskConfig abstracts hyperscaler-specific disk configuration.
+// Implemented by GCPDiskConfig, OCIDiskConfig.
+type ProviderDiskConfig interface {
+	GetDiskConfigProvider() string
+}
+
+func (g GCPDiskConfig) GetDiskConfigProvider() string { return GCPCloud }
+func (o OCIDiskConfig) GetDiskConfigProvider() string { return OCICloud }
+
+// ProviderDiskConfigWrapper holds a ProviderDiskConfig with custom JSON
+// handling, same pattern as ProviderConfigWrapper.
+type ProviderDiskConfigWrapper struct {
+	ProviderDiskConfig
+}
+
+func (w *ProviderDiskConfigWrapper) UnmarshalJSON(data []byte) error {
+	f, err := getFactory()
+	if err != nil {
+		return err
+	}
+	v, err := unmarshalWithFactory(f.NewProviderDiskConfig, data)
+	if err != nil {
+		return err
+	}
+	dc, ok := v.(ProviderDiskConfig)
+	if !ok {
+		return fmt.Errorf("vlm: factory returned %T which does not implement ProviderDiskConfig", v)
+	}
+	w.ProviderDiskConfig = dc
+	return nil
+}
+
+func (w ProviderDiskConfigWrapper) MarshalJSON() ([]byte, error) {
+	if w.ProviderDiskConfig == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(w.ProviderDiskConfig)
+}
+
+func (w ProviderDiskConfigWrapper) AsOCI() (OCIDiskConfig, error) {
+	return AsProviderType[OCIDiskConfig](w.ProviderDiskConfig)
+}
+
+func (w ProviderDiskConfigWrapper) AsGCP() (GCPDiskConfig, error) {
+	return AsProviderType[GCPDiskConfig](w.ProviderDiskConfig)
+}
+
+// ProviderNetworkConfig abstracts hyperscaler-specific network configuration.
+// Implemented by GCPNetworkConfig, OCINetworkConfig.
+type ProviderNetworkConfig interface {
+	GetNetConfigProvider() string
+}
+
+func (g GCPNetworkConfig) GetNetConfigProvider() string { return GCPCloud }
+func (o OCINetworkConfig) GetNetConfigProvider() string { return OCICloud }
+
+// ProviderNetworkConfigWrapper holds a ProviderNetworkConfig with custom JSON
+// handling, same pattern as ProviderConfigWrapper.
+type ProviderNetworkConfigWrapper struct {
+	ProviderNetworkConfig
+}
+
+func (w *ProviderNetworkConfigWrapper) UnmarshalJSON(data []byte) error {
+	f, err := getFactory()
+	if err != nil {
+		return err
+	}
+	v, err := unmarshalWithFactory(f.NewProviderNetConfig, data)
+	if err != nil {
+		return err
+	}
+	nc, ok := v.(ProviderNetworkConfig)
+	if !ok {
+		return fmt.Errorf("vlm: factory returned %T which does not implement ProviderNetworkConfig", v)
+	}
+	w.ProviderNetworkConfig = nc
+	return nil
+}
+
+func (w ProviderNetworkConfigWrapper) MarshalJSON() ([]byte, error) {
+	if w.ProviderNetworkConfig == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(w.ProviderNetworkConfig)
+}
+
+func (w ProviderNetworkConfigWrapper) AsOCI() (OCINetworkConfig, error) {
+	return AsProviderType[OCINetworkConfig](w.ProviderNetworkConfig)
+}
+
+func (w ProviderNetworkConfigWrapper) AsGCP() (GCPNetworkConfig, error) {
+	return AsProviderType[GCPNetworkConfig](w.ProviderNetworkConfig)
+}
+
+// ProviderDevFlags abstracts hyperscaler-specific development/debug flags.
+// Implemented by OCIDevFlags, GCPDevFlags.
+type ProviderDevFlags interface {
+	GetDevFlagsProvider() string
+}
+
+// OCIDevFlags captures OCI-only dev flags that were previously on DevFlags
+// directly. Moved here so they don't leak into GCP/Azure configs.
+type OCIDevFlags struct {
+	AllowNonDenseShapeForVsa bool `json:"allow_non_dense_shape_for_vsa,omitempty"`
+	UseSecondaryIPsForLIFs   bool `json:"use_secondary_ips_for_lifs,omitempty"`
+}
+
+// GCPDevFlags is a placeholder; GCP has no provider-specific dev flags today.
+type GCPDevFlags struct{}
+
+func (o OCIDevFlags) GetDevFlagsProvider() string { return OCICloud }
+func (g GCPDevFlags) GetDevFlagsProvider() string { return GCPCloud }
+
+// ProviderDevFlagsWrapper holds a ProviderDevFlags with custom JSON handling,
+// same pattern as ProviderConfigWrapper.
+type ProviderDevFlagsWrapper struct {
+	ProviderDevFlags
+}
+
+func (w *ProviderDevFlagsWrapper) UnmarshalJSON(data []byte) error {
+	f, err := getFactory()
+	if err != nil {
+		return err
+	}
+	v, err := unmarshalWithFactory(f.NewProviderDevFlags, data)
+	if err != nil {
+		return err
+	}
+	df, ok := v.(ProviderDevFlags)
+	if !ok {
+		return fmt.Errorf("vlm: factory returned %T which does not implement ProviderDevFlags", v)
+	}
+	w.ProviderDevFlags = df
+	return nil
+}
+
+func (w ProviderDevFlagsWrapper) MarshalJSON() ([]byte, error) {
+	if w.ProviderDevFlags == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(w.ProviderDevFlags)
+}
+
+func (w ProviderDevFlagsWrapper) AsOCI() (OCIDevFlags, error) {
+	return AsProviderType[OCIDevFlags](w.ProviderDevFlags)
+}
+
+func (w ProviderDevFlagsWrapper) AsGCP() (GCPDevFlags, error) {
+	return AsProviderType[GCPDevFlags](w.ProviderDevFlags)
 }

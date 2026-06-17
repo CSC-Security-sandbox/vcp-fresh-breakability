@@ -582,16 +582,20 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 		VSAInstanceType:      ociConfig.VSAInstanceShape,
 		MediatorInstanceType: ociMediatorInstanceType,
 		DataDiskCount:        dataDiskCount,
-		OCIConfig:            ociConfig,
+		ProviderConfig:       vlm.ProviderConfigWrapper{ProviderConfig: ociConfig},
 		SPConfig: vlm.SPConfig{
 			Size:       sizeStr,
 			IOps:       iops,
 			Throughput: throughputMibps,
 		},
 		DevFlags: vlm.DevFlags{
-			ExtIPForNodeMgmt:         extIPForNodeMgmt,
-			AllowNonDenseShapeForVsa: allowNonDenseShapeForVSA,
-			UseSecondaryIPsForLIFs:   useSecondaryIPsForLIFs,
+			ExtIPForNodeMgmt: extIPForNodeMgmt,
+			ProviderDevFlags: vlm.ProviderDevFlagsWrapper{
+				ProviderDevFlags: vlm.OCIDevFlags{
+					AllowNonDenseShapeForVsa: allowNonDenseShapeForVSA,
+					UseSecondaryIPsForLIFs:   useSecondaryIPsForLIFs,
+				},
+			},
 		},
 		DeploymentConfigFlags: vlm.DeploymentConfigFlags{
 			EnableAAConfig: enableAAConfig,
@@ -879,8 +883,8 @@ func prepareOCIDeleteVSAClusterDeploymentRequest(req *vlm.DeleteVSAClusterDeploy
 	req.CloudProvider = vlm.OCICloud
 	req.DeploymentID = pool.DeploymentName
 	req.ProjectID = tenancyOCID
-	req.HyperScalerConfig = &vlm.HyperScalerConfig{
-		OCIConfig: vlm.OCIConfig{
+	req.ProviderConfig = vlm.ProviderConfigWrapper{
+		ProviderConfig: &vlm.OCIConfig{
 			CompartmentID: pool.ClusterDetails.CompartmentOCID,
 			DefinedTags:   ociDefinedTags(pool.DeploymentName),
 		},
@@ -1179,7 +1183,7 @@ func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		"targetIOps", targetSPConfig.IOps,
 		"targetNumHAPairs", targetNumHAPairs,
 	)
-	
+
 	credConfig := &vlm.OntapCredentials{}
 	credCtx := workflow.WithActivityOptions(ctx, ao)
 	if err = workflow.ExecuteActivity(credCtx, poolActivity.GetOnTapCredentialsForOCI, pool).Get(credCtx, credConfig); err != nil {
@@ -1496,7 +1500,7 @@ func prepareOCIUpdateVSAClusterDeploymentRequest(
 	credentials vlm.OntapCredentials,
 	decision *vmrs_oci.Decision,
 	params *common.UpdatePoolParams,
-) {
+) error {
 	req.VLMConfig = currentVlmConfig
 	req.NumHAPair = targetNumHAPair
 	req.SPConfig = targetSPConfig
@@ -1504,13 +1508,17 @@ func prepareOCIUpdateVSAClusterDeploymentRequest(
 	req.BucketName = ""
 	// Match GCP sentinel: skip auto-tier threshold update when no bucket/object store path applies.
 	req.AutoTierThreshold = -1
-	req.OciConfig = currentVlmConfig.Deployment.OCIConfig
+	ociCfg, err := currentVlmConfig.Deployment.ProviderConfig.AsOCI()
+	if err != nil {
+		return fmt.Errorf("failed to extract OCI provider config from stored VLMConfig: %w", err)
+	}
 	if params.NsgIds != nil {
-		req.OciConfig.CustomerNSGs = params.NsgIds
+		ociCfg.CustomerNSGs = params.NsgIds
 	}
 	if params.SecurityAttributes != nil {
-		req.OciConfig.CustomerSecurityAttributes = params.SecurityAttributes
+		ociCfg.CustomerSecurityAttributes = params.SecurityAttributes
 	}
+	req.ProviderConfig = vlm.ProviderConfigWrapper{ProviderConfig: ociCfg}
 	req.CmekOcid = params.KmsKeyId
 
 	if decision != nil {
@@ -1523,6 +1531,7 @@ func prepareOCIUpdateVSAClusterDeploymentRequest(
 		req.DataDiskVpus = &vpu
 		req.SPConfig.IOps = decision.IOPS
 	}
+	return nil
 }
 
 func executeOCIUpdatePoolVLMInBatches(
@@ -1561,7 +1570,9 @@ func executeOCIUpdatePoolVLMInBatches(
 	for batchNum := 0; batchNum < batchPlan.NumWorkflowCalls; batchNum++ {
 		batchIndices := batchPlan.BatchIndices[batchNum]
 		updateReq := &vlm.UpdateVSAClusterDeploymentRequest{}
-		prepareOCIUpdateVSAClusterDeploymentRequest(updateReq, current, targetSPConfig, targetNumHAPair, credConfig, decision, params)
+		if err := prepareOCIUpdateVSAClusterDeploymentRequest(updateReq, current, targetSPConfig, targetNumHAPair, credConfig, decision, params); err != nil {
+			return nil, fmt.Errorf("batch %d: %w", batchNum+1, err)
+		}
 		updateReq.HAPairIndices = batchIndices
 
 		logger.Info("OCI update pool VLM batch",

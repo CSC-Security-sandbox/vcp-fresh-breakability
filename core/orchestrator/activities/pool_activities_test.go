@@ -63,6 +63,10 @@ import (
 	"gorm.io/gorm"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 func assertTemporalApplicationError(t *testing.T, err error, expectedMsg, expectedType string, expectedNonRetryable bool) {
 	t.Helper()
 	var appErr *temporal.ApplicationError

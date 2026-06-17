@@ -24,6 +24,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func init() {
+	vlm.SetActiveProvider(vlm.OCICloud)
+}
+
 type RBACWorkflowTestSuite struct {
 	suite.Suite
 	testsuite.WorkflowTestSuite
