@@ -6,12 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
@@ -22,6 +18,9 @@ import (
 // checkDeleteProtectionAtDeleteAPI mirrors the delete-protection handling inlined in DeleteVolume.
 func checkDeleteProtectionAtDeleteAPI(ctx context.Context, se database.Storage, volume *datamodel.Volume) error {
 	if !enableVolDeleteProtection {
+		return nil
+	}
+	if volume != nil && volume.VolumeAttributes != nil && utils.IsNFSProtocols(volume.VolumeAttributes.Protocols) {
 		return nil
 	}
 	protectionErr := activities.CheckDeleteProtection(ctx, volume, nil, se)
@@ -90,7 +89,7 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 		assert.Contains(t, err.Error(), "SMB")
 	})
 
-	t.Run("NFS with restriction missing pool returns validation error", func(t *testing.T) {
+	t.Run("NFS with restriction skips API check", func(t *testing.T) {
 		volume := &datamodel.Volume{
 			Name: "nfs-vol",
 			Svm:  &datamodel.Svm{Name: "svm-1"},
@@ -100,12 +99,23 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 				ExternalUUID:      "ext-uuid",
 			},
 		}
-		err := checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "pool is required")
+		assert.NoError(t, checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume))
 	})
 
-	t.Run("NFS with restriction no nodes returns error", func(t *testing.T) {
+	t.Run("Dual protocol NFS+SMB with restriction skips API check", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "dual-vol",
+			Svm:  &datamodel.Svm{Name: "svm-1"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:         []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+				RestrictedActions: []string{activities.RestrictedActionDelete},
+				ExternalUUID:      "ext-uuid",
+			},
+		}
+		assert.NoError(t, checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume))
+	})
+
+	t.Run("NFS with restriction skips API check even when no nodes", func(t *testing.T) {
 		se := &database.MockStorage{}
 		poolID := int64(42)
 		volume := &datamodel.Volume{
@@ -118,24 +128,13 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 				ExternalUUID:      "ext-uuid",
 			},
 		}
-		se.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{}, nil)
-		err := checkDeleteProtectionAtDeleteAPI(ctx, se, volume)
-		require.Error(t, err)
-		se.AssertExpectations(t)
+		assert.NoError(t, checkDeleteProtectionAtDeleteAPI(ctx, se, volume))
 	})
 
-	t.Run("NFS with connected clients returns conflict 7017", func(t *testing.T) {
-		se := &database.MockStorage{}
-		poolID := int64(7)
+	t.Run("NFS with connected clients skips API check", func(t *testing.T) {
 		volume := &datamodel.Volume{
 			Name: "nfs-vol",
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"},
-				DeploymentName: "deploy",
-				PoolCredentials: &datamodel.PoolCredentials{
-					Password: "pw",
-				},
-			},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7, UUID: "pool-uuid"}},
 			Svm: &datamodel.Svm{Name: "svm-1"},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
@@ -143,38 +142,13 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 				ExternalUUID:      "ext-uuid",
 			},
 		}
-		se.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{
-			BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
-			EndpointAddress: "10.0.0.1",
-		}}, nil)
-
-		mockNAS := ontap_rest.NewMockNASClient(t)
-		mockNAS.On("NfsClientsGet", mock.Anything).Return([]*ontap_rest.NfsClients{{}}, nil).Once()
-		mockREST := ontap_rest.NewMockRESTClient(t)
-		mockREST.EXPECT().NAS().Return(mockNAS).Once()
-
-		orig := vsa.GetProviderByNode
-		vsa.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
-			return &deleteProtectionAPIRESTProvider{
-				MockProvider: vsa.NewMockProvider(t),
-				restClient:   mockREST,
-			}, nil
-		}
-		t.Cleanup(func() { vsa.GetProviderByNode = orig })
-
-		err := checkDeleteProtectionAtDeleteAPI(ctx, se, volume)
-		require.Error(t, err)
-		assert.True(t, customerrors.IsConflictErr(err))
-		assert.Contains(t, err.Error(), "52 hours")
-		se.AssertExpectations(t)
+		assert.NoError(t, checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume))
 	})
 
-	t.Run("GetNodesByPoolID error propagates", func(t *testing.T) {
-		se := &database.MockStorage{}
-		poolID := int64(9)
+	t.Run("NFS with storage error path is skipped at API", func(t *testing.T) {
 		volume := &datamodel.Volume{
 			Name: "nfs-vol",
-			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID}},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 9}},
 			Svm:  &datamodel.Svm{Name: "svm-1"},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
@@ -182,18 +156,6 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 				ExternalUUID:      "ext-uuid",
 			},
 		}
-		se.On("GetNodesByPoolID", ctx, poolID).Return(nil, errors.New("db error"))
-		err := checkDeleteProtectionAtDeleteAPI(ctx, se, volume)
-		assert.EqualError(t, err, "db error")
-		se.AssertExpectations(t)
+		assert.NoError(t, checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume))
 	})
-}
-
-type deleteProtectionAPIRESTProvider struct {
-	*vsa.MockProvider
-	restClient ontap_rest.RESTClient
-}
-
-func (p *deleteProtectionAPIRESTProvider) CreateRESTClient() (ontap_rest.RESTClient, error) {
-	return p.restClient, nil
 }

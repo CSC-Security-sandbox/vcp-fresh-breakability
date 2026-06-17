@@ -2123,7 +2123,10 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	if enableVolDeleteProtection {
+	// NFS delete-protection is enforced in worker (DeleteVolume workflow activity)
+	// to avoid proxy-side ONTAP provider/certificate lookups.
+	// Keep API-side checks for non-NFS protocols (e.g., SAN/SMB).
+	if enableVolDeleteProtection && (volume.VolumeAttributes == nil || !utils.IsNFSProtocols(volume.VolumeAttributes.Protocols)) {
 		if protectionErr := activities.CheckDeleteProtection(ctx, volume, nil, se); protectionErr != nil {
 			var deny *vsaerrors.CustomError
 			if errors.As(protectionErr, &deny) && deny.TrackingID == vsaerrors.ErrDeleteVolumeRestrictedAction {
