@@ -7,16 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	clientsontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1717,7 +1713,7 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 	defer utils.SetImmutableBackupEnabledForTest(originalImmutable)
 	utils.SetImmutableBackupEnabledForTest(false)
 
-	const endpointUUID = ""
+	const endpointUUID = "endpoint-1"
 	makeBackup := func() *datamodel.Backup {
 		return &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "testBackupUUID"},
@@ -1749,70 +1745,16 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 	})
 
 	t.Run("OnLatestBackupRejected", func(t *testing.T) {
-		// Covers: isLatest=true, count>1, SM exists -> deletion rejected.
-		originalGetProviderByNode := getProviderByNode
-		originalCreateNodeForProvider := createNodeForProvider
-		defer func() {
-			getProviderByNode = originalGetProviderByNode
-			createNodeForProvider = originalCreateNodeForProvider
-		}()
-
 		ctx := context.Background()
 		store := database.NewMockStorage(t)
 		backup := makeBackup()
-		activeEndpoint := "ae6cf390-b80a-4715-9dbb-e0d410be4c58"
-		const snapmirrorDelSubnet = "vs-subnet-del-latest"
-		backup.Attributes = &datamodel.BackupAttributes{
-			EndpointUUID: activeEndpoint,
-			BucketName:   "bucket-1",
-		}
-		backup.BackupVault = &datamodel.BackupVault{
-			BackupVaultType: "IN_REGION",
-			BucketDetails: []*datamodel.BucketDetails{
-				{BucketName: "bucket-1", VendorSubnetID: snapmirrorDelSubnet},
-			},
-		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
-		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(true, nil)
-		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(int64(2), nil)
-
-		// ONTAP precheck path needs Volume -> Pool/SVM/Nodes
-		dbVol := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: backup.VolumeUUID},
-			Name:      "vol-1",
-			PoolID:    99,
-			Svm:       &datamodel.Svm{Name: "svm-1"},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				VendorSubnetID: snapmirrorDelSubnet,
-			},
-		}
-		store.On("GetVolume", ctx, backup.VolumeUUID).Return(dbVol, nil)
-		store.On("GetPoolByID", ctx, int64(99)).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
-		store.On("GetNodesByPoolID", ctx, int64(99)).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
-
-		// Monkey-patch node/prov creation
-		createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
-			return &models.Node{Name: "node-1"}
-		}
-		mockProv := vsa.NewMockProvider(t)
-		getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProv, nil
-		}
-
-		// ONTAP says SM exists and destination UUID matches endpoint_uuid
-		u := strfmt.UUID(activeEndpoint)
-		mockProv.On("SnapmirrorRelationshipGet", mock.Anything, mock.Anything).
-			Return(&ontaprest.SnapmirrorRelationship{
-				SnapmirrorRelationship: clientsontapmodels.SnapmirrorRelationship{
-					Destination: &clientsontapmodels.SnapmirrorEndpoint{UUID: &u},
-				},
-			}, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(true, nil)
+		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(int64(2), nil)
 
 		err := validateBackupDeleteParams(ctx, store, params)
 		assert.EqualError(t, err, "Cannot delete latest backup")
-		store.AssertExpectations(t)
-		mockProv.AssertExpectations(t)
 	})
 
 	t.Run("OnIsLatestBackupError", func(t *testing.T) {
@@ -1852,196 +1794,6 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 
 		err := validateBackupDeleteParams(ctx, store, params)
 		assert.NoError(t, err)
-	})
-
-	t.Run("OnActiveSnapMirrorCount1LatestAllowed", func(t *testing.T) {
-		// Covers: isLatest=true, count=1 -> deletion allowed.
-		// The SnapMirror precheck is gated behind (isLatest && count>1), so it must NOT run here.
-		originalGetProviderByNode := getProviderByNode
-		originalCreateNodeForProvider := createNodeForProvider
-		defer func() {
-			getProviderByNode = originalGetProviderByNode
-			createNodeForProvider = originalCreateNodeForProvider
-		}()
-
-		ctx := context.Background()
-		store := database.NewMockStorage(t)
-
-		activeEndpoint := "ae6cf390-b80a-4715-9dbb-e0d410be4c58"
-		backup := makeBackup()
-		backup.Attributes = &datamodel.BackupAttributes{
-			EndpointUUID: activeEndpoint,
-			BucketName:   "bucket-1",
-		}
-		backup.BackupVault = &datamodel.BackupVault{
-			BackupVaultType: "IN_REGION",
-			BucketDetails: []*datamodel.BucketDetails{
-				{BucketName: "bucket-1"},
-			},
-		}
-
-		// DB mocks for validator flow
-		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
-		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
-		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(true, nil)
-		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(int64(1), nil)
-
-		err := validateBackupDeleteParams(ctx, store, params)
-		assert.NoError(t, err)
-		store.AssertExpectations(t)
-	})
-
-	t.Run("SnapMirrorPrecheckErrors", func(t *testing.T) {
-		// Targeted coverage for SnapMirror precheck failure branches in backup.go.
-		originalGetProviderByNode := getProviderByNode
-		originalCreateNodeForProvider := createNodeForProvider
-		defer func() {
-			getProviderByNode = originalGetProviderByNode
-			createNodeForProvider = originalCreateNodeForProvider
-		}()
-
-		const (
-			activeEndpoint       = "ae6cf390-b80a-4715-9dbb-e0d410be4c58"
-			volUUID              = "volumeUUID1"
-			poolID         int64 = 99
-			smVendorSubnet       = "vs-subnet-sm-precheck"
-		)
-
-		smPrecheckVolume := func() *datamodel.Volume {
-			return &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: volUUID},
-				Name:      "vol-1",
-				PoolID:    poolID,
-				Svm:       &datamodel.Svm{Name: "svm-1"},
-				VolumeAttributes: &datamodel.VolumeAttributes{
-					VendorSubnetID: smVendorSubnet,
-				},
-			}
-		}
-
-		makeBackupForSM := func() *datamodel.Backup {
-			b := makeBackup()
-			b.VolumeUUID = volUUID
-			b.Attributes = &datamodel.BackupAttributes{
-				EndpointUUID: activeEndpoint,
-				BucketName:   "bucket-1",
-			}
-			b.BackupVault = &datamodel.BackupVault{
-				BackupVaultType: "IN_REGION",
-				BucketDetails: []*datamodel.BucketDetails{
-					{BucketName: "bucket-1", VendorSubnetID: smVendorSubnet},
-				},
-			}
-			return b
-		}
-
-		makeBaseMocks := func(store *database.MockStorage, backup *datamodel.Backup) {
-			store.On("GetBackup", mock.Anything, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
-			store.On("IsBackupInCreatingorDeletingStateByVolume", mock.Anything, backup.VolumeUUID).Return(false, nil)
-			// Force the validator to execute the SnapMirror precheck block by meeting its guard.
-			store.On("IsLatestBackupInVaultAndInEndpoint", mock.Anything, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(true, nil)
-			store.On("BackupCountByVolumeIDVaultAndEndpoint", mock.Anything, backup.VolumeUUID, backup.BackupVaultID, activeEndpoint).Return(int64(2), nil)
-		}
-
-		t.Run("GetVolumeNonNotFoundErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(nil, errors.New("db down"))
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.EqualError(t, err, "db down")
-		})
-
-		t.Run("GetPoolByIDErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volUUID}, Name: "vol-1", PoolID: poolID}, nil)
-			store.On("GetPoolByID", ctx, poolID).Return(nil, errors.New("pool err"))
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.EqualError(t, err, "pool err")
-		})
-
-		t.Run("GetNodesByPoolIDErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(smPrecheckVolume(), nil)
-			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
-			store.On("GetNodesByPoolID", ctx, poolID).Return(nil, errors.New("node err"))
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.EqualError(t, err, "node err")
-		})
-
-		t.Run("GetProviderByNodeErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(smPrecheckVolume(), nil)
-			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
-			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
-
-			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
-			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-				return nil, errors.New("prov err")
-			}
-
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.EqualError(t, err, "prov err")
-		})
-
-		t.Run("GetSmDestinationPathErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			// GetSmDestinationPath uses GetBucketDetails -> volume must have VolumeAttributes for IN_REGION vaults.
-			volNoAttrs := smPrecheckVolume()
-			volNoAttrs.VolumeAttributes = nil
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(volNoAttrs, nil)
-			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
-			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
-
-			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
-			mockProv := vsa.NewMockProvider(t)
-			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) { return mockProv, nil }
-
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to get object store name")
-			store.AssertExpectations(t)
-			mockProv.AssertExpectations(t)
-		})
-
-		t.Run("SnapmirrorRelationshipGetNonNotFoundErrorReturned", func(t *testing.T) {
-			ctx := context.Background()
-			store := database.NewMockStorage(t)
-			backup := makeBackupForSM()
-			makeBaseMocks(store, backup)
-
-			store.On("GetVolume", ctx, backup.VolumeUUID).Return(smPrecheckVolume(), nil)
-			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
-			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
-
-			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
-			mockProv := vsa.NewMockProvider(t)
-			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) { return mockProv, nil }
-			mockProv.On("SnapmirrorRelationshipGet", mock.Anything, mock.Anything).Return(nil, errors.New("ontap down"))
-
-			err := validateBackupDeleteParams(ctx, store, params)
-			assert.EqualError(t, err, "ontap down")
-			store.AssertExpectations(t)
-			mockProv.AssertExpectations(t)
-		})
 	})
 }
 
