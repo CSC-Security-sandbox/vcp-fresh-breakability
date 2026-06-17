@@ -1111,6 +1111,10 @@ func TestOCIDeletePoolWorkflow_CertAuth_SNIOverride_StillCleansUpDNS(t *testing.
 func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	// Serial allocation defaults on in production; its behaviour is covered by the
+	// dedicated SerialAllocation_* tests. Gate it off here so this test stays focused
+	// on the general happy path without needing serial env + GetNextSerialNumber mocks.
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1193,6 +1197,8 @@ func TestOCICreatePoolWorkflow_VMRSEnabled_RunsVMRSBranch(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
 	withOCIVMRSEnabled(t, true)
+	// Keep this test scoped to the VMRS branch; serial allocation is covered separately.
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1320,6 +1326,7 @@ func approxEqual(a, b, delta float64) bool {
 func TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	wfEnv := ts.NewTestWorkflowEnvironment()
@@ -1626,6 +1633,7 @@ func TestOCICreatePoolWorkflow_EnsureJobStateError(t *testing.T) {
 func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1694,6 +1702,7 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 func TestOCICreatePoolWorkflow_SaveVSANodeDetailsFailure(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -1748,6 +1757,7 @@ func TestOCICreatePoolWorkflow_SaveVSANodeDetailsFailure(t *testing.T) {
 func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1811,6 +1821,7 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 
 func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 	setTestOCIImageEnv(t)
+	withOCIVSASerialAllocationFlag(t, false)
 
 	// Simulate OCI_EXPERT_MODE_PASSWORD being set before the binary starts by directly
 	// overriding the package-level var (same package, so accessible).
@@ -1871,6 +1882,7 @@ func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 
 func TestOCICreatePoolWorkflow_CreateExpertModeCredentialsFails(t *testing.T) {
 	setTestOCIImageEnv(t)
+	withOCIVSASerialAllocationFlag(t, false)
 	// Ensure ociExpertModePassword is empty so the workflow takes the
 	// GetExpertModeCredentialsForOCI activity path.
 	setOCIExpertModePassword(t, "")
@@ -1929,6 +1941,7 @@ func TestOCICreatePoolWorkflow_CreateExpertModeCredentialsFails(t *testing.T) {
 func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1983,6 +1996,7 @@ func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 func TestOCICreatePoolWorkflow_RollbackDeletesOntapSecretAfterVLMCreateFails(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -3784,6 +3798,7 @@ func TestNewPoolBuildInfo(t *testing.T) {
 func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -3889,6 +3904,7 @@ func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 func TestOCICreatePoolWorkflow_BuildInfoPersistFailureIsNonFatal(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -5240,6 +5256,7 @@ func TestPrepareVLMConfig_FabricPoolConfigNil_LeavesZeroValueFabricPool(t *testi
 func TestOCICreatePoolWorkflow_CertAuth_RegistersDNS(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 	withOCIUseTLSSNIOverride(t, false)
 
 	var ts testsuite.WorkflowTestSuite
@@ -5322,6 +5339,7 @@ func TestOCICreatePoolWorkflow_CertAuth_RegistersDNS(t *testing.T) {
 func TestOCICreatePoolWorkflow_CertAuth_DNSCreateFailsRollsBack(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 	withOCIUseTLSSNIOverride(t, false)
 
 	var ts testsuite.WorkflowTestSuite
@@ -5400,6 +5418,7 @@ func withOCIUseTLSSNIOverride(t *testing.T, enabled bool) {
 func TestOCICreatePoolWorkflow_CertAuth_SNIOverride_SkipsDNS(t *testing.T) {
 	setTestOCIImageEnv(t)
 	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
 	withOCIUseTLSSNIOverride(t, true)
 
 	var ts testsuite.WorkflowTestSuite

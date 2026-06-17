@@ -57,7 +57,7 @@ var (
 	ociExpertModePassword          = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
 	parallelNumberOfNodesForITCOCI = env.GetIntNotNegative("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4)
 	ociCellNumber                  = env.GetString("LOCAL_CELL", "00")
-	ociVSASerialAllocationEnabled  = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", false)
+	ociVSASerialAllocationEnabled  = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", true)
 	ociVMRSEnabled                 = env.GetBool("OCI_VMRS_ENABLED", false)
 )
 
