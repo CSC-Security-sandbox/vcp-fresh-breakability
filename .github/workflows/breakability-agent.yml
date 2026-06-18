@@ -289,12 +289,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 60
 
-      # ── Fallback ───────────────────────────────────────────────────
-      - name: Post fallback comments for missed PRs
+      # ── Rich Comment Renderer ──────────────────────────────────────
+      - name: Generate rich PR comments using analyst
         if: always()
         run: |
-          chmod +x .github/scripts/post-fallback-comments.sh
-          bash .github/scripts/post-fallback-comments.sh
+          chmod +x .github/scripts/breakability_analyst.py
+          python3 .github/scripts/breakability_analyst.py /tmp/build-results.json
+          
+          # Post rendered comments to PRs
+          for comment_file in /tmp/pr-*-comment.md; do
+            if [ -f "$comment_file" ]; then
+              pr_num=$(basename "$comment_file" | sed 's/pr-\([0-9]*\)-comment.md/\1/')
+              echo "📤 Posting comment to PR #$pr_num"
+              gh pr comment "$pr_num" --body-file "$comment_file" || echo "⚠️ Failed to post to PR #$pr_num"
+            fi
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
