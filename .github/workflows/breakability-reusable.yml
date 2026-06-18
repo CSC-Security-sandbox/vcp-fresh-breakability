@@ -1,0 +1,52 @@
+# Breakability Analysis — Reusable Workflow
+# Use this from consuming repos with: uses: CSC-Security-sandbox/breakability/.github/workflows/breakability-reusable.yml@main
+
+name: Breakability Analysis (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      pr_filter:
+        description: 'Comma-separated PR numbers (empty = all Dependabot PRs)'
+        required: false
+        type: string
+        default: ''
+      batch_count:
+        description: 'Number of parallel batches'
+        required: false
+        type: number
+        default: 4
+      skip_agent:
+        description: 'Skip AI layer (deterministic only)'
+        required: false
+        type: boolean
+        default: true
+      go_version:
+        description: 'Go version to use'
+        required: false
+        type: string
+        default: '1.22'
+    secrets:
+      token:
+        description: 'GITHUB_TOKEN for API access'
+        required: true
+      breakability_pat:
+        description: 'PAT for Copilot CLI (optional, for AI layer)'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  breakability-analysis:
+    uses: ./.github/workflows/breakability-agent.yml
+    with:
+      pr_filter: ${{ inputs.pr_filter }}
+      batch_count: ${{ inputs.batch_count }}
+      skip_agent: ${{ inputs.skip_agent }}
+      go_version: ${{ inputs.go_version }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.token }}
+      BREAKABILITY_PAT: ${{ secrets.breakability_pat }}
