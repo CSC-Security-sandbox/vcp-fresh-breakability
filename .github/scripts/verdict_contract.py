@@ -48,6 +48,12 @@ PRED_FIX = "fix"
 
 _SEVERITY_RANK = {"none": 0, "low": 1, "medium": 2, "high": 3}
 
+# ── Breakability grades (decisive verdict terminology) ────────────────────────
+GRADE_SAFE = "SAFE"
+GRADE_LOW_BREAKING = "LOW_BREAKING"
+GRADE_MEDIUM_BREAKING = "MEDIUM_BREAKING"
+GRADE_HIGH_BREAKING = "HIGH_BREAKING"
+
 # ── Canonical typed-verdict -> bucket mapping ────────────────────────────────
 # typed VerdictAction (policy_lowering.decision.verdict) ∈
 #   {MERGE, GLANCE, REVIEW, FIX, ABSTAIN}
@@ -154,6 +160,54 @@ def _valid_v2(pr: Mapping[str, Any]) -> Optional[dict]:
     return None
 
 
+def assign_breakability_grade(pr: Mapping[str, Any], verdict_bucket: str, signals: Optional[Mapping] = None) -> str:
+    """Assign decisive breakability grade based on evidence.
+    
+    Returns SAFE | LOW_BREAKING | MEDIUM_BREAKING | HIGH_BREAKING
+    
+    Grading logic:
+      HIGH: Build FAIL + test FAIL + reached (must fix before merge)
+      MEDIUM: Probe mismatch + reached OR major + changelog breaking + reached
+      LOW: API warnings + reached BUT probe same (quick review)
+      SAFE: NOT-REACHED OR all signals green
+    """
+    if verdict_bucket == BUCKET_BLOCKED:
+        return GRADE_HIGH_BREAKING
+    if verdict_bucket == BUCKET_SAFE:
+        return GRADE_SAFE
+    
+    # Extract signals from build_results or policy
+    policy = _policy_decision(pr)
+    if not signals:
+        signals = {}
+    
+    # Check for high breakability (multiple hard failures)
+    build_failed = policy.get("build_outcome") in ["FAIL", "FAILED"]
+    test_failed = policy.get("test_outcome") in ["FAIL", "FAILED"]
+    reached = policy.get("reachability", {}).get("relevant") is True
+    
+    if build_failed and test_failed and reached:
+        return GRADE_HIGH_BREAKING
+    
+    # Check for medium breakability (behavioral changes or major breaking)
+    probe_mismatch = policy.get("probe_outcome") == "DIFFERENT"
+    bump_type = policy.get("bump_type", "")
+    changelog_breaking = "breaking" in policy.get("changelog_summary", "").lower()
+    
+    if (probe_mismatch and reached) or (bump_type == "major" and changelog_breaking and reached):
+        return GRADE_MEDIUM_BREAKING
+    
+    # Check for low breakability (API warnings but behavior same)
+    apidiff_warned = policy.get("apidiff_grade") in ["WARN", "ERROR"]
+    probe_same = policy.get("probe_outcome") == "SAME"
+    
+    if apidiff_warned and reached and probe_same:
+        return GRADE_LOW_BREAKING
+    
+    # Default: MEDIUM for unclear cases (fail-closed, better than hiding)
+    return GRADE_MEDIUM_BREAKING if verdict_bucket == BUCKET_REVIEW else GRADE_SAFE
+
+
 def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
     """THE one accessor. Returns the authoritative rendered verdict object for a PR.
 
@@ -166,10 +220,11 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
 
     Always returns a dict with at least: verdict, severity, confidence, priority,
     reason, plus ``source`` describing which rule fired (for debuggability).
+    Now also includes ``breakability_grade`` for decisive verdicts.
     """
     if _hard_fix_floor(pr):
         dec = _policy_decision(pr)
-        return {
+        result = {
             "verdict": BUCKET_BLOCKED,
             "severity": "high",
             "confidence": "L4",
@@ -177,37 +232,47 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
             "reason": dec.get("display_reason") or dec.get("reason_code") or "build failed on the candidate version",
             "source": "hard_fix_floor",
         }
+        result["breakability_grade"] = assign_breakability_grade(pr, BUCKET_BLOCKED)
+        return result
 
     adj = pr.get("ai_adjudication")
     if isinstance(adj, Mapping):
         applied = adj.get("applied")
         if applied == "downgrade_to_safe":
             ev = adj.get("evidence") or ""
-            return {
+            result = {
                 "verdict": BUCKET_SAFE, "severity": "low", "confidence": "L4", "priority": "P3",
                 "reason": ev, "source": "ai:downgrade_to_safe",
             }
+            result["breakability_grade"] = GRADE_SAFE
+            return result
         if applied == "needs_change":
-            return {
+            result = {
                 "verdict": BUCKET_REVIEW, "severity": "medium", "confidence": "L3", "priority": "P2",
                 "reason": adj.get("evidence") or "", "source": "ai:needs_change",
             }
+            result["breakability_grade"] = assign_breakability_grade(pr, BUCKET_REVIEW)
+            return result
 
     v2 = _valid_v2(pr)
     if v2 is not None:
         v2.setdefault("source", "verdict_v2")
+        v2.setdefault("breakability_grade", assign_breakability_grade(pr, v2.get("verdict", BUCKET_REVIEW)))
         return v2
 
     mapped = map_policy_decision(_policy_decision(pr))
     if mapped is not None:
         mapped["source"] = "policy_lowering"
+        mapped["breakability_grade"] = assign_breakability_grade(pr, mapped.get("verdict", BUCKET_REVIEW))
         return mapped
 
-    return {
+    result = {
         "verdict": BUCKET_REVIEW, "severity": "medium", "confidence": "L2", "priority": "P2",
         "reason": "no typed verdict available; fail-closed to review",
         "source": "fail_closed",
     }
+    result["breakability_grade"] = GRADE_MEDIUM_BREAKING
+    return result
 
 
 def prediction_for_pr(pr: Mapping[str, Any]) -> str:
