@@ -490,6 +490,7 @@ DEFAULTS = {
     "V2_CONF": "L0",
     "V2_PRIO": "P2",
     "V2_REASON": "verdict map unavailable — manual review",
+    "V2_BREAK_GRADE": "MEDIUM_BREAKING",
     "V2_RESIDUAL_SUMMARY": "",
     "V2_RESIDUAL_CHECK": "",
     "V2_RESIDUAL_CHANGELOG": "",
@@ -504,6 +505,7 @@ def emit(values):
         "V2_CONF",
         "V2_PRIO",
         "V2_REASON",
+        "V2_BREAK_GRADE",
         "V2_RESIDUAL_SUMMARY",
         "V2_RESIDUAL_CHECK",
         "V2_RESIDUAL_CHANGELOG",
@@ -566,6 +568,8 @@ try:
     if severity not in {"none", "low", "medium", "high"}:
         # Fail-safe derivation if the bundle predates the severity field.
         severity = {"BLOCKED": "high", "SAFE": "low", "REVIEW": "medium"}.get(verdict, "medium")
+    
+    breakability_grade = verdict_v2.get("breakability_grade", "MEDIUM_BREAKING")
 
     values = {
         "V2_OK": "1",
@@ -574,6 +578,7 @@ try:
         "V2_CONF": confidence,
         "V2_PRIO": priority,
         "V2_REASON": clean_text(verdict_v2.get("reason")),
+        "V2_BREAK_GRADE": breakability_grade,
         "V2_RESIDUAL_SUMMARY": clean_text(residual.get("summary")),
         "V2_RESIDUAL_CHECK": clean_text(residual.get("check")),
         "V2_RESIDUAL_CHANGELOG": clean_text(residual.get("changelogLine")),
@@ -2593,12 +2598,50 @@ print(body)
     if [[ ( "$ECOSYSTEM" == "actions" || "$ECOSYSTEM" == "docker" ) && "$_CI_TIER" == "secsens" && "$_BG_CITED" != "1" ]]; then
       case "$_GRADE" in high|medium) ;; *) _GRADE="medium" ;; esac
     fi
+    # ── Breakability grade headline (decisive verdicts) ────────────────────────
+    # Map V2_BREAK_GRADE (from verdict_contract.py) to decisive emoji+title
+    # SAFE → ✅ SAFE
+    # LOW_BREAKING → 🟡 BREAKING - LOW breakability
+    # MEDIUM_BREAKING → 🟠 BREAKING - MEDIUM breakability
+    # HIGH_BREAKING → 🔴 BREAKING - HIGH breakability
+    case "${V2_BREAK_GRADE:-MEDIUM_BREAKING}" in
+      SAFE) 
+        _BRK_EMOJI="✅"
+        _BRK_TITLE="SAFE"
+        _BRK_DESC="safe to merge"
+        ;;
+      LOW_BREAKING)
+        _BRK_EMOJI="🟡"
+        _BRK_TITLE="BREAKING - LOW breakability"
+        _BRK_DESC="quick review recommended"
+        ;;
+      MEDIUM_BREAKING)
+        _BRK_EMOJI="🟠"
+        _BRK_TITLE="BREAKING - MEDIUM breakability"
+        _BRK_DESC="careful review required"
+        ;;
+      HIGH_BREAKING)
+        _BRK_EMOJI="🔴"
+        _BRK_TITLE="BREAKING - HIGH breakability"
+        _BRK_DESC="fix required before merge"
+        ;;
+      *)
+        _BRK_EMOJI="🟠"
+        _BRK_TITLE="BREAKING - MEDIUM breakability"
+        _BRK_DESC="review required"
+        ;;
+    esac
+    
+    # Legacy grade-based headline (keep for backward compatibility, but prefer decisive breakability_grade)
     case "$_GRADE" in
       high)   _V2_HEADLINE="🔴 Breakability: High · review required · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
       medium) _V2_HEADLINE="🟠 Breakability: Medium · review recommended · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
       low)    _V2_HEADLINE="🟡 Breakability: Low · optional glance · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
       *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · safe to merge · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
     esac
+    
+    # Use decisive breakability_grade headline as primary (user-requested format)
+    _V2_HEADLINE_DECISIVE="${_BRK_EMOJI} ${_BRK_TITLE} · Oracle: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}"
     # ── CVE-aware headline floor ───────────────────────────────────────────────
     # A PR that fixes a known CVE must headline the SECURITY action, not a
     # breakability/changelog punt ("re-run", "skim the release notes"). Otherwise
