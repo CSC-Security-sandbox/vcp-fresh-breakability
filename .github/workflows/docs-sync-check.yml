@@ -53,7 +53,7 @@ jobs:
         fi
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       with:
         fetch-depth: 0
         # Use default GITHUB_TOKEN for security
@@ -69,13 +69,13 @@ jobs:
         echo "GONOSUMDB=github.com/vcp-vsa-control-Plane/*" >> $GITHUB_ENV
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: '1.21'
         cache: true
 
     - name: Cache Go modules
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -231,7 +231,7 @@ jobs:
 
     - name: Comment PR with enhanced documentation status
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
       with:
         script: |
           const fs = require('fs');
@@ -359,7 +359,7 @@ jobs:
 
     - name: Upload enhanced results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: documentation-check-results
         path: |

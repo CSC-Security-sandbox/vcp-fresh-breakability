@@ -209,10 +209,10 @@ jobs:
       OCI_CHART_NAMES: "oci-proxy oci-vcp-worker-chart oci-vlm-worker"
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3.6.1
         with:
           go-version-file: go.mod
       - name: Image list to build
@@ -296,7 +296,7 @@ jobs:
           echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin          
 
       - id: auth
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69 # v1.3.0
         with:
           workload_identity_provider: 'projects/${{vars.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{vars.AR_WLI_POOL}}/providers/${{vars.AR_WLI_PROV}}'
           service_account: '${{vars.AR_GCP_SA}}@${{ vars.AR_GCP_PROJ }}.iam.gserviceaccount.com'
@@ -1027,13 +1027,13 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: repo-dir
 
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3.6.1
         with:
           go-version-file: go.mod
 
@@ -1104,10 +1104,10 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3.6.1
         with:
           go-version-file: go.mod
 
@@ -1140,10 +1140,10 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3.6.1
         with:
           go-version-file: go.mod
 

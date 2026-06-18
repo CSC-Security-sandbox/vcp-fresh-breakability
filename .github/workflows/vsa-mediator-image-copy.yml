@@ -71,7 +71,7 @@ jobs:
       rbac_folder_path: ${{ steps.resolve.outputs.rbac_folder_path }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Resolve from config file
         id: resolve
         env:
@@ -237,16 +237,16 @@ jobs:
       VLM_IMPERSONATE_SA: gcnv-vsa-image-sa@gcnv-vsa-prod.iam.gserviceaccount.com
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
 
@@ -516,13 +516,13 @@ jobs:
     
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
       
       - name: Configure gcloud
         run: |
@@ -584,16 +584,16 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
             
       - name: Authenticate to Google Cloud (Source Project)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_SECLAB }}
           service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_SECLAB }}
       
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           project_id: ${{ needs.parse-version-file.outputs.source_project }}
 
@@ -787,16 +787,16 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
 
@@ -948,16 +948,16 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
       
       - name: Configure gcloud
         run: |
@@ -1147,14 +1147,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
       - name: Configure gcloud
@@ -1236,14 +1236,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
       - name: Configure gcloud
@@ -1328,14 +1328,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
       - name: Configure gcloud
@@ -1445,14 +1445,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
         with:
           export_default_credentials: true
       - name: Configure gcloud
@@ -1553,16 +1553,16 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2.2.1
       
       - name: Configure gcloud
         run: |
