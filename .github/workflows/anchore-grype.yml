@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Run Anchore Grype scan action
-        uses: anchore/scan-action@v7
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         id: scan
         env:
           GRYPE_DB_VALIDATE_AGE: "false"
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload vulnerability report
         if: ${{ steps.sarif_check.outputs.exists == 'true' }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
         with:
           sarif_file: ${{ steps.sarif_check.outputs.sarif_path }}
         continue-on-error: true

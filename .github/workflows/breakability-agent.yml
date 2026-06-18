@@ -75,13 +75,6 @@ jobs:
       matrix: ${{ steps.split.outputs.matrix }}
       pr_count: ${{ steps.split.outputs.pr_count }}
     steps:
-      - name: Install GitHub CLI
-        run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
-          
       - name: Discover and split PRs into batches
         id: split
         run: |
@@ -156,7 +149,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
 
@@ -195,7 +188,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.detect.outputs.has_node == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           # Self-hosted: npm cache + tool-cache SDK already persist on disk
@@ -204,7 +197,7 @@ jobs:
 
       - name: Setup Go
         if: steps.detect.outputs.has_go == 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: ${{ env.GO_VERSION }}
           # Self-hosted: GOMODCACHE/GOCACHE (9.8G) already persist on disk between
@@ -274,7 +267,7 @@ jobs:
 
       - name: Upload batch results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: batch-${{ matrix.batch_id }}
           path: |
@@ -295,10 +288,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -318,7 +311,7 @@ jobs:
           PYTHON_VERSION_FULL: '3.12.13'
 
       - name: Download all batch artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: ${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}
           pattern: batch-*
@@ -449,7 +442,7 @@ jobs:
       # committed behavioral grades plus typed policy evidence.
       - name: Upload merged results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-results
           path: |

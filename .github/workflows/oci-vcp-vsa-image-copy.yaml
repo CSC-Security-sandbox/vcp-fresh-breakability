@@ -107,12 +107,12 @@ jobs:
           echo "Resolved manifest tag/version: ${VER}"
 
       - name: Checkout workflow ref (scripts and workflow YAML)
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
 
       - name: Checkout release tag for Dockerfiles (nested)
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ steps.pin.outputs.version }}
           path: release-ref
@@ -250,7 +250,7 @@ jobs:
           "$OCI_CLI_BIN_DIR/oci" --version
 
       - name: Get GitHub OIDC token (Oracle audience)
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           ACTIONS_OCI_DEBUG: ${{ env.ACTIONS_OCI_DEBUG }}
           OCI_GITHUB_OIDC_AUDIENCE: ${{ env.OCI_GITHUB_OIDC_AUDIENCE }}
