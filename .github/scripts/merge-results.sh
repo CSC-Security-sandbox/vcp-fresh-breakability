@@ -18,12 +18,19 @@ unset GH_TOKEN
 
 RESULTS_FILE="/tmp/build-results.json"
 OWNER_REPO="${GITHUB_REPOSITORY:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BATCH_RESULTS_DIR="${BATCH_RESULTS_DIR:-/tmp/batch-results}"
+WORKSPACE_GRAPH_FILE="${WORKSPACE_GRAPH_FILE:-/tmp/_bc_workspace_graph-${GITHUB_RUN_ID:-$$}.json}"
+PEER_GROUPS_FILE="${PEER_GROUPS_FILE:-/tmp/_bc_peer_groups-${GITHUB_RUN_ID:-$$}.json}"
+export BATCH_RESULTS_DIR
+export WORKSPACE_GRAPH_FILE
+export PEER_GROUPS_FILE
 
 echo "════════════ MERGE BATCH RESULTS ════════════"
 
 # ── Step 1: Merge partial JSON files ──────────────────────────────────────────
 python3 << 'MERGEEOF'
-import json, glob, os
+import json, glob, os, re
 
 merged = {
     "metadata": {},
@@ -36,8 +43,22 @@ merged = {
 }
 
 total_prs = 0
-batch_files = sorted(glob.glob("/tmp/batch-results/batch-*/build-results-*.json"))
-if not batch_files:
+requested_prs = set()
+subset_requested = False
+
+def _parse_pr_numbers(value):
+    out = []
+    for token in str(value or "").split(","):
+        token = token.strip().lstrip("#")
+        if re.fullmatch(r"[0-9]+", token or ""):
+            out.append(int(token))
+    return out
+
+requested_prs.update(_parse_pr_numbers(os.environ.get("BREAKABILITY_PR_NUMBERS") or os.environ.get("PR_FILTER")))
+explicit_batch_dir = bool(os.environ.get("BATCH_RESULTS_DIR"))
+batch_dir = os.environ.get("BATCH_RESULTS_DIR") or "/tmp/batch-results"
+batch_files = sorted(glob.glob(os.path.join(batch_dir, "batch-*", "build-results-*.json")))
+if not batch_files and not explicit_batch_dir:
     # Fallback: single-mode (no batches)
     batch_files = ["/tmp/build-results.json"] if os.path.exists("/tmp/build-results.json") else []
 
@@ -45,7 +66,7 @@ print(f"  Found {len(batch_files)} batch result files")
 
 # Warn when batch directories exist but are missing their result file
 # (indicates a batch job crashed before writing output — those PRs will be absent)
-all_batch_dirs = sorted(glob.glob("/tmp/batch-results/batch-*"))
+all_batch_dirs = sorted(glob.glob(os.path.join(batch_dir, "batch-*")))
 missing_batches = []
 for bd in all_batch_dirs:
     batch_id = os.path.basename(bd).replace("batch-", "")
@@ -69,9 +90,18 @@ for bf in batch_files:
         incomplete_batches.append(os.path.basename(os.path.dirname(bf)).replace('batch-', ''))
         continue
     
+    meta = data.get("metadata", {}) or {}
+    if meta.get("subset_requested"):
+        subset_requested = True
+    for n in meta.get("requested_pr_numbers", []) or []:
+        try:
+            requested_prs.add(int(n))
+        except (TypeError, ValueError):
+            pass
+
     # Merge metadata (take first, update count)
     if not merged["metadata"]:
-        merged["metadata"] = data.get("metadata", {})
+        merged["metadata"] = meta
     
     # Merge main_build (take first non-empty)
     if not merged["main_build"] and data.get("main_build"):
@@ -90,8 +120,28 @@ for bf in batch_files:
     if not merged["nestjs_skew"] and data.get("nestjs_skew"):
         merged["nestjs_skew"] = data["nestjs_skew"]
 
-# Update total PR count and track incomplete batches
+if requested_prs:
+    subset_requested = True
+if subset_requested:
+    requested_sorted = sorted(requested_prs)
+    before_filter = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
+    merged["prs"] = {
+        num: pr
+        for num, pr in merged["prs"].items()
+        if str(num).isdigit() and int(num) in requested_prs
+    }
+    merged["metadata"]["subset_requested"] = True
+    merged["metadata"]["requested_pr_numbers"] = requested_sorted
+    merged["metadata"]["missing_pr_numbers"] = [n for n in requested_sorted if str(n) not in merged["prs"]]
+    dropped = [n for n in before_filter if n not in requested_prs]
+    if dropped:
+        merged["metadata"]["dropped_unrequested_pr_numbers"] = dropped
+
+# Update total PR count and track incomplete batches after subset filtering.
+total_prs = len(merged["prs"])
 merged["metadata"]["pr_count"] = total_prs
+selected_prs = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
+merged["metadata"]["selected_pr_numbers"] = selected_prs
 expected_count = int(os.environ.get("EXPECTED_PR_COUNT", "0"))
 if expected_count > 0 and total_prs < expected_count:
     merged["metadata"]["incomplete"] = True
@@ -110,8 +160,15 @@ MERGEEOF
 # ── Step 2: Collect PR diffs into /tmp/ ───────────────────────────────────────
 echo ""
 echo "Collecting PR diffs..."
-for diff_file in /tmp/batch-results/batch-*/pr-*.diff; do
+rm -f /tmp/pr-*.diff
+_MERGE_PR_FILTER=",${BREAKABILITY_PR_NUMBERS:-${PR_FILTER:-}},"
+_MERGE_PR_FILTER="${_MERGE_PR_FILTER// /}"
+for diff_file in "$BATCH_RESULTS_DIR"/batch-*/pr-*.diff; do
   [[ -f "$diff_file" ]] || continue
+  if [[ "$_MERGE_PR_FILTER" != ",," ]]; then
+    _diff_pr="$(basename "$diff_file" | sed -E 's/^pr-([0-9]+)\.diff$/\1/')"
+    [[ "$_MERGE_PR_FILTER" == *",${_diff_pr},"* ]] || continue
+  fi
   cp "$diff_file" /tmp/ 2>/dev/null || true
 done
 DIFF_COUNT=$(find /tmp -maxdepth 1 -name 'pr-*.diff' 2>/dev/null | wc -l | tr -d ' ')
@@ -119,11 +176,12 @@ echo "  Collected $DIFF_COUNT PR diffs"
 
 # ── Step 3: Collect workspace graph + peer groups ─────────────────────────────
 # These were generated by each batch; take the first available
-for f in /tmp/batch-results/batch-*/_bc_workspace_graph.json; do
-  [[ -f "$f" ]] && { cp "$f" /tmp/_bc_workspace_graph.json; break; }
+rm -f "$WORKSPACE_GRAPH_FILE" "$PEER_GROUPS_FILE"
+for f in "$BATCH_RESULTS_DIR"/batch-*/_bc_workspace_graph.json; do
+  [[ -f "$f" ]] && { cp "$f" "$WORKSPACE_GRAPH_FILE"; break; }
 done
-for f in /tmp/batch-results/batch-*/_bc_peer_groups.json; do
-  [[ -f "$f" ]] && { cp "$f" /tmp/_bc_peer_groups.json; break; }
+for f in "$BATCH_RESULTS_DIR"/batch-*/_bc_peer_groups.json; do
+  [[ -f "$f" ]] && { cp "$f" "$PEER_GROUPS_FILE"; break; }
 done
 
 # ── Step 4: Cross-PR dependency detection ─────────────────────────────────────
@@ -131,7 +189,7 @@ echo ""
 echo "════════════ CROSS-PR DEPENDENCIES ════════════"
 
 python3 << 'CROSSDEPS'
-import json, re
+import json, os, re
 
 KNOWN_DEPS = {
     ("flask", "jinja2"): ("flask depends on jinja2", "jinja2 first"),
@@ -146,7 +204,7 @@ KNOWN_DEPS = {
     ("react-dom", "@types/react-dom"): ("types follow react-dom", "react-dom first"),
 }
 try:
-    with open("/tmp/_bc_peer_groups.json") as f: pd = json.load(f)
+    with open(os.environ.get("PEER_GROUPS_FILE", "/tmp/_bc_peer_groups.json")) as f: pd = json.load(f)
     for i, a in enumerate(pd.get("nestjs_group", [])):
         for b in pd.get("nestjs_group", [])[i+1:]:
             KNOWN_DEPS.setdefault((a, b), (f"NestJS peer group: {a} + {b}", "merge together"))
@@ -206,8 +264,18 @@ if len(k8s_prs) > 1:
             if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
                 cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"K8s module coordination: {pa} + {pb} must match versions", "merge_order": "merge together"})
     print(f"  K8s module group: {len(k8s_prs)} PRs need coordinated merge")
+# OpenTelemetry coordination: go.opentelemetry.io/otel* modules share a release train and
+# should move together so the resolved otel core version is consistent (otel trio #23/#27/#36).
+otel_prs = [(num, pr["package"]) for num, pr in prs.items()
+            if pr.get("package", "").startswith("go.opentelemetry.io/otel")]
+if len(otel_prs) > 1:
+    for i, (na, pa) in enumerate(otel_prs):
+        for nb, pb in otel_prs[i+1:]:
+            if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
+                cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"OpenTelemetry release-train coordination: {pa} + {pb} share the otel core version — merge together to keep the resolved otel version consistent", "merge_order": "merge together"})
+    print(f"  OpenTelemetry module group: {len(otel_prs)} PRs need coordinated merge")
 try:
-    with open("/tmp/_bc_workspace_graph.json") as f: graph = json.load(f)
+    with open(os.environ.get("WORKSPACE_GRAPH_FILE", "/tmp/_bc_workspace_graph.json")) as f: graph = json.load(f)
     for num, pr in prs.items():
         pd = pr.get("pkg_dir", "/")
         if pd.startswith("lib/"):
@@ -237,8 +305,9 @@ CROSSDEPS
 # ── Step 5: Security posture scan ────────────────────────────────────────────
 echo ""
 echo "════════════ SECURITY POSTURE ════════════"
-OWNER_REPO="$OWNER_REPO" python3 << 'SECURITYEOF'
+PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}" OWNER_REPO="$OWNER_REPO" python3 << 'SECURITYEOF'
 import json, subprocess, os
+from cve_security_posture import build_cve_attribution
 
 owner_repo = os.environ["OWNER_REPO"]
 
@@ -281,6 +350,8 @@ with open("/tmp/build-results.json") as f:
     data = json.load(f)
 
 prs = data.get("prs", {})
+meta = data.get("metadata", {})
+subset_requested = bool(meta.get("subset_requested"))
 pr_cves = {}
 total_cve_count = 0
 for num, pr in prs.items():
@@ -302,58 +373,12 @@ for num, pr in prs.items():
             "cve_ids": [a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "") for a in matching_alerts]
         }
 
-# V9.8 iter6 (B): precise alert↔PR matching via first_patched_version + orphan alerts
-def _parse_semver(v):
-    if not v: return None
-    s = str(v).lstrip("v").lstrip("=").strip()
-    for sep in ("-", "+"):
-        if sep in s: s = s.split(sep, 1)[0]
-    parts = s.split(".")
-    try:
-        return tuple(int(p) for p in parts[:3]) + (0,) * (3 - min(3, len(parts)))
-    except ValueError:
-        return None
-
-def _semver_gte(a, b):
-    pa, pb = _parse_semver(a), _parse_semver(b)
-    if pa is None or pb is None: return False
-    return pa >= pb
-
-cve_fixes, orphan_alerts = [], []
-_seen_fixes = set()
-_seen_orphans = set()
-for a in open_alerts:
-    alert_pkg = a.get("dependency", {}).get("package", "")
-    fpv = a.get("security_vulnerability", {}).get("first_patched_version")
-    sev = a.get("security_advisory", {}).get("severity", "unknown")
-    cve = a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "")
-    summary = a.get("security_advisory", {}).get("summary", "")
-    matched = False
-    for num, pr in prs.items():
-        if pr.get("package", "") == alert_pkg and fpv and _semver_gte(pr.get("to", ""), fpv):
-            _fix_key = (alert_pkg, cve, num)
-            if _fix_key not in _seen_fixes:
-                _seen_fixes.add(_fix_key)
-                cve_fixes.append({
-                    "pr": int(num) if str(num).isdigit() else num,
-                    "package": alert_pkg, "cve_id": cve, "severity": sev,
-                    "from_version": pr.get("from", ""), "to_version": pr.get("to", ""),
-                    "first_patched_version": fpv, "summary": summary[:200],
-                })
-            matched = True
-    if not matched:
-        _orphan_key = (alert_pkg, cve)
-        if _orphan_key not in _seen_orphans:
-            _seen_orphans.add(_orphan_key)
-            orphan_alerts.append({
-                "cve_id": cve, "package": alert_pkg, "severity": sev,
-                "first_patched_version": fpv or "unknown", "summary": summary[:200],
-            })
-_SEV_ORDER = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
-cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), x.get("pr", 9999)))
-orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
+cve_fixes, orphan_alerts = build_cve_attribution(open_alerts, prs)
 
 security_posture = {
+    "scope": "subset" if subset_requested else "repository",
+    "alert_counts_scope": "repository",
+    "pr_rows_scope": "selected_prs" if subset_requested else "all_analyzed_prs",
     "total_open_alerts": len(open_alerts),
     "alerts_unavailable": _alerts_unavailable,
     "severity_counts": severity_counts,
@@ -364,6 +389,15 @@ security_posture = {
     "cve_fixes": cve_fixes,
     "orphan_alerts": orphan_alerts,
 }
+if subset_requested:
+    security_posture["subset_pr_numbers"] = meta.get("selected_pr_numbers", [])
+    security_posture["subset_note"] = (
+        "PR-scoped security rows are limited to selected PRs; repository-wide "
+        "alert counts remain for context."
+    )
+    security_posture["orphan_alerts_omitted_for_subset"] = len(orphan_alerts)
+    security_posture["omitted_due_to_subset"] = {"orphan_alerts": orphan_alerts} if orphan_alerts else {}
+    security_posture["orphan_alerts"] = []
 
 data["security_posture"] = security_posture
 
@@ -384,7 +418,8 @@ _govuln = {"main_baseline": {"status": "unknown", "findings": []},
            "prs_scanned": 0, "prs_with_new_vulns": 0, "total_new_findings": []}
 # Reload any batch's main_baseline_vuln (they all scan the same main, just take first non-empty)
 import glob as _glob
-for _bf in sorted(_glob.glob("/tmp/batch-results/batch-*/build-results-*.json")):
+_batch_dir = os.environ.get("BATCH_RESULTS_DIR") or "/tmp/batch-results"
+for _bf in sorted(_glob.glob(os.path.join(_batch_dir, "batch-*", "build-results-*.json"))):
     try:
         _bd = json.load(open(_bf))
         _mb = _bd.get("main_baseline_vuln")
@@ -433,7 +468,8 @@ def normalize(pr):
         "tag": existing.get("tag") or "Medium",
         "reason": existing.get("reason") or "change evidence is limited; default caution",
         "evidenceAxis": existing.get("evidenceAxis") or "limited evidence",
-        "confidenceAxis": existing.get("confidenceAxis") or pr.get("verification_label") or "unverified",
+        "buildVerificationAxis": existing.get("buildVerificationAxis") or existing.get("confidenceAxis") or pr.get("verification_label") or "unverified",
+        "confidenceAxis": existing.get("confidenceAxis") or existing.get("buildVerificationAxis") or pr.get("verification_label") or "unverified",
     }
 
 counts = {"Low": 0, "Medium": 0, "High": 0}

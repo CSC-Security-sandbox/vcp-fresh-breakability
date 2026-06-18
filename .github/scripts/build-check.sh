@@ -31,6 +31,26 @@ else
 fi
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 REPO_ROOT="$(pwd)"
+PR_FILTER="${PR_FILTER:-${BREAKABILITY_PR_NUMBERS:-}}"
+
+# ── Per-batch Go BUILD-cache isolation (race-safety) ──────────────────────────
+# All self-hosted batch runners share one $HOME on the same machine, so they
+# share the default GOCACHE (~/Library/Caches/go-build). This script calls
+# `go clean -cache` at several sites; one batch's clean deletes cache entries a
+# parallel batch is mid-build against -> "no such file or directory" /
+# "package ... is not in std" corruption -> degraded build output -> thin
+# comments. Isolate the BUILD cache per batch HERE (in-script) so the race is
+# closed even when the workflow does not (or cannot) set GOCACHE — e.g. the
+# job-level `env: GOCACHE: ${{ runner.temp }}/...` is an INVALID expression
+# (the `runner` context is unavailable at job-level env), which fails the whole
+# workflow at 0s. With this in-script guard the orchestrator can simply DELETE
+# that broken workflow line; cache isolation no longer depends on it.
+# GOMODCACHE stays shared/warm: `go clean -cache` never touches the module cache.
+if [[ -z "${GOCACHE:-}" || "${GOCACHE:-}" != *"go-build-cache-"* ]]; then
+  _bc_cache_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+  export GOCACHE="${_bc_cache_root%/}/go-build-cache-${BATCH_ID:-default}"
+  mkdir -p "$GOCACHE" 2>/dev/null || true
+fi
 
 # ── Go changelog fetch (shared source for verdict + display, PRD G6) ──────────
 # Resolves the module's GitHub repo (incl. common vanity import paths the in-CLI
@@ -112,6 +132,18 @@ for l in lines:
 print("\n".join(f"- {l}" for l in seen[:40]))
 ' 2>/dev/null || true
   )
+}
+
+# ── npm changelog fetch (release bodies + scoped changelog sections) ──────────
+# Resolves npm package metadata to a GitHub repository (including scoped
+# monorepo directories), pulls release bodies/tags in (from,to] plus
+# CHANGELOG/CHANGES/HISTORY/RELEASES sections, and emits nothing on failure so
+# release-notes evidence remains UNAVAILABLE rather than falsely clean.
+fetch_npm_changelog_text() {
+  local _pkg="$1" _from="$2" _to="$3"
+  [[ -z "$_pkg" || -z "$_from" || -z "$_to" ]] && return 0
+  python3 "$REPO_ROOT/.github/scripts/npm_changelog.py" fetch \
+    --package "$_pkg" --from-version "$_from" --to-version "$_to" 2>/dev/null || true
 }
 
 
@@ -400,8 +432,22 @@ if ! command -v timeout &>/dev/null; then
   if command -v gtimeout &>/dev/null; then
     timeout() { gtimeout "$@"; }
   else
-    # Simple fallback: just run the command without timeout
-    timeout() { shift; "$@"; }
+    # Simple fallback: run the command WITHOUT enforcing a timeout. Callers use
+    # GNU-style invocations like `timeout -k 15 180 cmd ...`, so we must strip any
+    # leading options (and their arguments) AND the DURATION before exec'ing the
+    # command — otherwise the option value (e.g. `15`) gets run as a command
+    # ("15: command not found") and every wrapped go build/test/vet/govulncheck
+    # fails, truncating per-PR analysis.
+    timeout() {
+      while [[ "$1" == -* ]]; do
+        case "$1" in
+          -k|--kill-after|-s|--signal) shift 2 ;;  # option takes an argument
+          *) shift ;;                              # flag or attached-arg form
+        esac
+      done
+      shift   # drop the DURATION positional
+      "$@"
+    }
   fi
 fi
 
@@ -442,22 +488,32 @@ retry_cmd() {
   local attempt=1
   local rc=0
   local has_timeout=0
-  local orig_timeout="" timeout_arg="" timeout_val=""
+  local timeout_val="" _dur_idx=-1
+  local _args=("$@")
+  local _i _ti=-1
 
-  for arg in "$@"; do
-    if [[ "$arg" == "timeout" ]]; then
+  for _i in "${!_args[@]}"; do
+    if [[ "${_args[$_i]}" == "timeout" ]]; then
       has_timeout=1
-      timeout_arg="timeout"
+      _ti=$_i
       break
     fi
   done
 
+  # Locate the DURATION positional: the first bare (non-option) token after the
+  # literal `timeout`. GNU options -k/--kill-after and -s/--signal consume a
+  # value, so they must be skipped — otherwise the kill-after value (e.g. the
+  # `15` in `timeout -k 15 120 …`) is mistaken for the duration, the command is
+  # rebuilt as `timeout 15 15 120 …`, and the runner tries to exec `15`
+  # ("15: command not found", exit 127), silently breaking go mod tidy/build.
   if [[ $has_timeout -eq 1 ]]; then
-    for arg in "$@"; do
-      if [[ "$arg" =~ ^[0-9]+$ ]]; then
-        timeout_val="$arg"
-        break
-      fi
+    local _j=$((_ti + 1))
+    while [[ $_j -lt ${#_args[@]} ]]; do
+      case "${_args[$_j]}" in
+        -k|--kill-after|-s|--signal) _j=$((_j + 2)) ;;
+        -*)                          _j=$((_j + 1)) ;;
+        *) _dur_idx=$_j; timeout_val="${_args[$_j]}"; break ;;
+      esac
     done
   fi
 
@@ -467,15 +523,15 @@ retry_cmd() {
       # Attempt 1: 1x, Attempt 2: 2x, Attempt 3+: 2x (capped).
       local _scale=$((attempt < 3 ? attempt : 2))
       local scaled_timeout=$((timeout_val * _scale))
+      # Rebuild the command, replacing ONLY the duration positional with the
+      # scaled value — preserving any -k/-s options and their arguments.
       local cmd=()
-      local skip_next=0
-      for arg in "$@"; do
-        if [[ $skip_next -eq 1 ]]; then skip_next=0; continue; fi
-        if [[ "$arg" == "timeout" ]]; then
-          cmd+=("timeout" "$scaled_timeout")
-          skip_next=1  # skip the original timeout value that follows
+      local _k
+      for _k in "${!_args[@]}"; do
+        if [[ $_k -eq $_dur_idx ]]; then
+          cmd+=("$scaled_timeout")
         else
-          cmd+=("$arg")
+          cmd+=("${_args[$_k]}")
         fi
       done
       # CR5-4: Capture exit code correctly. `if cmd; then` loses the actual
@@ -606,6 +662,24 @@ detect_dep_type_go() {
   local non_test_count
   non_test_count=$(grep -rn "\"$pkg" --include="*.go" "$search_dir" 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
   if [[ "$non_test_count" -eq 0 ]]; then
+    # A non-test grep of 0 does NOT prove dev. database/sql drivers and other runtime
+    # plugins are conventionally registered via a BLANK import (`_ "pkg"`) that may live
+    # in a single main/cmd file outside the scoped search_dir (PR#38: github.com/lib/pq
+    # is a production Postgres driver mislabeled dev). Two guards before concluding dev:
+    #   1) a blank import anywhere in the repo (incl. outside search_dir) ⇒ production runtime
+    #   2) a known runtime-driver allowlist ⇒ production
+    local blank_count
+    blank_count=$(grep -rEn "_[[:space:]]+\"$pkg\"" --include="*.go" "${REPO_ROOT:-.}" 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
+    if [[ "$blank_count" -gt 0 ]]; then
+      echo "production"
+      return
+    fi
+    case "$pkg" in
+      github.com/lib/pq|github.com/go-sql-driver/mysql|github.com/mattn/go-sqlite3|github.com/jackc/pgx/*|github.com/denisenkom/go-mssqldb|github.com/microsoft/go-mssqldb|github.com/godror/godror|github.com/ClickHouse/clickhouse-go/*|github.com/sijms/go-ora/*)
+        echo "production"
+        return
+        ;;
+    esac
     echo "dev"
   else
     echo "production"
@@ -652,13 +726,28 @@ extract_cves() {
 # ── Usage scan helpers ────────────────────────────────────────────────────────
 scan_usage_npm() {
   local pkg="$1"
-  # Also scan for @types/X → X
+  # Also scan for @types/X → X (the runtime package the types describe).
   local scan_name="$pkg"
   [[ "$pkg" == @types/* ]] && scan_name="${pkg#@types/}"
 
-  grep -rnE "from ['\"]${scan_name}(/[^'\"]+)?['\"]|require\(['\"]${scan_name}(/[^'\"]+)?['\"]" \
-    --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" \
-    src/ lib/ test/ 2>/dev/null | head -50 || true
+  # Escape regex metacharacters in the package name (scoped pkgs contain '/', some
+  # contain '.') so e.g. "react-dom" or "@scope/pkg.io" match literally.
+  local esc
+  esc=$(printf '%s' "$scan_name" | sed -E 's/[][(){}.^$*+?|\\]/\\&/g')
+
+  # Match every static + dynamic import form for the EXACT package (optionally a
+  # subpath import like pkg/sub), across the whole worktree minus build/vendor dirs.
+  # A name boundary ((/…)?['"]) prevents react-router from matching react-router-dom.
+  #   import … from 'pkg'      export … from 'pkg'
+  #   require('pkg')           import('pkg')   (dynamic)
+  grep -rnE \
+    "(from|require\(|import\()[[:space:]]*['\"]${esc}(/[^'\"]+)?['\"]" \
+    --include="*.ts" --include="*.tsx" --include="*.js" \
+    --include="*.mjs" --include="*.cjs" --include="*.jsx" \
+    --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+    --exclude-dir=.git --exclude-dir=coverage --exclude-dir=.next \
+    --exclude-dir=out --exclude-dir=.turbo --exclude-dir=.cache \
+    . 2>/dev/null | head -50 || true
 }
 
 scan_usage_go() {
@@ -747,7 +836,7 @@ for mod, dirs in sorted(module_dirs.items()):
   if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
     echo "  full build: no import data available, building ./..."
     go_free_disk
-    timeout $GO_TIMEOUT go build -o /dev/null ./... "$@"
+    timeout -k 15 $GO_TIMEOUT go build -o /dev/null ./... "$@"
     return $?
   fi
 
@@ -763,7 +852,7 @@ for mod, dirs in sorted(module_dirs.items()):
     fi
     echo "    dirs: $dirs"
     go_free_disk
-    (cd "$mod_root" && timeout $GO_TIMEOUT go build -o /dev/null $dirs "$@") || _RC=$?
+    (cd "$mod_root" && timeout -k 15 $GO_TIMEOUT go build -o /dev/null $dirs "$@") || _RC=$?
   done <<< "$build_script"
   return $_RC
 }
@@ -816,13 +905,13 @@ for mod, dirs in sorted(module_dirs.items()):
 " 2>/dev/null)
 
   if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
-    timeout 60 go vet ./... 2>&1 || true
+    timeout -k 15 60 go vet ./... 2>&1 || true
     return
   fi
 
   while IFS='|' read -r mod_root dirs; do
     [[ -z "$mod_root" || -z "$dirs" ]] && continue
-    (cd "$mod_root" && timeout 60 go vet $dirs 2>&1) || true
+    (cd "$mod_root" && timeout -k 15 60 go vet $dirs 2>&1) || true
   done <<< "$build_script"
 }
 
@@ -866,7 +955,7 @@ go_check_vulnerabilities() {
     # GOMEMLIMIT caps heap — prevents OOM-killer (exit 137).
     # timeout 180s per module (was 120s for whole repo).
     local mod_out mod_exit
-    mod_out=$(cd "$workdir/$mod" && GOMEMLIMIT=1500MiB GOGC=50 timeout 180 govulncheck ./... 2>&1)
+    mod_out=$(cd "$workdir/$mod" && GOMEMLIMIT=1500MiB GOGC=50 timeout -k 15 180 govulncheck ./... 2>&1)
     mod_exit=$?
 
     combined_out="$combined_out
@@ -971,7 +1060,7 @@ for mod, dirs in sorted(module_dirs.items()):
     echo "  go test: no import data, running full ./..."
     local _RC=0
     for mod_root in .; do
-      (cd "$workdir" && timeout $GO_TIMEOUT go test ./... 2>&1) || _RC=$?
+      (cd "$workdir" && timeout -k 15 $GO_TIMEOUT go test ./... 2>&1) || _RC=$?
     done
     return $_RC
   fi
@@ -985,7 +1074,7 @@ for mod, dirs in sorted(module_dirs.items()):
     local dir_count
     dir_count=$(echo "$dirs" | wc -w | tr -d ' ')
     echo "    testing $mod_root module: $dir_count dirs — $dirs"
-    (cd "$abs_mod" && timeout $GO_TIMEOUT go test -timeout 5m -race $dirs 2>&1) || _RC=$?
+    (cd "$abs_mod" && timeout -k 15 $GO_TIMEOUT go test -timeout 5m -race $dirs 2>&1) || _RC=$?
   done <<< "$test_script"
   return $_RC
 }
@@ -1059,6 +1148,88 @@ with open("/tmp/_bc_workspace_graph.json", "w") as f: json.dump(result, f, inden
 for lib, svcs in consumers.items(): print(f"  {lib} consumed by: {', '.join(s['service'] for s in svcs)}")
 for skew in nestjs_skew: print(f"  NestJS skew: {skew['package']} has majors {skew['majors']}")
 GRAPHEOF
+}
+
+# ── Test oracle: build workspace-internal libs to dist/ before a consumer build ─
+# Services import private @scope/* workspace libs (resolved via the file: fallback)
+# whose package.json points main/types at dist/. Until those libs are COMPILED, the
+# consumer's `tsc --noEmit` / `npm test` fails to resolve the workspace import — a
+# PRE-EXISTING infra failure unrelated to the dependency bump, which leaves build at
+# `pre_existing` and denies us a real PASS/FAIL test oracle. This builds the internal
+# libs in topological order (deps first) so the consumer compiles against real .d.ts.
+# Fail-open by design: any per-lib install/compile error is logged and skipped — we
+# NEVER abort the pipeline and NEVER manufacture a green (a still-missing lib simply
+# leaves the consumer build as it was). tsc emits .d.ts even with unrelated peer-dep
+# errors, which is exactly what the consumer needs to resolve types.
+build_npm_workspace_libs() {
+  local worktree="${1:-.}"
+  local timeout_s="${2:-300}"
+  # Topologically order internal libs (name contains netapp/datamigrate) from the
+  # workspace graph, deps first. Emits "relpath\tname" lines.
+  local order
+  order=$(_BC_WT="$worktree" python3 - << 'TOPOEOF'
+import json, os, sys
+try:
+    g = json.load(open("/tmp/_bc_workspace_graph.json"))
+except Exception:
+    sys.exit(0)
+pkgs = g.get("packages", {})
+def is_internal(n):
+    n = (n or "").lower()
+    return "netapp" in n or "datamigrate" in n
+libs = {n: i for n, i in pkgs.items() if is_internal(n)}
+# Map lower(name)->canonical for resolving internal_deps regardless of case.
+by_lower = {n.lower(): n for n in libs}
+visited, order = set(), []
+def visit(n, stack):
+    if n in visited or n in stack:
+        return
+    stack.add(n)
+    for dep in libs.get(n, {}).get("internal_deps", []) or []:
+        c = by_lower.get((dep or "").lower())
+        if c and c in libs:
+            visit(c, stack)
+    stack.discard(n)
+    visited.add(n)
+    order.append(n)
+for n in libs:
+    visit(n, set())
+wt = os.environ.get("_BC_WT", ".")
+for n in order:
+    rel = libs[n].get("path", "")
+    if rel and os.path.isfile(os.path.join(wt, rel, "package.json")):
+        print(f"{rel}\t{n}")
+TOPOEOF
+)
+  [[ -z "$order" ]] && return 0
+  local built=0
+  while IFS=$'\t' read -r rel name; do
+    [[ -z "$rel" ]] && continue
+    local libdir="$worktree/$rel"
+    [[ -d "$libdir/dist" ]] && { echo "  [test-oracle] $name: dist/ present, skip"; continue; }
+    setup_private_registries "$libdir" 2>/dev/null || true
+    # Rewrite this lib's own internal @scope/* deps to file: links so a non-leaf lib
+    # (e.g. api-handler-lib -> logger-lib) installs against the already-built sibling
+    # instead of the unreachable private registry. Topological order guarantees the
+    # dependency's dist/ already exists by the time we reach the dependent lib.
+    rewrite_private_deps_to_local "$libdir" "$worktree" 2>/dev/null || true
+    ( cd "$libdir" && retry_cmd 2 3 timeout "$timeout_s" npm ci --ignore-scripts >/dev/null 2>&1 ) \
+      || ( cd "$libdir" && timeout "$timeout_s" npm install --ignore-scripts --legacy-peer-deps >/dev/null 2>&1 ) \
+      || { echo "  [test-oracle] $name: install failed (skip)"; continue; }
+    # Prefer the package's own build script; fall back to a bare tsc. tsc emits the
+    # .d.ts even when unrelated peer-dep type errors are present, so ignore the exit.
+    if ( cd "$libdir" && timeout "$timeout_s" npm run build >/dev/null 2>&1 ); then :; else
+      ( cd "$libdir" && timeout "$timeout_s" npx tsc >/dev/null 2>&1 ) || true
+    fi
+    if [[ -d "$libdir/dist" ]]; then
+      echo "  [test-oracle] $name: built dist/"
+      built=$((built+1))
+    else
+      echo "  [test-oracle] $name: no dist/ after build (skip)"
+    fi
+  done <<< "$order"
+  [[ "$built" -gt 0 ]] && echo "  [test-oracle] built $built workspace lib(s)"
+  return 0
 }
 
 check_cascade_impact() {
@@ -1225,16 +1396,21 @@ fi
 PR_COUNT=$(echo "$PR_JSON" | jq length)
 echo "Found $PR_COUNT open Dependabot PRs"
 
-# Apply PR_FILTER if set (comma-separated list of PR numbers to analyze)
+# Apply PR_FILTER/BREAKABILITY_PR_NUMBERS if set (comma-separated PR numbers).
 # CR5-11: Pass PR_FILTER via env var read by Python, not shell expansion into code,
 # to eliminate injection risk from workflow_dispatch input.
 if [[ -n "${PR_FILTER:-}" ]]; then
   echo "PR_FILTER set: $PR_FILTER"
   FILTERED_JSON=$(echo "$PR_JSON" | _BC_PR_FILTER="$PR_FILTER" python3 -c "
-import json, sys, os
+import json, sys, os, re
 prs = json.load(sys.stdin)
 pr_filter = os.environ.get('_BC_PR_FILTER', '')
-allowed = set(pr_filter.replace(' ', '').split(','))
+allowed = set()
+for token in pr_filter.split(','):
+    token = token.strip().lstrip('#')
+    if not re.fullmatch(r'[0-9]+', token or ''):
+        continue
+    allowed.add(token)
 filtered = [p for p in prs if str(p['number']) in allowed]
 print(json.dumps(filtered))
 ")
@@ -1258,6 +1434,31 @@ cat > "$RESULTS_FILE" <<EOF
   "cross_pr_deps": []
 }
 EOF
+
+if [[ -n "${PR_FILTER:-}" ]]; then
+  _BC_PR_FILTER="$PR_FILTER" python3 - "$RESULTS_FILE" <<'PY'
+import json, os, re, sys
+
+path = sys.argv[1]
+requested = []
+seen = set()
+for token in os.environ.get("_BC_PR_FILTER", "").split(","):
+    token = token.strip().lstrip("#")
+    if not re.fullmatch(r"[0-9]+", token or ""):
+        continue
+    if token not in seen:
+        seen.add(token)
+        requested.append(int(token))
+
+with open(path) as f:
+    data = json.load(f)
+meta = data.setdefault("metadata", {})
+meta["subset_requested"] = True
+meta["requested_pr_numbers"] = requested
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+PY
+fi
 
 # ── Fetch all branches ───────────────────────────────────────────────────────
 echo ""
@@ -1338,6 +1539,9 @@ build_npm_baseline_for_dir() {
     fi
   fi
   if [[ "$dir_install_exit" -eq 0 && -f "$full_dir/tsconfig.json" ]]; then
+    # Build workspace-internal libs to dist/ so the consumer resolves @scope/* types
+    # (symmetric with the PR build/test worktrees — keeps build comparison honest).
+    build_npm_workspace_libs "$MAIN_DIR" "$TIMEOUT"
     echo "  [lazy baseline] tsc in $target_dir ..."
     dir_tsc_out=$(cd "$full_dir" && timeout $TIMEOUT npx tsc --noEmit 2>&1)
     dir_tsc_exit=$?
@@ -1394,7 +1598,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
     _BUILD_RC=0
     go_free_disk
     retry_cmd 3 5 go work sync && {
-      GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+      GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
       if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
       exit $_BUILD_RC
     }
@@ -1408,7 +1612,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
       _BUILD_RC=0
       go_free_disk
       retry_cmd 3 5 go work sync && {
-        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1437,7 +1641,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
       _mod_output=$(cd "$_mod_dir" && {
         _BUILD_RC=0
         retry_cmd 3 5 go mod tidy && {
-          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }
@@ -1450,7 +1654,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
         _mod_output=$(cd "$_mod_dir" && {
           _BUILD_RC=0
           retry_cmd 3 5 go mod tidy && {
-            GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+            GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
             if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
             exit $_BUILD_RC
           }
@@ -1488,8 +1692,8 @@ $_mod_output"
       # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
       _BUILD_RC=0
       go_free_disk
-      retry_cmd 3 5 timeout 120 go mod tidy && {
-        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+      retry_cmd 3 5 timeout -k 15 120 go mod tidy && {
+        GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1503,7 +1707,7 @@ $_mod_output"
         _BUILD_RC=0
         go_free_disk
         retry_cmd 3 5 go mod tidy && {
-          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }
@@ -1848,11 +2052,15 @@ SKIPEOF
   TO_VER=""
   ADDITIONAL_PACKAGES=""
 
-  if [[ "$PR_TITLE" =~ Bump[[:space:]]+(.+)[[:space:]]+from[[:space:]]+([^ ]+)[[:space:]]+to[[:space:]]+([^ ]+) ]]; then
+  # Dependabot uses two title styles: legacy "Bump X from A to B" and the
+  # conventional-commits "build(deps): bump X from A to B" (lowercase, prefixed).
+  # Match [Bb]ump unanchored so both styles — and scoped names like @nestjs/common
+  # — are captured. ("build" contains no "bump" substring, so this is unambiguous.)
+  if [[ "$PR_TITLE" =~ [Bb]ump[[:space:]]+(.+)[[:space:]]+from[[:space:]]+([^ ]+)[[:space:]]+to[[:space:]]+([^ ]+) ]]; then
     PKG="${BASH_REMATCH[1]}"
     FROM_VER="${BASH_REMATCH[2]}"
     TO_VER="${BASH_REMATCH[3]}"
-  elif [[ "$PR_TITLE" =~ Bump[[:space:]]+(.+)[[:space:]]+and[[:space:]]+(.*) ]]; then
+  elif [[ "$PR_TITLE" =~ [Bb]ump[[:space:]]+(.+)[[:space:]]+and[[:space:]]+(.*) ]]; then
     # Multi-package PR — take the first package name, record others
     PKG="${BASH_REMATCH[1]}"
     ADDITIONAL_PACKAGES="${BASH_REMATCH[2]}"
@@ -2116,18 +2324,23 @@ except Exception as e:
     CLI_OUTPUT_FILE="/tmp/_bc_cli_${PR_NUM}.raw"
     CLI_JSON_FILE="/tmp/_bc_cli_${PR_NUM}.json"
     CLI_ERR_FILE="/tmp/_bc_cli_${PR_NUM}.err"
-    # For Go, pre-fetch the comprehensive changelog (vanity-path aware, releases-in-range +
-    # CHANGELOG.md) and feed it to the CLI so computeMergeRisk sees declared breaking changes.
+    # Pre-fetch comprehensive changelogs/release notes and feed them to the CLI so
+    # computeMergeRisk sees declared breaking changes; the CLI also persists
+    # deterministic.changelogText + deterministic.changelogSignal.
     CLI_CHANGELOG_ARGS=()
-    if [[ "$ECOSYSTEM" == "gomod" ]]; then
+    if [[ "$ECOSYSTEM" == "gomod" || "$ECOSYSTEM" == "npm" ]]; then
       CLI_CHANGELOG_FILE="/tmp/_bc_changelog_${PR_NUM}.txt"
-      fetch_go_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      if [[ "$ECOSYSTEM" == "gomod" ]]; then
+        fetch_go_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      else
+        fetch_npm_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      fi
       if [[ -s "$CLI_CHANGELOG_FILE" ]]; then
         CLI_CHANGELOG_ARGS=(--changelog-file "$CLI_CHANGELOG_FILE")
-        echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') signal line(s) for CLI verdict"
+        echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') line(s) for CLI verdict"
       fi
     fi
-    timeout 180 node "$CLI_PATH" \
+    timeout -k 15 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
       --pr-body-file "$PR_BODY_FILE" \
@@ -2175,6 +2388,73 @@ print(json.dumps(result))
     rm -f "$CLI_OUTPUT_FILE" "$CLI_JSON_FILE" "$CLI_ERR_FILE"
   else
     echo "  pipeline: skipped ($ECOSYSTEM)"
+  fi
+
+  # ── npm semantic API/type-surface diff (mirrors Go apidiff) ───────────────────
+  # The bundled TS CLI does not compare the dependency's exported type surface, so
+  # for npm we run a standalone TypeScript-compiler diff of the package's .d.ts at
+  # the from/to versions (downloaded from the public registry). Results are merged
+  # into the deterministic block as the api_diff signal. Fails safe: compatible=null
+  # (UNAVAILABLE) whenever either version ships no types or extraction fails — never
+  # a false "compatible". A clean compatible result only clears patch/minor bumps;
+  # the evidence contract still gates major bumps on semver + changelog.
+  if [[ "$ECOSYSTEM" == "npm" && -n "$PKG" && -n "$FROM_VER" && -n "$TO_VER" ]]; then
+    APIDIFF_SCRIPT="$REPO_ROOT/.github/scripts/npm_apidiff.mjs"
+    if [[ -f "$APIDIFF_SCRIPT" ]] && command -v node >/dev/null 2>&1; then
+      echo "  npm api-diff: $PKG $FROM_VER -> $TO_VER ..."
+      APIDIFF_JSON=$(timeout -k 15 240 node "$APIDIFF_SCRIPT" "$PKG" "$FROM_VER" "$TO_VER" 2>/dev/null | tail -1 || echo "")
+      if [[ -n "$APIDIFF_JSON" ]]; then
+        DETERMINISTIC=$(DET_IN="$DETERMINISTIC" AD_IN="$APIDIFF_JSON" python3 -c "
+import json, os
+_din = os.environ.get('DET_IN') or '{}'
+try:
+    det = json.loads(_din)
+except Exception:
+    det = {}
+if not isinstance(det, dict):
+    det = {}
+try:
+    ad = json.loads(os.environ['AD_IN'])
+except Exception:
+    ad = {}
+compatible = ad.get('compatible', None)
+removed = ad.get('removed', []) or []
+changed = ad.get('changed', []) or []
+# Structured detail so policy_lowering._has_breaking_api_change classifies removals/
+# signature changes as hard breaks (changeType in its hard set), while a clean diff
+# (compatible) carries an empty detail list.
+detail = [{'name': n, 'changeType': 'removed'} for n in removed]
+detail += [
+    {'name': (c.get('name') if isinstance(c, dict) else c), 'changeType': 'signature_changed'}
+    for c in changed
+]
+det['api_changes'] = int(ad.get('apiChanges', 0) or 0)
+det['api_changes_detail'] = detail
+# Mark as a SEMANTIC, module-mode tool: ts-apidiff compares exported type
+# signatures via the TypeScript compiler (the npm analogue of Go's apidiff), so a
+# zero-change result is HIGH-confidence proof of API backward-compatibility.
+# UNAVAILABLE (compatible is None) must NOT look like a clean module diff — set
+# api_changes None and omit module mode so the api_diff signal is UNAVAILABLE
+# (never a false "compatible"), e.g. a major bump whose old version shipped no types.
+if compatible is None:
+    det['api_changes'] = None
+    det['api_changes_detail'] = []
+    det['api_diff_tool'] = {'name': 'ts-apidiff', 'status': 'unavailable'}
+else:
+    det['api_diff_tool'] = {'name': 'ts-apidiff', 'mode': 'module', 'status': 'semantic'}
+ver = det.get('verification') or {}
+if not isinstance(ver, dict):
+    ver = {}
+ver['compatible'] = compatible
+ver['api_diff_unavailable_reason'] = ad.get('reason', '') if compatible is None else ''
+det['verification'] = ver
+print(json.dumps(det))
+" 2>/dev/null || echo "$DETERMINISTIC")
+        echo "  npm api-diff: compatible=$(echo "$APIDIFF_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('compatible'))" 2>/dev/null || echo '?') api_changes=$(echo "$APIDIFF_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('apiChanges'))" 2>/dev/null || echo '?')"
+      else
+        echo "  npm api-diff: no output (unavailable)"
+      fi
+    fi
   fi
 
   # ── Build check on PR branch ───────────────────────────────────
@@ -2284,6 +2564,7 @@ $FALLBACK_OUT"
           fi
 
           if [[ "$PR_INSTALL_EXIT" -eq 0 && -f "$BUILD_DIR/tsconfig.json" ]]; then
+            build_npm_workspace_libs "$PR_WORKTREE" "$TIMEOUT"
             EVIDENCE_BUILD_COMMAND="npx tsc --noEmit"
             TSC_OUT=$(cd "$BUILD_DIR" && timeout $TIMEOUT npx tsc --noEmit 2>&1)
             PR_TSC_EXIT=$?
@@ -2421,7 +2702,7 @@ for m in sorted(affected):
                     echo "  multi-module: go mod tidy in $_tidy_mod"
                     _mod_tidy_out=""
                     _mod_tidy_rc=0
-                    _mod_tidy_out=$(cd "$_tidy_dir" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _mod_tidy_rc=$?
+                    _mod_tidy_out=$(cd "$_tidy_dir" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _mod_tidy_rc=$?
                     if [[ "$_mod_tidy_rc" -ne 0 ]]; then
                       _GO_TIDY_EXIT=$_mod_tidy_rc
                       echo "  ⚠ go mod tidy failed in $_tidy_mod (exit=$_mod_tidy_rc)"
@@ -2439,11 +2720,11 @@ ${_mod_tidy_out}"
                   _GO_TIDY_DIR="$PR_WORKTREE/$PKG_DIR"
                   echo "  multi-module: running go mod tidy in $PKG_DIR (not root)"
                 fi
-                _GO_TIDY_OUT=$(cd "$_GO_TIDY_DIR" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
+                _GO_TIDY_OUT=$(cd "$_GO_TIDY_DIR" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
               fi
             else
               # Single-module: tidy in worktree root
-              _GO_TIDY_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
+              _GO_TIDY_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
             fi
             if [[ "$_GO_TIDY_EXIT" -eq 0 ]]; then
               INSTALL_OK="true"
@@ -2768,7 +3049,7 @@ $IMPORT_OUT"
       echo "  build: exit=$BUILD_EXIT verdict=$BUILD_VERDICT"
 
       # Clean up worktree
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   elif [[ "$ECOSYSTEM" == "maven" ]]; then
     rm -rf "$PR_WORKTREE" 2>/dev/null || true
@@ -2785,7 +3066,7 @@ $IMPORT_OUT"
       else
         echo "  build: maven not available"; BUILD_VERDICT="skip"
       fi
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   elif [[ "$ECOSYSTEM" == "docker" ]]; then
     echo "  build: Docker — validating base image"
@@ -2849,7 +3130,8 @@ $IMPORT_OUT"
   # pre_existing means the failures are the same on both branches — the upgrade didn't break
   # anything. Running tests lets these PRs reach L4 instead of capping at L2.
   if [[ "$BUILD_VERDICT" == "pass" || "$BUILD_VERDICT" == "security_review" ]] || \
-     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "gomod" && "$INSTALL_OK" == "true" ]]; then
+     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "gomod" && "$INSTALL_OK" == "true" ]] || \
+     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "npm" && "$INSTALL_OK" == "true" ]]; then
     if [[ "$DEP_TYPE" == "production" ]]; then
       RUN_TESTS="true"
     elif [[ "$BUMP" == "major" && "$DEP_TYPE" == "dev" ]]; then
@@ -2857,6 +3139,13 @@ $IMPORT_OUT"
     elif [[ "$PKG" == "vitest" || "$PKG" == "jest" || "$PKG" == "mocha" ]]; then
       RUN_TESTS="true"
     fi
+  fi
+  # Opt-in fast survey mode: skip per-PR test execution. Default OFF so CI behavior is
+  # unchanged. Skipping tests only REMOVES build-verification evidence, which can never
+  # make a verdict less conservative (never introduces a false-green) -- it is used for
+  # fast local disposition sweeps across many PRs, not for ground-truth accuracy runs.
+  if [[ "${BREAKABILITY_SKIP_TESTS:-0}" == "1" ]]; then
+    RUN_TESTS="false"
   fi
   if [[ "$RUN_TESTS" == "true" ]]; then
     PR_WORKTREE="${WORKTREE_BASE}-${PR_NUM}-test"
@@ -2891,7 +3180,19 @@ $IMPORT_OUT"
           TEST_INSTALL_OK=false
           if (cd "$TEST_BUILD_DIR" && retry_cmd 3 5 timeout $TIMEOUT npm ci --ignore-scripts) 2>/dev/null; then
             TEST_INSTALL_OK=true
+          else
+            # Workspace monorepo: npm ci fails on private @scope/* deps. Mirror the
+            # build stage's fallback (rewrite to file: links + npm install) so tests
+            # actually run instead of being skipped (which left test ran=false).
+            echo "  test: npm ci failed — trying workspace-local fallback..."
+            rewrite_private_deps_to_local "$TEST_BUILD_DIR" "$PR_WORKTREE"
+            if (cd "$TEST_BUILD_DIR" && timeout $TIMEOUT npm install --ignore-scripts --legacy-peer-deps) >/dev/null 2>&1; then
+              TEST_INSTALL_OK=true
+              echo "  test: workspace-local fallback: SUCCESS"
+            fi
           fi
+          # Build workspace-internal libs so tsc/jest resolve @scope/* against real dist/.
+          [[ "$TEST_INSTALL_OK" == "true" ]] && build_npm_workspace_libs "$PR_WORKTREE" "$TIMEOUT"
           if [[ "$TEST_INSTALL_OK" == "true" ]]; then
             # Use --testPathPattern for scoped test execution in monorepos
             if [[ "$PKG_DIR" != "/" && -f "$TEST_BUILD_DIR/package.json" ]]; then
@@ -2928,7 +3229,7 @@ $IMPORT_OUT"
             if [[ -f "$TEST_BUILD_DIR/dist/main.js" ]]; then
               echo "  smoke: node require('./dist/main') ..."
               EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/main'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
-              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout -k 5 10 node -e "
                 try { require('./dist/main'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
@@ -2940,7 +3241,7 @@ $IMPORT_OUT"
             elif [[ -f "$TEST_BUILD_DIR/dist/index.js" ]]; then
               echo "  smoke: node require('./dist/index') ..."
               EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/index'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
-              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout -k 5 10 node -e "
                 try { require('./dist/index'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
@@ -3045,11 +3346,44 @@ $IMPORT_OUT"
           GOSUM_NEW_NAMES=$(echo "$_GOSUM_NEW_LINES" | awk '{print $1}' | sort -u | head -5 | tr '\n' ',' | sed 's/,$//' || echo "")
           GOSUM_TOTAL_PR=$(wc -l < "$_GOSUM_PR" | tr -d ' ' || echo "0")
           GOSUM_TOTAL_MAIN=$(wc -l < "$_GOSUM_MAIN" | tr -d ' ' || echo "0")
+          # Capture the resulting version of every module this PR RAISED (direct or
+          # transitive). go.sum lines are "module version[/go.mod] hash"; the diff
+          # against main yields only modules this PR introduced/bumped. The CVE
+          # matcher uses this to credit a fix delivered via a TRANSITIVE go.mod bump
+          # (e.g. an otel/sdk PR that also raises go.opentelemetry.io/otel), not just
+          # the PR's primary package.
+          _BC_GOSUM_NEW_LINES="$_GOSUM_NEW_LINES" python3 -c '
+import os, json
+def parse(v):
+    s = v.lstrip("v").split("+", 1)[0].split("-", 1)[0]
+    p = s.split(".")
+    try:
+        return tuple(int(x) for x in p[:3]) + (0,) * (3 - min(3, len(p)))
+    except ValueError:
+        return None
+best = {}
+for line in os.environ.get("_BC_GOSUM_NEW_LINES", "").splitlines():
+    f = line.split()
+    if len(f) < 2:
+        continue
+    mod, ver = f[0], f[1]
+    # Only the content-hash line ("mod v1.2.3 h1:…") proves the module version was
+    # actually SELECTED/built. A "/go.mod"-only line is just an MVS candidate and is
+    # NOT proof of a resolved bump — skip it to avoid over-crediting CVE fixes.
+    if ver.endswith("/go.mod"):
+        continue
+    pv = parse(ver)
+    if pv is None:
+        continue
+    if mod not in best or pv > best[mod][0]:
+        best[mod] = (pv, ver)
+print(json.dumps({m: v for m, (pv, v) in best.items()}))
+' > "/tmp/_bc_bumped_mods_${PR_NUM}.json" 2>/dev/null || echo '{}' > "/tmp/_bc_bumped_mods_${PR_NUM}.json"
         fi
         echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries ($GOSUM_NEW_NAMES)"
       fi
 
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   fi
 
@@ -3210,6 +3544,13 @@ try:
         gosum_total_main = int(f.read().strip() or "0")
 except (IOError, OSError, ValueError):
     gosum_total_main = 0
+try:
+    with open(f"/tmp/_bc_bumped_mods_{pr_num}.json") as f:
+        bumped_modules = json.load(f)
+        if not isinstance(bumped_modules, dict):
+            bumped_modules = {}
+except (IOError, OSError, ValueError):
+    bumped_modules = {}
 
 # Read govulncheck status + first finding (if any)
 try:
@@ -3440,6 +3781,7 @@ pr_data = {
     "gosum_new_names": gosum_new_names,
     "gosum_total_pr": gosum_total_pr,
     "gosum_total_main": gosum_total_main,
+    "bumped_modules": bumped_modules,
     "vuln_status": vuln_status,
     "vuln_finding": vuln_finding,
     "vuln_new_findings": vuln_new_findings,
@@ -3759,9 +4101,16 @@ if eco == "actions":
 else:
     pr_data["verification_level"] = level
     pr_data["verification_label"] = LEVEL_LABELS.get(level, f"L{level}")
+    # A build that FAILED still reaches level 2 (type-check was attempted) but must
+    # NOT be labelled "L2_type_checked" — that reads as a clean pass. Use a distinct
+    # "L2_build_failed" label so the merge plan / signal table never imply the build
+    # passed (PR#38 false-positive).
+    if level == 2 and build_verdict in ("fail", "pre_existing_plus_new"):
+        pr_data["verification_label"] = "L2_build_failed"
 if isinstance(pr_data.get("merge_risk"), dict):
     pr_data["merge_risk"].setdefault("evidenceAxis", "limited evidence")
-    pr_data["merge_risk"]["confidenceAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
+    pr_data["merge_risk"]["buildVerificationAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
+    pr_data["merge_risk"]["confidenceAxis"] = pr_data["merge_risk"]["buildVerificationAxis"]
     if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
         pr_data["deterministic"]["merge_risk"] = pr_data["merge_risk"]
 
@@ -3772,6 +4121,91 @@ if isinstance(pr_data.get("merge_risk"), dict):
 # the importing file) or DOWNGRADE when nothing imports the affected package.
 import re as _dbr_re
 import subprocess as _dbr_sub
+
+# ── Behavioral-exposure classifier (deterministic, Go-first) ───────────────────
+# Import-level reachability proves only that the affected PACKAGE is imported. For a
+# behavioral break that is the WHOLE residual: it tells the developer nothing about
+# whether their code touches the changed surface. This classifier refines import into
+# SURFACE exposure: does production code reference a changelog-NAMED changed symbol
+# (strongest), some exported symbol of the package (subsystem surface, the typical
+# shape of an internal-trigger behavioral change), or only import it (lowest)? It
+# NEVER asserts safety (internal behavior can change behind a stable API). Go-only
+# for now; other ecosystems return 'unknown' so the renderer keeps import-level wording.
+# NOTE: this code lives inside an UNQUOTED heredoc, so it must contain no literal
+# backtick or bare-dollar character (bash would expand them). We build the backtick
+# regex from chr(96) and avoid end-of-string anchors.
+_BT = chr(96)
+def _extract_named_symbols(text):
+    named = set()
+    for q, s in _dbr_re.findall(r"\b([a-z][A-Za-z0-9_]*)\.([A-Z][A-Za-z0-9_]{2,})", text or ""):
+        named.add(s)
+    for chunk in _dbr_re.findall(_BT + r"([^" + _BT + r"]+)" + _BT, text or ""):
+        for s in _dbr_re.findall(r"\b([A-Z][A-Za-z0-9_]{2,})\b", chunk):
+            named.add(s)
+    return named
+
+def _go_local_name(pkg, file_text):
+    m = _dbr_re.search(r'^\s*([A-Za-z_]\w*)\s+"' + _dbr_re.escape(pkg) + r'"', file_text or "", _dbr_re.M)
+    if m:
+        return m.group(1)
+    segs = [s for s in pkg.split("/") if s]
+    if segs and len(segs) >= 2 and segs[-1][:1] == "v" and segs[-1][1:].isdigit():
+        return segs[-2]
+    return segs[-1] if segs else pkg
+
+def _classify_behavioral_exposure(repo_root, paths, evidence, text, eco):
+    out = {"surface_kind": "unknown", "surface_symbols": [], "named_symbols": [],
+           "surface_evidence": [], "surface_by_path": {}}
+    if eco != "gomod":
+        return out
+    named = _extract_named_symbols(text)
+    out["named_symbols"] = sorted(named)[:12]
+    by_path = {}
+    for e in evidence:
+        if e.get("is_test"):
+            continue
+        by_path.setdefault(e["path"], []).append(e["file"])
+    rank = {"named": 3, "package": 2, "import_only": 1, "unknown": 0}
+    best = "unknown"; seen_syms = []; surf_ev = []
+    for p, files in by_path.items():
+        refs = set(); ref_locs = []; local = None
+        for rel in dict.fromkeys(files):
+            try:
+                with open(os.path.join(repo_root, rel), "r", errors="replace") as fh:
+                    src = fh.read()
+            except (IOError, OSError):
+                continue
+            ln = _go_local_name(p, src); local = local or ln
+            for m in _dbr_re.finditer(_dbr_re.escape(ln) + r"\.([A-Z][A-Za-z0-9_]*)", src):
+                sym = m.group(1); refs.add(sym)
+                ref_locs.append((sym, rel, src.count(chr(10), 0, m.start()) + 1))
+        if not refs:
+            kind = "import_only"
+        elif refs & named:
+            kind = "named"
+        else:
+            kind = "package"
+        out["surface_by_path"][p] = {"kind": kind, "local": local, "symbols": sorted(refs)[:12]}
+        if rank[kind] > rank[best]:
+            best = kind
+        for sym, rel, line_no in ref_locs:
+            is_named = sym in named
+            if kind == "named" and not is_named:
+                continue
+            surf_ev.append({"path": p, "symbol": sym, "file": rel, "line": str(line_no), "named": is_named})
+        seen_syms.extend(sorted(refs))
+    seen = set(); ded = []
+    for ev in surf_ev:
+        k = (ev["path"], ev["symbol"])
+        if k in seen:
+            continue
+        seen.add(k); ded.append(ev)
+    ded.sort(key=lambda e: (e["path"] not in (text or ""), not e["named"]))
+    out["surface_kind"] = best
+    out["surface_symbols"] = sorted(set(seen_syms))[:20]
+    out["surface_evidence"] = ded[:8]
+    return out
+
 def _resolve_declared_break_reachability(pr_data, deterministic, eco):
     mr = pr_data.get("merge_risk") or {}
     evidence_axis = (mr.get("evidenceAxis") or "").lower()
@@ -3792,6 +4226,10 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
     text = " \n ".join(breaking_bullets) if breaking_bullets else ((deterministic or {}).get("changelogText") or "")
     # Extract module/import-style paths (domain + at least one path segment).
     raw_paths = set(_dbr_re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.[A-Za-z]{2,}(?:/[A-Za-z0-9_.-]+)+", text))
+    # Trailing sentence punctuation can attach to a path captured from prose (e.g.
+    # "...exporters/prometheus. Previously" -> "...prometheus."), which then fails the
+    # import grep. Strip trailing non-path punctuation so reachability is not falsely lost.
+    raw_paths = {p.rstrip(".,;:)]'\"") for p in raw_paths}
     # npm scoped packages and bare python modules are less reliably named in prose; focus on
     # path-like identifiers, which covers Go module paths and npm scoped/url-style packages.
     reason_text = (mr.get("reason") or "")
@@ -3852,21 +4290,51 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
         "behavior_confirmed": False,
         "evidence": evidence[:12],
     }
+    # Refine import-level reachability into SURFACE-level exposure tiers (deterministic).
+    try:
+        result.update(_classify_behavioral_exposure(repo_root, paths, evidence, text, eco))
+    except Exception as _exp_e:
+        print("  behavioral-exposure classification skipped:", str(_exp_e)[:120])
     pr_data["declared_break_reachability"] = result
     # Adjust the verdict using the resolved reachability.
     if not paths:
         return
     if prod_reached:
+        sk = result.get("surface_kind", "unknown")
+        surf_ev = result.get("surface_evidence", [])
         proof = next((e for e in evidence if (not e["is_test"]) and e["path"] in (mr.get("reason") or "")), None)
         if not proof:
             proof = next((e for e in evidence if not e["is_test"]), None)
         loc = (" (" + proof["path"] + ")") if proof else ""
         mr["tag"] = "Medium"
-        mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
-                        "code imports the affected package" + loc + ", but build, tests, and API-diff "
-                        "cannot confirm or rule out that your usage triggers it — not a confirmed break; "
-                        "verify against the release notes")
-        mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
+        if sk == "named":
+            sev = next((e for e in surf_ev if e.get("named")), None) or (surf_ev[0] if surf_ev else None)
+            symloc = (" — your code calls %s at %s:%s" % (sev["symbol"], sev["file"], sev["line"])) if sev else ""
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change to a symbol your "
+                            "production code calls directly" + symloc + "; build, tests, and API-diff cannot confirm "
+                            "whether the changed behavior affects your usage — verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change on a directly-called symbol, unverified by build/test/api-diff"
+        elif sk == "package":
+            sev = surf_ev[0] if surf_ev else None
+            local = (result.get("surface_by_path", {}).get(sev["path"], {}).get("local") or sev["path"].split("/")[-1]) if sev else ""
+            symloc = (" (e.g. %s.%s at %s:%s)" % (local, sev["symbol"], sev["file"], sev["line"])) if sev else ""
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change inside a package your "
+                            "production code uses" + loc + symloc + "; the change is internal to the package, so whether it "
+                            "affects you depends on your runtime data/configuration — build, tests, and API-diff cannot "
+                            "confirm or rule it out; verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change in a used package (internal trigger), unverified by build/test/api-diff"
+        elif sk == "import_only":
+            mr["reason"] = ("review required: your production code imports the affected package" + loc + " but does not "
+                            "appear to reference its exported surface (possibly a blank or transitive import); the changelog "
+                            "declares a BEHAVIORAL change whose impact we cannot confirm or rule out — lower-risk, but verify "
+                            "against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change, package imported but exported surface not referenced in production"
+        else:
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
+                            "code imports the affected package" + loc + ", but build, tests, and API-diff "
+                            "cannot confirm or rule out that your usage triggers it — not a confirmed break; "
+                            "verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
     elif test_only:
         mr["tag"] = "Medium"
         mr["reason"] = "declared breaking change is only reachable from test/CI code: " + ", ".join(paths)
@@ -4041,7 +4509,7 @@ PYEOF
 done
 
 # Clean up main worktree (kept alive for lazy baselines during PR processing)
-git worktree remove "$MAIN_DIR" --force 2>/dev/null || rm -rf "$MAIN_DIR"
+git worktree remove "$MAIN_DIR" --force 2>/dev/null || { chmod -R u+w "$MAIN_DIR" 2>/dev/null; rm -rf "$MAIN_DIR" 2>/dev/null; } || true
 
 # ── In batch mode, skip cross-PR / security / cleanup (merge script handles those) ──
 if [[ -n "$BATCH_ID" ]]; then
@@ -4284,15 +4752,34 @@ for a in open_alerts:
     for num, pr in prs.items():
         pr_pkg = pr.get("package", "")
         pr_to = pr.get("to", "")
-        if pr_pkg == alert_pkg and fpv and _semver_gte(pr_to, fpv):
+        bumped = pr.get("bumped_modules") or {}
+        # Resulting version of the ALERT's package after this PR merges:
+        #   • primary bump  -> pr_to (the PR's own package == alert package)
+        #   • transitive    -> the version this PR raised the alert package to in
+        #                       go.sum (captured as bumped_modules). Only PRs that
+        #                       actually RAISED the module are credited, so we don't
+        #                       over-credit every PR that merely pins it at a safe ver.
+        if pr_pkg == alert_pkg:
+            resulting_ver = pr_to
+            via = "primary"
+        elif alert_pkg in bumped:
+            resulting_ver = bumped[alert_pkg]
+            via = "transitive"
+        else:
+            continue
+        # Gate on the ACTUAL fixed-in version vs the resulting version. A bump that
+        # lands BELOW first_patched_version (e.g. otel/sdk 1.42 vs a CVE fixed in
+        # 1.43) does NOT deliver the fix and must fall through to the orphan list.
+        if fpv and _semver_gte(resulting_ver, fpv):
             cve_fixes.append({
                 "pr": int(num) if str(num).isdigit() else num,
                 "package": alert_pkg,
                 "cve_id": cve,
                 "severity": sev,
                 "from_version": pr.get("from", ""),
-                "to_version": pr_to,
+                "to_version": resulting_ver,
                 "first_patched_version": fpv,
+                "via": via,
                 "summary": summary[:200],
             })
             matched_alert_ids.add(alert_num)

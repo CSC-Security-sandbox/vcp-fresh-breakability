@@ -37,23 +37,7 @@
   },
   {
     "filePath": "kubernetes/vsa-control-plane/charts/core/values.yaml",
-    "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest", "images.vcpIamLifecycle.tag", "images.vcpIamLifecycle.digest", "images.telemetryDeployer.tag", "images.telemetryDeployer.digest","images.telemetry.tag", "images.telemetry.digest"]
-  },
-  {
-    "filePath": "kubernetes/OCI/oci-proxy/Chart.yaml",
-    "yamlPath": ["version", "appVersion"]
-  },
-  {
-    "filePath": "kubernetes/OCI/oci-proxy/values.yaml",
-    "yamlPath": ["images.ociProxy.tag"]
-  },
-  {
-    "filePath": "kubernetes/OCI/vcp-worker-chart/Chart.yaml",
-    "yamlPath": ["version", "appVersion"]
-  },
-  {
-    "filePath": "kubernetes/OCI/vlm-worker/Chart.yaml",
-    "yamlPath": ["version", "appVersion"]
+    "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest", "images.telemetryDeployer.tag", "images.telemetryDeployer.digest","images.telemetry.tag", "images.telemetry.digest"]
   },
   {
     "filePath": "kubernetes/vsa-harvest-otel/Chart.yaml",

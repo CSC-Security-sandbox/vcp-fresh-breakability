@@ -27,7 +27,7 @@ build:
     - image: ghcr.io/vcp-vsa-control-plane/core
       context: .
       docker:
-        dockerfile: vcp-core/Dockerfile
+        dockerfile: core/Dockerfile
         buildArgs:
           GHVSA_PAT: "{{.GHVSA_PAT}}"
       requires:
