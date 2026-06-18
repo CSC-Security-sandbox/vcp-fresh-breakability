@@ -254,6 +254,13 @@ jobs:
               print(f'Cross-PR deps: {len(cross)}')
           " || echo "Failed to parse build-results.json"
 
+      # ── Verdict Contract ───────────────────────────────────────────
+      - name: Generate authoritative verdicts
+        run: |
+          echo "════════════ VERDICT CONTRACT ════════════"
+          python3 .github/scripts/verdict_contract.py /tmp/build-results.json --write
+          echo "✅ verdict_v2 populated for all PRs"
+
       # ── Agent Analysis ─────────────────────────────────────────────
       - name: Install Cursor Agent CLI
         if: ${{ inputs.skip_agent != true }}
