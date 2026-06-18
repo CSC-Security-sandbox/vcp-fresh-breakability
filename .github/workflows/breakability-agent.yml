@@ -222,22 +222,9 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest 2>/dev/null || echo "govulncheck install failed — vuln scanning will be skipped"
 
       - name: Setup Python
-        shell: bash
-        run: |
-          # Use the Python pre-seeded in the self-hosted runner tool cache.
-          # actions/setup-python downloads an installer hardcoded to the
-          # GitHub-hosted path /Users/runner/hostedtoolcache, which fails on
-          # this runner (user: hpoornac). Putting the seeded interpreter on
-          # PATH avoids that download entirely.
-          PYBIN="${RUNNER_TOOL_CACHE:-$HOME/actions-runner/_work/_tool}/Python/${PYTHON_VERSION_FULL}/arm64/bin"
-          if [[ ! -x "$PYBIN/python3" ]]; then
-            echo "::error::Seeded Python ${PYTHON_VERSION_FULL} not found at $PYBIN"
-            exit 1
-          fi
-          echo "$PYBIN" >> "$GITHUB_PATH"
-          "$PYBIN/python3" --version
-        env:
-          PYTHON_VERSION_FULL: '3.12.13'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Setup Maven
         if: steps.detect.outputs.has_java == 'true'
@@ -304,19 +291,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Python
-        shell: bash
-        run: |
-          # Use the Python pre-seeded in the self-hosted runner tool cache
-          # (see deterministic job for rationale).
-          PYBIN="${RUNNER_TOOL_CACHE:-$HOME/actions-runner/_work/_tool}/Python/${PYTHON_VERSION_FULL}/arm64/bin"
-          if [[ ! -x "$PYBIN/python3" ]]; then
-            echo "::error::Seeded Python ${PYTHON_VERSION_FULL} not found at $PYBIN"
-            exit 1
-          fi
-          echo "$PYBIN" >> "$GITHUB_PATH"
-          "$PYBIN/python3" --version
-        env:
-          PYTHON_VERSION_FULL: '3.12.13'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Download all batch artifacts
         uses: actions/download-artifact@v4
