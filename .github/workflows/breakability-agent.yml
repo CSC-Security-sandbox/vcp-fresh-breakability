@@ -4,29 +4,16 @@ on:
   # schedule:
   #   # Weekdays at 6 AM UTC — disabled to save CI costs
   #   - cron: '0 6 * * 1-5'
-  pull_request:
-    # Scenario 2A: analyze a Dependabot PR immediately when it opens, without waiting for the next batch run.
-    # Non-Dependabot PRs are filtered out in the discover job via the 'dependencies' label check.
-    types: [opened]
   workflow_dispatch:
     inputs:
-      pr_numbers:
-        description: 'Comma-separated PR numbers to analyze (empty = all)'
-        required: false
-        default: ''
       pr_filter:
-        description: 'Legacy alias for pr_numbers (empty = all)'
+        description: 'Comma-separated PR numbers to analyze (empty = all)'
         required: false
         default: ''
       skip_agent:
         description: 'Skip agent step (deterministic only)'
         required: false
         default: 'false'
-        type: boolean
-      run_behavioral_probe:
-        description: 'Run targeted AI behavioral probe on declared-behavioral residuals'
-        required: false
-        default: 'true'
         type: boolean
       batch_count:
         description: 'Number of parallel batches (1 = sequential, 4 = default)'
@@ -40,64 +27,35 @@ on:
           - '6'
 
 concurrency:
-  # Scope concurrency per event type so single-PR analysis (pull_request:opened)
-  # doesn't cancel running batch scans (workflow_dispatch) (Finding-1.12).
-  group: breakability-agent-${{ github.event_name }}-${{ github.event.pull_request.number || 'batch' }}
+  group: breakability-agent
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   issues: write
-  security-events: read
 
 env:
   NODE_VERSION: '20'
-  # Go version should match the target repo's go.mod directive to avoid
-  # automatic toolchain downloads that trigger GOSUMDB verification (A3-8).
-  # Use 1.24 as the default — most repos in greenqloud use 1.24.x.
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.22'
   PYTHON_VERSION: '3.12'
-  BREAKABILITY_PR_NUMBERS: ${{ vars.BREAKABILITY_PR_NUMBERS || '' }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════
   # Job 1: Discover PRs and split into batches
   # ═══════════════════════════════════════════════════════════════════
   discover:
-    runs-on: macos-latest
-    # Skip non-Dependabot PRs to avoid wasting CI time (Finding-2.7).
-    # pull_request:opened fires for ALL PRs; filter early to avoid empty runs
-    # that could cancel real batch scans via the concurrency group.
-    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.split.outputs.matrix }}
       pr_count: ${{ steps.split.outputs.pr_count }}
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup GitHub CLI
-        run: |
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
-          tar -xzf /tmp/gh.tar.gz -C /tmp
-          echo "/tmp/gh_2.62.0_linux_amd64/bin" >> $GITHUB_PATH
-          
       - name: Discover and split PRs into batches
         id: split
         run: |
           BATCH_COUNT="${{ inputs.batch_count || '4' }}"
-          PR_FILTER="${{ inputs.pr_numbers || inputs.pr_filter }}"
-          if [[ -z "$PR_FILTER" && -n "${BREAKABILITY_PR_NUMBERS:-}" ]]; then
-            PR_FILTER="$BREAKABILITY_PR_NUMBERS"
-          fi
-
-          # Single-PR mode: when triggered by pull_request: opened, analyze only that PR.
-          # This handles Scenario 2A — instant analysis for a new Dependabot PR.
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR_FILTER="${{ github.event.pull_request.number }}"
-            echo "pull_request trigger detected — single-PR mode: PR #${PR_FILTER}"
-          fi
+          PR_FILTER="${{ inputs.pr_filter }}"
 
           # Fetch all open Dependabot PRs
           PR_NUMS=$(gh pr list --repo "$GITHUB_REPOSITORY" \
@@ -142,15 +100,15 @@ jobs:
           echo "Matrix: $MATRIX_JSON"
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
         env:
-          GH_TOKEN: ${{ secrets.BREAKABILITY_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 2: Deterministic analysis (parallel matrix)
   # ═══════════════════════════════════════════════════════════════════
   deterministic:
     needs: discover
-    runs-on: macos-latest
-    timeout-minutes: 180
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
@@ -161,78 +119,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Isolate Go build cache per batch
-        shell: bash
-        run: |
-          # Per-batch isolated Go BUILD cache. All self-hosted batch runners share
-          # one $HOME (same mac), so a shared default GOCACHE means one batch's
-          # `go clean -cache` (build-check.sh calls it at several sites) deletes
-          # cache entries another parallel batch is mid-build against -> "no such
-          # file or directory" / "package ... is not in std" corruption -> degraded
-          # build output and thin comments. Isolating the build cache per batch
-          # removes that race. The module cache (GOMODCACHE, ~9.8G) stays
-          # shared/warm: `go clean -cache` never touches it.
-          # NOTE: the `runner` context is NOT available in job-level `env`, so we
-          # export GOCACHE here via $GITHUB_ENV (before any go command runs) where
-          # $RUNNER_TEMP and the matrix context are both available.
-          echo "GOCACHE=${RUNNER_TEMP}/go-build-cache-${{ matrix.batch_id }}" >> "$GITHUB_ENV"
-          echo "Isolated GOCACHE -> ${RUNNER_TEMP}/go-build-cache-${{ matrix.batch_id }}"
-
-      - name: Detect toolchains needed
-        id: detect
-        shell: bash
-        run: |
-          # Only set up the language toolchains this repo actually uses, so a
-          # Go-only repo doesn't pay for Node setup (and vice-versa). Detection
-          # is repo-level: if both go.mod and package.json exist, both are set up.
-          has_go=false; has_node=false; has_java=false
-          [[ -n "$(find . -name go.mod -not -path '*/vendor/*' -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_go=true
-          [[ -n "$(find . -name package.json -not -path '*/node_modules/*' -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_node=true
-          [[ -n "$(find . \( -name pom.xml -o -name build.gradle \) -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_java=true
-          echo "has_go=$has_go"   >> "$GITHUB_OUTPUT"
-          echo "has_node=$has_node" >> "$GITHUB_OUTPUT"
-          echo "has_java=$has_java" >> "$GITHUB_OUTPUT"
-          echo "detected toolchains: go=$has_go node=$has_node java=$has_java"
-
       - name: Setup Node.js
-        if: steps.detect.outputs.has_node == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # Self-hosted: npm cache + tool-cache SDK already persist on disk
-          # between runs. The GHA cache just adds a slow, racy network round-trip.
-          cache: ''
 
       - name: Setup Go
-        if: steps.detect.outputs.has_go == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          # Self-hosted: GOMODCACHE/GOCACHE (9.8G) already persist on disk between
-          # runs. Disable the GHA module cache to avoid the Zscaler-slow,
-          # "Unable to reserve cache" race that dominated run time.
-          cache: false
-
-      - name: Install Go security tools
-        if: steps.detect.outputs.has_go == 'true' && env.BREAKABILITY_GOVULNCHECK == '1'
-        run: |
-          # govulncheck: scans transitive deps for known CVEs. Opt-in only
-          # (default off — Dependabot already supplies the CVE list), so we
-          # skip this network 'go install' on every run unless explicitly enabled.
-          go install golang.org/x/vuln/cmd/govulncheck@latest 2>/dev/null || echo "govulncheck install failed — vuln scanning will be skipped"
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Setup Maven
-        if: steps.detect.outputs.has_java == 'true'
         run: |
-          # Self-hosted runners here are macOS (no apt-get). Use brew if Maven
-          # is missing; only runs for repos that actually have pom.xml/build.gradle.
           if ! command -v mvn &>/dev/null; then
-            brew install maven > /dev/null 2>&1 || echo "Maven install skipped (install manually on runner if Java repos are added)"
+            sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
           fi
 
       - name: Run deterministic analysis (batch ${{ matrix.batch_id }})
@@ -242,13 +147,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # V9.8 iter6: optional fine-grained PAT for reading Dependabot alerts.
-          # If set, the security scan uses this instead of GITHUB_TOKEN.
-          # Required permissions: Dependabot alerts (Read), Contents (Read), Metadata (Read).
-          BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
           CLI_PATH: .github/actions/breakability-check/index.js
           PR_FILTER: ${{ matrix.pr_filter }}
-          BREAKABILITY_PR_NUMBERS: ${{ matrix.pr_filter }}
           BATCH_ID: ${{ matrix.batch_id }}
           REPO_ROOT: ${{ github.workspace }}
           # ── Private Registry Auth (see docs/PRIVATE_REGISTRIES.md) ──
@@ -277,7 +177,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   merge-and-analyze:
     needs: [discover, deterministic]
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     if: always() && needs.discover.result == 'success'
 
@@ -293,30 +193,38 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download all batch artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/batch-results
           pattern: batch-*
 
       - name: List downloaded artifacts
         run: |
           echo "=== Downloaded artifacts ==="
-          find "${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}" -type f | sort | head -60
+          find /tmp/batch-results -type f | sort | head -60
           echo "=== Batch result files ==="
-          ls -la "${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}"/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
+          ls -la /tmp/batch-results/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
 
       - name: Merge results
         run: |
           chmod +x .github/scripts/merge-results.sh
-          EXPECTED_PR_COUNT=${{ needs.discover.outputs.pr_count }} bash .github/scripts/merge-results.sh
+          bash .github/scripts/merge-results.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
-          BATCH_RESULTS_DIR: ${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload merged results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-results
+          path: |
+            /tmp/build-results.json
+            /tmp/pr-*.diff
+          retention-days: 30
 
       - name: Show build results summary
         if: always()
@@ -346,148 +254,36 @@ jobs:
               print(f'Cross-PR deps: {len(cross)}')
           " || echo "Failed to parse build-results.json"
 
-      # ── Agent Analysis (Cursor Agent CLI) ──────────────────────
-      # Install the Cursor CLI early: it is needed by BOTH the targeted behavioral
-      # probe (below) and the full agent analysis. Install when either is enabled.
+      # ── Agent Analysis ─────────────────────────────────────────────
       - name: Install Cursor Agent CLI
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe || inputs.skip_agent != true }}
+        if: ${{ inputs.skip_agent != true }}
         run: |
           curl -fsS https://cursor.com/install | bash
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Verify agent CLI
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe || inputs.skip_agent != true }}
+        if: ${{ inputs.skip_agent != true }}
         run: |
           agent --version || echo "WARNING: agent CLI not on PATH"
-
-      # Differential probe: commits a behavioral grade (none|low|medium|high) for each
-      # declared-behavioral residual PR (build/tests/api-diff clean, but the changelog
-      # declares a behavioral break that production code imports) — replacing the old
-      # "review the release notes yourself" punt. A break-class ROUTER first decides
-      # whether the break is observable from a minimal call-site probe:
-      #   - not_observable (load/state/time/concurrency-dependent, e.g. cardinality) or
-      #     ambiguous  -> committed Medium + targeted note, ZERO AI calls (a probe would
-      #     false-green these);
-      #   - call_observable (changed default/return/error/format/signature) -> ONE AI call
-      #     that downloads the dep at both versions, builds+runs a self-contained probe
-      #     exercising only the named dimension, diffs it, and the driver floors the grade
-      #     conservatively (incomplete -> Medium; none/low only with source-cited proof).
-      # Sandboxed (ephemeral workdir, scrubbed env, repo-clean verified), fail-open, and
-      # intentionally NOT given GH tokens. Runs BEFORE commit + full agent + comments.
-      - name: Differential probe (behavioral grade)
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe }}
-        continue-on-error: true
-        run: |
-          python3 .github/scripts/differential-probe.py
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          DP_REPO_ROOT: ${{ github.workspace }}
-          DP_CACHE_DIR: ${{ runner.temp }}/dp-cache
-        timeout-minutes: 30
-
-      - name: Policy lowering evidence
-        if: always()
-        run: |
-          if [ ! -f /tmp/build-results.json ]; then
-            echo "No merged build-results.json; skipping policy lowering"
-            exit 0
-          fi
-          python3 .github/scripts/policy_lowering.py /tmp/build-results.json --enrich -o /tmp/build-results.policy.json
-          mv /tmp/build-results.policy.json /tmp/build-results.json
-        timeout-minutes: 5
-
-      # ── AI layer: independent per-PR adjudication + reconcile (PRD differentiator) ──
-      # The AI does its OWN module-scoped analysis and AUDITS the deterministic layer, then a
-      # single reconciler applies the result. Tier-0 (module-scope) clears cross-module false
-      # positives for $0; the AI resolves the residue (safe / needs_change) instead of punting
-      # "review". Fail-safe: if the agent is unavailable or output is rejected, PRs stay REVIEW.
-      - name: Independent AI adjudication (per-PR)
-        if: ${{ inputs.skip_agent != true }}
-        continue-on-error: true
-        run: |
-          if [ ! -f /tmp/build-results.json ]; then echo "no results; skip"; exit 0; fi
-          chmod +x .github/scripts/independent_adjudicate.sh
-          bash .github/scripts/independent_adjudicate.sh /tmp/build-results.json /tmp/ai_verdicts.json "${ADJ_MODEL:-claude-4-sonnet}"
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 60
-
-      - name: Reconcile AI + deterministic verdicts
-        if: always()
-        run: |
-          if [ ! -f /tmp/build-results.json ]; then echo "no results; skip"; exit 0; fi
-          VERDICTS=""
-          [ -f /tmp/ai_verdicts.json ] && VERDICTS="--verdicts /tmp/ai_verdicts.json"
-          python3 .github/scripts/reconcile_adjudication.py /tmp/build-results.json $VERDICTS --repo . --write
-        timeout-minutes: 5
-
-      # Upload AFTER the probe and policy lowering so the artifact carries the
-      # committed behavioral grades plus typed policy evidence.
-      - name: Upload merged results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-results
-          path: |
-            /tmp/build-results.json
-            /tmp/pr-*.diff
-          retention-days: 30
-
-      - name: Commit build results to temp branch
-        if: ${{ inputs.skip_agent != true }}
-        id: commit_results
-        run: |
-          RESULTS_BRANCH="breakability-results"
-          echo "results_branch=$RESULTS_BRANCH" >> "$GITHUB_OUTPUT"
-
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          # Create or switch to the results branch (orphan — no history needed)
-          # On first run, --orphan stages ALL tracked files. git rm -rf removes them
-          # so the commit only contains results, not the entire repo (Finding-3.7).
-          git checkout --orphan "$RESULTS_BRANCH" 2>/dev/null || git checkout "$RESULTS_BRANCH" 2>/dev/null || true
-          git rm -rf . 2>/dev/null || true
-          git reset --hard HEAD 2>/dev/null || true
-
-          # Stage build results
-          cp /tmp/build-results.json ./build-results.json
-
-          # Bundle PR diffs into a tarball if they exist
-          if ls /tmp/pr-*.diff 1>/dev/null 2>&1; then
-            tar czf ./pr-diffs.tar.gz -C /tmp/ $(ls /tmp/pr-*.diff | xargs -I{} basename {})
-          fi
-
-          git add build-results.json pr-diffs.tar.gz 2>/dev/null || git add build-results.json
-          git commit -m "Breakability results $(date -u +%Y-%m-%dT%H:%M:%SZ)" --allow-empty
-          git push origin "$RESULTS_BRANCH" --force
-
-          # Switch back to main branch for subsequent steps
-          git checkout "${{ github.ref_name }}" 2>/dev/null || git checkout main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Cursor agent analysis
         if: ${{ inputs.skip_agent != true }}
         id: agent
         continue-on-error: true
         run: |
+          if ! command -v agent &>/dev/null; then
+            echo "::error::Cursor agent CLI not found on PATH."
+            exit 1
+          fi
           agent -p --force --model claude-4-sonnet "$(cat .github/breakability-prompt.md)"
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 120
-      # ── Deterministic analysis comments + merge plan ─────────────
-      # CR5-1: This is the PRIMARY comment system, not a fallback.
-      # Run when: agent was skipped, agent failed, or always in advisory mode.
-      # The agent check (line 66-73 of post-fallback-comments.sh) still skips
-      # PRs where the AI agent already posted richer comments.
-      - name: Post deterministic analysis comments
+        timeout-minutes: 60
+
+      # ── Fallback ───────────────────────────────────────────────────
+      - name: Post fallback comments for missed PRs
         if: always()
         run: |
           chmod +x .github/scripts/post-fallback-comments.sh
