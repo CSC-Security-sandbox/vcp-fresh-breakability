@@ -75,12 +75,13 @@ jobs:
       matrix: ${{ steps.split.outputs.matrix }}
       pr_count: ${{ steps.split.outputs.pr_count }}
     steps:
-      - name: Install GitHub CLI
+      - uses: actions/checkout@v4
+      
+      - name: Setup GitHub CLI
         run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
+          curl -fsSL https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+          echo "/tmp/gh_2.62.0_linux_amd64/bin" >> $GITHUB_PATH
           
       - name: Discover and split PRs into batches
         id: split
