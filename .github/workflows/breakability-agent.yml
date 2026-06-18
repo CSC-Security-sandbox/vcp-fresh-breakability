@@ -196,7 +196,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download all batch artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/batch-results
           pattern: batch-*
