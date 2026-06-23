@@ -261,28 +261,53 @@ jobs:
           python3 .github/scripts/verdict_contract.py /tmp/build-results.json --write
           echo "✅ verdict_v2 populated for all PRs"
 
+      # ── Behavioral Probe ───────────────────────────────────────────
+      - name: Run behavioral probe (runtime verification)
+        continue-on-error: true
+        run: |
+          echo "════════════ BEHAVIORAL PROBE ════════════"
+          chmod +x .github/scripts/differential-probe.py
+          python3 .github/scripts/differential-probe.py
+          echo "✅ Probe data enriched"
+        env:
+          DP_RESULTS: /tmp/build-results.json
+          DP_DETERMINISTIC_ONLY: "true"
+          DP_MAX_PRS: "20"
+        timeout-minutes: 15
+
       # ── Agent Analysis ─────────────────────────────────────────────
       - name: Install Cursor Agent CLI
         if: ${{ inputs.skip_agent != true }}
         run: |
+          echo "Installing Cursor agent CLI..."
           curl -fsS https://cursor.com/install | bash
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Verify agent CLI
+      - name: Verify agent CLI (REQUIRED)
         if: ${{ inputs.skip_agent != true }}
-        run: |
-          agent --version || echo "WARNING: agent CLI not on PATH"
-
-      - name: Run Cursor agent analysis
-        if: ${{ inputs.skip_agent != true }}
-        id: agent
-        continue-on-error: true
         run: |
           if ! command -v agent &>/dev/null; then
-            echo "::error::Cursor agent CLI not found on PATH."
+            echo "::error::Cursor agent CLI not found after installation"
             exit 1
           fi
-          agent -p --force --model claude-4-sonnet "$(cat .github/breakability-prompt.md)"
+          agent --version
+          echo "✅ Cursor agent CLI ready"
+
+      - name: Run AI adjudication layer (per-PR analysis)
+        if: ${{ inputs.skip_agent != true }}
+        id: agent
+        run: |
+          echo "════════════ AI ADJUDICATION ════════════"
+          if ! command -v agent &>/dev/null; then
+            echo "::error::Cursor agent CLI not available - AI layer REQUIRED (no fallback)"
+            exit 1
+          fi
+          
+          # Run reconcile_adjudication which calls Cursor per REVIEW PR
+          chmod +x .github/scripts/reconcile_adjudication.py
+          python3 .github/scripts/reconcile_adjudication.py /tmp/build-results.json --write
+          
+          echo "✅ AI adjudication complete"
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
