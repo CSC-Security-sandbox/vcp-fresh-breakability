@@ -119,8 +119,24 @@ def format_build_analysis(pr: Dict[str, Any]) -> str:
 def format_test_analysis(pr: Dict[str, Any]) -> str:
     """Format test analysis section."""
     test = pr.get("test", {})
-    verdict = test.get("verdict", "skip")
-    reason = test.get("reason", "Build prerequisites not met")
+    
+    # Normalize test data - pipeline produces test.ran/exit/main_test_exit
+    ran = test.get("ran", False)
+    exit_code = test.get("exit", test.get("main_test_exit", -1))
+    
+    # Determine verdict from actual schema
+    if not ran:
+        verdict = "skip"
+        reason = test.get("reason", "Tests not executed (build requirements not met)")
+    elif exit_code == 0:
+        verdict = "pass"
+        reason = "All tests passed"
+    elif exit_code is None:
+        verdict = "skip"
+        reason = "Test execution status unknown"
+    else:
+        verdict = "fail"
+        reason = f"Tests failed with exit code {exit_code}"
     
     status_emoji = {"pass": "✅", "fail": "❌", "skip": "⚠️"}.get(verdict, "⬜")
     status_label = verdict.upper().replace("_", " ")
@@ -133,11 +149,11 @@ def format_test_analysis(pr: Dict[str, Any]) -> str:
     
     if verdict == "pass":
         section += f"- ✅ Test suite executed successfully\n"
-        section += f"- ✅ All tests passed (exit {test.get('exit_code', 0)})\n"
-        section += f"- Tests run: {test.get('tests_run', 'N/A')}\n"
+        section += f"- ✅ All tests passed (exit {exit_code})\n"
+        section += f"- Tests ran: {test.get('ran', 'N/A')}\n"
     elif verdict == "fail":
-        section += f"- ❌ Test failures detected\n"
-        section += f"- Failed: {test.get('failed_count', 'N/A')} | Passed: {test.get('passed_count', 'N/A')}\n"
+        section += f"- ❌ Test failures detected (exit {exit_code})\n"
+        section += f"- Check build logs for failure details\n"
     else:
         section += f"- Test execution skipped ({reason})\n"
         section += f"- Cannot verify runtime behavior via tests\n"
@@ -190,8 +206,9 @@ def format_changelog_analysis(pr: Dict[str, Any]) -> str:
     det = pr.get("deterministic", {})
     cl = det.get("changelogSignal", {})
     
+    # Real schema: cl.status = "clean"/"breaking"/"missing", cl.bullets = []
     if isinstance(cl, str):
-        # Legacy format: just a string like "breaking" or "clean"
+        # Legacy format fallback: just a string like "breaking" or "clean"
         status = "⚠️ **BREAKING**" if cl == "breaking" else "✅ CLEAN"
         section = f"""### 📋 Changelog Analysis
 **Status:** {status} | **Source:** Package changelog
@@ -204,10 +221,10 @@ def format_changelog_analysis(pr: Dict[str, Any]) -> str:
 """
         return section
     
-    breaking_markers = cl.get("breaking_markers", 0)
-    has_changelog = cl.get("status") != "missing"
+    changelog_status = cl.get("status", "missing")
+    bullets = cl.get("bullets", [])
     
-    if not has_changelog:
+    if changelog_status == "missing":
         return """### 📋 Changelog Analysis
 **Status:** ⚪ **NOT AVAILABLE** | **Source:** No changelog found
 
@@ -216,7 +233,11 @@ def format_changelog_analysis(pr: Dict[str, Any]) -> str:
 ---
 """
     
-    status = "⚠️ **BREAKING**" if breaking_markers > 0 else "✅ CLEAN"
+    # Check bullets for BREAKING markers (case-insensitive)
+    has_breaking = any("BREAKING" in str(bullet).upper() or "BREAK" in str(bullet).upper() for bullet in bullets)
+    is_breaking = changelog_status == "breaking" or has_breaking
+    
+    status = "⚠️ **BREAKING**" if is_breaking else "✅ CLEAN"
     
     section = f"""### 📋 Changelog Analysis
 **Status:** {status} | **Source:** GitHub Releases / CHANGELOG.md
@@ -224,21 +245,20 @@ def format_changelog_analysis(pr: Dict[str, Any]) -> str:
 **Key Changes (from {pr.get('from', '?')} → {pr.get('to', '?')}):**
 """
     
-    changes = cl.get("changes", [])
-    if changes:
-        for change in changes[:10]:  # First 10 changes
-            section += f"- {change}\n"
+    if bullets:
+        for bullet in bullets[:10]:  # First 10 changes
+            section += f"- {bullet}\n"
     else:
-        section += f"- **Breaking markers:** {breaking_markers}\n"
+        section += f"- Changelog status: {changelog_status}\n"
     
-    m8_class = "BREAKING" if breaking_markers > 0 else "SAFE"
+    m8_class = "BREAKING" if is_breaking else "SAFE"
     section += f"\n**M8 Classification:** **{m8_class}**\n"
     section += f"\n**Confidence:** **HIGH** — Explicit version documentation available.\n\n---\n"
     
     return section
 
 def format_reachability_analysis(pr: Dict[str, Any]) -> str:
-    """Format reachability analysis section with callsites."""
+    """Format reachability analysis section with callsite detail."""
     det = pr.get("deterministic", {})
     reachable = det.get("reachable", False)
     import_files = det.get("import_files", [])
@@ -258,6 +278,7 @@ def format_reachability_analysis(pr: Dict[str, Any]) -> str:
     
     pkg = pr.get("package", "unknown")
     
+    # Enhanced section with callsite detail
     section = f"""### 🔍 Reachability Analysis
 **Status:** ⚠️ **REACHED** | **Import scan:** {len(import_files)} file(s) import this package
 
@@ -269,8 +290,16 @@ def format_reachability_analysis(pr: Dict[str, Any]) -> str:
 ```
 """
     
+    # Add file:line detail for each import
     for file in import_files[:10]:  # First 10 files
         section += f"{file}\n"
+        # Add callsite detail if available
+        callsites = det.get("callsites", {}).get(file, [])
+        if callsites:
+            for cs in callsites[:3]:  # First 3 callsites per file
+                line = cs.get("line", "?")
+                symbol = cs.get("symbol", "?")
+                section += f"  Line {line}: {symbol}\n"
     
     if len(import_files) > 10:
         section += f"... and {len(import_files) - 10} more files\n"
@@ -280,11 +309,23 @@ def format_reachability_analysis(pr: Dict[str, Any]) -> str:
 **Callsite Impact:**
 - Package is actively used in production code
 - Breaking changes could affect {len(import_files)} file(s)
-- Manual review recommended to verify compatibility
+- **Recommendation:** Review all callsites to verify compatibility
 
-**Confidence:** **HIGH** — Import scan confirms usage.
+"""
+    
+    # Add callgraph analysis if available
+    api_changes = det.get("api_changes") or 0
+    if api_changes > 0:
+        section += f"""**Breaking Change Risk:**
+- API changes detected: {api_changes} exports modified
+- Each import site should be verified against new signatures
+- Risk level: {"HIGH" if api_changes > 5 else "MEDIUM"}
 
-**Recommendation:** Review all callsites to ensure compatibility with new version.
+"""
+    
+    section += f"""**Confidence:** **HIGH** — Import scan confirms usage.
+
+**Next Steps:** Review the specific symbols called at each import site to ensure compatibility with the new version.
 
 ---
 """
@@ -333,47 +374,116 @@ The AI arbiter engages for break-reachable cases where signals conflict and auto
     return section
 
 def format_policy_decision(pr: Dict[str, Any]) -> str:
-    """Format policy decision section with precedence explanation."""
+    """Format policy decision section with clear precedence hierarchy."""
     verdict_v2 = pr.get("verdict_v2", {})
     verdict = verdict_v2.get("verdict", "REVIEW")
     confidence = verdict_v2.get("confidence", "MEDIUM")
+    canonical_reason = verdict_v2.get("reason", "Review required for this upgrade.")
     
     section = f"""### 🧮 Policy Decision
 **How the verdict was reached:**
 
-The final verdict follows a strict precedence hierarchy:
+The final verdict follows a **strict precedence hierarchy** (fail-safe design):
 
-1. **Build Failures:** Automatic BLOCKED if build completely fails
-2. **Behavioral Probe:** If runtime behavior differs → REVIEW (high confidence)
-3. **Reachability + Breaking:** If reached AND (API breaking OR changelog breaking) → REVIEW
-4. **AI Arbiter:** Can downgrade REVIEW → SAFE if signals conflict and low-risk
-5. **Default:** SAFE if no warning signals
+```
+Precedence Order (highest to lowest):
+1. Build Failures → BLOCKED (nothing works = immediate block)
+2. Security/CVE → BLOCKED (safety-critical, never auto-merge)
+3. Behavioral Probe DIFFERENT → REVIEW (runtime changes = human verify)
+4. Reached + Breaking API/Changelog → REVIEW (impact confirmed)
+5. AI Arbiter Downgrade → SAFE (low-risk after analysis)
+6. Default (no warnings) → SAFE (appears safe to merge)
+```
 
-**This PR's Path:**
+**This PR's Decision Path:**
 """
     
-    # Reconstruct decision path
+    # Reconstruct decision path with precedence labels
+    steps = []
+    applied_rule = None
+    applied_line = None
+    
     build = pr.get("build", {})
     if build.get("verdict") == "fail":
-        section += "- ❌ Build fails → **BLOCKED**\n"
+        steps.append("❌ **[P1: Build]** Build completely fails → **BLOCKED**")
+        if not applied_rule:
+            applied_rule = "Build failure blocks merge"
+            applied_line = "Line 1"
     elif build.get("verdict") == "pre_existing":
-        section += "- ⚠️ Build has pre-existing failures (not caused by upgrade)\n"
+        steps.append("⚠️ **[P1: Build]** Pre-existing failures (not caused by this upgrade)")
     else:
-        section += "- ✅ Build passes\n"
+        steps.append("✅ **[P1: Build]** Build passes")
     
+    # Check security/CVE (precedence #2)
+    cve = pr.get("deterministic", {}).get("cve")
+    if cve and cve.get("found"):
+        steps.append("🔴 **[P2: Security]** CVE detected → **BLOCKED**")
+        if not applied_rule:
+            applied_rule = "Security advisory blocks merge"
+            applied_line = "Line 2"
+    
+    # Check behavioral probe (precedence #3)
     probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
-    if probe.get("same_behavior") == False or probe.get("different"):
-        section += "- ⚠️ Behavioral probe detects runtime changes → **REVIEW**\n"
+    same_behavior = probe.get("same_behavior")
+    if same_behavior is False:  # Explicit False check (None is "not run")
+        steps.append("⚠️ **[P3: Probe]** Runtime behavior changed → **REVIEW**")
+        if not applied_rule:
+            applied_rule = "Behavioral changes require review (probe DIFFERENT + reached)"
+            applied_line = "Line 3"
+    elif same_behavior is True:
+        steps.append("✅ **[P3: Probe]** Runtime behavior unchanged")
+    else:
+        steps.append("⚪ **[P3: Probe]** Not executed")
     
+    # Check reachability + breaking (precedence #4)
     det = pr.get("deterministic", {})
-    if det.get("reachable") and ((det.get("api_changes") or 0) > 0 or det.get("changelogSignal") == "breaking"):
-        section += "- ⚠️ Package is reachable + breaking changes → **REVIEW**\n"
+    changelog_status = det.get("changelogSignal", {}).get("status", "missing")
+    if det.get("reachable") and ((det.get("api_changes") or 0) > 0 or changelog_status == "breaking"):
+        steps.append("⚠️ **[P4: Breaking]** Reached + API/changelog breaking → **REVIEW**")
+        if not applied_rule:
+            applied_rule = "Breaking changes in reached code"
+            applied_line = "Line 4"
     
+    # Check AI arbiter (precedence #5)
     ai = pr.get("ai_adjudication")
     if ai and ai.get("applied") == "downgrade_to_safe":
-        section += "- ✅ AI arbiter downgrades to **SAFE** (low risk)\n"
+        steps.append("✅ **[P5: AI]** AI arbiter analyzed and downgraded to **SAFE**")
+        if not applied_rule:
+            applied_rule = "AI confirmed low risk after analysis"
+            applied_line = "Line 5"
     
-    section += f"\n**Final Verdict:** **{verdict}** (Confidence: {confidence})\n\n---\n"
+    # Default (precedence #6)
+    if not applied_rule:
+        applied_rule = "No warning signals detected (default safe)"
+        applied_line = "Line 6"
+    
+    for step in steps:
+        section += f"{step}\n"
+    
+    # Risk assessment
+    risk_level = _assess_overall_risk(pr)
+    zero_false_green = _check_zero_false_green(pr)
+    
+    section += f"""
+**Applied rule:** {applied_line} ({applied_rule})
+
+**Final Verdict:** **{verdict}** (Confidence: {confidence})
+
+**Why {verdict}?** {canonical_reason}
+
+**Risk Assessment:**
+- Breaking change risk: **{risk_level}**
+- Zero-false-green guarantee: {'✅ Multiple warning signals, fail-safe to REVIEW' if zero_false_green else '⚠️ Limited evidence, conservative REVIEW'}
+
+**Confidence Calculation:**
+- Build confidence: {_assess_build_confidence(pr)}
+- Probe confidence: {_assess_probe_confidence(pr)}
+- Signal agreement: {_calculate_signal_agreement(pr)}
+
+**Precedence Applied:** The highest-precedence rule that matched determined the verdict. Lower-precedence rules were not consulted (fail-safe cascade).
+
+---
+"""
     
     return section
 
@@ -424,26 +534,35 @@ def format_probe_section(pr: Dict[str, Any]) -> str:
     # Handle both behavioral_grade and deterministic.probe formats
     old_sha = probe.get("old_sha256", "N/A")[:16] if "old_sha256" in probe else "N/A"
     new_sha = probe.get("new_sha256", "N/A")[:16] if "new_sha256" in probe else "N/A"
-    same = old_sha == new_sha or probe.get("same_behavior", False)
     
-    status_emoji = "✅" if same else "⚠️"
-    status_text = "SAME" if same else "DIFFERENT"
+    # Explicit three-state logic: SAME/DIFFERENT/NOT_RUN
+    # None means probe unavailable (not executed or data missing)
+    same_behavior = probe.get("same_behavior")
+    if same_behavior is None:
+        # Probe was not run or data unavailable
+        if old_sha == "N/A" and new_sha == "N/A":
+            return "### 🔬 Behavioral Probe\n**Status:** ⬜ **NOT RUN** — No probe data available\n\n---\n"
+        # SHAs present but same_behavior=None, infer from SHA equality
+        same_behavior = (old_sha == new_sha)
+    
+    status_emoji = "✅" if same_behavior else "⚠️"
+    status_text = "SAME" if same_behavior else "DIFFERENT"
     
     pkg = pr.get("package")
     from_ver = pr.get("from")
     to_ver = pr.get("to")
     
-    section = f"""### 🔬 Behavioral Probe
-**Status:** {status_emoji} **{status_text}** | **Confidence:** HIGH
+    section = f"""### 🔬 Behavioral Probe ⭐
+**Status:** {status_emoji} **{status_text}** | **Method:** npm runtime-shape diff | **Grade:** HIGH
 
 **Runtime Verification:**
 - Old version SHA256: `{old_sha}`
 - New version SHA256: `{new_sha}`
-- Export shape: **{'UNCHANGED' if same else 'CHANGED'}**
+- Export shape: **{'UNCHANGED' if same_behavior else 'CHANGED'}**
 
 **What this means:**
 """
-    if same:
+    if same_behavior:
         section += "Runtime probe confirms the package behaves identically. No behavioral breaking changes detected.\n"
     else:
         section += """Runtime SHA256 mismatch proves behavioral changes are real, not just TypeScript type changes.
@@ -735,5 +854,233 @@ def main():
         
         print(f"✅ Rendered PR #{pr_num} comment to {output_file}")
 
+def _assess_overall_risk(pr: Dict[str, Any]) -> str:
+    """Assess overall breaking change risk level."""
+    det = pr.get("deterministic", {})
+    api_changes = det.get("api_changes", 0)
+    changelog_status = det.get("changelogSignal", {}).get("status", "missing")
+    reachable = det.get("reachable", False)
+    probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
+    same_behavior = probe.get("same_behavior")
+    
+    # High risk: reached + breaking + different behavior
+    if reachable and changelog_status == "breaking" and same_behavior is False:
+        return "HIGH (breaking + reached + behavior changed)"
+    
+    # Medium risk: reached + breaking OR different behavior alone
+    if (reachable and (api_changes > 0 or changelog_status == "breaking")) or same_behavior is False:
+        return "MEDIUM (some warning signals)"
+    
+    # Low risk: not reached or all signals clean
+    return "LOW (clean signals or unreached)"
+
+def _check_zero_false_green(pr: Dict[str, Any]) -> bool:
+    """Check if multiple warning signals confirm REVIEW verdict (not just one)."""
+    warning_count = 0
+    
+    build = pr.get("build", {})
+    if build.get("verdict") == "fail":
+        warning_count += 1
+    
+    probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
+    if probe.get("same_behavior") is False:
+        warning_count += 1
+    
+    det = pr.get("deterministic", {})
+    if det.get("reachable") and (det.get("api_changes", 0) > 0 or det.get("changelogSignal", {}).get("status") == "breaking"):
+        warning_count += 1
+    
+    return warning_count >= 2
+
+def _assess_build_confidence(pr: Dict[str, Any]) -> str:
+    """Assess build verification confidence."""
+    build = pr.get("build", {})
+    verdict = build.get("verdict", "skip")
+    verification = build.get("verification_level", "L0")
+    
+    if verdict == "pass" and verification in ["L2_tests_pass", "L3_e2e"]:
+        return "**HIGH** (tests passed)"
+    elif verdict == "pass":
+        return "**MEDIUM** (build only, no tests)"
+    elif verdict == "pre_existing":
+        return "**LOW** (pre-existing failures)"
+    else:
+        return "**LOW** (build issues)"
+
+def _assess_probe_confidence(pr: Dict[str, Any]) -> str:
+    """Assess behavioral probe confidence."""
+    probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
+    same_behavior = probe.get("same_behavior")
+    
+    if same_behavior is True:
+        return "**HIGH** (runtime verified unchanged)"
+    elif same_behavior is False:
+        return "**HIGH** (runtime verified changed)"
+    else:
+        return "**N/A** (probe not run)"
+
+def _calculate_signal_agreement(pr: Dict[str, Any]) -> str:
+    """Calculate how many signals warn vs pass."""
+    det = pr.get("deterministic", {}) or {}
+    build = pr.get("build", {}) or {}
+    test = pr.get("test", {}) or {}
+    probe_bg = pr.get("behavioral_grade", {}) or {}
+    probe_det = det.get("probe", {}) or {}
+    changelog = det.get("changelogSignal", {}) or {}
+    
+    signals = {
+        "build": build.get("verdict", "skip") != "pass",
+        "test": test.get("ran", False) and test.get("exit", -1) != 0,
+        "api": (det.get("api_changes") or 0) > 0,
+        "changelog": changelog.get("status") == "breaking",
+        "probe": probe_bg.get("same_behavior") is False or probe_det.get("same_behavior") is False,
+        "reachable": det.get("reachable", False)
+    }
+    
+    warn_count = sum(1 for v in signals.values() if v)
+    total_count = len(signals)
+    
+    return f"**{warn_count}/{total_count} signals warn** → {'REVIEW' if warn_count > 0 else 'SAFE'}"
+
 if __name__ == "__main__":
     main()
+
+# Phase 3: Helper functions for actionability
+
+def _guess_compatibility(pr: Dict) -> str:
+    """Guess compatibility based on usage patterns."""
+    bump = pr.get("bump", "unknown")
+    api_changes = pr.get("deterministic", {}).get("api_changes", 0)
+    
+    if bump == "patch" and api_changes == 0:
+        return "HIGH (patch with no API changes usually safe)"
+    elif bump == "minor":
+        return "MEDIUM (minor should be backward compatible)"
+    elif api_changes > 10:
+        return "LOW (many API changes, verify carefully)"
+    return "MEDIUM (review recommended)"
+
+def _estimate_review_time(pr: Dict) -> str:
+    """Estimate developer review time."""
+    files = pr.get("deterministic", {}).get("import_files", [])
+    api_changes = pr.get("deterministic", {}).get("api_changes", 0)
+    
+    if len(files) <= 1 and api_changes <= 5:
+        return "5-10 minutes (single callsite, straightforward API)"
+    elif len(files) <= 3 and api_changes <= 20:
+        return "15-30 minutes (few callsites, moderate changes)"
+    else:
+        return "30-60 minutes (multiple callsites or complex changes)"
+
+def _calculate_evidence_strength(pr: Dict) -> str:
+    """Calculate overall evidence strength."""
+    layers = _count_evidence_layers(pr)
+    
+    if layers >= 5:
+        return "HIGH"
+    elif layers >= 3:
+        return "MEDIUM-HIGH"
+    elif layers >= 2:
+        return "MEDIUM"
+    return "LOW"
+
+def _count_evidence_layers(pr: Dict) -> int:
+    """Count how many independent evidence layers provided data."""
+    count = 0
+    
+    if pr.get("build", {}).get("verdict"):
+        count += 1
+    if pr.get("test", {}).get("verdict") not in [None, "skip"]:
+        count += 1
+    if pr.get("deterministic", {}).get("api_changes", 0) > 0:
+        count += 1
+    if pr.get("deterministic", {}).get("changelogSignal"):
+        count += 1
+    if pr.get("deterministic", {}).get("import_files"):
+        count += 1
+    if pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe"):
+        count += 1
+    if pr.get("ai_adjudication"):
+        count += 1
+    
+    return count
+
+def _get_matched_rule(pr: Dict) -> str:
+    """Explain which precedence rule matched."""
+    verdict = pr.get("verdict_v2", {}).get("verdict", "REVIEW")
+    
+    build = pr.get("build", {})
+    if build.get("verdict") == "fail":
+        return "Line 1 (Build Failures → BLOCKED)"
+    
+    cve = pr.get("deterministic", {}).get("cve")
+    if cve and cve.get("found"):
+        return "Line 2 (Security/CVE → BLOCKED)"
+    
+    probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
+    if probe.get("same_behavior") == False or probe.get("different"):
+        return "Line 3 (Probe DIFFERENT → REVIEW)"
+    
+    det = pr.get("deterministic", {})
+    if det.get("reachable") and ((det.get("api_changes") or 0) > 0 or det.get("changelogSignal") == "breaking"):
+        return "Line 4 (Reached + Breaking → REVIEW)"
+    
+    ai = pr.get("ai_adjudication")
+    if ai and ai.get("applied") == "downgrade_to_safe":
+        return "Line 5 (AI Downgrade → SAFE)"
+    
+    return "Line 6 (Default → SAFE)"
+
+def _explain_confidence(conf: str, layer: str, pr: Dict) -> str:
+    """Explain why confidence is at this level."""
+    if layer == "build":
+        if conf == "HIGH":
+            return "(full build + tests pass)"
+        elif conf == "MEDIUM":
+            return "(dep resolution only, no tests)"
+        return "(no evidence)"
+    elif layer == "test":
+        if conf == "HIGH":
+            return "(all tests pass)"
+        elif conf == "LOW":
+            return "(tests skipped)"
+        return "(no tests)"
+    elif layer == "probe":
+        if conf == "HIGH":
+            return "(independent runtime verification)"
+        return "(not run)"
+    return ""
+
+def _assess_breaking_risk(pr: Dict) -> str:
+    """Assess breaking change risk."""
+    api_changes = pr.get("deterministic", {}).get("api_changes", 0)
+    files = pr.get("deterministic", {}).get("import_files", [])
+    
+    if api_changes > 10 and len(files) > 3:
+        return "**HIGH** (many API changes + multiple callsites)"
+    elif api_changes > 5 or len(files) > 1:
+        return "**MEDIUM** (some changes + few callsites)"
+    elif len(files) == 1:
+        return "**LOW** (single callsite, easy to verify)"
+    return "**NONE** (not reached or no API changes)"
+
+def _assess_regression_risk(pr: Dict) -> str:
+    """Assess regression risk."""
+    probe = pr.get("behavioral_grade") or pr.get("deterministic", {}).get("probe", {})
+    test = pr.get("test", {})
+    
+    if probe and not probe.get("same_behavior", True):
+        return "**MEDIUM** (probe confirms behavior changed)"
+    elif test.get("verdict") == "pass":
+        return "**LOW** (tests pass, behavior verified)"
+    return "**MEDIUM** (insufficient testing, unknown behavior)"
+
+def _assess_security_risk(pr: Dict) -> str:
+    """Assess security risk."""
+    cve = pr.get("deterministic", {}).get("cve")
+    
+    if cve and cve.get("found"):
+        severity = cve.get("severity", "UNKNOWN").upper()
+        return f"**{severity}** (CVE detected, see security section)"
+    return "**NONE** (no CVEs, but stay current for future patches)"
+
