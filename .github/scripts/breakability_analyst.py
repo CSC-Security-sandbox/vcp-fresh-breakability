@@ -269,6 +269,8 @@ def _get_recommendation(pr: Dict) -> str:
             return "Safe to merge — not imported by production code."
         if probe["state"] == "SAME":
             return "Safe to merge — behavioral probe confirms identical runtime behavior."
+        if changelog_norm["is_breaking"]:
+            return "Changelog lists breaking changes. Review callsites, then merge."
         return "Safe to merge. Build passes and no breaking changes detected."
 
     parts = []
@@ -299,9 +301,10 @@ def _count_evidence_layers(pr: Dict) -> int:
     count = 0
     if pr.get("build", {}).get("verdict"):
         count += 1
-    if pr.get("test", {}).get("verdict") not in [None, "skip"]:
+    test_norm = _normalize_test(pr.get("test", {}))
+    if test_norm["verdict"] not in [None, "skip"]:
         count += 1
-    if pr.get("deterministic", {}).get("api_changes", 0) > 0:
+    if (pr.get("deterministic", {}).get("api_changes") or 0) > 0:
         count += 1
     if pr.get("deterministic", {}).get("changelogSignal"):
         count += 1
@@ -351,7 +354,10 @@ def _synthesize_explanation(pr: Dict) -> str:
         elif probe["state"] == "SAME":
             parts.append("Behavioral probe confirms runtime exports are identical.")
         else:
-            parts.append("No breaking changes detected.")
+            if changelog_norm["is_breaking"]:
+                parts.append("Breaking changes listed but assessed safe at current usage.")
+            else:
+                parts.append("No breaking changes detected.")
         if changelog_norm["is_breaking"] and changelog_norm["bullets"]:
             bullet = changelog_norm["bullets"][0]
             if len(bullet) > 100:
@@ -373,6 +379,12 @@ def _synthesize_explanation(pr: Dict) -> str:
                 parts.append(f"Package is imported by {len(files)} production file(s) — verify callsite compatibility.")
     elif verdict in ("BUILD_FAILS", "BLOCKED"):
         parts.append("Resolve build issues before this upgrade can proceed.")
+
+    build_output = build.get("output_tail", "") or build.get("stdout", "")
+    import re
+    vuln_match = re.search(r'(\d+)\s+(high|critical)\s+severity\s+vulnerabilit', build_output, re.IGNORECASE)
+    if vuln_match:
+        parts.append(f"⚠️ npm audit: {vuln_match.group(0)}ies found.")
 
     return " ".join(parts) if parts else "Review required for this upgrade."
 
@@ -413,8 +425,14 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
     changelog_norm = _normalize_changelog(det)
     api_changes = det.get("api_changes") or 0
 
+    is_ambient = any("ambient" in str(f).lower() for f in reach["import_files"])
     reach_file_count = len(reach["import_files"]) or len(set(u.get("file", "") for u in reach["usages"]))
-    reach_text = f"{reach_file_count} files" if reach["reached"] else "not reached"
+    if is_ambient:
+        reach_text = "all TS files (ambient)"
+    elif reach["reached"]:
+        reach_text = f"{reach_file_count} files"
+    else:
+        reach_text = "not reached"
     cl_icon = "⚠️" if changelog_norm["is_breaking"] else "✅" if changelog_norm["available"] else "⬜"
     cl_text = "breaking" if changelog_norm["is_breaking"] else "clean" if changelog_norm["available"] else "n/a"
 
@@ -477,7 +495,7 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         ]
 
     test_data = pr.get("test", {})
-    test_output = test_data.get("output_tail", "")
+    test_output = (test_data.get("output_tail") or test_data.get("stdout") or test_data.get("output") or "").strip()
     if test_norm["verdict"] == "fail" and test_output:
         lines += [
             "<details><summary>🧪 Test output</summary>",
@@ -491,9 +509,14 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         ]
 
     if probe["state"] == "DIFFERENT":
-        old_out = probe_ev.get("observed_from", "")
-        new_out = probe_ev.get("observed_to", "")
-        changed_summary = probe_ev.get("changed_behavior", "") or probe_ev.get("rationale", "")
+        old_out = probe_ev.get("observed_from", "") or probe_ev.get("old_output", "")
+        new_out = probe_ev.get("observed_to", "") or probe_ev.get("new_output", "")
+        changed_summary = probe_ev.get("changed_behavior", "") or probe_ev.get("summary", "") or probe_ev.get("rationale", "")
+        old_hash = probe_ev.get("old_hash", "")
+        new_hash = probe_ev.get("new_hash", "")
+        if not old_out and not new_out and old_hash and new_hash:
+            old_out = f"hash:{old_hash[:12]}"
+            new_out = f"hash:{new_hash[:12]}"
         if old_out or new_out or changed_summary:
             lines.append("<details><summary>🔬 Probe diff — what changed</summary>")
             lines.append("")
@@ -604,14 +627,14 @@ def main():
     prs_dict = data.get("prs", {})
     results_array = data.get("results", [])
 
-    if prs_dict:
+    if results_array:
+        results = results_array
+    elif prs_dict:
         results = []
         for pr_num_str, pr_data in prs_dict.items():
             if isinstance(pr_data, dict):
                 pr_data.setdefault("pr_num", pr_num_str)
                 results.append(pr_data)
-    elif results_array:
-        results = results_array
     else:
         print("No results found in build-results.json (checked 'prs' dict and 'results' array)", file=sys.stderr)
         sys.exit(1)

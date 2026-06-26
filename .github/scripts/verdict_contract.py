@@ -157,7 +157,11 @@ def _hard_fix_floor(pr: Mapping[str, Any]) -> bool:
     if test_exit is None:
         test_exit = test.get("main_test_exit")
     if test_ran and test_exit is not None and test_exit != 0:
-        output = test.get("output_tail", "")
+        output = test.get("output_tail", "") or ""
+        if "no test specified" not in output and "Error: no test specified" not in output:
+            return True
+    if test.get("verdict") == "fail":
+        output = test.get("output_tail", "") or ""
         if "no test specified" not in output and "Error: no test specified" not in output:
             return True
     rc = str(_policy_decision(pr).get("reason_code") or "")
@@ -268,10 +272,15 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
             reasons.append("build failed on the candidate version" if build_verdict == "fail"
                            else "new build errors introduced by this upgrade")
         if test_ran and test_exit is not None and test_exit != 0:
-            output = test.get("output_tail", "")
+            output = test.get("output_tail", "") or ""
             if "no test specified" not in output and "Error: no test specified" not in output:
                 reasons.append(f"tests failed (exit {test_exit})")
-        reason = dec.get("display_reason") or dec.get("reason_code") or "; ".join(reasons) or "build failed on the candidate version"
+        if test.get("verdict") == "fail" and not reasons:
+            output = test.get("output_tail", "") or ""
+            if "no test specified" not in output and "Error: no test specified" not in output:
+                reasons.append("tests failed")
+        computed_reason = "; ".join(reasons)
+        reason = computed_reason or dec.get("display_reason") or dec.get("reason_code") or "build failed on the candidate version"
         result = {
             "verdict": BUCKET_BLOCKED,
             "severity": "high",
@@ -282,6 +291,18 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
         }
         result["breakability_grade"] = assign_breakability_grade(pr, BUCKET_BLOCKED)
         return result
+
+    if str(pr.get("ecosystem", "")).strip().lower() == "actions":
+        build_v = (pr.get("build") or {}).get("verdict", "")
+        if build_v in ("pass", "pre_existing", ""):
+            result = {
+                "verdict": BUCKET_SAFE, "severity": "none", "confidence": "L3",
+                "priority": "P3",
+                "reason": "CI action dependency — no production runtime impact",
+                "source": "actions_fast_path",
+                "breakability_grade": GRADE_SAFE,
+            }
+            return result
 
     adj = pr.get("ai_adjudication")
     if isinstance(adj, Mapping):
@@ -313,19 +334,6 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
         mapped["source"] = "policy_lowering"
         mapped["breakability_grade"] = assign_breakability_grade(pr, mapped.get("verdict", BUCKET_REVIEW))
         return _probe_escalation(pr, mapped)
-
-    # Actions ecosystem fast-path: CI-only deps with passing builds are SAFE
-    if str(pr.get("ecosystem", "")).strip().lower() == "actions":
-        build_v = (pr.get("build") or {}).get("verdict", "")
-        if build_v in ("pass", "pre_existing", ""):
-            result = {
-                "verdict": BUCKET_SAFE, "severity": "none", "confidence": "L3",
-                "priority": "P3",
-                "reason": "CI action dependency — no production runtime impact",
-                "source": "actions_fast_path",
-                "breakability_grade": GRADE_SAFE,
-            }
-            return result
 
     # Fallback: use deterministic.merge_risk.tag when no typed verdict exists
     det = pr.get("deterministic") or {}
