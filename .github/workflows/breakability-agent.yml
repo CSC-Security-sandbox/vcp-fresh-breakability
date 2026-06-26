@@ -275,6 +275,13 @@ jobs:
           DP_MAX_PRS: "20"
         timeout-minutes: 15
 
+      # ── Verdict Reconciliation (post-probe) ───────────────────────
+      - name: Reconcile verdicts with probe data
+        run: |
+          echo "════════════ VERDICT RECONCILIATION ════════════"
+          python3 .github/scripts/verdict_contract.py /tmp/build-results.json --write
+          echo "✅ Verdicts reconciled with probe findings"
+
       # ── Agent Analysis ─────────────────────────────────────────────
       - name: Install Cursor Agent CLI
         if: ${{ inputs.skip_agent != true }}
