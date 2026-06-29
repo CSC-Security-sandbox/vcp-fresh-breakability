@@ -801,14 +801,52 @@ Use ✅ for pass, ❌ for fail, ⬜ for skip/not-run. Read the `verification_ste
 
 | Scenario | Target lines |
 |----------|-------------|
-| Actions/Docker | 8-10 (heading + table + link) |
-| Patch, 0 imports | 8-10 |
-| Minor, no concerns | 10-14 |
-| Major production, build pass | 16-24 |
-| Major production, build fail | 20-35 |
-| CVE present | Add CVE rows + security callout |
-| Cascade impact | Add cascade row + downstream list |
-| NestJS peer group | Add peer group row + related PRs |
+| Actions/Docker | 15-25 (heading + table + short narrative + footer) |
+| Patch, 0 imports | 20-40 |
+| Minor, no concerns | 40-60 |
+| Minor, production, reachable | 80-120 |
+| Major production, build pass, REVIEW | 120-200 |
+| Major production, build fail, BLOCKED | 150-300 |
+| CVE present | +20-40 lines (CVE rows + security callout + reachability) |
+| Cascade impact | +15-25 lines (cascade row + downstream list) |
+| NestJS peer group | +15-25 lines (peer group row + related PRs) |
+
+**CRITICAL:** For any PR with verdict REVIEW or BLOCKED, the comment MUST include ALL of these sections:
+1. **Headline** with verdict emoji, package, version range, dep type, bump
+2. **Merge Risk** tag with evidence summary and confidence
+3. **Signal Summary Table** — 7 rows: Build, Tests, API Diff, Changelog, Reachability, Probe, AI Arbiter
+4. **What this means** — plain-English explanation of the verdict
+5. **Recommendation** — numbered action steps (not a single sentence)
+6. **Evidence Summary** — per-layer H3 narrative sections (### Build Analysis, ### Test Analysis, etc.) each with Status, Confidence reasoning, 'What we checked' bullets
+7. **How we checked** — checklist with ✅/❌/⬜ per verification step
+8. **Verdict Logic** — pseudocode showing which rules fired (IF build==PASS AND probe==SAME...)
+9. **Verification commands** — copy-pasteable bash commands using the actual package/version
+10. **Build/test output** — collapsible raw stdout (when available)
+11. **Probe diff** — before/after with full SHA256 hashes (when probe ran)
+12. **Reachability** — file:line references showing where the package is imported
+13. **Footer** — Mode, Model, Date, Merge plan link, Analysis run link
+
+### Per-layer narrative format
+
+For REVIEW/BLOCKED PRs, each evidence layer gets its own H3 section:
+
+```markdown
+### Build Analysis
+**Status:** ✅ PASS (exit 0)
+**Confidence:** HIGH — clean install and compilation with no errors
+**What we checked:** Installed `package@version`, ran `npm ci` and `npm run build`
+**Output:**
+\`\`\`
+<truncated build stdout>
+\`\`\`
+```
+
+### Confidence reasoning per layer
+
+Each layer section must include a **Confidence** line explaining WHY we trust (or don't trust) this signal:
+- **HIGH** — deterministic check passed/failed cleanly, no ambiguity
+- **MEDIUM** — check ran but result is indirect or partial (e.g., tests pass but don't cover the changed API)
+- **LOW** — check didn't run, or result is inconclusive
 
 ---
 

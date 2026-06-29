@@ -316,6 +316,12 @@ jobs:
             echo "::warning::agent not on PATH after install"
           fi
 
+      - name: Install Anthropic SDK (API fallback)
+        if: ${{ inputs.skip_agent != true }}
+        run: |
+          pip install anthropic --quiet 2>/dev/null || pip install anthropic || true
+          python3 -c "import anthropic; print('✅ Anthropic SDK', anthropic.__version__)" 2>/dev/null || echo "::warning::Anthropic SDK install failed"
+
       - name: Generate AI verdicts for REVIEW PRs
         if: ${{ inputs.skip_agent != true }}
         id: ai_generate

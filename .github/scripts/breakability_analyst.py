@@ -550,8 +550,18 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         f"| Changelog | {cl_icon} {cl_text} | {cl_detail} |",
         f"| Reachability | {'⚠️ reached' if reach['reached'] else '✅ not reached'} | {reach_file_count} imports |",
         f"| Probe | {probe_icon} {probe_state_display} | {probe_detail} |",
-        "",
     ]
+
+    ai_adj = pr.get("ai_adjudication", {})
+    if ai_adj and isinstance(ai_adj, dict):
+        ai_verdict = ai_adj.get("final_verdict", ai_adj.get("verdict", "—"))
+        ai_conf = ai_adj.get("confidence", "—")
+        ai_icon = {"SAFE": "✅", "REVIEW": "🟠"}.get(ai_verdict, "⬜")
+        lines.append(f"| AI Arbiter | {ai_icon} {ai_verdict} | confidence: {ai_conf} |")
+    else:
+        lines.append("| AI Arbiter | ⬜ not run | — |")
+
+    lines.append("")
 
     lines += [
         "### How we checked",
@@ -660,8 +670,28 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
             lines += ["", "</details>", ""]
 
     import_list = reach["import_files"]
-    if not import_list and reach["usages"]:
-        import_list = sorted(set(u.get("file", "") for u in reach["usages"] if u.get("file")))
+    usage_refs = []
+    if reach["usages"]:
+        for u in reach["usages"]:
+            uf = u.get("file", "")
+            ul = u.get("line")
+            if uf:
+                usage_refs.append(f"{uf}:{ul}" if ul else uf)
+        usage_refs = sorted(set(usage_refs))
+    if not import_list and usage_refs:
+        import_list = usage_refs
+    elif import_list and usage_refs:
+        file_to_ref = {}
+        for ref in usage_refs:
+            base = ref.split(":")[0]
+            file_to_ref.setdefault(base, []).append(ref)
+        enriched = []
+        for f in import_list:
+            if f in file_to_ref:
+                enriched.extend(file_to_ref[f])
+            else:
+                enriched.append(f)
+        import_list = enriched
     if import_list:
         lines.append(f"<details><summary>📁 Files importing this package ({len(import_list)})</summary>")
         lines.append("")
