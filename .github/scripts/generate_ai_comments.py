@@ -24,6 +24,7 @@ from typing import Dict, Any, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ai_backend import Backend
+from verdict_contract import authoritative_verdict
 
 
 def _read_prompt(prompt_path: str) -> str:
@@ -163,7 +164,7 @@ def _validate_comment(comment: str, pr_num: str) -> bool:
 
 def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
                       merge_plan_issue: Optional[str], model_name: str) -> str:
-    """Generate a minimal fallback comment when AI fails."""
+    """Generate a minimal fallback comment when AI fails for a single PR."""
     pkg = pr.get("package", "unknown")
     from_ver = pr.get("from", "?")
     to_ver = pr.get("to", "?")
@@ -171,9 +172,14 @@ def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
     bump = pr.get("bump", "unknown")
     plan_ref = f"#{merge_plan_issue}" if merge_plan_issue else "#ISSUE_NUMBER"
 
+    av = authoritative_verdict(pr)
+    verdict = av.get("verdict", "REVIEW")
+    emoji_map = {"SAFE": "✅", "BLOCKED": "🚫", "REVIEW": "⚠️"}
+    emoji = emoji_map.get(verdict, "⚠️")
+
     lines = [
         "<!-- breakability-check -->",
-        f"## ⚠️ REVIEW — `{pkg}` {from_ver} → {to_ver} • {dep_type} • {bump}",
+        f"## {emoji} {verdict} — `{pkg}` {from_ver} → {to_ver} • {dep_type} • {bump}",
         "",
         "| Check | Result |",
         "|-------|--------|",
@@ -320,8 +326,15 @@ def main():
     if args.pr:
         comments = {k: v for k, v in comments.items() if k == args.pr}
 
+    stub_count = 0
+    real_count = 0
     written = 0
     for pr_num, comment in comments.items():
+        is_stub = "AI comment generation failed" in comment or len(comment.strip().splitlines()) < 30
+        if is_stub:
+            stub_count += 1
+        else:
+            real_count += 1
         if args.stdout:
             print(f"\n{'='*60}\nPR #{pr_num}\n{'='*60}")
             print(comment)
@@ -332,7 +345,15 @@ def main():
             print(f"✅ PR #{pr_num} → {output_file}", file=sys.stderr)
         written += 1
 
-    print(f"\n✅ Generated {written} AI comments", file=sys.stderr)
+    print(f"\n✅ Generated {written} AI comments ({real_count} AI, {stub_count} stubs)", file=sys.stderr)
+
+    if written > 0 and stub_count == written:
+        print(
+            f"⚠️ All {stub_count} comments are fallback stubs (AI backend unavailable). "
+            "Exiting non-zero so workflow falls back to breakability_analyst.py.",
+            file=sys.stderr,
+        )
+        return 2
     return 0
 
 

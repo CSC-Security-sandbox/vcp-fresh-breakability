@@ -511,6 +511,7 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
 
     vlevel_badge = f" · Verification: {vlevel_str}" if vlevel_str else ""
     lines = [
+        "<!-- breakability-check -->",
         f"## {emoji} {verdict} — `{pkg}` {from_ver} → {to_ver} · {dep_type} · {bump}",
         merge_risk + vlevel_badge,
         "",

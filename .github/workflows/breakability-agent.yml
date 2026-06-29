@@ -28,7 +28,7 @@ on:
 
 concurrency:
   group: breakability-agent
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -216,16 +216,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload merged results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-results
-          path: |
-            /tmp/build-results.json
-            /tmp/pr-*.diff
-          retention-days: 30
-
       - name: Show build results summary
         if: always()
         run: |
@@ -290,6 +280,16 @@ jobs:
           echo "════════════ VERDICT RECONCILIATION ════════════"
           python3 .github/scripts/verdict_contract.py /tmp/build-results.json --write
           echo "✅ Verdicts reconciled with probe findings"
+
+      - name: Upload merged results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-results
+          path: |
+            /tmp/build-results.json
+            /tmp/pr-*.diff
+          retention-days: 30
 
       # ── Agent CLI Setup (with fallback) ────────────────────────────
       - name: Install AI agent CLI

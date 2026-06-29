@@ -126,5 +126,104 @@ class TestExtractPrData(unittest.TestCase):
         self.assertEqual(data["package"], "lodash")
 
 
+class TestAllStubsDetection(unittest.TestCase):
+    """When all PRs fall back to stubs, main() must exit non-zero (code 2)."""
+
+    def _write_build_results(self, path, prs_dict):
+        data = {"metadata": {"repo": "test/repo"}, "prs": prs_dict}
+        with open(path, "w") as f:
+            json.dump(data, f)
+
+    def _write_dummy_prompt(self, path):
+        with open(path, "w") as f:
+            f.write("# Dummy prompt for testing\n")
+
+    def test_all_stubs_exits_nonzero(self):
+        """When Backend returns empty for all PRs, main() should return 2."""
+        import tempfile
+        from unittest.mock import patch, MagicMock
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results_path = os.path.join(tmpdir, "build-results.json")
+            prompt_path = os.path.join(tmpdir, "prompt.md")
+            self._write_build_results(results_path, {
+                "42": {**SAMPLE_PR, "pr_num": "42"},
+                "43": {**SAMPLE_PR, "pr_num": "43", "package": "express"},
+            })
+            self._write_dummy_prompt(prompt_path)
+
+            mock_backend = MagicMock()
+            mock_backend.model = "test-model"
+            mock_backend.invoke.return_value = ""
+
+            with patch("generate_ai_comments.Backend") as MockBackend:
+                MockBackend.from_env.return_value = mock_backend
+                with patch("sys.argv", ["prog", results_path, "--prompt", prompt_path]):
+                    from generate_ai_comments import main
+                    ret = main()
+                    self.assertEqual(ret, 2)
+
+    def test_partial_stubs_exits_zero(self):
+        """When Backend succeeds for some PRs, main() should return 0."""
+        import tempfile
+        from unittest.mock import patch, MagicMock
+
+        valid_comment = self._make_valid_ai_comment()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results_path = os.path.join(tmpdir, "build-results.json")
+            prompt_path = os.path.join(tmpdir, "prompt.md")
+            self._write_build_results(results_path, {
+                "42": {**SAMPLE_PR, "pr_num": "42"},
+                "43": {**SAMPLE_PR, "pr_num": "43", "package": "express"},
+            })
+            self._write_dummy_prompt(prompt_path)
+
+            mock_backend = MagicMock()
+            mock_backend.model = "test-model"
+            mock_backend.invoke.side_effect = [valid_comment, "", ""]
+
+            with patch("generate_ai_comments.Backend") as MockBackend:
+                MockBackend.from_env.return_value = mock_backend
+                with patch("sys.argv", ["prog", results_path, "--prompt", prompt_path]):
+                    from generate_ai_comments import main
+                    ret = main()
+                    self.assertEqual(ret, 0)
+
+    def test_all_ai_success_exits_zero(self):
+        """When Backend succeeds for all PRs, main() should return 0."""
+        import tempfile
+        from unittest.mock import patch, MagicMock
+
+        valid_comment = self._make_valid_ai_comment()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results_path = os.path.join(tmpdir, "build-results.json")
+            prompt_path = os.path.join(tmpdir, "prompt.md")
+            self._write_build_results(results_path, {
+                "42": {**SAMPLE_PR, "pr_num": "42"},
+            })
+            self._write_dummy_prompt(prompt_path)
+
+            mock_backend = MagicMock()
+            mock_backend.model = "test-model"
+            mock_backend.invoke.return_value = valid_comment
+
+            with patch("generate_ai_comments.Backend") as MockBackend:
+                MockBackend.from_env.return_value = mock_backend
+                with patch("sys.argv", ["prog", results_path, "--prompt", prompt_path]):
+                    from generate_ai_comments import main
+                    ret = main()
+                    self.assertEqual(ret, 0)
+
+    def _make_valid_ai_comment(self):
+        parts = ["<!-- breakability-check -->", "## SAFE — lodash"]
+        parts.append("| Layer | Signal | Detail |")
+        parts.append("### How we checked")
+        parts.extend([f"Line {i}" for i in range(110)])
+        parts.append("Mode: Deterministic + Behavioral Probe")
+        return "\n".join(parts)
+
+
 if __name__ == "__main__":
     unittest.main()

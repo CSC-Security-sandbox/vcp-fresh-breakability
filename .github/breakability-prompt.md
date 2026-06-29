@@ -799,6 +799,8 @@ Use ✅ for pass, ❌ for fail, ⬜ for skip/not-run. Read the `verification_ste
 
 ### Comment length scaling
 
+#### AI-powered path (full model)
+
 | Scenario | Target lines |
 |----------|-------------|
 | Actions/Docker | 15-25 (heading + table + short narrative + footer) |
@@ -810,6 +812,18 @@ Use ✅ for pass, ❌ for fail, ⬜ for skip/not-run. Read the `verification_ste
 | CVE present | +20-40 lines (CVE rows + security callout + reachability) |
 | Cascade impact | +15-25 lines (cascade row + downstream list) |
 | NestJS peer group | +15-25 lines (peer group row + related PRs) |
+
+#### Template fallback path (breakability_analyst.py)
+
+When the AI backend is unavailable, the template renderer produces deterministic
+comments with 12/13 golden features using data from the verdict contract:
+
+| Scenario | Target lines |
+|----------|-------------|
+| Actions/Docker (SAFE) | 35-50 |
+| Minor, no concerns (SAFE) | 50-70 |
+| Minor/Major, REVIEW | 80-120 |
+| Major, BLOCKED | 80-120 |
 
 **CRITICAL:** For any PR with verdict REVIEW or BLOCKED, the comment MUST include ALL of these sections:
 1. **Headline** with verdict emoji, package, version range, dep type, bump
