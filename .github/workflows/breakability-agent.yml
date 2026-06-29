@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload batch results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: batch-${{ matrix.batch_id }}
           path: |
@@ -283,7 +283,7 @@ jobs:
 
       - name: Upload merged results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-results
           path: |
