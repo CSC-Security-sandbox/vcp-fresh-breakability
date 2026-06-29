@@ -7,7 +7,7 @@ to analyze if breaking changes are genuinely breaking or safe to downgrade.
 Output: ai_verdicts.json with per-PR verdicts for reconcile_adjudication.py
 
 Usage:
-  generate_ai_verdicts.py <build-results.json> --output ai_verdicts.json [--model claude-sonnet-4.5]
+  generate_ai_verdicts.py <build-results.json> --output ai_verdicts.json [--model claude-4.5-sonnet]
 """
 import argparse
 import json
@@ -105,7 +105,7 @@ def parse_ai_response(response):
     }
 
 
-def generate_verdicts(build_results, model="claude-sonnet-4.5"):
+def generate_verdicts(build_results, model="claude-4.5-sonnet"):
     """Generate AI verdicts for all REVIEW PRs."""
     pr_items = []
     results = build_results.get("results", [])
@@ -169,7 +169,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("results", help="Path to build-results.json")
     ap.add_argument("--output", default="ai_verdicts.json", help="Output file for verdicts")
-    ap.add_argument("--model", default="claude-sonnet-4.5", help="AI model to use")
+    ap.add_argument("--model", default="claude-4.5-sonnet", help="AI model to use")
     args = ap.parse_args()
     
     # Load build results

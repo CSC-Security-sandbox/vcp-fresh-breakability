@@ -126,6 +126,48 @@ class TestExtractPrData(unittest.TestCase):
         self.assertEqual(data["package"], "lodash")
 
 
+class TestFallbackVerdictDisplay(unittest.TestCase):
+    """_fallback_comment must read authoritative_verdict and display correct verdict."""
+
+    def test_safe_verdict_for_passing_build(self):
+        pr = {**SAMPLE_PR, "build": {"verdict": "pass", "pr_exit": 0},
+              "test": {"ran": True, "exit": 0},
+              "verdict_v2": {"verdict": "SAFE", "severity": "low", "confidence": "L4", "priority": "P3"}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("SAFE", comment)
+        self.assertIn("✅", comment)
+        self.assertNotIn("BLOCKED", comment)
+
+    def test_blocked_verdict_for_build_fail(self):
+        pr = {**SAMPLE_PR, "build": {"verdict": "fail", "pr_exit": 1},
+              "test": {"ran": False}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("BLOCKED", comment)
+        self.assertIn("🚫", comment)
+        self.assertNotIn("✅ SAFE", comment)
+
+    def test_blocked_verdict_for_test_fail(self):
+        pr = {**SAMPLE_PR, "build": {"verdict": "pass", "pr_exit": 0},
+              "test": {"ran": True, "exit": 1, "output_tail": "FAILED tests"}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("BLOCKED", comment)
+        self.assertNotIn("✅ SAFE", comment)
+
+    def test_safe_verdict_for_actions_ecosystem(self):
+        pr = {**SAMPLE_PR, "ecosystem": "actions",
+              "build": {"verdict": "pass"}, "test": {"ran": False}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("SAFE", comment)
+        self.assertIn("✅", comment)
+
+    def test_review_verdict_without_verdict_v2(self):
+        pr = {**SAMPLE_PR, "build": {"verdict": "pass", "pr_exit": 0},
+              "test": {"ran": True, "exit": 0}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("REVIEW", comment)
+        self.assertIn("⚠️", comment)
+
+
 class TestAllStubsDetection(unittest.TestCase):
     """When all PRs fall back to stubs, main() must exit non-zero (code 2)."""
 

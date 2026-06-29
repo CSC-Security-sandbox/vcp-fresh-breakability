@@ -10,7 +10,7 @@ Falls back to breakability_analyst.py template rendering if AI call fails.
 Usage:
   generate_ai_comments.py <build-results.json> \
     --prompt .github/breakability-prompt.md \
-    [--model claude-sonnet-4.5] \
+    [--model claude-4.5-sonnet] \
     [--run-url URL] \
     [--merge-plan-issue NUMBER]
 """
@@ -202,7 +202,7 @@ def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
 def generate_comments(
     build_results: Dict[str, Any],
     prompt_path: str,
-    model: str = "claude-sonnet-4.5",
+    model: str = "claude-4.5-sonnet",
     run_url: Optional[str] = None,
     merge_plan_issue: Optional[str] = None,
 ) -> Dict[str, str]:
@@ -298,7 +298,7 @@ def main():
         default=".github/breakability-prompt.md",
         help="Path to breakability-prompt.md",
     )
-    ap.add_argument("--model", default="claude-sonnet-4.5", help="AI model to use")
+    ap.add_argument("--model", default="claude-4.5-sonnet", help="AI model to use")
     ap.add_argument("--run-url", default=None, help="GitHub Actions run URL")
     ap.add_argument("--merge-plan-issue", default=None, help="Merge plan issue number")
     ap.add_argument("--pr", type=str, help="Generate for a single PR only")

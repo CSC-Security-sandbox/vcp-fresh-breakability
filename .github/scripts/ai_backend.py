@@ -49,7 +49,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
-DEFAULT_MODEL = "claude-sonnet-4-5-20250514"
+DEFAULT_MODEL = "claude-4.5-sonnet"
 DEFAULT_CMD_TEMPLATE = "agent -p --force --model {model}"
 DEFAULT_CASSETTE_DIR = ".github/breakability/harness/cassettes"
 DEFAULT_TIMEOUT = 300

@@ -331,13 +331,14 @@ jobs:
           chmod +x .github/scripts/generate_ai_verdicts.py
           python3 .github/scripts/generate_ai_verdicts.py /tmp/build-results.json \
             --output /tmp/ai_verdicts.json \
-            --model claude-sonnet-4.5
+            --model claude-4.5-sonnet
           echo "✅ AI verdicts generated"
         env:
           BRK_AGENT_MODE: live
-          BRK_AGENT_MODEL: claude-sonnet-4.5
+          BRK_AGENT_MODEL: claude-4.5-sonnet
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         timeout-minutes: 60
 
@@ -396,7 +397,7 @@ jobs:
           chmod +x .github/scripts/generate_ai_comments.py
           if python3 .github/scripts/generate_ai_comments.py /tmp/build-results.json \
               --prompt .github/breakability-prompt.md \
-              --model claude-sonnet-4.5 \
+              --model claude-4.5-sonnet \
               --run-url "$ANALYSIS_RUN_URL" \
               $MERGE_PLAN_ARG; then
             echo "ai_comments=true" >> $GITHUB_OUTPUT
@@ -407,9 +408,10 @@ jobs:
           fi
         env:
           BRK_AGENT_MODE: live
-          BRK_AGENT_MODEL: claude-sonnet-4.5
+          BRK_AGENT_MODEL: claude-4.5-sonnet
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         timeout-minutes: 30
 
@@ -454,9 +456,14 @@ jobs:
           echo "════════════ MERGE PLAN BODY ════════════"
           MERGE_PLAN_ISSUE="${{ steps.merge_plan.outputs.issue_num }}"
 
-          # Build merge plan from build-results.json
+          # Discover ALL open Dependabot PRs for full merge plan coverage
+          export ALL_OPEN_PRS
+          ALL_OPEN_PRS=$(gh pr list --label "dependencies" --state open \
+            --json number,title --jq '.[] | "\(.number)\t\(.title)"' --limit 500 2>/dev/null || echo "")
+
+          # Build merge plan from build-results.json + all open PRs
           PLAN_BODY=$(python3 -c "
-          import json, sys
+          import json, sys, os
           from datetime import date
 
           with open('/tmp/build-results.json') as f:
@@ -468,6 +475,19 @@ jobs:
           mode = meta.get('mode', 'advisory')
           repo = meta.get('repo', 'unknown')
 
+          # Parse all open Dependabot PRs from gh pr list output
+          all_open_raw = os.environ.get('ALL_OPEN_PRS', '').strip()
+          all_open = {}
+          for line in all_open_raw.splitlines():
+              parts = line.split('\t', 1)
+              if len(parts) == 2 and parts[0].strip().isdigit():
+                  all_open[parts[0].strip()] = parts[1].strip()
+
+          analyzed_nums = set(prs.keys())
+          not_analyzed = {n: t for n, t in all_open.items() if n not in analyzed_nums}
+
+          total_open = len(all_open) if all_open else len(prs)
+
           lines = []
           lines.append('# Breakability Merge Plan')
           lines.append('')
@@ -476,9 +496,11 @@ jobs:
               lines.append('')
           lines.append(f'**Repository:** {repo}')
           lines.append(f'**Analyzed:** {date.today().isoformat()}')
-          lines.append(f'**PRs analyzed:** {len(prs)}')
+          lines.append(f'**PRs analyzed:** {len(prs)} of {total_open} open Dependabot PRs')
           run_url = '${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'
           lines.append(f'**Analysis run:** [{run_url}]({run_url})')
+          if not_analyzed:
+              lines.append(f'> ℹ️ {len(not_analyzed)} PR(s) not analyzed in this run — listed below under \"Not Yet Analyzed\"')
           lines.append('')
 
           # Categorize PRs
@@ -549,6 +571,17 @@ jobs:
                   lines.append(pr_row(num, pr))
               lines.append('')
 
+          if not_analyzed:
+              lines.append('## ⚙️ Not Yet Analyzed')
+              lines.append('> These PRs were not included in the current analysis run. They will be analyzed in the next full run.')
+              lines.append('')
+              lines.append('| PR | Title |')
+              lines.append('|----|-------|')
+              for num in sorted(not_analyzed, key=lambda x: int(x)):
+                  title = not_analyzed[num].replace('|', '\\\\|')
+                  lines.append(f'| #{num} | {title} |')
+              lines.append('')
+
           # Security posture
           sec = data.get('security_posture', {})
           govuln = data.get('govulncheck', {})
@@ -567,8 +600,14 @@ jobs:
                       lines.append(f'- 🚨 PRs introducing NEW vulnerabilities: {govuln[\"prs_with_new_vulns\"]}')
               lines.append('')
 
+          # Summary
+          lines.append('## Summary')
+          lines.append(f'- **Total open PRs:** {total_open} | Analyzed: {len(prs)} | Not analyzed: {len(not_analyzed)}')
+          lines.append(f'- **Safe:** {len(safe)} | **Review:** {len(review)} | **Blocked:** {len(blocked)} | **Unverified:** {len(unverified)}')
+          lines.append('')
+
           lines.append('---')
-          lines.append(f'Mode: Deterministic + Behavioral Probe · Model: claude-sonnet-4.5 · Generated: {date.today().isoformat()}')
+          lines.append(f'Mode: Deterministic + Behavioral Probe · Model: claude-4.5-sonnet · Generated: {date.today().isoformat()}')
 
           print('\\n'.join(lines))
           ")
