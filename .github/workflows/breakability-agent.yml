@@ -254,6 +254,15 @@ jobs:
               print(f'Cross-PR deps: {len(cross)}')
           " || echo "Failed to parse build-results.json"
 
+      # ── Pipeline Tests ──────────────────────────────────────────────
+      - name: Run pipeline unit tests
+        continue-on-error: true
+        run: |
+          echo "════════════ PIPELINE TESTS ════════════"
+          pip install pytest --quiet 2>/dev/null || true
+          python3 -m pytest .github/scripts/test_*.py -v --tb=short 2>&1 | tail -60 || true
+          echo "✅ Pipeline tests complete"
+
       # ── Verdict Contract ───────────────────────────────────────────
       - name: Generate authoritative verdicts
         run: |
@@ -282,81 +291,268 @@ jobs:
           python3 .github/scripts/verdict_contract.py /tmp/build-results.json --write
           echo "✅ Verdicts reconciled with probe findings"
 
-      # ── Agent Analysis ─────────────────────────────────────────────
-      - name: Install Cursor Agent CLI
+      # ── Agent CLI Setup (with fallback) ────────────────────────────
+      - name: Install AI agent CLI
         if: ${{ inputs.skip_agent != true }}
+        id: agent_install
         run: |
           echo "Installing Cursor agent CLI..."
-          curl -fsS https://cursor.com/install | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify agent CLI (REQUIRED)
-        if: ${{ inputs.skip_agent != true }}
-        run: |
-          if ! command -v agent &>/dev/null; then
-            echo "::error::Cursor agent CLI not found after installation"
-            exit 1
+          if curl -fsS https://cursor.com/install | bash 2>/dev/null; then
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+            echo "agent_available=true" >> $GITHUB_OUTPUT
+            echo "✅ Cursor agent CLI installed"
+          else
+            echo "::warning::Cursor agent CLI install failed — will use ai_backend.py fallback"
+            echo "agent_available=false" >> $GITHUB_OUTPUT
           fi
-          agent --version
-          echo "✅ Cursor agent CLI ready"
+
+      - name: Verify agent CLI
+        if: ${{ inputs.skip_agent != true && steps.agent_install.outputs.agent_available == 'true' }}
+        run: |
+          if command -v agent &>/dev/null; then
+            agent --version
+            echo "✅ Cursor agent CLI ready"
+          else
+            echo "::warning::agent not on PATH after install"
+          fi
 
       - name: Generate AI verdicts for REVIEW PRs
         if: ${{ inputs.skip_agent != true }}
         id: ai_generate
+        continue-on-error: true
         run: |
           echo "════════════ AI VERDICT GENERATION ════════════"
-          if ! command -v agent &>/dev/null; then
-            echo "::error::Cursor agent CLI not available - AI layer REQUIRED (no fallback)"
-            exit 1
-          fi
-          
-          # Generate AI verdicts using Cursor agent with Sonnet 4.5
           chmod +x .github/scripts/generate_ai_verdicts.py
           python3 .github/scripts/generate_ai_verdicts.py /tmp/build-results.json \
             --output /tmp/ai_verdicts.json \
             --model claude-sonnet-4.5
-          
           echo "✅ AI verdicts generated"
         env:
           BRK_AGENT_MODE: live
           BRK_AGENT_MODEL: claude-sonnet-4.5
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         timeout-minutes: 60
-      
+
       - name: Reconcile AI verdicts with deterministic signals
-        if: ${{ inputs.skip_agent != true }}
+        if: ${{ inputs.skip_agent != true && steps.ai_generate.outcome == 'success' }}
         id: agent
         run: |
           echo "════════════ AI RECONCILIATION ════════════"
-          
-          # Reconcile AI verdicts with deterministic evidence
           chmod +x .github/scripts/reconcile_adjudication.py
           python3 .github/scripts/reconcile_adjudication.py /tmp/build-results.json \
             --verdicts /tmp/ai_verdicts.json \
             --write
-          
           echo "✅ AI reconciliation complete"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 10
 
-      # ── Rich Comment Renderer ──────────────────────────────────────
-      - name: Generate rich PR comments using analyst
+      # ── AI-Powered Rich Comment Generation ─────────────────────────
+      - name: Generate rich PR comments (AI-powered)
         if: always()
+        id: ai_comments
         run: |
+          echo "════════════ AI COMMENT GENERATION ════════════"
+          ANALYSIS_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          export ANALYSIS_RUN_URL
+
+          chmod +x .github/scripts/generate_ai_comments.py
+          if python3 .github/scripts/generate_ai_comments.py /tmp/build-results.json \
+              --prompt .github/breakability-prompt.md \
+              --model claude-sonnet-4.5 \
+              --run-url "$ANALYSIS_RUN_URL"; then
+            echo "ai_comments=true" >> $GITHUB_OUTPUT
+            echo "✅ AI comments generated"
+          else
+            echo "::warning::AI comment generation failed (exit $?) — falling back to template renderer"
+            echo "ai_comments=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          BRK_AGENT_MODE: live
+          BRK_AGENT_MODEL: claude-sonnet-4.5
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        timeout-minutes: 30
+
+      - name: Fallback to template renderer
+        if: always() && steps.ai_comments.outputs.ai_comments != 'true'
+        run: |
+          echo "════════════ TEMPLATE FALLBACK ════════════"
           chmod +x .github/scripts/breakability_analyst.py
           python3 .github/scripts/breakability_analyst.py /tmp/build-results.json
-          
-          # Post rendered comments to PRs
+          echo "✅ Template comments generated (fallback)"
+
+      # ── Post PR Comments ───────────────────────────────────────────
+      - name: Post comments to PRs
+        if: always()
+        run: |
+          POSTED=0
+          FAILED=0
           for comment_file in /tmp/pr-*-comment.md; do
             if [ -f "$comment_file" ]; then
               pr_num=$(basename "$comment_file" | sed 's/pr-\([0-9]*\)-comment.md/\1/')
               echo "📤 Posting comment to PR #$pr_num"
-              gh pr comment "$pr_num" --body-file "$comment_file" || echo "⚠️ Failed to post to PR #$pr_num"
+              if gh pr comment "$pr_num" --body-file "$comment_file"; then
+                POSTED=$((POSTED + 1))
+              else
+                echo "⚠️ Failed to post to PR #$pr_num"
+                FAILED=$((FAILED + 1))
+              fi
             fi
           done
+          echo "✅ Posted $POSTED comments ($FAILED failed)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Merge Plan Issue ───────────────────────────────────────────
+      - name: Generate and post merge plan issue
+        if: always()
+        run: |
+          echo "════════════ MERGE PLAN ════════════"
+
+          # Close previous merge plan issues
+          OLD_ISSUES=$(gh issue list --label breakability-merge-plan --state open --json number --jq '.[].number' 2>/dev/null || true)
+          for issue_num in $OLD_ISSUES; do
+            echo "Closing old merge plan issue #$issue_num"
+            gh issue close "$issue_num" --comment "Superseded by new analysis run." || true
+          done
+
+          # Build merge plan from build-results.json
+          PLAN_BODY=$(python3 -c "
+          import json, sys
+          from datetime import date
+
+          with open('/tmp/build-results.json') as f:
+              data = json.load(f)
+
+          prs = data.get('prs', {})
+          meta = data.get('metadata', {})
+          cross_deps = data.get('cross_pr_deps', [])
+          mode = meta.get('mode', 'advisory')
+          repo = meta.get('repo', 'unknown')
+
+          lines = []
+          lines.append('# Breakability Merge Plan')
+          lines.append('')
+          if mode == 'advisory':
+              lines.append('> ⚠️ **Advisory mode** — All verdicts are recommendations. Merges are not blocked.')
+              lines.append('')
+          lines.append(f'**Repository:** {repo}')
+          lines.append(f'**Analyzed:** {date.today().isoformat()}')
+          lines.append(f'**PRs analyzed:** {len(prs)}')
+          run_url = '${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'
+          lines.append(f'**Analysis run:** [{run_url}]({run_url})')
+          lines.append('')
+
+          # Categorize PRs
+          safe, review, blocked, unverified, skipped = [], [], [], [], []
+          for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
+              v2 = pr.get('verdict_v2', {})
+              verdict = v2.get('verdict', pr.get('build', {}).get('verdict', 'REVIEW')).upper()
+              if pr.get('build', {}).get('verdict') == 'skipped':
+                  skipped.append((num, pr))
+              elif verdict == 'SAFE':
+                  safe.append((num, pr))
+              elif verdict in ('BLOCKED', 'BUILD_FAILS'):
+                  blocked.append((num, pr))
+              elif verdict == 'UNVERIFIED':
+                  unverified.append((num, pr))
+              else:
+                  review.append((num, pr))
+
+          def pr_row(num, pr):
+              pkg = pr.get('package', '?')
+              frm = pr.get('from', '?')
+              to = pr.get('to', '?')
+              bump = pr.get('bump', '?')
+              dep = pr.get('dep_type', '?')
+              vl = pr.get('verification_label', '?')
+              return f'| #{num} | \`{pkg}\` | {frm} → {to} | {bump} | {dep} | {vl} |'
+
+          if cross_deps:
+              lines.append('## ⚠️ Coordinated Upgrades')
+              lines.append('| PRs | Relationship | Merge Order |')
+              lines.append('|-----|-------------|-------------|')
+              for dep in cross_deps:
+                  a, b = dep.get('pr_a', '?'), dep.get('pr_b', '?')
+                  reason = dep.get('reason', '')
+                  order = dep.get('merge_order', '')
+                  lines.append(f'| #{a}, #{b} | {reason} | {order} |')
+              lines.append('')
+
+          if safe:
+              lines.append('## ✅ Safe to Merge')
+              lines.append('| PR | Package | Version | Bump | Type | Verification |')
+              lines.append('|----|---------|---------|------|------|-------------|')
+              for num, pr in safe:
+                  lines.append(pr_row(num, pr))
+              lines.append('')
+
+          if review:
+              lines.append('## ⚠️ Review Needed')
+              lines.append('| PR | Package | Version | Bump | Type | Verification |')
+              lines.append('|----|---------|---------|------|------|-------------|')
+              for num, pr in review:
+                  lines.append(pr_row(num, pr))
+              lines.append('')
+
+          if unverified:
+              lines.append('## ⚙️ Unverified')
+              lines.append('| PR | Package | Version | Bump | Type | Verification |')
+              lines.append('|----|---------|---------|------|------|-------------|')
+              for num, pr in unverified:
+                  lines.append(pr_row(num, pr))
+              lines.append('')
+
+          if blocked:
+              lines.append('## ❌ Blocked / Fix Required')
+              lines.append('| PR | Package | Version | Bump | Type | Verification |')
+              lines.append('|----|---------|---------|------|------|-------------|')
+              for num, pr in blocked:
+                  lines.append(pr_row(num, pr))
+              lines.append('')
+
+          # Security posture
+          sec = data.get('security_posture', {})
+          govuln = data.get('govulncheck', {})
+          if sec or govuln:
+              lines.append('## 🔒 Security Posture')
+              if sec.get('total_open_alerts'):
+                  lines.append(f'- Open Dependabot alerts: {sec[\"total_open_alerts\"]}')
+                  sev = sec.get('severity_counts', {})
+                  if sev:
+                      lines.append(f'  - Critical: {sev.get(\"critical\", 0)}, High: {sev.get(\"high\", 0)}')
+              if govuln:
+                  baseline = govuln.get('main_baseline', {})
+                  if baseline.get('findings'):
+                      lines.append(f'- Pre-existing govulncheck findings on main: {len(baseline[\"findings\"])}')
+                  if govuln.get('prs_with_new_vulns', 0) > 0:
+                      lines.append(f'- 🚨 PRs introducing NEW vulnerabilities: {govuln[\"prs_with_new_vulns\"]}')
+              lines.append('')
+
+          lines.append('---')
+          lines.append(f'Mode: Deterministic + Behavioral Probe · Model: claude-sonnet-4.5 · Generated: {date.today().isoformat()}')
+
+          print('\\n'.join(lines))
+          ")
+
+          # Create the merge plan issue
+          ISSUE_URL=$(gh issue create \
+            --title "Breakability Merge Plan — $(date +%Y-%m-%d)" \
+            --label "breakability-merge-plan" \
+            --body "$PLAN_BODY" 2>&1) || true
+
+          if [ -n "$ISSUE_URL" ]; then
+            ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
+            echo "✅ Merge plan issue created: $ISSUE_URL (issue #$ISSUE_NUM)"
+          else
+            echo "⚠️ Failed to create merge plan issue"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -600,7 +600,8 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
 
     lines += [
         "---",
-        f"🔬 Deterministic + Probe · 📅 {date.today().isoformat()}",
+        f"Mode: Deterministic + Behavioral Probe · Model: template-fallback · "
+        f"Analyzed: {date.today().isoformat()}",
     ]
 
     return "\n".join(lines)

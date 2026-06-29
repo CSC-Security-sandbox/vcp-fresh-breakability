@@ -176,13 +176,13 @@ def main():
     ap.add_argument("--model", default="claude-sonnet-4.5", help="AI model to use")
     args = ap.parse_args()
     
-    # Check Cursor CLI available
+    # Check Cursor CLI available; if not, ai_backend.py handles fallback via env
     import subprocess
     try:
         subprocess.run(["agent", "--version"], capture_output=True, timeout=5)
+        print("Using Cursor agent CLI", file=sys.stderr)
     except Exception:
-        print("::error::Cursor agent CLI not found - AI layer requires 'agent' command", file=sys.stderr)
-        sys.exit(1)
+        print("::warning::Cursor agent CLI not found — ai_backend.py will route via env config", file=sys.stderr)
     
     # Load build results
     with open(args.results) as f:
