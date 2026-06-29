@@ -145,13 +145,19 @@ def _ensure_marker(comment: str) -> str:
 
 
 def _validate_comment(comment: str, pr_num: str) -> bool:
-    """Basic validation that the AI output looks like a valid comment."""
-    if len(comment) < 100:
+    """Validate that the AI output meets golden standard quality bars."""
+    line_count = len(comment.strip().splitlines())
+    if line_count < 100:
         return False
     if "##" not in comment:
         return False
-    if "breakability-check" not in comment and "breakability-agent" not in comment:
-        pass
+    has_signal_table = "| Layer " in comment or "| Check " in comment or "| Signal " in comment
+    if not has_signal_table:
+        return False
+    if "###" not in comment:
+        return False
+    if "Mode:" not in comment:
+        return False
     return True
 
 
@@ -248,20 +254,27 @@ def generate_comments(
             top_level=top_level,
         )
 
-        response = backend.invoke(
-            prompt,
-            namespace="breakability-comment",
-            key=f"comment-pr-{pr_num}",
-        )
+        comment = None
+        for attempt in range(2):
+            response = backend.invoke(
+                prompt,
+                namespace="breakability-comment",
+                key=f"comment-pr-{pr_num}" if attempt == 0 else f"comment-pr-{pr_num}-retry",
+            )
 
-        if response and _validate_comment(response, pr_num):
-            comment = _ensure_marker(response)
-            comments[pr_num] = comment
-            line_count = len(comment.splitlines())
-            print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
-        else:
+            if response and _validate_comment(response, pr_num):
+                comment = _ensure_marker(response)
+                line_count = len(comment.splitlines())
+                print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
+                break
             reason = "empty response" if not response else "validation failed"
-            print(f"PR#{pr_num}: AI call {reason}, using fallback", file=sys.stderr)
+            if attempt == 0:
+                print(f"PR#{pr_num}: AI call {reason}, retrying once...", file=sys.stderr)
+
+        if comment:
+            comments[pr_num] = comment
+        else:
+            print(f"PR#{pr_num}: AI failed after retry, using fallback", file=sys.stderr)
             comments[pr_num] = _fallback_comment(
                 pr_data, pr_num, run_url, merge_plan_issue, model
             )

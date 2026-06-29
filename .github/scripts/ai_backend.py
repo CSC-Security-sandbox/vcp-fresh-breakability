@@ -49,7 +49,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
-DEFAULT_MODEL = "claude-4-sonnet"
+DEFAULT_MODEL = "claude-sonnet-4-5-20250514"
 DEFAULT_CMD_TEMPLATE = "agent -p --force --model {model}"
 DEFAULT_CASSETTE_DIR = ".github/breakability/harness/cassettes"
 DEFAULT_TIMEOUT = 300
@@ -177,14 +177,34 @@ class Backend:
                 argv = argv + ["-p"]
         return argv
 
+    def _run_anthropic_sdk(self, prompt: str) -> str:
+        """Fallback: call Anthropic API directly when agent CLI is unavailable."""
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        if not api_key:
+            return ""
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=16384,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text.strip() if response.content else ""
+        except Exception:
+            return ""
+
     def _run_live(self, prompt: str, cwd: Optional[str], env: Optional[dict]) -> str:
         argv = self.build_argv()
         try:
             cp = subprocess.run(argv + [prompt], cwd=cwd, env=env,
                                 timeout=self.timeout, capture_output=True, text=True)
+            result = (cp.stdout or "").strip()
+            if result:
+                return result
         except (subprocess.TimeoutExpired, OSError):
-            return ""
-        return (cp.stdout or "").strip()
+            pass
+        return self._run_anthropic_sdk(prompt)
 
     def invoke(self, prompt: str, *, namespace: str, key: Optional[str] = None,
                cwd: Optional[str] = None, env: Optional[dict] = None) -> str:

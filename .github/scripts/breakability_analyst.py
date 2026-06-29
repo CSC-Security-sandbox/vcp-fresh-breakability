@@ -317,6 +317,76 @@ def _count_evidence_layers(pr: Dict) -> int:
     return count
 
 
+def _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
+                                reach, probe, pkg, from_ver, to_ver):
+    """Generate per-layer narrative paragraphs for the template fallback."""
+    lines = []
+
+    if build_v == "pass":
+        lines.append(f"**Build** passed cleanly — `{pkg}@{to_ver}` integrates without errors.")
+    elif build_v == "fail":
+        lines.append(f"**Build** fails with `{pkg}@{to_ver}`. This upgrade introduces compilation or resolution errors that must be fixed before merging.")
+    elif build_v == "pre_existing":
+        lines.append(f"**Build** has pre-existing failures unrelated to this `{pkg}` upgrade.")
+
+    if test_norm["verdict"] == "pass":
+        lines.append(f"**Tests** pass (exit {test_norm['exit_code']}), confirming no regressions from this upgrade.")
+    elif test_norm["verdict"] == "fail":
+        lines.append(f"**Tests** fail (exit {test_norm['exit_code']}). Investigate whether failures are caused by `{pkg}` {to_ver} breaking changes.")
+    elif test_norm["verdict"] == "skip":
+        lines.append("**Tests** were not executed — test confidence is unavailable for this PR.")
+
+    if api_changes > 0:
+        lines.append(f"**API Diff** detected {api_changes} changed symbol(s) between {from_ver} and {to_ver}.")
+    else:
+        lines.append(f"**API Diff** shows no exported symbol changes between {from_ver} and {to_ver}.")
+
+    if reach["reached"]:
+        n_files = len(reach["import_files"])
+        lines.append(f"**Reachability** confirms `{pkg}` is imported by {n_files} file(s) in this project — breaking changes could affect production code.")
+    else:
+        lines.append(f"**Reachability** shows `{pkg}` is not imported by any production source file.")
+
+    if probe["state"] == "SAME":
+        lines.append(f"**Probe** confirms runtime behavior is identical before and after the upgrade.")
+    elif probe["state"] == "DIFFERENT":
+        lines.append(f"**Probe** detected changed runtime behavior — verify the behavioral difference is acceptable.")
+
+    return lines
+
+
+def _build_numbered_recommendations(pr):
+    """Generate numbered recommendation steps."""
+    verdict_norm = _normalize_verdict(pr)
+    verdict = verdict_norm["verdict"]
+    probe = _normalize_probe(pr)
+    reach_norm = _normalize_reachability(pr)
+    det = pr.get("deterministic", {})
+    changelog_norm = _normalize_changelog(det)
+    test_norm = _normalize_test(pr.get("test", {}))
+    pkg = pr.get("package", "unknown")
+    build = pr.get("build", {})
+
+    steps = []
+    if build.get("verdict") == "fail":
+        steps.append(f"Fix build errors introduced by `{pkg}` upgrade")
+    if test_norm["verdict"] == "fail":
+        steps.append(f"Investigate test failures (exit {test_norm['exit_code']})")
+    if changelog_norm["is_breaking"] and changelog_norm["bullets"]:
+        steps.append(f"Review changelog breaking changes: {changelog_norm['bullets'][0][:80]}")
+    if probe["state"] == "DIFFERENT":
+        steps.append("Verify behavioral changes are compatible with your usage")
+    if reach_norm["reached"] and reach_norm["import_files"]:
+        n = len(reach_norm["import_files"])
+        steps.append(f"Check callsites in {n} importing file(s)")
+    if verdict == "SAFE" and not steps:
+        steps.append("Safe to merge — no action required")
+    elif not steps:
+        steps.append(f"Review the changelog for `{pkg}` before merging")
+    steps.append("Merge when confident")
+    return steps
+
+
 # ── Compact renderer ─────────────────────────────────────────────────────────
 
 def _synthesize_explanation(pr: Dict) -> str:
@@ -450,9 +520,13 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         "### What this means",
         explanation,
         "",
-        f"**Recommendation:** {recommendation}",
+        "### Recommendation",
         "",
     ]
+    rec_steps = _build_numbered_recommendations(pr)
+    for i, step in enumerate(rec_steps, 1):
+        lines.append(f"{i}. {step}")
+    lines.append("")
 
     cl_detail = changelog_norm["bullets"][0][:80] if changelog_norm["bullets"] else changelog_norm["status"]
     probe_ev = probe["evidence"]
@@ -466,7 +540,7 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
     test_detail = test_norm["reason"] if test_norm["verdict"] != "pass" else f"exit {test_norm['exit_code']}"
 
     lines += [
-        "<details><summary>📋 Evidence layers</summary>",
+        "### Evidence Summary",
         "",
         "| Layer | Signal | Detail |",
         "|-------|--------|--------|",
@@ -476,6 +550,58 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         f"| Changelog | {cl_icon} {cl_text} | {cl_detail} |",
         f"| Reachability | {'⚠️ reached' if reach['reached'] else '✅ not reached'} | {reach_file_count} imports |",
         f"| Probe | {probe_icon} {probe_state_display} | {probe_detail} |",
+        "",
+    ]
+
+    lines += [
+        "### How we checked",
+        "",
+        f"- **Build**: Installed `{pkg}@{to_ver}` and ran full build pipeline",
+        f"- **Tests**: {'Ran project test suite' if test_norm['ran'] else 'No test suite executed'}",
+        f"- **API Diff**: Compared exported symbols between {from_ver} and {to_ver}",
+        f"- **Changelog**: {'Parsed release notes for breaking-change markers' if changelog_norm['available'] else 'No changelog found for this version range'}",
+        f"- **Reachability**: Scanned project source for imports of `{pkg}`",
+        f"- **Probe**: {'Compared runtime behavior before/after upgrade' if probe['state'] != 'NOT_RUN' else 'Behavioral probe was not executed'}",
+        "",
+    ]
+
+    lines += _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
+                                         reach, probe, pkg, from_ver, to_ver)
+    lines.append("")
+
+    lines += [
+        "<details><summary>Verdict logic</summary>",
+        "",
+        "```",
+        f"build      = {build_v.upper()}",
+        f"tests      = {test_norm['verdict'].upper()}",
+        f"probe      = {probe['state']}",
+        f"reachable  = {str(reach['reached']).upper()}",
+        f"changelog  = {'BREAKING' if changelog_norm['is_breaking'] else 'CLEAN'}",
+        f"verdict    = {verdict}",
+        "```",
+        "",
+        "</details>",
+        "",
+    ]
+
+    lines += [
+        "<details><summary>Verification commands</summary>",
+        "",
+        "```bash",
+        f"# Install and build with the new version",
+        f"npm install {pkg}@{to_ver}",
+        f"npm run build",
+        "",
+        f"# Run tests",
+        f"npm test",
+        "",
+        f"# Check what changed in the API",
+        f"npm info {pkg} --json | jq '.versions'",
+        "",
+        f"# Check your imports",
+        f"grep -r '{pkg}' --include='*.ts' --include='*.js' -l .",
+        "```",
         "",
         "</details>",
         "",
@@ -515,8 +641,8 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         old_hash = probe_ev.get("old_hash", "")
         new_hash = probe_ev.get("new_hash", "")
         if not old_out and not new_out and old_hash and new_hash:
-            old_out = f"hash:{old_hash[:12]}"
-            new_out = f"hash:{new_hash[:12]}"
+            old_out = f"sha256:{old_hash}"
+            new_out = f"sha256:{new_hash}"
         if old_out or new_out or changed_summary:
             lines.append("<details><summary>🔬 Probe diff — what changed</summary>")
             lines.append("")
@@ -598,11 +724,17 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
                 lines.append(f"- PR #{other}: {dep.get('reason', '')} — {dep.get('merge_order', '')}")
             lines.append("")
 
-    lines += [
-        "---",
-        f"Mode: Deterministic + Behavioral Probe · Model: template-fallback · "
-        f"Analyzed: {date.today().isoformat()}",
-    ]
+    merge_plan_issue = os.environ.get("MERGE_PLAN_ISSUE", "")
+    run_url = os.environ.get("ANALYSIS_RUN_URL", "")
+
+    lines.append("---")
+    footer = (f"Mode: Deterministic + Behavioral Probe · Model: template-fallback · "
+              f"Analyzed: {date.today().isoformat()}")
+    lines.append(footer)
+    if merge_plan_issue:
+        lines.append(f"Merge plan: #{merge_plan_issue}")
+    if run_url:
+        lines.append(f"[Analysis run]({run_url})")
 
     return "\n".join(lines)
 

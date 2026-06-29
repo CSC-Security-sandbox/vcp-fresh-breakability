@@ -350,6 +350,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 10
 
+      # ── Create Merge Plan Issue (early, for linking in comments) ──
+      - name: Create merge plan issue
+        if: always()
+        id: merge_plan
+        run: |
+          OLD_ISSUES=$(gh issue list --label breakability-merge-plan --state open --json number --jq '.[].number' 2>/dev/null || true)
+          for issue_num in $OLD_ISSUES; do
+            gh issue close "$issue_num" --comment "Superseded by new analysis run." || true
+          done
+          ISSUE_URL=$(gh issue create \
+            --title "Breakability Merge Plan — $(date +%Y-%m-%d)" \
+            --label "breakability-merge-plan" \
+            --body "Merge plan is being generated... This issue will be updated shortly." 2>&1) || true
+          if [ -n "$ISSUE_URL" ]; then
+            ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
+            echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+            echo "✅ Merge plan issue created: $ISSUE_URL (#$ISSUE_NUM)"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # ── AI-Powered Rich Comment Generation ─────────────────────────
       - name: Generate rich PR comments (AI-powered)
         if: always()
@@ -359,11 +381,18 @@ jobs:
           ANALYSIS_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           export ANALYSIS_RUN_URL
 
+          MERGE_PLAN_ISSUE="${{ steps.merge_plan.outputs.issue_num }}"
+          MERGE_PLAN_ARG=""
+          if [ -n "$MERGE_PLAN_ISSUE" ]; then
+            MERGE_PLAN_ARG="--merge-plan-issue $MERGE_PLAN_ISSUE"
+          fi
+
           chmod +x .github/scripts/generate_ai_comments.py
           if python3 .github/scripts/generate_ai_comments.py /tmp/build-results.json \
               --prompt .github/breakability-prompt.md \
               --model claude-sonnet-4.5 \
-              --run-url "$ANALYSIS_RUN_URL"; then
+              --run-url "$ANALYSIS_RUN_URL" \
+              $MERGE_PLAN_ARG; then
             echo "ai_comments=true" >> $GITHUB_OUTPUT
             echo "✅ AI comments generated"
           else
@@ -385,6 +414,9 @@ jobs:
           chmod +x .github/scripts/breakability_analyst.py
           python3 .github/scripts/breakability_analyst.py /tmp/build-results.json
           echo "✅ Template comments generated (fallback)"
+        env:
+          MERGE_PLAN_ISSUE: ${{ steps.merge_plan.outputs.issue_num }}
+          ANALYSIS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       # ── Post PR Comments ───────────────────────────────────────────
       - name: Post comments to PRs
@@ -409,18 +441,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Merge Plan Issue ───────────────────────────────────────────
-      - name: Generate and post merge plan issue
+      # ── Merge Plan Issue (update body) ─────────────────────────────
+      - name: Update merge plan issue body
         if: always()
         run: |
-          echo "════════════ MERGE PLAN ════════════"
-
-          # Close previous merge plan issues
-          OLD_ISSUES=$(gh issue list --label breakability-merge-plan --state open --json number --jq '.[].number' 2>/dev/null || true)
-          for issue_num in $OLD_ISSUES; do
-            echo "Closing old merge plan issue #$issue_num"
-            gh issue close "$issue_num" --comment "Superseded by new analysis run." || true
-          done
+          echo "════════════ MERGE PLAN BODY ════════════"
+          MERGE_PLAN_ISSUE="${{ steps.merge_plan.outputs.issue_num }}"
 
           # Build merge plan from build-results.json
           PLAN_BODY=$(python3 -c "
@@ -541,17 +567,16 @@ jobs:
           print('\\n'.join(lines))
           ")
 
-          # Create the merge plan issue
-          ISSUE_URL=$(gh issue create \
-            --title "Breakability Merge Plan — $(date +%Y-%m-%d)" \
-            --label "breakability-merge-plan" \
-            --body "$PLAN_BODY" 2>&1) || true
-
-          if [ -n "$ISSUE_URL" ]; then
-            ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
-            echo "✅ Merge plan issue created: $ISSUE_URL (issue #$ISSUE_NUM)"
+          # Update merge plan issue with full body (created earlier for linking)
+          if [ -n "$MERGE_PLAN_ISSUE" ]; then
+            gh issue edit "$MERGE_PLAN_ISSUE" --body "$PLAN_BODY" || true
+            echo "✅ Merge plan issue #$MERGE_PLAN_ISSUE updated with full body"
           else
-            echo "⚠️ Failed to create merge plan issue"
+            ISSUE_URL=$(gh issue create \
+              --title "Breakability Merge Plan — $(date +%Y-%m-%d)" \
+              --label "breakability-merge-plan" \
+              --body "$PLAN_BODY" 2>&1) || true
+            echo "✅ Merge plan issue created: $ISSUE_URL"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
