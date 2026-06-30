@@ -388,20 +388,20 @@ jobs:
         run: |
           echo "════════════ AI PREFLIGHT CHECK ════════════"
           cd .github/scripts
-          cat > /tmp/ai_preflight.py << 'PYEOF'
+          python3 -c "
           import sys, os
-          sys.path.insert(0, os.path.dirname(os.path.abspath("ai_backend.py")))
+          sys.path.insert(0, os.getcwd())
           from ai_backend import Backend
           b = Backend.from_env()
           ok, err = b.preflight_check()
-          print(f"AI preflight: {ok}, {err}", file=sys.stderr)
+          print(f'AI preflight: ok={ok}, err={err}', file=sys.stderr)
           sys.exit(0 if ok else 1)
-          PYEOF
-          if python3 /tmp/ai_preflight.py; then
+          "
+          if [ $? -eq 0 ]; then
             echo "ai_preflight=true" >> $GITHUB_OUTPUT
             echo "✅ AI backend is reachable"
           else
-            echo "::warning::AI backend pre-flight failed — will skip AI generation and use template fallback"
+            echo "::warning::AI backend pre-flight failed — will try AI generation anyway"
             echo "ai_preflight=false" >> $GITHUB_OUTPUT
           fi
         env:
@@ -411,7 +411,7 @@ jobs:
 
       # ── AI-Powered Rich Comment Generation ─────────────────────────
       - name: Generate rich PR comments (AI-powered)
-        if: always() && steps.ai_preflight.outputs.ai_preflight == 'true'
+        if: always()
         id: ai_comments
         run: |
           echo "════════════ AI COMMENT GENERATION ════════════"
@@ -446,7 +446,7 @@ jobs:
         timeout-minutes: 30
 
       - name: Fallback to template renderer
-        if: always() && (steps.ai_preflight.outputs.ai_preflight != 'true' || steps.ai_comments.outputs.ai_comments != 'true')
+        if: always() && steps.ai_comments.outputs.ai_comments != 'true'
         run: |
           echo "════════════ TEMPLATE FALLBACK ════════════"
           chmod +x .github/scripts/breakability_analyst.py
