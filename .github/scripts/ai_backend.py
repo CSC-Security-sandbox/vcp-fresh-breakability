@@ -54,6 +54,12 @@ DEFAULT_CMD_TEMPLATE = "agent -p --force --model {model}"
 DEFAULT_CASSETTE_DIR = ".github/breakability/harness/cassettes"
 DEFAULT_TIMEOUT = 300
 
+_CURSOR_TO_ANTHROPIC: dict[str, str] = {
+    "claude-4.5-sonnet": "claude-sonnet-4-5-20250514",
+    "claude-4-sonnet": "claude-sonnet-4-5-20250514",
+    "claude-sonnet-4.5": "claude-sonnet-4-5-20250514",
+}
+
 MODE_LIVE = "live"
 MODE_REPLAY = "replay"
 MODE_RECORD = "record"
@@ -185,8 +191,9 @@ class Backend:
         try:
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
+            api_model = _CURSOR_TO_ANTHROPIC.get(self.model, self.model)
             response = client.messages.create(
-                model=self.model,
+                model=api_model,
                 max_tokens=16384,
                 messages=[{"role": "user", "content": prompt}],
             )

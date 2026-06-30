@@ -455,162 +455,18 @@ jobs:
         run: |
           echo "════════════ MERGE PLAN BODY ════════════"
           MERGE_PLAN_ISSUE="${{ steps.merge_plan.outputs.issue_num }}"
+          ANALYSIS_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           # Discover ALL open Dependabot PRs for full merge plan coverage
           export ALL_OPEN_PRS
           ALL_OPEN_PRS=$(gh pr list --label "dependencies" --state open \
             --json number,title --jq '.[] | "\(.number)\t\(.title)"' --limit 500 2>/dev/null || echo "")
 
-          # Build merge plan from build-results.json + all open PRs
-          PLAN_BODY=$(python3 -c "
-          import json, sys, os
-          from datetime import date
-
-          with open('/tmp/build-results.json') as f:
-              data = json.load(f)
-
-          prs = data.get('prs', {})
-          meta = data.get('metadata', {})
-          cross_deps = data.get('cross_pr_deps', [])
-          mode = meta.get('mode', 'advisory')
-          repo = meta.get('repo', 'unknown')
-
-          # Parse all open Dependabot PRs from gh pr list output
-          all_open_raw = os.environ.get('ALL_OPEN_PRS', '').strip()
-          all_open = {}
-          for line in all_open_raw.splitlines():
-              parts = line.split('\t', 1)
-              if len(parts) == 2 and parts[0].strip().isdigit():
-                  all_open[parts[0].strip()] = parts[1].strip()
-
-          analyzed_nums = set(prs.keys())
-          not_analyzed = {n: t for n, t in all_open.items() if n not in analyzed_nums}
-
-          total_open = len(all_open) if all_open else len(prs)
-
-          lines = []
-          lines.append('# Breakability Merge Plan')
-          lines.append('')
-          if mode == 'advisory':
-              lines.append('> ⚠️ **Advisory mode** — All verdicts are recommendations. Merges are not blocked.')
-              lines.append('')
-          lines.append(f'**Repository:** {repo}')
-          lines.append(f'**Analyzed:** {date.today().isoformat()}')
-          lines.append(f'**PRs analyzed:** {len(prs)} of {total_open} open Dependabot PRs')
-          run_url = '${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'
-          lines.append(f'**Analysis run:** [{run_url}]({run_url})')
-          if not_analyzed:
-              lines.append(f'> ℹ️ {len(not_analyzed)} PR(s) not analyzed in this run — listed below under \"Not Yet Analyzed\"')
-          lines.append('')
-
-          # Categorize PRs
-          safe, review, blocked, unverified, skipped = [], [], [], [], []
-          for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
-              v2 = pr.get('verdict_v2', {})
-              verdict = v2.get('verdict', pr.get('build', {}).get('verdict', 'REVIEW')).upper()
-              if pr.get('build', {}).get('verdict') == 'skipped':
-                  skipped.append((num, pr))
-              elif verdict == 'SAFE':
-                  safe.append((num, pr))
-              elif verdict in ('BLOCKED', 'BUILD_FAILS'):
-                  blocked.append((num, pr))
-              elif verdict == 'UNVERIFIED':
-                  unverified.append((num, pr))
-              else:
-                  review.append((num, pr))
-
-          def pr_row(num, pr):
-              pkg = pr.get('package', '?')
-              frm = pr.get('from', '?')
-              to = pr.get('to', '?')
-              bump = pr.get('bump', '?')
-              dep = pr.get('dep_type', '?')
-              vl = pr.get('verification_label', '?')
-              return f'| #{num} | \`{pkg}\` | {frm} → {to} | {bump} | {dep} | {vl} |'
-
-          if cross_deps:
-              lines.append('## ⚠️ Coordinated Upgrades')
-              lines.append('| PRs | Relationship | Merge Order |')
-              lines.append('|-----|-------------|-------------|')
-              for dep in cross_deps:
-                  a, b = dep.get('pr_a', '?'), dep.get('pr_b', '?')
-                  reason = dep.get('reason', '')
-                  order = dep.get('merge_order', '')
-                  lines.append(f'| #{a}, #{b} | {reason} | {order} |')
-              lines.append('')
-
-          if safe:
-              lines.append('## ✅ Safe to Merge')
-              lines.append('| PR | Package | Version | Bump | Type | Verification |')
-              lines.append('|----|---------|---------|------|------|-------------|')
-              for num, pr in safe:
-                  lines.append(pr_row(num, pr))
-              lines.append('')
-
-          if review:
-              lines.append('## ⚠️ Review Needed')
-              lines.append('| PR | Package | Version | Bump | Type | Verification |')
-              lines.append('|----|---------|---------|------|------|-------------|')
-              for num, pr in review:
-                  lines.append(pr_row(num, pr))
-              lines.append('')
-
-          if unverified:
-              lines.append('## ⚙️ Unverified')
-              lines.append('| PR | Package | Version | Bump | Type | Verification |')
-              lines.append('|----|---------|---------|------|------|-------------|')
-              for num, pr in unverified:
-                  lines.append(pr_row(num, pr))
-              lines.append('')
-
-          if blocked:
-              lines.append('## ❌ Blocked / Fix Required')
-              lines.append('| PR | Package | Version | Bump | Type | Verification |')
-              lines.append('|----|---------|---------|------|------|-------------|')
-              for num, pr in blocked:
-                  lines.append(pr_row(num, pr))
-              lines.append('')
-
-          if not_analyzed:
-              lines.append('## ⚙️ Not Yet Analyzed')
-              lines.append('> These PRs were not included in the current analysis run. They will be analyzed in the next full run.')
-              lines.append('')
-              lines.append('| PR | Title |')
-              lines.append('|----|-------|')
-              for num in sorted(not_analyzed, key=lambda x: int(x)):
-                  title = not_analyzed[num].replace('|', '\\\\|')
-                  lines.append(f'| #{num} | {title} |')
-              lines.append('')
-
-          # Security posture
-          sec = data.get('security_posture', {})
-          govuln = data.get('govulncheck', {})
-          if sec or govuln:
-              lines.append('## 🔒 Security Posture')
-              if sec.get('total_open_alerts'):
-                  lines.append(f'- Open Dependabot alerts: {sec[\"total_open_alerts\"]}')
-                  sev = sec.get('severity_counts', {})
-                  if sev:
-                      lines.append(f'  - Critical: {sev.get(\"critical\", 0)}, High: {sev.get(\"high\", 0)}')
-              if govuln:
-                  baseline = govuln.get('main_baseline', {})
-                  if baseline.get('findings'):
-                      lines.append(f'- Pre-existing govulncheck findings on main: {len(baseline[\"findings\"])}')
-                  if govuln.get('prs_with_new_vulns', 0) > 0:
-                      lines.append(f'- 🚨 PRs introducing NEW vulnerabilities: {govuln[\"prs_with_new_vulns\"]}')
-              lines.append('')
-
-          # Summary
-          lines.append('## Summary')
-          lines.append(f'- **Total open PRs:** {total_open} | Analyzed: {len(prs)} | Not analyzed: {len(not_analyzed)}')
-          lines.append(f'- **Safe:** {len(safe)} | **Review:** {len(review)} | **Blocked:** {len(blocked)} | **Unverified:** {len(unverified)}')
-          lines.append('')
-
-          lines.append('---')
-          lines.append(f'Mode: Deterministic + Behavioral Probe · Model: claude-4.5-sonnet · Generated: {date.today().isoformat()}')
-
-          print('\\n'.join(lines))
-          ")
+          chmod +x .github/scripts/generate_ai_merge_plan.py
+          PLAN_BODY=$(python3 .github/scripts/generate_ai_merge_plan.py /tmp/build-results.json \
+            --prompt .github/breakability-prompt.md \
+            --model claude-4.5-sonnet \
+            --run-url "$ANALYSIS_RUN_URL")
 
           # Update merge plan issue with full body (created earlier for linking)
           if [ -n "$MERGE_PLAN_ISSUE" ]; then
@@ -626,3 +482,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRK_AGENT_MODE: live
+          BRK_AGENT_MODEL: claude-4.5-sonnet
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
