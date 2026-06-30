@@ -30,14 +30,25 @@ SAMPLE_PR = {
 
 
 class TestValidateComment(unittest.TestCase):
-    def _make_comment(self, lines=170, has_table=True, has_subsection=True, has_footer=True):
+    def _make_comment(self, lines=170, has_table=True, has_subsection=True,
+                      has_footer=True, has_numbered=True, has_bash=True,
+                      has_reachability=True):
         parts = ["<!-- breakability-check -->", "## SAFE — lodash"]
         if has_table:
             parts.append("| Layer | Signal | Detail |")
         if has_subsection:
             parts.append("### How we checked")
-        body_lines = [f"Line {i}" for i in range(lines - len(parts) - (1 if has_footer else 0))]
-        parts.extend(body_lines)
+        if has_numbered:
+            parts.append("1. Review the changelog")
+        if has_bash:
+            parts.append("```bash")
+            parts.append("npm test")
+            parts.append("```")
+        if has_reachability:
+            parts.append("**Reachability** confirms the package is imported by 3 files")
+        body_needed = lines - len(parts) - (1 if has_footer else 0)
+        if body_needed > 0:
+            parts.extend([f"Line {i}" for i in range(body_needed)])
         if has_footer:
             parts.append("Mode: Deterministic + Behavioral Probe")
         return "\n".join(parts)
@@ -60,6 +71,18 @@ class TestValidateComment(unittest.TestCase):
 
     def test_missing_footer_fails(self):
         comment = self._make_comment(has_footer=False)
+        self.assertFalse(_validate_comment(comment, "42"))
+
+    def test_missing_numbered_recommendations_fails(self):
+        comment = self._make_comment(has_numbered=False)
+        self.assertFalse(_validate_comment(comment, "42"))
+
+    def test_missing_bash_commands_fails(self):
+        comment = self._make_comment(has_bash=False)
+        self.assertFalse(_validate_comment(comment, "42"))
+
+    def test_missing_reachability_fails(self):
+        comment = self._make_comment(has_reachability=False)
         self.assertFalse(_validate_comment(comment, "42"))
 
 
@@ -262,6 +285,11 @@ class TestAllStubsDetection(unittest.TestCase):
         parts = ["<!-- breakability-check -->", "## SAFE — lodash"]
         parts.append("| Layer | Signal | Detail |")
         parts.append("### How we checked")
+        parts.append("1. Review the changelog")
+        parts.append("```bash")
+        parts.append("npm test")
+        parts.append("```")
+        parts.append("**Reachability** confirms the package is imported by 3 files")
         parts.extend([f"Line {i}" for i in range(150)])
         parts.append("Mode: Deterministic + Behavioral Probe")
         return "\n".join(parts)

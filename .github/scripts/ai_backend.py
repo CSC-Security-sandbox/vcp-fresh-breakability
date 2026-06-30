@@ -58,6 +58,8 @@ _CURSOR_TO_ANTHROPIC: dict[str, str] = {
     "claude-4.5-sonnet": "claude-sonnet-4-5-20250514",
     "claude-4-sonnet": "claude-sonnet-4-5-20250514",
     "claude-sonnet-4.5": "claude-sonnet-4-5-20250514",
+    "claude-4.6-sonnet": "claude-sonnet-4-6",
+    "claude-4.8-opus": "claude-opus-4-8",
 }
 
 MODE_LIVE = "live"

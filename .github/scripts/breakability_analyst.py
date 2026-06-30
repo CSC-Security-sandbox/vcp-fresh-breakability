@@ -401,6 +401,58 @@ def _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog
     return lines
 
 
+def _build_risk_assessment(pr, verdict, build_v, test_norm, api_changes,
+                           changelog_norm, reach, probe, pkg, from_ver, to_ver,
+                           dep_type, bump):
+    """Build a risk assessment section for REVIEW/BLOCKED PRs."""
+    lines = ["### Risk Assessment", ""]
+
+    lines.append(f"**Upgrade:** `{pkg}` {from_ver} → {to_ver} ({bump} bump, {dep_type})")
+
+    risk_factors = []
+    if build_v == "fail":
+        risk_factors.append("build fails with the new version")
+    if test_norm["verdict"] == "fail":
+        risk_factors.append(f"test suite fails (exit {test_norm['exit_code']})")
+    if changelog_norm["is_breaking"]:
+        risk_factors.append("changelog declares breaking changes")
+    if probe["state"] == "DIFFERENT":
+        risk_factors.append("behavioral probe detected runtime differences")
+    if api_changes > 0:
+        risk_factors.append(f"{api_changes} exported symbol(s) changed")
+    if reach["reached"]:
+        n = len(reach["import_files"])
+        risk_factors.append(f"package is imported by {n} production file(s)")
+
+    if risk_factors:
+        lines.append("")
+        lines.append("**Signals requiring attention:**")
+        for factor in risk_factors:
+            lines.append(f"- {factor}")
+
+    mitigations = []
+    if build_v == "pass":
+        mitigations.append("build passes cleanly")
+    if test_norm["verdict"] == "pass":
+        mitigations.append("full test suite passes")
+    if probe["state"] == "SAME":
+        mitigations.append("runtime behavior is identical")
+    if not reach["reached"]:
+        mitigations.append("package is not imported by production code")
+
+    if mitigations:
+        lines.append("")
+        lines.append("**Positive signals:**")
+        for m in mitigations:
+            lines.append(f"- {m}")
+
+    ecosystem = pr.get("ecosystem", "npm")
+    lines.append("")
+    lines.append(f"**Ecosystem:** {ecosystem} · **Scope:** {dep_type} · **Bump:** {bump}")
+
+    return lines
+
+
 def _build_numbered_recommendations(pr):
     """Generate numbered recommendation steps."""
     verdict_norm = _normalize_verdict(pr)
@@ -627,6 +679,11 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
     lines += _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
                                          reach, probe, pkg, from_ver, to_ver)
     lines.append("")
+
+    if verdict in ("REVIEW", "BUILD_FAILS", "BLOCKED"):
+        lines += _build_risk_assessment(pr, verdict, build_v, test_norm, api_changes,
+                                         changelog_norm, reach, probe, pkg, from_ver, to_ver, dep_type, bump)
+        lines.append("")
 
     lines += [
         "<details><summary>Verdict logic</summary>",

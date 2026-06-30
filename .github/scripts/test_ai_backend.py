@@ -153,8 +153,8 @@ class AnthropicModelMappingTests(unittest.TestCase):
     def test_cursor_model_names_map_to_valid_anthropic_ids(self):
         for cursor_name, api_id in ab._CURSOR_TO_ANTHROPIC.items():
             self.assertTrue(api_id.startswith("claude-"), f"{cursor_name} -> {api_id}")
-            self.assertRegex(api_id, r"^\w[\w-]+\d{8}$",
-                             f"Anthropic API model ID should end with a date stamp: {api_id}")
+            self.assertRegex(api_id, r"^claude-[\w-]+\d$",
+                             f"Anthropic API model ID should be a valid claude model: {api_id}")
 
     def test_default_model_is_mapped(self):
         self.assertIn(ab.DEFAULT_MODEL, ab._CURSOR_TO_ANTHROPIC)

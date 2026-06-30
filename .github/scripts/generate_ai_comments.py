@@ -17,6 +17,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import date
 from typing import Dict, Any, Optional
@@ -146,7 +147,12 @@ def _ensure_marker(comment: str) -> str:
 
 
 def _validate_comment(comment: str, pr_num: str) -> bool:
-    """Validate that the AI output meets golden standard quality bars."""
+    """Validate that the AI output meets golden standard quality bars.
+
+    Checks 8 of 13 golden features: line count, H2 headers, signal table,
+    H3 subsections, Mode footer, numbered recommendations, verification
+    commands, and reachability section.
+    """
     line_count = len(comment.strip().splitlines())
     if line_count < 150:
         return False
@@ -160,6 +166,13 @@ def _validate_comment(comment: str, pr_num: str) -> bool:
     if "###" not in comment:
         return False
     if "Mode:" not in comment:
+        return False
+    if not re.search(r'\d+[\.\)]\s', comment):
+        return False
+    if "```bash" not in comment and "```shell" not in comment:
+        return False
+    comment_lower = comment.lower()
+    if "reachab" not in comment_lower and "import" not in comment_lower:
         return False
     return True
 
