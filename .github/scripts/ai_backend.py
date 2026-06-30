@@ -187,11 +187,17 @@ class Backend:
 
     def _run_anthropic_sdk(self, prompt: str) -> str:
         """Fallback: call Anthropic API directly when agent CLI is unavailable."""
+        import sys
         api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         if not api_key:
+            print("[ai_backend] ANTHROPIC_API_KEY not set — skipping SDK fallback", file=sys.stderr)
             return ""
         try:
             import anthropic
+        except ImportError:
+            print("[ai_backend] anthropic SDK not importable — pip install anthropic", file=sys.stderr)
+            return ""
+        try:
             client = anthropic.Anthropic(api_key=api_key)
             api_model = _CURSOR_TO_ANTHROPIC.get(self.model, self.model)
             response = client.messages.create(
@@ -200,8 +206,44 @@ class Backend:
                 messages=[{"role": "user", "content": prompt}],
             )
             return response.content[0].text.strip() if response.content else ""
-        except Exception:
+        except anthropic.AuthenticationError as e:
+            print(f"[ai_backend] API key invalid or missing: {e}", file=sys.stderr)
             return ""
+        except anthropic.APIError as e:
+            print(f"[ai_backend] API error: {e.status_code} {e.message}", file=sys.stderr)
+            return ""
+        except Exception as e:
+            print(f"[ai_backend] Unexpected error: {type(e).__name__}: {e}", file=sys.stderr)
+            return ""
+
+    def preflight_check(self) -> tuple:
+        """Quick connectivity check. Returns (ok: bool, error: str).
+
+        Checks that the AI backend can reach the model. Does NOT run a prompt —
+        just validates configuration (API key set, SDK importable, auth valid).
+        """
+        import sys
+        cursor_key = os.environ.get("CURSOR_API_KEY", "").strip()
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        if not cursor_key and not anthropic_key:
+            return (False, "API key not set (neither CURSOR_API_KEY nor ANTHROPIC_API_KEY)")
+        try:
+            import anthropic
+        except ImportError:
+            if not cursor_key:
+                return (False, "anthropic SDK not importable and CURSOR_API_KEY not set")
+            return (True, "CURSOR_API_KEY set (SDK not importable, will use agent CLI)")
+        api_key = anthropic_key or cursor_key
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            client.models.list(limit=1)
+            return (True, "")
+        except anthropic.AuthenticationError:
+            return (False, "API key invalid or unauthorized")
+        except anthropic.APIError as e:
+            return (False, f"API error: {getattr(e, 'status_code', '?')} {getattr(e, 'message', str(e))}")
+        except Exception as e:
+            return (False, f"Unexpected error: {type(e).__name__}: {e}")
 
     def _run_live(self, prompt: str, cwd: Optional[str], env: Optional[dict]) -> str:
         argv = self.build_argv()

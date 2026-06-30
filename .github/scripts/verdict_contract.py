@@ -197,6 +197,52 @@ def _probe_escalation(pr: Mapping[str, Any], result: dict) -> dict:
     return result
 
 
+def _has_declared_breaking(pr: Mapping[str, Any]) -> bool:
+    """Check if the PR's changelog declares breaking changes or deprecations.
+
+    Mirrors reconcile_adjudication._has_declared_breaking_section."""
+    import json as _json
+    det = pr.get("deterministic") or {}
+    sig = det.get("changelogSignal")
+    blob = ""
+    if isinstance(sig, str):
+        blob += sig
+    elif isinstance(sig, dict):
+        blob += _json.dumps(sig)
+    blob += " " + (det.get("changelogText") or "")
+    low = blob.lower()
+    return ("breaking change" in low) or ("### breaking" in low) or ("deprecat" in low)
+
+
+def _tests_ran_successfully(pr: Mapping[str, Any]) -> bool:
+    """True only when the candidate version's test suite actually ran and passed."""
+    t = pr.get("test") or {}
+    if not isinstance(t, Mapping):
+        return False
+    if not t.get("ran"):
+        return False
+    exit_code = t.get("exit")
+    if exit_code is None:
+        exit_code = t.get("main_test_exit")
+    return exit_code == 0
+
+
+def _breaking_changelog_reachable_floor(pr: Mapping[str, Any]) -> bool:
+    """Rule 4: changelog declares breaking + package is reachable + tests did not pass.
+
+    When all three hold, the PR must be at least REVIEW — a SAFE verdict here
+    is a false green (the declared break may manifest behaviorally or via code
+    paths a static grep misjudges)."""
+    if not _has_declared_breaking(pr):
+        return False
+    files_importing = pr.get("files_importing") or []
+    if not files_importing:
+        return False
+    if _tests_ran_successfully(pr):
+        return False
+    return True
+
+
 def assign_breakability_grade(pr: Mapping[str, Any], verdict_bucket: str, signals: Optional[Mapping] = None) -> str:
     """Assign decisive breakability grade based on evidence.
     
@@ -303,6 +349,18 @@ def authoritative_verdict(pr: Mapping[str, Any]) -> dict:
                 "breakability_grade": GRADE_SAFE,
             }
             return result
+
+    # Rule 4: breaking changelog + reachable code + no successful tests → REVIEW floor
+    if _breaking_changelog_reachable_floor(pr):
+        return {
+            "verdict": BUCKET_REVIEW,
+            "severity": "medium",
+            "confidence": "L3",
+            "priority": "P2",
+            "reason": "Breaking changelog + reachable code + no successful test execution (Rule 4)",
+            "source": "breaking_changelog_reachable_floor",
+            "breakability_grade": GRADE_MEDIUM_BREAKING,
+        }
 
     adj = pr.get("ai_adjudication")
     if isinstance(adj, Mapping):

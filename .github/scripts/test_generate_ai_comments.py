@@ -55,35 +55,58 @@ class TestValidateComment(unittest.TestCase):
 
     def test_valid_comment_passes(self):
         comment = self._make_comment(lines=170)
-        self.assertTrue(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertTrue(passed)
+        self.assertTrue(all(d["passed"] for d in diag.values()))
 
     def test_too_short_fails(self):
         comment = self._make_comment(lines=50)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["line_count"]["passed"])
 
     def test_missing_table_fails(self):
         comment = self._make_comment(has_table=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_signal_table"]["passed"])
 
     def test_missing_subsection_fails(self):
         comment = self._make_comment(has_subsection=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_h3"]["passed"])
 
     def test_missing_footer_fails(self):
         comment = self._make_comment(has_footer=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_mode_footer"]["passed"])
 
     def test_missing_numbered_recommendations_fails(self):
         comment = self._make_comment(has_numbered=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_numbered_list"]["passed"])
 
     def test_missing_bash_commands_fails(self):
         comment = self._make_comment(has_bash=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_bash_block"]["passed"])
 
     def test_missing_reachability_fails(self):
         comment = self._make_comment(has_reachability=False)
-        self.assertFalse(_validate_comment(comment, "42"))
+        passed, diag = _validate_comment(comment, "42")
+        self.assertFalse(passed)
+        self.assertFalse(diag["has_reachability"]["passed"])
+
+    def test_diagnostics_has_all_eight_criteria(self):
+        comment = self._make_comment(lines=170)
+        _, diag = _validate_comment(comment, "42")
+        expected = {"line_count", "has_h2", "has_signal_table", "has_h3",
+                    "has_mode_footer", "has_numbered_list", "has_bash_block", "has_reachability"}
+        self.assertEqual(set(diag.keys()), expected)
 
 
 class TestFallbackComment(unittest.TestCase):

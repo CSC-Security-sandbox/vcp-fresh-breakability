@@ -111,6 +111,80 @@ class TestAuthoritativeVerdictPrecedence(unittest.TestCase):
         self.assertEqual(v["source"], "fail_closed")
 
 
+class TestBreakingChangelogReachableFloor(unittest.TestCase):
+    """Rule 4: breaking changelog + reachable + no passing tests → REVIEW minimum."""
+
+    def test_pr66_breaking_reachable_no_tests_gets_review(self):
+        """PR #66 scenario: major, changelog=breaking, reachable=1 file, tests=skip."""
+        pr = _pr({"verdict": "MERGE"},
+                 deterministic={"changelogSignal": "### Breaking Changes\nRemoved callback API"},
+                 files_importing=["src/auth.ts"],
+                 test={"ran": False})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_REVIEW)
+        self.assertEqual(v["source"], "breaking_changelog_reachable_floor")
+
+    def test_breaking_reachable_tests_pass_stays_safe(self):
+        """If tests ran and passed, the floor does NOT fire."""
+        pr = _pr({"verdict": "MERGE"},
+                 deterministic={"changelogSignal": "### Breaking Changes\nAPI removed"},
+                 files_importing=["src/auth.ts"],
+                 test={"ran": True, "exit": 0})
+        v = authoritative_verdict(pr)
+        self.assertNotEqual(v["source"], "breaking_changelog_reachable_floor")
+
+    def test_no_breaking_changelog_stays_safe(self):
+        """Non-breaking changelog does not trigger the floor."""
+        pr = _pr({"verdict": "MERGE"},
+                 deterministic={"changelogSignal": "Bug fixes and improvements"},
+                 files_importing=["src/auth.ts"],
+                 test={"ran": False})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_SAFE)
+
+    def test_not_reachable_stays_safe(self):
+        """Breaking changelog but no files import → stays SAFE."""
+        pr = _pr({"verdict": "MERGE"},
+                 deterministic={"changelogSignal": "### Breaking Changes\nRemoved API"},
+                 files_importing=[],
+                 test={"ran": False})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_SAFE)
+
+    def test_actions_fast_path_exits_before_floor(self):
+        """PR #59 scenario: actions ecosystem exits at fast-path before floor check."""
+        pr = _pr({"verdict": "MERGE"},
+                 ecosystem="actions",
+                 build={"verdict": "pass"},
+                 deterministic={"changelogSignal": "### Breaking Changes\nRenamed action"},
+                 files_importing=["src/ci.ts"],
+                 test={"ran": False})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_SAFE)
+        self.assertEqual(v["source"], "actions_fast_path")
+
+    def test_hard_fix_floor_exits_before_breaking_floor(self):
+        """PR #68 scenario: test failure → BLOCKED via hard_fix_floor before this check."""
+        pr = _pr({"verdict": "FIX"},
+                 build={"verdict": "pass"},
+                 test={"ran": True, "exit": 1, "verdict": "fail"},
+                 deterministic={"changelogSignal": "### Breaking Changes\nAPI removed"},
+                 files_importing=["src/auth.ts"])
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_BLOCKED)
+        self.assertEqual(v["source"], "hard_fix_floor")
+
+    def test_deprecation_triggers_floor(self):
+        """Deprecation notices also trigger the floor."""
+        pr = _pr({"verdict": "MERGE"},
+                 deterministic={"changelogSignal": "Deprecated: old API will be removed in v5"},
+                 files_importing=["lib/client.js"],
+                 test={"ran": False})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_REVIEW)
+        self.assertEqual(v["source"], "breaking_changelog_reachable_floor")
+
+
 class TestPrediction(unittest.TestCase):
     def test_glance_predicts_auto_clear(self):
         self.assertEqual(prediction_for_pr(_pr({"verdict": "GLANCE"})), PRED_AUTO_CLEAR)

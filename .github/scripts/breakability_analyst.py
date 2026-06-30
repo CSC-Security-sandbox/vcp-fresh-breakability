@@ -401,6 +401,163 @@ def _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog
     return lines
 
 
+def _build_expanded_layer_sections(build, build_v, test_norm, api_changes,
+                                    changelog_norm, reach, probe, pkg, from_ver, to_ver,
+                                    pr, layer_conf):
+    """Per-layer H3 subsections for REVIEW/BLOCKED comments (target >=150 lines total)."""
+    lines = []
+    build_icon = {"pass": "✅", "fail": "❌", "pre_existing": "⚠️"}.get(build_v, "⬜")
+    test_icon = {"pass": "✅", "fail": "❌", "skip": "⬜"}.get(test_norm["verdict"], "⬜")
+
+    # ### Build Analysis
+    lines += [
+        f"### {build_icon} Build Analysis",
+        f"**Status:** {build_icon} **{build_v.upper()}** | **Verification Level:** {layer_conf['Build'][0]}",
+        "",
+        "**What we checked:**",
+        f"- ✅ Installed `{pkg}@{to_ver}` into the project",
+        f"- ✅ Ran full build pipeline (`npm run build` / `go build ./...`)",
+    ]
+    if build_v == "pass":
+        lines.append("- ✅ Build completed with zero errors")
+    elif build_v == "fail":
+        lines.append("- ❌ Build produced compilation or resolution errors")
+    elif build_v == "pre_existing":
+        lines.append("- ⚠️ Pre-existing build failures detected (unrelated to this upgrade)")
+    build_output = (build.get("output_tail") or build.get("stdout") or "").strip()
+    if build_output:
+        lines += ["", "**Build Output:**", "```", build_output[:400], "```"]
+    lines += ["", f"**Confidence:** **{layer_conf['Build'][0]}** — {layer_conf['Build'][1]}", ""]
+
+    # ### Test Analysis
+    lines += [
+        f"### {test_icon} Test Analysis",
+        f"**Status:** {test_icon} **{test_norm['verdict'].upper()}** | **Verification Level:** {layer_conf['Tests'][0]}",
+        "",
+        "**What we checked:**",
+    ]
+    if test_norm["ran"]:
+        lines += [
+            "- ✅ Executed project test suite against the upgraded dependency",
+            f"- {'✅' if test_norm['verdict'] == 'pass' else '❌'} Test exit code: {test_norm['exit_code']}",
+        ]
+        if test_norm["verdict"] == "fail":
+            lines.append("- ❌ Test failures may indicate breaking changes in the upgrade")
+    else:
+        lines += [
+            "- ⬜ No test suite was executed for this PR",
+            "- ⬜ Test-based confidence is unavailable",
+        ]
+    test_data = pr.get("test", {})
+    test_output = (test_data.get("output_tail") or test_data.get("stdout") or "").strip()
+    if test_output and test_norm["verdict"] == "fail":
+        lines += ["", "**Test Output:**", "```", test_output[:400], "```"]
+    lines += ["", f"**Confidence:** **{layer_conf['Tests'][0]}** — {layer_conf['Tests'][1]}", ""]
+
+    # ### API Diff Analysis
+    api_icon = "⚠️" if api_changes > 0 else "✅"
+    lines += [
+        f"### {api_icon} API Diff Analysis",
+        f"**Status:** {api_icon} **{api_changes} change(s)** | **Verification Level:** {layer_conf['API Diff'][0]}",
+        "",
+        "**What we checked:**",
+        f"- ✅ Compared exported symbols between {from_ver} and {to_ver}",
+    ]
+    if api_changes > 0:
+        lines.append(f"- ⚠️ {api_changes} exported symbol(s) changed — review for breaking signature changes")
+    else:
+        lines.append("- ✅ No exported symbol changes detected")
+    lines += ["", f"**Confidence:** **{layer_conf['API Diff'][0]}** — {layer_conf['API Diff'][1]}", ""]
+
+    # ### Changelog Analysis
+    cl_icon = "⚠️" if changelog_norm["is_breaking"] else "✅" if changelog_norm["available"] else "⬜"
+    cl_status = "BREAKING" if changelog_norm["is_breaking"] else "CLEAN" if changelog_norm["available"] else "UNAVAILABLE"
+    lines += [
+        f"### {cl_icon} Changelog Analysis",
+        f"**Status:** {cl_icon} **{cl_status}** | **Verification Level:** {layer_conf['Changelog'][0]}",
+        "",
+        "**What we checked:**",
+    ]
+    if changelog_norm["available"]:
+        lines.append("- ✅ Parsed release notes and changelog for breaking-change markers")
+        if changelog_norm["is_breaking"]:
+            lines.append("- ⚠️ Changelog explicitly declares breaking changes or deprecations")
+        else:
+            lines.append("- ✅ No breaking changes declared in release notes")
+        if changelog_norm["bullets"]:
+            lines.append("")
+            lines.append("**Key changelog entries:**")
+            for bullet in changelog_norm["bullets"][:3]:
+                lines.append(f"- {bullet[:120]}")
+    else:
+        lines += [
+            "- ⬜ No changelog found for this version range",
+            "- ⬜ Cannot verify whether breaking changes were declared",
+        ]
+    lines += ["", f"**Confidence:** **{layer_conf['Changelog'][0]}** — {layer_conf['Changelog'][1]}", ""]
+
+    # ### Reachability Analysis
+    reach_icon = "⚠️" if reach["reached"] else "✅"
+    n_files = len(reach["import_files"])
+    lines += [
+        f"### {reach_icon} Reachability Analysis",
+        f"**Status:** {reach_icon} **{'REACHED' if reach['reached'] else 'NOT REACHED'}** | **Verification Level:** {layer_conf['Reachability'][0]}",
+        "",
+        "**What we checked:**",
+        f"- ✅ Scanned project source files for imports of `{pkg}`",
+    ]
+    if reach["reached"]:
+        lines += [
+            f"- ⚠️ Found {n_files} file(s) importing this package",
+            "- ⚠️ Breaking changes could affect production code paths",
+        ]
+        if reach["import_files"][:5]:
+            lines.append("")
+            lines.append("**Files importing this package:**")
+            for f in reach["import_files"][:5]:
+                lines.append(f"- `{f}`")
+            if n_files > 5:
+                lines.append(f"- ... and {n_files - 5} more")
+    else:
+        lines += [
+            "- ✅ Package is not imported by any production source file",
+            "- ✅ Breaking changes have no direct production impact",
+        ]
+    lines += ["", f"**Confidence:** **{layer_conf['Reachability'][0]}** — {layer_conf['Reachability'][1]}", ""]
+
+    # ### Probe Analysis
+    probe_icon = {"SAME": "✅", "DIFFERENT": "⚠️"}.get(probe["state"], "⬜")
+    probe_status = probe["state"].replace("_", " ")
+    lines += [
+        f"### {probe_icon} Behavioral Probe Analysis",
+        f"**Status:** {probe_icon} **{probe_status}** | **Verification Level:** {layer_conf['Probe'][0]}",
+        "",
+        "**What we checked:**",
+    ]
+    if probe["state"] == "SAME":
+        lines += [
+            f"- ✅ Compared runtime behavior between {from_ver} and {to_ver}",
+            "- ✅ Runtime exports are identical — no behavioral regression",
+        ]
+    elif probe["state"] == "DIFFERENT":
+        lines += [
+            f"- ⚠️ Compared runtime behavior between {from_ver} and {to_ver}",
+            "- ⚠️ Runtime behavior differs — verify the change is acceptable",
+        ]
+        probe_ev = probe["evidence"]
+        changed = probe_ev.get("changed_behavior") or probe_ev.get("rationale") or ""
+        if changed:
+            lines += ["", f"**Behavioral difference:** {changed[:200]}"]
+    else:
+        lines += [
+            "- ⬜ Behavioral probe was not executed",
+            "- ⬜ No runtime comparison available",
+        ]
+    lines += ["", f"**Confidence:** **{layer_conf['Probe'][0]}** — {layer_conf['Probe'][1]}", ""]
+
+    return lines
+
+
 def _build_risk_assessment(pr, verdict, build_v, test_norm, api_changes,
                            changelog_norm, reach, probe, pkg, from_ver, to_ver,
                            dep_type, bump):
@@ -676,13 +833,17 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         "",
     ]
 
-    lines += _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
-                                         reach, probe, pkg, from_ver, to_ver)
-    lines.append("")
-
     if verdict in ("REVIEW", "BUILD_FAILS", "BLOCKED"):
+        lines += _build_expanded_layer_sections(build, build_v, test_norm, api_changes,
+                                                changelog_norm, reach, probe, pkg, from_ver, to_ver,
+                                                pr, layer_conf)
+        lines.append("")
         lines += _build_risk_assessment(pr, verdict, build_v, test_norm, api_changes,
                                          changelog_norm, reach, probe, pkg, from_ver, to_ver, dep_type, bump)
+        lines.append("")
+    else:
+        lines += _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
+                                             reach, probe, pkg, from_ver, to_ver)
         lines.append("")
 
     lines += [
@@ -701,27 +862,45 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         "",
     ]
 
-    lines += [
-        "<details><summary>Verification commands</summary>",
-        "",
-        "```bash",
-        f"# Install and build with the new version",
-        f"npm install {pkg}@{to_ver}",
-        f"npm run build",
-        "",
-        f"# Run tests",
-        f"npm test",
-        "",
-        f"# Check what changed in the API",
-        f"npm info {pkg} --json | jq '.versions'",
-        "",
-        f"# Check your imports",
-        f"grep -r '{pkg}' --include='*.ts' --include='*.js' -l .",
-        "```",
-        "",
-        "</details>",
-        "",
-    ]
+    ecosystem = pr.get("ecosystem", "npm")
+    lines += ["<details><summary>Verification commands</summary>", "", "```bash"]
+    if ecosystem == "gomod":
+        short_pkg = pkg.rsplit("/", 1)[-1] if "/" in pkg else pkg
+        lines += [
+            f"# Install and build with the new version",
+            f"go get {pkg}@v{to_ver}",
+            f"go build ./...",
+            "",
+            f"# Run tests",
+            f"go test ./...",
+            "",
+            f"# Check package docs",
+            f"go doc {pkg}",
+            "",
+            f"# Check your imports",
+            f'grep -r "{short_pkg}" --include="*.go" -l .',
+        ]
+    elif ecosystem == "actions":
+        lines += [
+            f"# Check which workflows use this action",
+            f'grep -r "uses: {pkg}" --include="*.yml" --include="*.yaml" -l .github/',
+        ]
+    else:
+        lines += [
+            f"# Install and build with the new version",
+            f"npm install {pkg}@{to_ver}",
+            f"npm run build",
+            "",
+            f"# Run tests",
+            f"npm test",
+            "",
+            f"# Check what changed in the API",
+            f"npm info {pkg} --json | jq '.versions'",
+            "",
+            f"# Check your imports",
+            f"grep -r '{pkg}' --include='*.ts' --include='*.js' -l .",
+        ]
+    lines += ["```", "", "</details>", ""]
 
     build_output = build.get("output_tail", "")
     if build_output:

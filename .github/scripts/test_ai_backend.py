@@ -200,5 +200,38 @@ class EnvResolutionTests(unittest.TestCase):
                 os.environ["BRK_AGENT_MODEL"] = old
 
 
+class PreflightCheckTests(unittest.TestCase):
+    def test_no_keys_returns_false(self):
+        old_cursor = os.environ.pop("CURSOR_API_KEY", None)
+        old_anthropic = os.environ.pop("ANTHROPIC_API_KEY", None)
+        try:
+            be = ab.Backend(mode=ab.MODE_LIVE, model="m", cmd_template="false",
+                            cassette_dir="/tmp", timeout=5)
+            ok, err = be.preflight_check()
+            self.assertFalse(ok)
+            self.assertIn("API key not set", err)
+        finally:
+            if old_cursor is not None:
+                os.environ["CURSOR_API_KEY"] = old_cursor
+            if old_anthropic is not None:
+                os.environ["ANTHROPIC_API_KEY"] = old_anthropic
+
+    def test_cursor_key_only_with_no_sdk(self):
+        old_cursor = os.environ.pop("CURSOR_API_KEY", None)
+        old_anthropic = os.environ.pop("ANTHROPIC_API_KEY", None)
+        os.environ["CURSOR_API_KEY"] = "test-key"
+        try:
+            be = ab.Backend(mode=ab.MODE_LIVE, model="m", cmd_template="false",
+                            cassette_dir="/tmp", timeout=5)
+            ok, err = be.preflight_check()
+            self.assertTrue(ok)
+        finally:
+            os.environ.pop("CURSOR_API_KEY", None)
+            if old_cursor is not None:
+                os.environ["CURSOR_API_KEY"] = old_cursor
+            if old_anthropic is not None:
+                os.environ["ANTHROPIC_API_KEY"] = old_anthropic
+
+
 if __name__ == "__main__":
     unittest.main()

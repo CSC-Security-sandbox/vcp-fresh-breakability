@@ -146,35 +146,55 @@ def _ensure_marker(comment: str) -> str:
     return stripped
 
 
-def _validate_comment(comment: str, pr_num: str) -> bool:
+def _validate_comment(comment: str, pr_num: str) -> tuple:
     """Validate that the AI output meets golden standard quality bars.
+
+    Returns (passed: bool, diagnostics: dict) where diagnostics maps each
+    criterion to {passed: bool, value: any}.
 
     Checks 8 of 13 golden features: line count, H2 headers, signal table,
     H3 subsections, Mode footer, numbered recommendations, verification
     commands, and reachability section.
     """
     line_count = len(comment.strip().splitlines())
-    if line_count < 150:
-        return False
-    if line_count < 200:
-        print(f"PR#{pr_num}: AI comment is {line_count} lines (below 200-line golden target)", file=sys.stderr)
-    if "##" not in comment:
-        return False
-    has_signal_table = "| Layer " in comment or "| Check " in comment or "| Signal " in comment
-    if not has_signal_table:
-        return False
-    if "###" not in comment:
-        return False
-    if "Mode:" not in comment:
-        return False
-    if not re.search(r'\d+[\.\)]\s', comment):
-        return False
-    if "```bash" not in comment and "```shell" not in comment:
-        return False
     comment_lower = comment.lower()
-    if "reachab" not in comment_lower and "import" not in comment_lower:
-        return False
-    return True
+
+    diagnostics = {
+        "line_count": {"passed": line_count >= 150, "value": line_count},
+        "has_h2": {"passed": "##" in comment, "value": "##" in comment},
+        "has_signal_table": {
+            "passed": "| Layer " in comment or "| Check " in comment or "| Signal " in comment,
+            "value": "| Layer " in comment or "| Check " in comment or "| Signal " in comment,
+        },
+        "has_h3": {"passed": "###" in comment, "value": "###" in comment},
+        "has_mode_footer": {"passed": "Mode:" in comment, "value": "Mode:" in comment},
+        "has_numbered_list": {
+            "passed": bool(re.search(r'\d+[\.\)]\s', comment)),
+            "value": bool(re.search(r'\d+[\.\)]\s', comment)),
+        },
+        "has_bash_block": {
+            "passed": "```bash" in comment or "```shell" in comment,
+            "value": "```bash" in comment or "```shell" in comment,
+        },
+        "has_reachability": {
+            "passed": "reachab" in comment_lower or "import" in comment_lower,
+            "value": "reachab" in comment_lower or "import" in comment_lower,
+        },
+    }
+
+    all_passed = all(d["passed"] for d in diagnostics.values())
+
+    if not all_passed:
+        parts = []
+        for name, d in diagnostics.items():
+            val = d["value"]
+            status = "FAIL" if not d["passed"] else "ok"
+            parts.append(f"{name}={val}({status})")
+        print(f"PR#{pr_num} validation: {', '.join(parts)}", file=sys.stderr)
+    elif line_count < 200:
+        print(f"PR#{pr_num}: AI comment is {line_count} lines (below 200-line golden target)", file=sys.stderr)
+
+    return (all_passed, diagnostics)
 
 
 def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
@@ -283,12 +303,17 @@ def generate_comments(
                 key=f"comment-pr-{pr_num}" if attempt == 0 else f"comment-pr-{pr_num}-retry",
             )
 
-            if response and _validate_comment(response, pr_num):
-                comment = _ensure_marker(response)
-                line_count = len(comment.splitlines())
-                print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
-                break
-            reason = "empty response" if not response else "validation failed"
+            if response:
+                valid, diag = _validate_comment(response, pr_num)
+                if valid:
+                    comment = _ensure_marker(response)
+                    line_count = len(comment.splitlines())
+                    print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
+                    break
+                reason = "validation failed"
+            else:
+                reason = f"empty response (0 chars)"
+                print(f"PR#{pr_num}: {reason}", file=sys.stderr)
             if attempt == 0:
                 print(f"PR#{pr_num}: AI call {reason}, retrying once...", file=sys.stderr)
 
