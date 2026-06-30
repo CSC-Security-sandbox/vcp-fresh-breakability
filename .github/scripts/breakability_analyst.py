@@ -436,7 +436,7 @@ def _build_expanded_layer_sections(build, build_v, test_norm, api_changes,
         "",
         "**What we checked:**",
     ]
-    if test_norm["ran"]:
+    if test_norm["ran"] and test_norm["verdict"] in ("pass", "fail"):
         lines += [
             "- ✅ Executed project test suite against the upgraded dependency",
             f"- {'✅' if test_norm['verdict'] == 'pass' else '❌'} Test exit code: {test_norm['exit_code']}",
@@ -865,7 +865,6 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
     ecosystem = pr.get("ecosystem", "npm")
     lines += ["<details><summary>Verification commands</summary>", "", "```bash"]
     if ecosystem == "gomod":
-        short_pkg = pkg.rsplit("/", 1)[-1] if "/" in pkg else pkg
         lines += [
             f"# Install and build with the new version",
             f"go get {pkg}@v{to_ver}",
@@ -878,7 +877,7 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
             f"go doc {pkg}",
             "",
             f"# Check your imports",
-            f'grep -r "{short_pkg}" --include="*.go" -l .',
+            f'grep -r "{pkg}" --include="*.go" -l .',
         ]
     elif ecosystem == "actions":
         lines += [

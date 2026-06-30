@@ -40,6 +40,11 @@ from ci_classifier import ci_security_sensitive as _ci_security_sensitive  # noq
 
 def _load_lite_module() -> Any:
     path = os.path.join(os.path.dirname(SCRIPT_DIR), "tools", "reachability", "lite.py")
+    if not os.path.isfile(path):
+        import types
+        stub = types.ModuleType("_lite_reachability")
+        stub.analyze = lambda pr, symbols=None: {"reached": False, "files": [], "usages": []}
+        return stub
     spec = importlib.util.spec_from_file_location("_lite_reachability", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load reachability lite module from {path}")

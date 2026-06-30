@@ -190,7 +190,11 @@ class Backend:
         import sys
         api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         if not api_key:
-            print("[ai_backend] ANTHROPIC_API_KEY not set — skipping SDK fallback", file=sys.stderr)
+            api_key = os.environ.get("CURSOR_API_KEY", "").strip()
+            if api_key:
+                print("[ai_backend] ANTHROPIC_API_KEY not set, using CURSOR_API_KEY for SDK fallback", file=sys.stderr)
+        if not api_key:
+            print("[ai_backend] Neither ANTHROPIC_API_KEY nor CURSOR_API_KEY set — skipping SDK fallback", file=sys.stderr)
             return ""
         try:
             import anthropic
