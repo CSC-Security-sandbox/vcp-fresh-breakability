@@ -30,7 +30,7 @@ SAMPLE_PR = {
 
 
 class TestValidateComment(unittest.TestCase):
-    def _make_comment(self, lines=120, has_table=True, has_subsection=True, has_footer=True):
+    def _make_comment(self, lines=170, has_table=True, has_subsection=True, has_footer=True):
         parts = ["<!-- breakability-check -->", "## SAFE — lodash"]
         if has_table:
             parts.append("| Layer | Signal | Detail |")
@@ -43,7 +43,7 @@ class TestValidateComment(unittest.TestCase):
         return "\n".join(parts)
 
     def test_valid_comment_passes(self):
-        comment = self._make_comment(lines=120)
+        comment = self._make_comment(lines=170)
         self.assertTrue(_validate_comment(comment, "42"))
 
     def test_too_short_fails(self):
@@ -262,7 +262,7 @@ class TestAllStubsDetection(unittest.TestCase):
         parts = ["<!-- breakability-check -->", "## SAFE — lodash"]
         parts.append("| Layer | Signal | Detail |")
         parts.append("### How we checked")
-        parts.extend([f"Line {i}" for i in range(110)])
+        parts.extend([f"Line {i}" for i in range(150)])
         parts.append("Mode: Deterministic + Behavioral Probe")
         return "\n".join(parts)
 

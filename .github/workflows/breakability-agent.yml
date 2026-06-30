@@ -39,6 +39,8 @@ env:
   NODE_VERSION: '20'
   GO_VERSION: '1.22'
   PYTHON_VERSION: '3.12'
+  # Model mapping: 'claude-4.5-sonnet' → Anthropic snapshot 'claude-sonnet-4-5-20250514'
+  # Resolved by ai_backend.py _CURSOR_TO_ANTHROPIC dict. Last verified: 2026-06-30.
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════

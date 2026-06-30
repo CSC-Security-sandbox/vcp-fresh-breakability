@@ -148,8 +148,10 @@ def _ensure_marker(comment: str) -> str:
 def _validate_comment(comment: str, pr_num: str) -> bool:
     """Validate that the AI output meets golden standard quality bars."""
     line_count = len(comment.strip().splitlines())
-    if line_count < 100:
+    if line_count < 150:
         return False
+    if line_count < 200:
+        print(f"PR#{pr_num}: AI comment is {line_count} lines (below 200-line golden target)", file=sys.stderr)
     if "##" not in comment:
         return False
     has_signal_table = "| Layer " in comment or "| Check " in comment or "| Signal " in comment

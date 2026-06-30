@@ -317,6 +317,52 @@ def _count_evidence_layers(pr: Dict) -> int:
     return count
 
 
+def _per_layer_confidence(build_v, test_norm, api_changes, changelog_norm, reach, probe):
+    """Compute per-layer confidence (HIGH/MEDIUM/LOW) with one-sentence rationale."""
+    layers = {}
+
+    if build_v in ("pass", "fail"):
+        layers["Build"] = ("HIGH", "Definitive exit code from full build pipeline")
+    elif build_v == "pre_existing":
+        layers["Build"] = ("MEDIUM", "Build fails but failures pre-date this upgrade")
+    else:
+        layers["Build"] = ("LOW", "Build was not executed or status unknown")
+
+    if test_norm["verdict"] == "pass":
+        layers["Tests"] = ("HIGH", "Test suite ran and passed (exit 0)")
+    elif test_norm["verdict"] == "fail":
+        layers["Tests"] = ("HIGH", f"Test suite ran and failed (exit {test_norm['exit_code']})")
+    elif test_norm["ran"]:
+        layers["Tests"] = ("MEDIUM", "Tests ran but result is ambiguous")
+    else:
+        layers["Tests"] = ("LOW", "No test suite was executed")
+
+    if api_changes > 0:
+        layers["API Diff"] = ("HIGH", f"{api_changes} exported symbol change(s) detected")
+    else:
+        layers["API Diff"] = ("MEDIUM", "No symbol changes found; diff may not cover all APIs")
+
+    if changelog_norm["is_breaking"]:
+        layers["Changelog"] = ("HIGH", "Changelog explicitly declares breaking changes")
+    elif changelog_norm["available"]:
+        layers["Changelog"] = ("MEDIUM", "Changelog present but no breaking markers found")
+    else:
+        layers["Changelog"] = ("LOW", "No changelog available for this version range")
+
+    if reach["reached"]:
+        n = len(reach["import_files"])
+        layers["Reachability"] = ("HIGH", f"Import scan found {n} file(s) using this package")
+    else:
+        layers["Reachability"] = ("HIGH", "Import scan confirms package is not referenced")
+
+    if probe["state"] in ("SAME", "DIFFERENT"):
+        layers["Probe"] = ("HIGH", f"Behavioral probe ran and reported {probe['state'].lower()}")
+    else:
+        layers["Probe"] = ("LOW", "Behavioral probe was not executed")
+
+    return layers
+
+
 def _build_per_layer_narrative(build, build_v, test_norm, api_changes, changelog_norm,
                                 reach, probe, pkg, from_ver, to_ver):
     """Generate per-layer narrative paragraphs for the template fallback."""
@@ -540,17 +586,19 @@ def _render_compact(pr: Dict, cross_deps: Optional[List[Dict]] = None) -> str:
         probe_detail = "—"
     test_detail = test_norm["reason"] if test_norm["verdict"] != "pass" else f"exit {test_norm['exit_code']}"
 
+    layer_conf = _per_layer_confidence(build_v, test_norm, api_changes, changelog_norm, reach, probe)
+
     lines += [
         "### Evidence Summary",
         "",
-        "| Layer | Signal | Detail |",
-        "|-------|--------|--------|",
-        f"| Build | {build_icon} {build_v} | exit {build.get('pr_exit', build.get('main_exit', '?'))} |",
-        f"| Tests | {test_icon} {test_norm['verdict']} | {test_detail} |",
-        f"| API Diff | {'⚠️ breaking' if api_changes > 0 else '✅ clean'} | {api_changes} symbol(s) |",
-        f"| Changelog | {cl_icon} {cl_text} | {cl_detail} |",
-        f"| Reachability | {'⚠️ reached' if reach['reached'] else '✅ not reached'} | {reach_file_count} imports |",
-        f"| Probe | {probe_icon} {probe_state_display} | {probe_detail} |",
+        "| Layer | Signal | Detail | Confidence |",
+        "|-------|--------|--------|------------|",
+        f"| Build | {build_icon} {build_v} | exit {build.get('pr_exit', build.get('main_exit', '?'))} | {layer_conf['Build'][0]} — {layer_conf['Build'][1]} |",
+        f"| Tests | {test_icon} {test_norm['verdict']} | {test_detail} | {layer_conf['Tests'][0]} — {layer_conf['Tests'][1]} |",
+        f"| API Diff | {'⚠️ breaking' if api_changes > 0 else '✅ clean'} | {api_changes} symbol(s) | {layer_conf['API Diff'][0]} — {layer_conf['API Diff'][1]} |",
+        f"| Changelog | {cl_icon} {cl_text} | {cl_detail} | {layer_conf['Changelog'][0]} — {layer_conf['Changelog'][1]} |",
+        f"| Reachability | {'⚠️ reached' if reach['reached'] else '✅ not reached'} | {reach_file_count} imports | {layer_conf['Reachability'][0]} — {layer_conf['Reachability'][1]} |",
+        f"| Probe | {probe_icon} {probe_state_display} | {probe_detail} | {layer_conf['Probe'][0]} — {layer_conf['Probe'][1]} |",
     ]
 
     ai_adj = pr.get("ai_adjudication", {})
