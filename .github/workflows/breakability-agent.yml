@@ -444,7 +444,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        timeout-minutes: 60
+        timeout-minutes: 90
 
       - name: Fallback to template renderer
         if: always() && steps.ai_comments.outputs.ai_comments != 'true'

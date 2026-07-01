@@ -224,7 +224,8 @@ class PreflightCheckTests(unittest.TestCase):
             be = ab.Backend(mode=ab.MODE_LIVE, model="m", cmd_template="false",
                             cassette_dir="/tmp", timeout=5)
             ok, err = be.preflight_check()
-            self.assertTrue(ok)
+            self.assertFalse(ok)
+            self.assertIn("agent CLI returned empty", err)
         finally:
             os.environ.pop("CURSOR_API_KEY", None)
             if old_cursor is not None:

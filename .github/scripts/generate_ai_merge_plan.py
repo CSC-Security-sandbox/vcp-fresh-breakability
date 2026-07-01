@@ -220,6 +220,23 @@ def _build_merge_plan_prompt(base_prompt: str, data: Dict[str, Any],
     return "\n".join(sections)
 
 
+import re as _re
+
+
+def _strip_preamble(text: str) -> str:
+    """Remove conversational preamble before the first '# ' heading and strip code fences."""
+    text = _re.sub(r'^```(?:markdown)?\s*\n', '', text)
+    text = _re.sub(r'\n```\s*$', '', text)
+    idx = text.find('\n# ')
+    if idx == -1:
+        if text.startswith('# '):
+            return text
+        return text
+    if idx == 0:
+        return text[1:]
+    return text[idx + 1:]
+
+
 def generate_merge_plan(data: Dict[str, Any], prompt_path: Optional[str] = None,
                         model: str = "claude-4.5-sonnet",
                         run_url: Optional[str] = None) -> str:
@@ -239,6 +256,7 @@ def generate_merge_plan(data: Dict[str, Any], prompt_path: Optional[str] = None,
             )
 
             if response and "# " in response and len(response.splitlines()) > 20:
+                response = _strip_preamble(response)
                 print(f"AI merge plan generated ({len(response.splitlines())} lines)", file=sys.stderr)
                 return response.strip()
             print("AI merge plan insufficient, using template fallback", file=sys.stderr)

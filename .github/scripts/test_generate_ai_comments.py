@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from generate_ai_comments import (
     _build_per_pr_prompt,
     _validate_comment,
+    _near_valid,
     _fallback_comment,
     _ensure_marker,
     _extract_pr_data,
@@ -107,6 +108,47 @@ class TestValidateComment(unittest.TestCase):
         expected = {"line_count", "has_h2", "has_signal_table", "has_h3",
                     "has_mode_footer", "has_numbered_list", "has_bash_block", "has_reachability"}
         self.assertEqual(set(diag.keys()), expected)
+
+
+class TestNearValid(unittest.TestCase):
+    """_near_valid accepts long comments with at most 1 failing check."""
+
+    def _make_diag(self, line_count=350, failures=None):
+        failures = failures or set()
+        checks = ["line_count", "has_h2", "has_signal_table", "has_h3",
+                   "has_mode_footer", "has_numbered_list", "has_bash_block", "has_reachability"]
+        diag = {}
+        for c in checks:
+            if c == "line_count":
+                diag[c] = {"passed": c not in failures, "value": line_count}
+            else:
+                diag[c] = {"passed": c not in failures, "value": c not in failures}
+        return diag
+
+    def test_long_comment_one_failure_accepted(self):
+        diag = self._make_diag(line_count=381, failures={"has_h3"})
+        self.assertTrue(_near_valid(diag))
+
+    def test_short_comment_one_failure_rejected(self):
+        diag = self._make_diag(line_count=100, failures={"has_h3"})
+        self.assertFalse(_near_valid(diag))
+
+    def test_long_comment_two_failures_rejected(self):
+        diag = self._make_diag(line_count=400, failures={"has_h3", "has_bash_block"})
+        self.assertFalse(_near_valid(diag))
+
+    def test_all_passing_long_is_near_valid(self):
+        diag = self._make_diag(line_count=350, failures=set())
+        self.assertTrue(_near_valid(diag))
+
+    def test_line_count_fail_below_300_rejected(self):
+        diag = self._make_diag(line_count=120, failures={"line_count"})
+        self.assertFalse(_near_valid(diag))
+
+    def test_line_count_fail_at_300_accepted(self):
+        diag = self._make_diag(line_count=300, failures=set())
+        diag["line_count"] = {"passed": False, "value": 300}
+        self.assertTrue(_near_valid(diag))
 
 
 class TestFallbackComment(unittest.TestCase):

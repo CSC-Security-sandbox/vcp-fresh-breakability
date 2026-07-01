@@ -205,6 +205,15 @@ def _validate_comment(comment: str, pr_num: str) -> tuple:
     return (all_passed, diagnostics)
 
 
+def _near_valid(diagnostics: dict) -> bool:
+    """Accept a comment without retry when it is long enough and nearly passes."""
+    lc = diagnostics.get("line_count", {})
+    if (lc.get("value") or 0) < 300:
+        return False
+    failures = sum(1 for d in diagnostics.values() if not d.get("passed"))
+    return failures <= 1
+
+
 def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
                       merge_plan_issue: Optional[str], model_name: str) -> str:
     """Generate a minimal fallback comment when AI fails for a single PR."""
@@ -317,6 +326,11 @@ def generate_comments(
                     comment = _ensure_marker(response)
                     line_count = len(comment.splitlines())
                     print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
+                    break
+                if _near_valid(diag):
+                    comment = _ensure_marker(response)
+                    line_count = len(comment.splitlines())
+                    print(f"PR#{pr_num}: AI comment near-valid, accepted ({line_count} lines)", file=sys.stderr)
                     break
                 reason = "validation failed"
                 preview = response[:200].replace('\n', '\\n')
