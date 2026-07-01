@@ -191,22 +191,34 @@ def _valid_v2(pr: Mapping[str, Any]) -> Optional[dict]:
 
 
 def _probe_escalation(pr: Mapping[str, Any], result: dict) -> dict:
-    """Post-determination check: if behavioral probe found DIFFERENT behavior,
-    a SAFE verdict must be escalated to REVIEW. A SAFE verdict on a PR where
-    the probe shows changed runtime exports is a false green."""
+    """Post-determination check: escalate SAFE → REVIEW when evidence contradicts.
+
+    Two guards:
+      1. Behavioral probe found DIFFERENT runtime behavior.
+      2. Rule 4+6: breaking changelog + reachable code + no passing tests.
+    """
     if result.get("verdict") != BUCKET_SAFE:
         return result
     bg = pr.get("behavioral_grade")
-    if not isinstance(bg, Mapping):
-        return result
-    if bg.get("same_behavior") is False or bg.get("behavior_changed") is True:
+    if isinstance(bg, Mapping):
+        if bg.get("same_behavior") is False or bg.get("behavior_changed") is True:
+            result = dict(result)
+            result["verdict"] = BUCKET_REVIEW
+            result["severity"] = max(result.get("severity", "medium"),
+                                     "medium", key=lambda s: _SEVERITY_RANK.get(s, 1))
+            result["source"] = result.get("source", "") + "+probe_escalation"
+            result["reason"] = (result.get("reason", "") +
+                                "; behavioral probe detected changed runtime behavior").lstrip("; ")
+            result["breakability_grade"] = assign_breakability_grade(pr, BUCKET_REVIEW)
+            return result
+    if _breaking_changelog_reachable_floor(pr):
         result = dict(result)
         result["verdict"] = BUCKET_REVIEW
         result["severity"] = max(result.get("severity", "medium"),
                                  "medium", key=lambda s: _SEVERITY_RANK.get(s, 1))
-        result["source"] = result.get("source", "") + "+probe_escalation"
+        result["source"] = result.get("source", "") + "+breaking_changelog_ai_override"
         result["reason"] = (result.get("reason", "") +
-                            "; behavioral probe detected changed runtime behavior").lstrip("; ")
+                            "; breaking changelog + reachable code + no passing tests (Rule 4)").lstrip("; ")
         result["breakability_grade"] = assign_breakability_grade(pr, BUCKET_REVIEW)
         return result
     return result

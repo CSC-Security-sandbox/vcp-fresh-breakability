@@ -224,6 +224,64 @@ class TestPreExistingTestFailure(unittest.TestCase):
         self.assertEqual(v["source"], "hard_fix_floor")
 
 
+class TestAIDowngradeBreakingChangelog(unittest.TestCase):
+    """Rule 4+6 via _probe_escalation: AI downgrade_to_safe must not bypass
+    breaking changelog + reachable + no passing tests."""
+
+    def test_probe_escalation_with_breaking_changelog_stays_review(self):
+        """NDM PR#66 fixture: AI says SAFE, but breaking changelog + reachable + no tests.
+        Rule 4 guard at authoritative_verdict line 369 fires first (higher precedence)."""
+        pr = _pr(
+            {"verdict": "REVIEW"},
+            ai_adjudication={"applied": "downgrade_to_safe", "evidence": "API still exported"},
+            behavioral_grade={"same_behavior": True},
+            deterministic={"changelogSignal": "breaking change: removed callback API"},
+            files_importing=["src/auth/JwtService.ts"],
+            test={"ran": False},
+        )
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_REVIEW)
+        self.assertIn("breaking_changelog", v.get("source", ""))
+
+    def test_ai_downgrade_safe_when_no_breaking_changelog(self):
+        """AI downgrade stays SAFE when changelog is clean."""
+        pr = _pr(
+            {"verdict": "REVIEW"},
+            ai_adjudication={"applied": "downgrade_to_safe", "evidence": "not imported"},
+            deterministic={"changelogSignal": "bug fixes only"},
+            files_importing=[],
+            test={"ran": False},
+        )
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_SAFE)
+
+    def test_ai_downgrade_safe_when_tests_pass(self):
+        """AI downgrade stays SAFE when tests passed (even with breaking changelog)."""
+        pr = _pr(
+            {"verdict": "REVIEW"},
+            ai_adjudication={"applied": "downgrade_to_safe", "evidence": "tests pass"},
+            deterministic={"changelogSignal": "### Breaking Changes\nRemoved old API"},
+            files_importing=["src/auth.ts"],
+            test={"ran": True, "exit": 0},
+        )
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_SAFE)
+
+    def test_probe_different_plus_breaking_changelog(self):
+        """Both probe mismatch and breaking changelog → REVIEW via Rule 4 (higher precedence)."""
+        pr = _pr(
+            {"verdict": "REVIEW"},
+            ai_adjudication={"applied": "downgrade_to_safe", "evidence": "minor"},
+            behavioral_grade={"same_behavior": False, "behavior_changed": True},
+            deterministic={"changelogSignal": "breaking change: API removed"},
+            files_importing=["src/auth.ts"],
+            test={"ran": False},
+        )
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_REVIEW)
+        self.assertIn("breaking_changelog", v.get("source", ""))
+
+
 class TestPrediction(unittest.TestCase):
     def test_glance_predicts_auto_clear(self):
         self.assertEqual(prediction_for_pr(_pr({"verdict": "GLANCE"})), PRED_AUTO_CLEAR)

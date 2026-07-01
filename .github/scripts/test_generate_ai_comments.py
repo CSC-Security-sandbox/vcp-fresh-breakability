@@ -15,6 +15,7 @@ from generate_ai_comments import (
     _ensure_marker,
     _extract_pr_data,
     _enforce_verdict_floor,
+    _normalize_verdict_text,
 )
 
 
@@ -434,6 +435,116 @@ class TestAllStubsDetection(unittest.TestCase):
         parts.extend([f"Line {i}" for i in range(150)])
         parts.append("Mode: Deterministic + Behavioral Probe")
         return "\n".join(parts)
+
+
+class TestNormalizeVerdictText(unittest.TestCase):
+    """_normalize_verdict_text maps non-standard H2 verdicts to SAFE/REVIEW/BLOCKED."""
+
+    def test_unverified_maps_to_review(self):
+        comment = "<!-- breakability-check -->\n## ❓ UNVERIFIED — `pkg` 1.0 → 2.0\nBody"
+        result = _normalize_verdict_text(comment, "77")
+        self.assertIn("REVIEW", result)
+        self.assertNotIn("UNVERIFIED", result)
+
+    def test_build_fails_maps_to_blocked(self):
+        comment = "<!-- breakability-check -->\n## ❌ BUILD_FAILS — `pkg` 1.0 → 2.0\nBody"
+        result = _normalize_verdict_text(comment, "99")
+        self.assertIn("BLOCKED", result)
+        self.assertNotIn("BUILD_FAILS", result)
+
+    def test_safe_unchanged(self):
+        comment = "<!-- breakability-check -->\n## ✅ SAFE — `lodash` 4.17.20 → 4.17.21\nBody"
+        result = _normalize_verdict_text(comment, "42")
+        self.assertIn("SAFE", result)
+
+    def test_review_unchanged(self):
+        comment = "<!-- breakability-check -->\n## ⚠️ REVIEW — `pkg` 1.0 → 2.0\nBody"
+        result = _normalize_verdict_text(comment, "42")
+        self.assertIn("REVIEW", result)
+
+    def test_inconclusive_maps_to_review(self):
+        comment = "<!-- breakability-check -->\n## ❓ INCONCLUSIVE — `pkg` 1.0 → 2.0\nBody"
+        result = _normalize_verdict_text(comment, "42")
+        self.assertIn("REVIEW", result)
+        self.assertNotIn("INCONCLUSIVE", result)
+
+
+class TestEnrichedFallbackComment(unittest.TestCase):
+    """Enriched fallback must have signal summary table and >= 40 lines."""
+
+    def test_fallback_line_count(self):
+        comment = _fallback_comment(SAMPLE_PR, "42", None, None, "claude-sonnet-4.5")
+        line_count = len(comment.strip().splitlines())
+        self.assertGreaterEqual(line_count, 40, f"Fallback is only {line_count} lines")
+
+    def test_fallback_has_signal_table(self):
+        comment = _fallback_comment(SAMPLE_PR, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("| Layer", comment)
+        table_rows = [l for l in comment.splitlines() if l.startswith("| ") and "---" not in l]
+        self.assertGreaterEqual(len(table_rows), 5, f"Only {len(table_rows)} table rows")
+
+    def test_fallback_has_verdict_logic(self):
+        comment = _fallback_comment(SAMPLE_PR, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("Authoritative verdict", comment)
+        self.assertIn("Breakability grade", comment)
+
+    def test_fallback_has_recommendation(self):
+        comment = _fallback_comment(SAMPLE_PR, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("### Recommendation", comment)
+        self.assertIn("1.", comment)
+
+    def test_fallback_with_files_importing(self):
+        pr = {**SAMPLE_PR, "files_importing": ["src/auth.ts", "src/api.ts"]}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("src/auth.ts", comment)
+        self.assertIn("Files importing", comment)
+
+    def test_fallback_with_probe_hashes(self):
+        pr = {**SAMPLE_PR, "behavioral_grade": {"same_behavior": True, "hashes": {"before": "abc123", "after": "abc123"}}}
+        comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("abc123", comment)
+        self.assertIn("SHA256", comment)
+
+    def test_fallback_has_ai_fallback_marker(self):
+        comment = _fallback_comment(SAMPLE_PR, "42", None, None, "claude-sonnet-4.5")
+        self.assertIn("<!-- ai-fallback -->", comment)
+
+
+class TestDiagnosticLogging(unittest.TestCase):
+    """Diagnostic JSON written when AI generation fails."""
+
+    def test_diagnostics_written_on_failure(self):
+        import tempfile
+        from unittest.mock import patch, MagicMock
+
+        diag_path = "/tmp/ai-comment-diagnostics.json"
+        if os.path.exists(diag_path):
+            os.remove(diag_path)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results_path = os.path.join(tmpdir, "build-results.json")
+            prompt_path = os.path.join(tmpdir, "prompt.md")
+            data = {"metadata": {"repo": "test/repo"}, "prs": {"42": {**SAMPLE_PR, "pr_num": "42"}}}
+            with open(results_path, "w") as f:
+                json.dump(data, f)
+            with open(prompt_path, "w") as f:
+                f.write("# Dummy prompt\n")
+
+            mock_backend = MagicMock()
+            mock_backend.model = "test-model"
+            mock_backend.invoke.return_value = ""
+
+            with patch("generate_ai_comments.Backend") as MockBackend:
+                MockBackend.from_env.return_value = mock_backend
+                from generate_ai_comments import generate_comments
+                generate_comments(data, prompt_path, model="test")
+
+            self.assertTrue(os.path.exists(diag_path), "Diagnostics file not written")
+            with open(diag_path) as f:
+                records = json.load(f)
+            self.assertGreater(len(records), 0)
+            self.assertEqual(records[0]["pr_num"], "42")
+            self.assertIn("gate_results", records[0])
 
 
 if __name__ == "__main__":

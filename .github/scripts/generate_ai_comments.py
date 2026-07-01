@@ -176,6 +176,38 @@ def _enforce_verdict_floor(comment: str, pr: Dict[str, Any], pr_num: str) -> str
     return comment
 
 
+def _normalize_verdict_text(comment: str, pr_num: str) -> str:
+    """Map non-standard verdict strings in the H2 header to valid buckets.
+
+    UNVERIFIED → REVIEW, BUILD_FAILS → BLOCKED, any other unknown → REVIEW.
+    """
+    VALID = {"SAFE", "REVIEW", "BLOCKED"}
+    KNOWN_MAP = {"UNVERIFIED": "REVIEW", "BUILD_FAILS": "BLOCKED", "INCONCLUSIVE": "REVIEW"}
+    EMOJI = {"SAFE": "✅", "REVIEW": "⚠️", "BLOCKED": "🚫"}
+
+    m = re.search(
+        r'^(##\s+[^\n]*?\b)(SAFE|REVIEW|BLOCKED|BUILD_FAILS|UNVERIFIED|INCONCLUSIVE|[A-Z][A-Z_]{3,})\b',
+        comment, re.MULTILINE,
+    )
+    if not m:
+        return comment
+    found = m.group(2)
+    if found in VALID:
+        return comment
+    mapped = KNOWN_MAP.get(found, "REVIEW")
+    print(
+        f"PR#{pr_num}: non-standard verdict '{found}' mapped to '{mapped}'",
+        file=sys.stderr,
+    )
+    comment = comment.replace(m.group(0), m.group(1) + mapped)
+    new_emoji = EMOJI.get(mapped, "⚠️")
+    for old in ("❓", "❔", "❌", "🔍", "🔎"):
+        if old in comment:
+            comment = comment.replace(old, new_emoji, 1)
+            break
+    return comment
+
+
 def _ensure_marker(comment: str) -> str:
     """Ensure the comment starts with the breakability marker."""
     marker = "<!-- breakability-check -->"
@@ -258,7 +290,7 @@ def _near_valid(diagnostics: dict) -> bool:
 
 def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
                       merge_plan_issue: Optional[str], model_name: str) -> str:
-    """Generate a minimal fallback comment when AI fails for a single PR."""
+    """Generate an enriched fallback comment with available signal data."""
     pkg = pr.get("package", "unknown")
     from_ver = pr.get("from", "?")
     to_ver = pr.get("to", "?")
@@ -271,22 +303,131 @@ def _fallback_comment(pr: Dict[str, Any], pr_num: str, run_url: Optional[str],
     emoji_map = {"SAFE": "✅", "BLOCKED": "🚫", "REVIEW": "⚠️"}
     emoji = emoji_map.get(verdict, "⚠️")
 
+    build = pr.get("build") or {}
+    test = pr.get("test") or {}
+    det = pr.get("deterministic") or {}
+    bg = pr.get("behavioral_grade") or {}
+    files_importing = pr.get("files_importing") or []
+
+    build_verdict = build.get("verdict", "unknown")
+    b_emoji = "✅" if build_verdict == "pass" else ("🚫" if build_verdict == "fail" else "❓")
+
+    test_ran = test.get("ran", False)
+    test_exit = test.get("exit")
+    if test_ran and test_exit == 0:
+        t_status = "✅ Passed"
+    elif test_ran and test_exit is not None:
+        t_status = f"❌ Failed (exit {test_exit})"
+    else:
+        t_status = "⏭️ Not executed"
+
+    probe_same = bg.get("same_behavior")
+    if probe_same is True:
+        p_status = "✅ Same behavior"
+    elif probe_same is False:
+        p_status = "⚠️ Different behavior"
+    else:
+        p_status = "⏭️ Not available"
+
+    reach_count = len(files_importing)
+    r_status = f"📦 {reach_count} file(s)" if reach_count > 0 else "✅ Not imported"
+
+    changelog_raw = det.get("changelogSignal", "unknown")
+    if isinstance(changelog_raw, dict):
+        changelog_raw = json.dumps(changelog_raw)
+    cl_short = (str(changelog_raw)[:50] + "…") if len(str(changelog_raw)) > 50 else str(changelog_raw)
+
+    api_changes = det.get("api_changes")
+    a_status = f"⚠️ {api_changes} changes" if api_changes else "✅ No changes"
+
     lines = [
         "<!-- breakability-check -->",
+        "<!-- ai-fallback -->",
         f"## {emoji} {verdict} — `{pkg}` {from_ver} → {to_ver} • {dep_type} • {bump}",
         "",
-        "| Check | Result |",
-        "|-------|--------|",
-        "| Build | ⚙️ Analysis incomplete — AI comment generation failed |",
+        "> **Note:** AI comment generation failed. This is an automated fallback with available signal data.",
         "",
-        "**Manual review required.** AI-powered analysis could not be completed for this PR.",
+        "### Signal Summary",
+        "",
+        "| Layer | Signal | Detail |",
+        "|-------|--------|--------|",
+        f"| Build | {b_emoji} {build_verdict.upper()} | Exit: {build.get('pr_exit', 'N/A')} |",
+        f"| Tests | {t_status} | {'Exit: ' + str(test_exit) if test_exit is not None else 'N/A'} |",
+        f"| Behavioral Probe | {p_status} | — |",
+        f"| Reachability | {r_status} | {'Direct import' if reach_count > 0 else 'Not reached'} |",
+        f"| Changelog | {cl_short} | — |",
+        f"| API Diff | {a_status} | — |",
+        "",
+        "### Verdict Logic",
+        "",
+        f"- **Authoritative verdict:** {verdict} (source: `{av.get('source', 'unknown')}`)",
+        f"- **Breakability grade:** {av.get('breakability_grade', 'N/A')}",
+        f"- **Severity:** {av.get('severity', 'N/A')} · **Priority:** {av.get('priority', 'N/A')}",
+        f"- **Reason:** {av.get('reason', 'N/A')}",
+        "",
+    ]
+
+    probe_hashes = bg.get("hashes") or bg.get("sha256")
+    if isinstance(probe_hashes, dict) and probe_hashes:
+        lines.append("<details><summary>Probe SHA256 hashes</summary>")
+        lines.append("")
+        lines.append("```")
+        for k, v in probe_hashes.items():
+            lines.append(f"{k}: {v}")
+        lines.extend(["```", "", "</details>", ""])
+
+    if files_importing:
+        lines.append("<details><summary>Files importing this package</summary>")
+        lines.append("")
+        for f_path in files_importing[:20]:
+            lines.append(f"- `{f_path}`")
+        if len(files_importing) > 20:
+            lines.append(f"- … and {len(files_importing) - 20} more")
+        lines.extend(["", "</details>", ""])
+
+    ecosystem = pr.get("ecosystem", "npm")
+    lines.extend([
+        "### How We Checked",
+        "",
+        f"- **Build:** Installed `{pkg}@{to_ver}` and ran full build",
+        f"- **Tests:** {'Executed test suite' if test_ran else 'No test execution available'}",
+        f"- **Behavioral probe:** {'Compared runtime exports before/after' if probe_same is not None else 'Not available for this package'}",
+        f"- **Reachability:** Scanned project source for direct imports of `{pkg}`",
+        f"- **Changelog:** Parsed release notes for breaking/deprecation signals",
+        "",
+        "<details><summary>Independent verification commands</summary>",
+        "",
+        "```bash",
+    ])
+    if ecosystem == "gomod":
+        lines.extend([
+            f"go get {pkg}@{to_ver}",
+            "go build ./...",
+            "go test ./...",
+        ])
+    else:
+        lines.extend([
+            f"npm install {pkg}@{to_ver}",
+            "npm run build",
+            "npm test",
+        ])
+    lines.extend([
+        "```",
+        "",
+        "</details>",
+        "",
+        "### Recommendation",
+        "",
+        "1. Review the changelog and release notes manually",
+        "2. Run the project's test suite locally",
+        "3. Check the files listed above for breaking API usage",
         "",
         f"📋 Merge plan: {plan_ref}",
         "",
         "---",
         f"Mode: Deterministic + Behavioral Probe · Model: {model_name} (fallback) · "
         f"Analyzed: {date.today().isoformat()}",
-    ]
+    ])
     if run_url:
         lines.append(f"[Analysis run]({run_url})")
 
@@ -338,6 +479,7 @@ def generate_comments(
 
     backend = Backend.from_env(model=model)
     comments = {}
+    diagnostics_log: list = []
 
     for pr_num, pr_data in sorted(pr_items, key=lambda x: int(x[0]) if x[0].isdigit() else 0):
         print(f"PR#{pr_num}: Generating AI comment (model={backend.model})...", file=sys.stderr)
@@ -374,23 +516,51 @@ def generate_comments(
                     line_count = len(comment.splitlines())
                     print(f"PR#{pr_num}: AI comment near-valid, accepted ({line_count} lines)", file=sys.stderr)
                     break
+                diagnostics_log.append({
+                    "pr_num": pr_num,
+                    "attempt": attempt,
+                    "response_length": len(response),
+                    "gate_results": {
+                        k: {"passed": v["passed"], "value": str(v.get("value", ""))}
+                        for k, v in diag.items()
+                    },
+                    "timestamp": date.today().isoformat(),
+                    "model": backend.model,
+                })
                 reason = "validation failed"
                 preview = response[:200].replace('\n', '\\n')
                 print(f"PR#{pr_num}: response preview ({len(response)} chars): {preview}", file=sys.stderr)
             else:
-                reason = f"empty response (0 chars)"
+                diagnostics_log.append({
+                    "pr_num": pr_num,
+                    "attempt": attempt,
+                    "response_length": 0,
+                    "gate_results": {"empty_response": {"passed": False, "value": "0"}},
+                    "timestamp": date.today().isoformat(),
+                    "model": backend.model,
+                })
+                reason = "empty response (0 chars)"
                 print(f"PR#{pr_num}: {reason}", file=sys.stderr)
             if attempt == 0:
                 print(f"PR#{pr_num}: AI call {reason}, retrying once...", file=sys.stderr)
 
         if comment:
             comment = _enforce_verdict_floor(comment, pr_data, pr_num)
+            comment = _normalize_verdict_text(comment, pr_num)
             comments[pr_num] = comment
         else:
             print(f"PR#{pr_num}: AI failed after retry, using fallback", file=sys.stderr)
             comments[pr_num] = _fallback_comment(
                 pr_data, pr_num, run_url, merge_plan_issue, model
             )
+
+    if diagnostics_log:
+        try:
+            with open("/tmp/ai-comment-diagnostics.json", "w") as f:
+                json.dump(diagnostics_log, f, indent=2)
+            print(f"Wrote {len(diagnostics_log)} diagnostic records to /tmp/ai-comment-diagnostics.json", file=sys.stderr)
+        except OSError:
+            pass
 
     return comments
 
@@ -437,7 +607,7 @@ def main():
     real_count = 0
     written = 0
     for pr_num, comment in comments.items():
-        is_stub = "AI comment generation failed" in comment or len(comment.strip().splitlines()) < 30
+        is_stub = "AI comment generation failed" in comment or "<!-- ai-fallback -->" in comment or len(comment.strip().splitlines()) < 30
         if is_stub:
             stub_count += 1
         else:
