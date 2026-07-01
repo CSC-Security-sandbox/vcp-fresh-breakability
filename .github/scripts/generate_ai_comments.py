@@ -128,10 +128,18 @@ def _build_per_pr_prompt(
     sections.append(
         "\n### OUTPUT INSTRUCTIONS\n"
         "Generate the COMPLETE PR comment in markdown. Start with `<!-- breakability-check -->` "
-        "on the first line. Follow the visual format templates from Section 4/5 of the prompt. "
-        "Include ALL sections: headline, findings table, 'How we checked' checklist, "
-        "verification level, recommendation, and footer. "
-        "Output ONLY the markdown comment — no preamble, no explanation.\n"
+        "on the first line. Follow the visual format templates from Section 4/5 of the prompt.\n\n"
+        "MANDATORY REQUIREMENTS:\n"
+        "- The comment MUST be at least 150 lines long. Aim for 200-300 lines.\n"
+        "- Include ALL sections: headline, signal summary table (7 rows), per-layer narrative "
+        "(Build Analysis, Test Analysis, etc. with 'What we checked' bullets and actual "
+        "stdout/stderr in code blocks), behavioral probe with SHA256 hashes, reachability "
+        "with file:line references, policy decision pseudocode, final recommendation with "
+        "numbered steps, and independent verification resources.\n"
+        "- MUST include at least one ```bash code block with reproducible verification commands.\n"
+        "- MUST include numbered action steps (1. 2. 3.) in the recommendation section.\n"
+        "- Each per-layer section needs a confidence rating (HIGH/MEDIUM/LOW) with reasoning.\n"
+        "- Output ONLY the markdown comment — no preamble, no explanation.\n"
     )
 
     return "\n".join(sections)
@@ -311,6 +319,8 @@ def generate_comments(
                     print(f"PR#{pr_num}: AI comment generated ({line_count} lines)", file=sys.stderr)
                     break
                 reason = "validation failed"
+                preview = response[:200].replace('\n', '\\n')
+                print(f"PR#{pr_num}: response preview ({len(response)} chars): {preview}", file=sys.stderr)
             else:
                 reason = f"empty response (0 chars)"
                 print(f"PR#{pr_num}: {reason}", file=sys.stderr)

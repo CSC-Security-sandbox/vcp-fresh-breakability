@@ -99,6 +99,7 @@ def _normalize_test(test: Dict) -> Dict[str, Any]:
             output = test.get("output_tail", "")
             if "no test specified" in output or "Error: no test specified" in output:
                 verdict = "skip"
+                ran = False
                 reason = "No test suite configured"
             else:
                 verdict = "fail"

@@ -385,6 +385,7 @@ jobs:
       - name: AI backend pre-flight check
         if: always()
         id: ai_preflight
+        continue-on-error: true
         run: |
           echo "════════════ AI PREFLIGHT CHECK ════════════"
           cd .github/scripts
@@ -396,8 +397,8 @@ jobs:
           ok, err = b.preflight_check()
           print(f'AI preflight: ok={ok}, err={err}', file=sys.stderr)
           sys.exit(0 if ok else 1)
-          "
-          if [ $? -eq 0 ]; then
+          " && PREFLIGHT_OK=true || PREFLIGHT_OK=false
+          if [ "$PREFLIGHT_OK" = "true" ]; then
             echo "ai_preflight=true" >> $GITHUB_OUTPUT
             echo "✅ AI backend is reachable"
           else
@@ -443,7 +444,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        timeout-minutes: 30
+        timeout-minutes: 60
 
       - name: Fallback to template renderer
         if: always() && steps.ai_comments.outputs.ai_comments != 'true'
@@ -465,6 +466,11 @@ jobs:
           for comment_file in /tmp/pr-*-comment.md; do
             if [ -f "$comment_file" ]; then
               pr_num=$(basename "$comment_file" | sed 's/pr-\([0-9]*\)-comment.md/\1/')
+              pr_state=$(gh pr view "$pr_num" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+              if [ "$pr_state" != "OPEN" ]; then
+                echo "⏭️ Skipping PR #$pr_num (state=$pr_state)"
+                continue
+              fi
               echo "📤 Posting comment to PR #$pr_num"
               if gh pr comment "$pr_num" --body-file "$comment_file"; then
                 POSTED=$((POSTED + 1))
