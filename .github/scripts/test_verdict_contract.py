@@ -185,6 +185,45 @@ class TestBreakingChangelogReachableFloor(unittest.TestCase):
         self.assertEqual(v["source"], "breaking_changelog_reachable_floor")
 
 
+class TestPreExistingTestFailure(unittest.TestCase):
+    """Rule 1b: pre-existing test failures (same exit code on main) get REVIEW, not BLOCKED."""
+
+    def test_new_test_failure_gets_blocked(self):
+        pr = _pr({"verdict": "MERGE"},
+                 build={"verdict": "pass"},
+                 test={"ran": True, "exit": 1, "main_test_exit": 0, "output_tail": "FAILED"})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_BLOCKED)
+        self.assertEqual(v["source"], "hard_fix_floor")
+
+    def test_preexisting_test_failure_gets_review(self):
+        """VCP PR#23 scenario: test fails on both PR and main with same exit code."""
+        pr = _pr({"verdict": "REVIEW"},
+                 build={"verdict": "pass"},
+                 test={"ran": True, "exit": 1, "main_test_exit": 1, "output_tail": "FAILED"})
+        v = authoritative_verdict(pr)
+        self.assertNotEqual(v["verdict"], BUCKET_BLOCKED)
+        self.assertNotEqual(v["source"], "hard_fix_floor")
+
+    def test_preexisting_test_failure_no_main_exit_gets_blocked(self):
+        """If main_test_exit is absent, assume new failure → BLOCKED."""
+        pr = _pr({"verdict": "MERGE"},
+                 build={"verdict": "pass"},
+                 test={"ran": True, "exit": 1, "output_tail": "FAILED"})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_BLOCKED)
+        self.assertEqual(v["source"], "hard_fix_floor")
+
+    def test_different_exit_codes_gets_blocked(self):
+        """Different exit codes means the upgrade changed the failure mode → BLOCKED."""
+        pr = _pr({"verdict": "MERGE"},
+                 build={"verdict": "pass"},
+                 test={"ran": True, "exit": 2, "main_test_exit": 1, "output_tail": "FAILED"})
+        v = authoritative_verdict(pr)
+        self.assertEqual(v["verdict"], BUCKET_BLOCKED)
+        self.assertEqual(v["source"], "hard_fix_floor")
+
+
 class TestPrediction(unittest.TestCase):
     def test_glance_predicts_auto_clear(self):
         self.assertEqual(prediction_for_pr(_pr({"verdict": "GLANCE"})), PRED_AUTO_CLEAR)

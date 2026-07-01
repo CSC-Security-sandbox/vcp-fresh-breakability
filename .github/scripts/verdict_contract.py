@@ -143,10 +143,23 @@ def _policy_decision(pr: Mapping[str, Any]) -> dict:
     return dec if isinstance(dec, Mapping) else {}
 
 
+def _is_preexisting_test_failure(pr: Mapping[str, Any]) -> bool:
+    """True when the test failure exists on main with the same exit code."""
+    test = pr.get("test") or {}
+    test_exit = test.get("exit")
+    main_exit = test.get("main_test_exit")
+    if test_exit is None or main_exit is None:
+        return False
+    return test_exit != 0 and main_exit != 0 and test_exit == main_exit
+
+
 def _hard_fix_floor(pr: Mapping[str, Any]) -> bool:
     """States that MUST be FIX/BLOCKED and can never be downgraded (false-green floor):
-    a build that does not compile, new build errors introduced, test failures,
+    a build that does not compile, new build errors introduced, NEW test failures,
     or a policy decision that introduced a security finding.
+
+    Pre-existing test failures (same exit code on main) are excluded — they get
+    REVIEW via the normal path, not BLOCKED.
     """
     build_verdict = (pr.get("build") or {}).get("verdict", "")
     if build_verdict in ("fail", "pre_existing_plus_new"):
@@ -159,11 +172,13 @@ def _hard_fix_floor(pr: Mapping[str, Any]) -> bool:
     if test_ran and test_exit is not None and test_exit != 0:
         output = test.get("output_tail", "") or ""
         if "no test specified" not in output and "Error: no test specified" not in output:
-            return True
+            if not _is_preexisting_test_failure(pr):
+                return True
     if test.get("verdict") == "fail":
         output = test.get("output_tail", "") or ""
         if "no test specified" not in output and "Error: no test specified" not in output:
-            return True
+            if not _is_preexisting_test_failure(pr):
+                return True
     rc = str(_policy_decision(pr).get("reason_code") or "")
     return rc.startswith("build:") or rc == "security:introduced"
 

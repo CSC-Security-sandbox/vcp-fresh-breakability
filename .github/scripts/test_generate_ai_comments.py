@@ -14,6 +14,7 @@ from generate_ai_comments import (
     _fallback_comment,
     _ensure_marker,
     _extract_pr_data,
+    _enforce_verdict_floor,
 )
 
 
@@ -27,6 +28,7 @@ SAMPLE_PR = {
     "build": {"verdict": "pass", "pr_exit": 0},
     "test": {"ran": True, "exit": 0},
     "deterministic": {"api_changes": 0, "changelogSignal": "clean"},
+    "verdict_v2": {"verdict": "SAFE", "severity": "low", "confidence": "L4", "priority": "P3"},
 }
 
 
@@ -108,6 +110,33 @@ class TestValidateComment(unittest.TestCase):
         expected = {"line_count", "has_h2", "has_signal_table", "has_h3",
                     "has_mode_footer", "has_numbered_list", "has_bash_block", "has_reachability"}
         self.assertEqual(set(diag.keys()), expected)
+
+    def test_verdict_mismatch_detected(self):
+        """When AI says SAFE but contract says REVIEW, validation fails with verdict_mismatch."""
+        comment = self._make_comment(lines=170)
+        pr = {
+            "package": "jwks-rsa", "build": {"verdict": "pass"},
+            "test": {"ran": False},
+            "behavioral_grade": {"same_behavior": False, "behavior_changed": True},
+            "files_importing": ["src/auth.ts"],
+            "policy_lowering": {"decision": {"verdict": "MERGE"}},
+        }
+        passed, diag = _validate_comment(comment, "42", pr)
+        self.assertFalse(passed)
+        self.assertIn("verdict_mismatch", diag)
+        self.assertFalse(diag["verdict_mismatch"]["passed"])
+        self.assertIn("AI=SAFE", diag["verdict_mismatch"]["value"])
+
+    def test_no_verdict_mismatch_when_agreement(self):
+        """When AI and contract agree, no verdict_mismatch diagnostic."""
+        comment = self._make_comment(lines=170)
+        pr = {
+            "package": "lodash", "build": {"verdict": "pass"},
+            "test": {"ran": True, "exit": 0},
+            "verdict_v2": {"verdict": "SAFE", "severity": "low", "confidence": "L4", "priority": "P3"},
+        }
+        passed, diag = _validate_comment(comment, "42", pr)
+        self.assertNotIn("verdict_mismatch", diag)
 
 
 class TestNearValid(unittest.TestCase):
@@ -251,9 +280,56 @@ class TestFallbackVerdictDisplay(unittest.TestCase):
     def test_review_verdict_without_verdict_v2(self):
         pr = {**SAMPLE_PR, "build": {"verdict": "pass", "pr_exit": 0},
               "test": {"ran": True, "exit": 0}}
+        del pr["verdict_v2"]
         comment = _fallback_comment(pr, "42", None, None, "claude-sonnet-4.5")
         self.assertIn("REVIEW", comment)
         self.assertIn("⚠️", comment)
+
+
+class TestEnforceVerdictFloor(unittest.TestCase):
+    """_enforce_verdict_floor must override AI verdict when contract disagrees."""
+
+    def test_safe_overridden_to_review_when_probe_different(self):
+        comment = "<!-- breakability-check -->\n## ✅ SAFE — `jwks-rsa` 3.2.2 → 4.1.0\nBody here"
+        pr = {
+            "package": "jwks-rsa", "from": "3.2.2", "to": "4.1.0",
+            "build": {"verdict": "pass"}, "test": {"ran": False},
+            "behavioral_grade": {"same_behavior": False, "behavior_changed": True},
+            "files_importing": ["src/auth.ts"],
+            "policy_lowering": {"decision": {"verdict": "MERGE"}},
+        }
+        result = _enforce_verdict_floor(comment, pr, "66")
+        self.assertIn("REVIEW", result)
+        self.assertNotIn("✅ SAFE", result)
+
+    def test_review_not_overridden_when_contract_agrees(self):
+        comment = "<!-- breakability-check -->\n## ⚠️ REVIEW — `lodash` 4.17.20 → 4.17.21\nBody"
+        pr = {
+            "package": "lodash", "build": {"verdict": "pass"},
+            "test": {"ran": True, "exit": 0},
+            "policy_lowering": {"decision": {"verdict": "REVIEW"}},
+        }
+        result = _enforce_verdict_floor(comment, pr, "42")
+        self.assertIn("REVIEW", result)
+
+    def test_safe_stays_safe_when_contract_agrees(self):
+        comment = "<!-- breakability-check -->\n## ✅ SAFE — `lodash` 4.17.20 → 4.17.21\nBody"
+        pr = {
+            "package": "lodash", "build": {"verdict": "pass"},
+            "test": {"ran": True, "exit": 0},
+            "verdict_v2": {"verdict": "SAFE", "severity": "low", "confidence": "L4", "priority": "P3"},
+        }
+        result = _enforce_verdict_floor(comment, pr, "42")
+        self.assertIn("SAFE", result)
+
+    def test_blocked_never_downgraded(self):
+        comment = "<!-- breakability-check -->\n## 🚫 BLOCKED — `pkg` 1.0 → 2.0\nBody"
+        pr = {
+            "package": "pkg", "build": {"verdict": "fail"},
+            "test": {"ran": False},
+        }
+        result = _enforce_verdict_floor(comment, pr, "99")
+        self.assertIn("BLOCKED", result)
 
 
 class TestAllStubsDetection(unittest.TestCase):

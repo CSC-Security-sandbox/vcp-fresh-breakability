@@ -237,6 +237,8 @@ Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — i
 
 0. **`mergeable_status == "CONFLICTING"`** → **CONFLICTED**. Post a one-liner: `## ⚠️ CONFLICTED — rebase required before analysis`. Do not analyze further. In the merge plan, list in the "⚠️ Conflicted" section.
 1. **`build.verdict == "fail"`** (and main passes) → **BUILD_FAILS**. Non-negotiable.
+1a. **Test failure AND failure is NEW** (test exit ≠ 0 but `main_test_exit` is 0 or absent) → **BLOCKED**. The upgrade broke tests.
+1b. **Test failure AND failure is PRE-EXISTING** (test exit ≠ 0 AND `main_test_exit` has the same non-zero exit code) → **REVIEW** with note: "Pre-existing test failure (same result on main — not caused by this upgrade)." Do NOT use BLOCKED for pre-existing test failures.
 2. **`build.install_method == "infra_error"`** → **REVIEW** (infrastructure issue, not a build failure from the upgrade). Say "Build verification blocked by infrastructure error."
 3. **`build.verdict == "pre_existing_plus_new"`** → Check `build.new_errors`. Infrastructure artifact errors (e.g., `Cannot find module '@org/*'`, missing `rxjs`) have already been filtered by the deterministic layer. If `new_errors` is non-empty after filtering, these are genuinely new errors → **BUILD_FAILS**. If `new_errors` is empty (all were filtered as infra artifacts), this has been downgraded to `pre_existing` — treat per rule 4.
 4. **`build.verdict == "pre_existing"`** (both fail, no new errors) → Build is neutral — **this failure exists on `main` and is NOT caused by the dependency upgrade**. The Build row in the PR comment MUST say: "✅ Pass (verified — same result as main baseline)". Do NOT use the word "error" or "failure" in the Build row for pre_existing verdicts — the upgrade didn't break anything.
@@ -245,10 +247,12 @@ Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — i
    - If `verification_level == 1` AND `bump == "major"` AND `dep_type == "production"` → **REVIEW**. Major production upgrades without type verification need human review.
    - If `install_ok == false` → **REVIEW** for major production deps, **UNVERIFIED** for dev/patch deps.
    - Never use ❌ BUILD_FAILS for `pre_existing` verdicts.
+4c. **Breaking changelog + reachable code + no passing tests** → **REVIEW** minimum. If the changelog declares breaking changes (or deprecations) AND `files_importing` is non-empty AND tests did not run or did not pass, verdict MUST be **REVIEW** or **BLOCKED**, never SAFE. A declared breaking change in a reachable dependency without test verification is a false-green risk.
 5. **Build passes + 0 API changes + 0 behavioral concerns** → **SAFE** (but see rule 5a)
 5a. **Major bump + 0 imports + production dep** → **REVIEW**, not SAFE. A major version bump of a production dependency with zero detected imports is suspicious: either the package is dead code (surface this finding) or the usage is via a path the scanner doesn't detect (dynamic require, framework magic, transitive runtime dependency). An ESM-only migration warning (CJS→ESM) should escalate to REVIEW. Say: "0 imports detected — verify this dependency is still needed or is consumed indirectly."
 5b. **Multi-package PRs** (`additional_packages` is non-empty): List ALL packages in the comment headline (e.g., `## ✅ SAFE — jest + @types/jest 29.7 → 30.3`). If the primary package is SAFE but an additional package has known breaking changes (e.g., `@types/jest` major bump removes types), escalate to **REVIEW**. The usage scan and build cover ALL packages in the directory, but the comment must mention each one.
 6. **Build passes + API changes that DON'T affect used symbols** → **SAFE**
+6a. **Behavioral probe status is DIFFERENT AND `files_importing` is non-empty** → verdict MUST be **REVIEW** or **BLOCKED**, never SAFE, regardless of change nature (metadata-only, engines field, etc.). A probe that detects changed runtime behavior in a reachable dependency is a false-green risk. This rule applies even when the change looks cosmetic — the probe measures actual exported behavior, not changelog claims.
 7. **Build passes + API changes that DO affect used symbols** → **REVIEW** or **BUILD_FAILS** based on verification
 8. **`ecosystem == "actions"`** → **SAFE** always. One-liner.
 9. **`ecosystem == "docker"`** → **REVIEW** only if base image major version changed, otherwise SAFE.
@@ -272,6 +276,8 @@ Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — i
     - `not_installed` / `unknown`: `| Security | ℹ️ govulncheck: scan skipped |`
     - **CRITICAL:** Do NOT conflate pre-existing vulns with PR-introduced vulns. The `vuln_new_findings` array is the authoritative list of what this PR actually introduces. If `vuln_new_findings` is empty, the PR introduces nothing new regardless of `vuln_preexisting_count`.
     - **Merge plan:** Use top-level `govulncheck` block (`main_baseline.findings`) for the Security Posture section. Show repo-wide pre-existing vulns separately from PR-introduced ones. Add a 🚨 banner ONLY if `prs_with_new_vulns > 0`.
+
+22. **All signals inconclusive:** When build has pre-existing failure, tests have pre-existing failure, probe failed or was inconclusive, and API diff is inconclusive, use verdict **REVIEW** (not UNVERIFIED or any non-standard verdict) with note: "All signals inconclusive — manual verification required." The standard verdict set is SAFE/REVIEW/BLOCKED/BUILD_FAILS only. Never emit UNVERIFIED as a verdict — map it to REVIEW with an explanatory note.
 
 ---
 

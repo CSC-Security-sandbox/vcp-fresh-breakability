@@ -208,13 +208,14 @@ def _build_merge_plan_prompt(base_prompt: str, data: Dict[str, Any],
 
     sections.append(
         "\n### OUTPUT INSTRUCTIONS\n"
+        "Start your response with `# Breakability Merge Plan` — no preamble, "
+        "no code fences, no conversational text before the heading. "
         "Generate the COMPLETE merge plan body in markdown. "
-        "Start with `# Breakability Merge Plan`. "
         "Include: repo/date header, coordinated upgrades, "
         "Safe/Review/Blocked/Unverified tables, security posture, "
         "summary stats, and footer. "
         "Order tables by merge priority. "
-        "Output ONLY the markdown — no preamble.\n"
+        "Output ONLY the markdown — do NOT wrap in ```markdown``` fences.\n"
     )
 
     return "\n".join(sections)
@@ -227,14 +228,8 @@ def _strip_preamble(text: str) -> str:
     """Remove conversational preamble before the first '# ' heading and strip code fences."""
     text = _re.sub(r'^```(?:markdown)?\s*\n', '', text)
     text = _re.sub(r'\n```\s*$', '', text)
-    idx = text.find('\n# ')
-    if idx == -1:
-        if text.startswith('# '):
-            return text
-        return text
-    if idx == 0:
-        return text[1:]
-    return text[idx + 1:]
+    text = _re.sub(r"^[^#]*(?=# )", "", text, count=1, flags=_re.DOTALL)
+    return text
 
 
 def generate_merge_plan(data: Dict[str, Any], prompt_path: Optional[str] = None,

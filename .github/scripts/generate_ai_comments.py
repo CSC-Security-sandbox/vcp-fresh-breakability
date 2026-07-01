@@ -145,6 +145,37 @@ def _build_per_pr_prompt(
     return "\n".join(sections)
 
 
+def _enforce_verdict_floor(comment: str, pr: Dict[str, Any], pr_num: str) -> str:
+    """Post-processing guard: ensure AI verdict does not undercut authoritative_verdict().
+
+    If the AI says SAFE but verdict_contract says REVIEW or BLOCKED, replace the
+    verdict in the H2 headline to match the contract. Logs a warning when overriding.
+    """
+    av = authoritative_verdict(pr)
+    contract_verdict = av.get("verdict", "REVIEW")
+    m = re.search(r'^(##\s+[^\n]*?\b)(SAFE|REVIEW|BLOCKED|BUILD_FAILS)\b', comment, re.MULTILINE)
+    if not m:
+        return comment
+    ai_verdict = m.group(2)
+    severity_order = {"SAFE": 0, "REVIEW": 1, "BLOCKED": 2, "BUILD_FAILS": 3}
+    ai_sev = severity_order.get(ai_verdict, 1)
+    contract_sev = severity_order.get(contract_verdict, 1)
+    if ai_sev < contract_sev:
+        print(
+            f"PR#{pr_num}: verdict floor enforcement — AI said {ai_verdict}, "
+            f"contract says {contract_verdict} (source={av.get('source', '?')}). Overriding.",
+            file=sys.stderr,
+        )
+        emoji_map = {"SAFE": "✅", "REVIEW": "⚠️", "BLOCKED": "🚫", "BUILD_FAILS": "❌"}
+        old_emoji = emoji_map.get(ai_verdict, "")
+        new_emoji = emoji_map.get(contract_verdict, "⚠️")
+        comment = comment.replace(m.group(0), m.group(0).replace(ai_verdict, contract_verdict))
+        if old_emoji and new_emoji and old_emoji != new_emoji:
+            comment = comment.replace(old_emoji, new_emoji, 1)
+        return comment
+    return comment
+
+
 def _ensure_marker(comment: str) -> str:
     """Ensure the comment starts with the breakability marker."""
     marker = "<!-- breakability-check -->"
@@ -154,15 +185,14 @@ def _ensure_marker(comment: str) -> str:
     return stripped
 
 
-def _validate_comment(comment: str, pr_num: str) -> tuple:
+def _validate_comment(comment: str, pr_num: str, pr_data: Dict[str, Any] = None) -> tuple:
     """Validate that the AI output meets golden standard quality bars.
 
     Returns (passed: bool, diagnostics: dict) where diagnostics maps each
     criterion to {passed: bool, value: any}.
 
-    Checks 8 of 13 golden features: line count, H2 headers, signal table,
-    H3 subsections, Mode footer, numbered recommendations, verification
-    commands, and reachability section.
+    Checks 8 of 13 golden features plus verdict consistency against
+    authoritative_verdict() when pr_data is provided.
     """
     line_count = len(comment.strip().splitlines())
     comment_lower = comment.lower()
@@ -189,6 +219,18 @@ def _validate_comment(comment: str, pr_num: str) -> tuple:
             "value": "reachab" in comment_lower or "import" in comment_lower,
         },
     }
+
+    if pr_data is not None:
+        severity_order = {"SAFE": 0, "REVIEW": 1, "BLOCKED": 2, "BUILD_FAILS": 3}
+        av = authoritative_verdict(pr_data)
+        contract_verdict = av.get("verdict", "REVIEW")
+        m = re.search(r'^##\s+[^\n]*?\b(SAFE|REVIEW|BLOCKED|BUILD_FAILS)\b', comment, re.MULTILINE)
+        ai_verdict = m.group(1) if m else None
+        if ai_verdict and severity_order.get(ai_verdict, 1) < severity_order.get(contract_verdict, 1):
+            diagnostics["verdict_mismatch"] = {
+                "passed": False,
+                "value": f"AI={ai_verdict} contract={contract_verdict} (source={av.get('source', '?')})",
+            }
 
     all_passed = all(d["passed"] for d in diagnostics.values())
 
@@ -321,7 +363,7 @@ def generate_comments(
             )
 
             if response:
-                valid, diag = _validate_comment(response, pr_num)
+                valid, diag = _validate_comment(response, pr_num, pr_data)
                 if valid:
                     comment = _ensure_marker(response)
                     line_count = len(comment.splitlines())
@@ -342,6 +384,7 @@ def generate_comments(
                 print(f"PR#{pr_num}: AI call {reason}, retrying once...", file=sys.stderr)
 
         if comment:
+            comment = _enforce_verdict_floor(comment, pr_data, pr_num)
             comments[pr_num] = comment
         else:
             print(f"PR#{pr_num}: AI failed after retry, using fallback", file=sys.stderr)
