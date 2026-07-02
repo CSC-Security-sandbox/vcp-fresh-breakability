@@ -25,9 +25,9 @@ require (
 	github.com/robfig/cron v1.2.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
-	go.opentelemetry.io/otel v1.40.0
-	go.opentelemetry.io/otel/metric v1.40.0
-	go.opentelemetry.io/otel/trace v1.40.0
+	go.opentelemetry.io/otel v1.41.0
+	go.opentelemetry.io/otel/metric v1.41.0
+	go.opentelemetry.io/otel/trace v1.41.0
 	go.temporal.io/sdk v1.33.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/sync v0.19.0
