@@ -139,6 +139,9 @@ def _build_per_pr_prompt(
         "- MUST include at least one ```bash code block with reproducible verification commands.\n"
         "- MUST include numbered action steps (1. 2. 3.) in the recommendation section.\n"
         "- Each per-layer section needs a confidence rating (HIGH/MEDIUM/LOW) with reasoning.\n"
+        "- MAXIMUM 350 lines. If your comment exceeds 350 lines, trim the least essential "
+        "sections (verbose output blocks, redundant changelog excerpts) while keeping all "
+        "13 required features.\n"
         "- Output ONLY the markdown comment — no preamble, no explanation.\n"
     )
 

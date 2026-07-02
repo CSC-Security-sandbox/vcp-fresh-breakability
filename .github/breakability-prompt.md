@@ -279,6 +279,8 @@ Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — i
 
 22. **All signals inconclusive:** When build has pre-existing failure, tests have pre-existing failure, probe failed or was inconclusive, and API diff is inconclusive, use verdict **REVIEW** (not UNVERIFIED or any non-standard verdict) with note: "All signals inconclusive — manual verification required." The standard verdict set is SAFE/REVIEW/BLOCKED/BUILD_FAILS only. Never emit UNVERIFIED as a verdict — map it to REVIEW with an explanatory note.
 
+23. **Coordinated upgrade groups (Rule 7):** If a PR is part of a coordinated upgrade group identified in the merge plan (e.g., `cross_pr_deps` entries or peer packages like `@opentelemetry/*` that must merge together), verdict MAY be elevated from SAFE to **REVIEW** with an explicit coordination note: "⚠️ Part of coordinated upgrade group with PR(s) #NNN — merge together to avoid version mismatch." Cite this rule in the verdict logic pseudocode (e.g., `IF coordination_group AND peer_prs_pending THEN REVIEW (Rule 7: coordinated upgrade)`). This ensures the headline verdict is consistent with the internal verdict logic when coordination drives the elevation.
+
 ---
 
 ## 5 — Comment Formats (Visual UX)
