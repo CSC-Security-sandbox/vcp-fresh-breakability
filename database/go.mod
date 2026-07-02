@@ -1,12 +1,12 @@
 module github.com/vcp-vsa-control-Plane/vsa-control-plane/database
 
-go 1.24.13
+go 1.25.0
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stretchr/testify v1.11.1
@@ -137,7 +137,10 @@ require (
 
 require github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core v0.0.0 // indirect
 
-require github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
+require (
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
+)
 
 replace (
 	github.com/vcp-vsa-control-Plane/vsa-control-plane => ../
